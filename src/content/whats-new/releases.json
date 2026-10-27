@@ -1,6 +1,27 @@
 {
 	"releases": [
 		{
+			"version": "1.104.0",
+			"versionCode": 121,
+			"date": "2026-10-26",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Getting to know you now asks whether you have been saved. Tap the word \"saved\" to read what it means, straight from the King James Bible.",
+						"SureWord now asks how long you have walked with the Lord, and invites you to share your testimony in your own words."
+					]
+				},
+				{
+					"kind": "improved",
+					"items": [
+						"The welcome explains why it asks: every answer, every prayer and each morning's verse is shaped by what you share.",
+						"Each welcome message ends with one card, never two."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.103.0",
 			"versionCode": 120,
 			"date": "2026-10-26",

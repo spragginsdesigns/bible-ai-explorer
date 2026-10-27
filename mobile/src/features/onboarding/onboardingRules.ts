@@ -350,10 +350,65 @@ export function expectedStep(
 	const text = reply.trim();
 	if (lastStep === "faith" && /^still seeking/i.test(text)) return null;
 	if (text.endsWith("?")) return lastStep;
-	let next: Exclude<OnboardingStep, "other"> | null =
-		lastStep === "faith" && /^newly saved/i.test(text) ? "testimony" : WELCOME_STEP_ORDER[WELCOME_STEP_ORDER.indexOf(lastStep) + 1] ?? null;
+	let next: Exclude<OnboardingStep, "other"> | null;
+	if (lastStep === "faith") {
+		// Only a tapped believer answer leads on to the walk. A typed answer may
+		// be someone unsure they are saved ("I don't think so"), who must never
+		// be asked how long they have walked with the Lord, so the model judges
+		// it; a skipped faith step skips walk and testimony too.
+		const tapped = FAITH_OPTIONS.find((option) => option.toLowerCase() === text.toLowerCase());
+		if (text.toLowerCase() === STEP_CARDS.faith.skipLabel.toLowerCase()) next = "church";
+		else if (!tapped || tapped === FAITH_OPTIONS[5]) return null;
+		else next = tapped === "Newly saved" ? "testimony" : "walk";
+	} else {
+		const index = WELCOME_STEP_ORDER.indexOf(lastStep);
+		next = index < 0 ? null : WELCOME_STEP_ORDER[index + 1] ?? null;
+	}
 	if (next === "testimony" && known.testimony) next = "church";
 	return next;
+}
+
+/**
+ * Steps added after the Apple 1.26.0 build, which drops a card whose step it
+ * does not know. A client that does not send `x-sureword-cards` gets these as
+ * plain cards (step "other", same question and answers), which every build
+ * draws; the welcome still routes by the tool input's step.
+ */
+export const LATE_STEPS: readonly OnboardingStep[] = ["walk", "testimony"];
+
+/**
+ * Tools whose result SureWord never has to talk about, so they can share a
+ * step with the card that ends the message. Anything else (getDailyCross,
+ * listSermonStudies, findChurch, setChurch, which leads to the sermon
+ * studies...) needs another step to tell them what it
+ * found, and the loop runs on.
+ */
+const NO_FOLLOW_UP_TOOLS: ReadonlySet<string> = new Set([
+	"presentChoices",
+	"saveMemory",
+	"updateMemory",
+	"saveTestimony",
+	"saveAboutMe",
+	"showInApp",
+	"finishOnboarding",
+]);
+
+/**
+ * True when a step's tool calls end the message: it showed a welcome card and
+ * called nothing that needs a reply. Another step after a card rewrote the
+ * same sentences and sometimes drew the card twice (2026-10-26).
+ */
+export function cardEndsMessage(toolNames: readonly string[]): boolean {
+	return toolNames.includes("presentChoices") && toolNames.every((name) => NO_FOLLOW_UP_TOOLS.has(name));
+}
+
+/** The header (and value) an Apple build sends when it draws every step above. */
+export const CARDS_HEADER = "x-sureword-cards";
+export const CARDS_VERSION = "2";
+
+/** The card as a client without the newer steps can draw it. */
+export function cardForLegacyClient(card: ChoiceCardOutput): ChoiceCardOutput {
+	return LATE_STEPS.includes(card.step) ? { ...card, step: "other", terms: [] } : card;
 }
 
 /**

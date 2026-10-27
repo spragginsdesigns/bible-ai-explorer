@@ -5,7 +5,6 @@ import {
 	createIdGenerator,
 	createUIMessageStream,
 	createUIMessageStreamResponse,
-	hasToolCall,
 	isStepCount,
 	streamText,
 	toUIMessageStream,
@@ -622,7 +621,7 @@ async function persistAssistantResponse(options: {
 
 import { meterAsOnboarding, withIncludedAiRequest, reserveIncludedRequest } from "@/lib/billing/usage";
 import { isOnboardingTurn, needsTextInterview } from "@/lib/onboarding";
-import { expectedStep, isOnboardingStep, owedStep, resolveChoiceCard, type OnboardingStep } from "@/lib/onboarding-rules";
+import { CARDS_HEADER, CARDS_VERSION, cardEndsMessage, cardForLegacyClient, expectedStep, isOnboardingStep, owedStep, resolveChoiceCard, type OnboardingStep } from "@/lib/onboarding-rules";
 export const POST = withIncludedAiRequest(handlePost, "ask-question");
 
 async function handlePost(req: Request): Promise<Response> {
@@ -632,6 +631,9 @@ async function handlePost(req: Request): Promise<Response> {
 		// Read once, here: `req.headers` is the only honest source for which app
 		// asked, and the answer is wanted on every metric this turn emits.
 		const platform = platformFromHeaders(req.headers);
+		// Apple 1.26.0 drops a card whose step it does not know; newer Apple
+		// builds say they draw the walk and testimony cards with this header.
+		const legacyChoiceSteps = (platform === "ios" || platform === "macos") && req.headers.get(CARDS_HEADER) !== CARDS_VERSION;
 
 		const rate = askQuestionRateLimiter.check(rateLimitKey(req, userId));
 		if (!rate.allowed) {
@@ -725,7 +727,7 @@ async function handlePost(req: Request): Promise<Response> {
 		let currentUserText = "";
 		let currentMessageId = "";
 		let answeredWelcomeStep: OnboardingStep | null = null;
-		const actionContext = { userId, actionScope: typeof requestData.conversationId === "string" ? `chat:${requestData.conversationId}` : undefined, userText: () => currentUserText, messageId: () => currentMessageId, messageReceivedAt: () => readingReceivedAt, welcomeStep: () => answeredWelcomeStep };
+		const actionContext = { userId, actionScope: typeof requestData.conversationId === "string" ? `chat:${requestData.conversationId}` : undefined, userText: () => currentUserText, messageId: () => currentMessageId, messageReceivedAt: () => readingReceivedAt, welcomeStep: () => answeredWelcomeStep, legacyChoiceSteps };
 		const knownStudyIds = new Set<string>();
 		const readStudyIds = new Set<string>();
 		const tools = buildSureWordTools({ ...readingContext, ...actionContext, knownStudyIds, readStudyIds, userLinks: () => userLinks });
@@ -1098,7 +1100,10 @@ async function handlePost(req: Request): Promise<Response> {
 					// conversation (Walk with me) until it is finished or skipped, and
 					// on demand with /onboard. An older account that never finished it
 					// is no longer interviewed in its ordinary chats (Austin, 2026-10-25).
-					const onboarding = welcomeTurn || textInterview || isOnboardCommand(extractText(lastMessage));
+					// A typed /onboard outside the welcome has no cards (presentChoices
+					// is welcome-only), so it runs the interview in words too.
+					const wordsInterview = textInterview || (!welcomeTurn && isOnboardCommand(extractText(lastMessage)));
+					const onboarding = welcomeTurn || wordsInterview;
 					// Per-user context only, all of it uncached. The onboarding block
 					// follows the profile blocks it reads from, and the shape hint goes
 					// last, nearest the answer.
@@ -1115,7 +1120,7 @@ async function handlePost(req: Request): Promise<Response> {
 						formatHighlightLegendBlock(legend),
 						formatTodayBlock(dayContext),
 						onboarding ? `\n\n${onboardingGuidance}` : "",
-						textInterview ? `\n\n${textInterviewGuidance}` : "",
+						wordsInterview ? `\n\n${textInterviewGuidance}` : "",
 						welcomeTurn ? `\n\n${welcomeConversationGuidance}` : "",
 						nextWelcomeStep ? `\n\nNEXT IN THE WELCOME: respond to what they just said, then end this message with presentChoices step "${nextWelcomeStep}".` : "",
 						...promptHints.map((hint) => `\n\n${hint}`),
@@ -1148,10 +1153,13 @@ async function handlePost(req: Request): Promise<Response> {
 						},
 						// Either limit ends the loop cleanly, so the answer is streamed,
 						// persisted and measured. Only the platform timeout loses a turn.
-						// A welcome card ends the message. Another step after it rewrote
-						// the same sentences and sometimes drew the card twice (every
-						// test welcome on 2026-10-26 had replies that said it all twice).
-						stopWhen: [isStepCount(8), isOverTimeBudget(turnStartedAtMs, TOOL_LOOP_BUDGET_MS), hasToolCall("presentChoices")],
+						// A welcome card ends the message (`cardEndsMessage`), unless a
+						// tool beside it still needs telling about, such as today's cross.
+						stopWhen: [
+							isStepCount(8),
+							isOverTimeBudget(turnStartedAtMs, TOOL_LOOP_BUDGET_MS),
+							({ steps }) => cardEndsMessage(steps.at(-1)?.toolCalls.map((call) => call.toolName) ?? []),
+						],
 						// Runs on the text deltas before the UI stream and before onEnd
 						// sees the final text, so the client and the persisted Message
 						// row agree and neither carries an em dash.
@@ -1255,7 +1263,8 @@ async function handlePost(req: Request): Promise<Response> {
 						const input = { step: owed, question: null, options: null, allowOther: null };
 						writer.write({ type: "start-step" });
 						writer.write({ type: "tool-input-available", toolCallId, toolName: "presentChoices", input });
-						writer.write({ type: "tool-output-available", toolCallId, output: resolveChoiceCard(input) });
+						const card = resolveChoiceCard(input);
+						writer.write({ type: "tool-output-available", toolCallId, output: legacyChoiceSteps ? cardForLegacyClient(card) : card });
 						writer.write({ type: "finish-step" });
 					}
 					const notice = incompleteAgentNotice(metricLastStepFinishReason, Date.now() - turnStartedAtMs);

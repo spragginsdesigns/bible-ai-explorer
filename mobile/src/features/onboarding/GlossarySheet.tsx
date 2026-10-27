@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { AppText as Text } from "@/components/AppText";
@@ -24,9 +24,12 @@ export function GlossarySheet({
 }) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
-	const entry = term ? GLOSSARY[term] : null;
+	// The last word shown stays drawn while the sheet slides away.
+	const shown = useRef<GlossaryTerm | null>(null);
+	if (term) shown.current = term;
+	const entry = shown.current ? GLOSSARY[shown.current] : null;
 	return (
-		<BottomSheet visible={entry !== null} onClose={onClose} title={entry?.title} scroll>
+		<BottomSheet visible={term !== null} onClose={onClose} title={entry?.title} scroll>
 			{entry ? (
 				<View style={styles.body}>
 					{entry.sections.map((section) => (

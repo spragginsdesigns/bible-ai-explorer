@@ -12,6 +12,7 @@ import {
 	ONBOARDING_STEPS,
 	STEP_CARDS,
 	TOUR_STOPS,
+	cardForLegacyClient,
 	resolveChoiceCard,
 	type AppTarget,
 } from "@/lib/onboarding-rules";
@@ -136,7 +137,10 @@ export function buildOnboardingTools(userId: string, context: AgentActionContext
 				options: z.array(z.string().trim().min(1).max(80)).max(6).nullable(),
 				allowOther: z.boolean().nullable(),
 			}),
-			execute: async (input) => resolveChoiceCard(input),
+			execute: async (input) => {
+				const card = resolveChoiceCard(input);
+				return context.legacyChoiceSteps ? cardForLegacyClient(card) : card;
+			},
 		}),
 		showInApp: tool({
 			description: `Light up a part of the app on their screen: a "Show me" card under your message that takes them there and spotlights it with your caption. Use it whenever they ask how to do something or where something is, and when the welcome reaches a feature. One short caption in your own voice, under 140 characters. Targets: ${targetList}`,

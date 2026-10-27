@@ -791,7 +791,13 @@ minutes: every answer, prayer and morning verse grows from knowing them.
   `src/utils/systemPrompt.ts`): numbered choices instead of cards, no text
   size or tour step, `presentChoices` and `showInApp` withheld, and one
   sentence on why it matters. It stops as soon as `onboardedAt` or a welcome
-  conversation exists.
+  conversation exists, runs only in the account's first 14 days, and the
+  prompt ends it (`finishOnboarding` skipped) when they pass over two
+  questions in a row. A typed `/onboard` outside the welcome uses the same
+  words-only guidance, since cards are welcome-only.
+- A welcome they deleted is not recreated on the next launch (auto mode
+  answers `not_eligible` once `onboardingConversationId` points at nothing);
+  Settings, Walk me through SureWord, still starts a fresh one.
 - `mode: "manual"` comes from Settings, "Walk me through SureWord", for
   anyone: it reopens the account's welcome (clearing `onboardedAt`) or creates
   one. It replaces typing `/onboard`.
@@ -835,10 +841,21 @@ that asks for cards rides only on welcome turns). Their parts persist in
   separate yes (`welcomeStep` on the action context marks it an explicit
   save). The step is skipped when a testimony already exists
   (`expectedStep(..., { testimony })`).
-- A card ends its message: the route stops the tool loop at `presentChoices`
-  (`hasToolCall("presentChoices")` in `stopWhen`). Before that, the model
-  sometimes kept writing after the card, and the welcome showed doubled
-  sentences and two cards in one message.
+- A card ends its message: the route stops the tool loop at a step that
+  called `presentChoices` and nothing that still needs telling about
+  (`cardEndsMessage`; saves and `showInApp` may ride with it, but
+  `getDailyCross`, `setChurch`, `findChurch` and `listSermonStudies` keep the
+  loop going so today's verse and the sermon studies are still told). Before
+  that, the model sometimes kept writing after the card, and the welcome
+  showed doubled sentences and two cards in one message.
+- Only a tapped believer answer on the faith card leads to the walk card. A
+  typed answer ("I'm not sure I'm saved") gets no hint and no appended card,
+  so someone unsure of their salvation is never asked how long they have
+  walked with the Lord; skipping faith skips walk and testimony too.
+- Apple 1.26.0 drops a card whose step it does not know, so iOS and macOS
+  requests without `x-sureword-cards: 2` get walk and testimony as plain
+  `other` cards (`cardForLegacyClient`); the routing still reads the tool
+  input's step. Newer Apple builds send the header from `APIClient`.
 - `showInApp` returns a "Show me" card naming one `APP_TARGETS` place (or the
   whole tour). Its button works in any conversation, not only the welcome.
 

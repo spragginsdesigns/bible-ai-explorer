@@ -248,6 +248,8 @@ final class APIClient: Sendable {
     /// for analytics and push. Set only in `makeRequest`, so third-party hosts
     /// (bolls.life, the Blob upload URL) never see it.
     static let clientHeaderName = "x-sureword-client"
+    static let cardsHeaderName = "x-sureword-cards"
+    static let cardsHeaderValue = "2"
     #if os(iOS)
     static let clientHeaderValue = "ios"
     #elseif os(macOS)
@@ -261,6 +263,9 @@ final class APIClient: Sendable {
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(Self.clientHeaderValue, forHTTPHeaderField: Self.clientHeaderName)
+        // This build draws every Walk with me step; without it the server sends
+        // the walk and testimony cards as plain ones (`CARDS_HEADER`).
+        request.setValue(Self.cardsHeaderValue, forHTTPHeaderField: Self.cardsHeaderName)
         if let jwt = try await bearer(fresh: fresh) {
             request.setValue("Bearer \(jwt)", forHTTPHeaderField: "Authorization")
         }

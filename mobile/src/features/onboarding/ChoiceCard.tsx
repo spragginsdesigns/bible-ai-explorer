@@ -66,19 +66,22 @@ export function ChoiceCard({ card, live }: { card: ChoiceCardView; live: boolean
 					)
 				)}
 			</Text>
-			<GlossarySheet
-				term={openTerm}
-				onClose={() => setOpenTerm(null)}
-				onAsk={
-					interactive
-						? (question) => {
-								setOpenTerm(null);
-								setAnswered(true);
-								actions.ask(card, question);
-							}
-						: undefined
-				}
-			/>
+			{/* Only a card with a tappable word carries the sheet. */}
+			{card.terms.length > 0 ? (
+				<GlossarySheet
+					term={openTerm}
+					onClose={() => setOpenTerm(null)}
+					onAsk={
+						interactive
+							? (question) => {
+									setOpenTerm(null);
+									setAnswered(true);
+									actions.ask(card, question);
+								}
+							: undefined
+					}
+				/>
+			) : null}
 
 			{card.step === "church" && interactive ? <ChurchStep onSaved={(name) => answer(`I saved ${name} as my home church.`)} /> : null}
 

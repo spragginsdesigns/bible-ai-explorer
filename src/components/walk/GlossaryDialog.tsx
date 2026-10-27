@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { MessageCircle, X } from "lucide-react";
 import { useModalFocus } from "@/components/useModalFocus";
 import { GLOSSARY, type GlossaryTerm } from "@/lib/onboarding-rules";
@@ -12,7 +13,9 @@ export default function GlossaryDialog({ term, onClose, onAsk }: { term: Glossar
 	const ref = useModalFocus<HTMLDivElement>({ open: true, onClose });
 	const entry = GLOSSARY[term];
 	const titleId = `glossary-${term}-title`;
-	return (
+	// Portaled: the message row animates with a transform, which would trap a
+	// fixed overlay inside it.
+	return createPortal(
 		<div
 			className="fixed inset-0 z-[70] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-5"
 			onClick={(event) => {
@@ -64,6 +67,7 @@ export default function GlossaryDialog({ term, onClose, onAsk }: { term: Glossar
 					)}
 				</div>
 			</div>
-		</div>
+		</div>,
+		document.body,
 	);
 }

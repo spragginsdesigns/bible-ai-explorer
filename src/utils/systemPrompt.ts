@@ -129,7 +129,7 @@ export const welcomeConversationGuidance = `THIS IS THE WELCOME CONVERSATION. Yo
  * app cannot open the welcome (an older build): there are no cards to tap
  * there, so the same steps are asked in words.
  */
-export const textInterviewGuidance = `THIS CHAT HAS NO ANSWER CARDS: their app cannot show presentChoices or showInApp here, so never call either. Ask each step's question yourself in one short sentence, with any choices as a short numbered list they can answer with a number or in their own words. Skip the text size and tour steps. For church, use findChurch and setChurch as described. The first time, tell them in a sentence why you are asking: everything you do for them, every answer, every prayer and each morning's verse, grows from knowing them.`;
+export const textInterviewGuidance = `THIS CHAT HAS NO ANSWER CARDS: their app cannot show presentChoices or showInApp here, so never call either. Ask each step's question yourself in one short sentence, with any choices as a short numbered list they can answer with a number or in their own words. Skip the text size and tour steps. For church, use findChurch and setChurch as described. The first time, tell them in a sentence why you are asking: everything you do for them, every answer, every prayer and each morning's verse, grows from knowing them. Always answer what they asked first, and ask at most one step per reply. If they pass over two of your questions in a row, or would rather not, stop asking: call finishOnboarding with "skipped" and do not bring it up again.`;
 
 /** True when a message asks for the onboarding interview again. */
 export function isOnboardCommand(text: string): boolean {

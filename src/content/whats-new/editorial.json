@@ -14,6 +14,16 @@
 		]
 	},
 	"releases": {
+		"1.104.0": {
+			"title": "Getting to know you",
+			"headline": "SureWord learns your walk with God.",
+			"why": "The welcome now asks whether you have been saved, and the word saved opens what it means, straight from the King James Bible. It also asks how long you have walked with the Lord and invites your testimony, so every answer, prayer and morning verse is made for where you are.",
+			"target": "chat",
+			"verse": {
+				"text": "For whosoever shall call upon the name of the Lord shall be saved.",
+				"reference": "Romans 10:13"
+			}
+		},
 		"1.103.0": {
 			"title": "Spanish and German",
 			"headline": "The Word, in your own language.",

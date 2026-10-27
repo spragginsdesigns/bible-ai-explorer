@@ -16,6 +16,8 @@ export interface AgentActionContext {
 	messageReceivedAt?: () => Date;
 	/** The Walk with me card this message answers, when it answers one. */
 	welcomeStep?: () => string | null;
+	/** An Apple build from before the walk and testimony cards (`cardForLegacyClient`). */
+	legacyChoiceSteps?: boolean;
 }
 
 export class AgentActionError extends Error {}

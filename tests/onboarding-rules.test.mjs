@@ -65,6 +65,16 @@ test("every step has a skip, and every scripted line is shared narration", () =>
 	assert.equal(new Set(SCRIPTED_LINES).size, SCRIPTED_LINES.length);
 });
 
+// En and em dash, built from char codes: this PC's editors flatten the literal
+// characters and their \u escapes to "-", which once left this a hyphen check.
+const DASH = new RegExp(`[${String.fromCharCode(0x2013, 0x2014)}]`);
+
+test("the dash check catches dashes and passes hyphens", () => {
+	assert.ok(DASH.test(`a${String.fromCharCode(0x2014)}b`));
+	assert.ok(DASH.test(`a${String.fromCharCode(0x2013)}b`));
+	assert.ok(!DASH.test("well-known"));
+});
+
 test("spoken copy has no dashes and no markdown", () => {
 	const copy = [
 		...SCRIPTED_LINES,
@@ -73,7 +83,7 @@ test("spoken copy has no dashes and no markdown", () => {
 		...GETTING_STARTED_ITEMS.flatMap((item) => [item.label, item.ask]),
 	];
 	for (const line of copy) {
-		assert.ok(!/[--]/.test(line), line);
+		assert.ok(!DASH.test(line), line);
 		assert.equal(spokenText(line), line, line);
 	}
 });
@@ -150,7 +160,45 @@ test("the welcome owes the next card when a turn ends without one", async () => 
 	assert.equal(expectedStep("church", "Why do you need my church?"), "church");
 	assert.equal(expectedStep("other", "Yes"), null);
 	assert.equal(expectedStep(null, "hello"), null);
-	for (let i = 0; i < WELCOME_STEP_ORDER.length - 1; i++) assert.equal(expectedStep(WELCOME_STEP_ORDER[i], "ok"), WELCOME_STEP_ORDER[i + 1]);
+	for (let i = 0; i < WELCOME_STEP_ORDER.length - 1; i++) {
+		const reply = WELCOME_STEP_ORDER[i] === "faith" ? "Saved and growing in the Word" : "ok";
+		assert.equal(expectedStep(WELCOME_STEP_ORDER[i], reply), WELCOME_STEP_ORDER[i + 1]);
+	}
+});
+
+test("only a tapped believer answer leads on to the walk card", async () => {
+	const { expectedStep, owedStep } = await import("../src/lib/onboarding-rules.ts");
+	// Someone unsure they are saved is never asked how long they have walked with the Lord.
+	for (const typed of ["I don't think so", "I'm not sure I'm saved", "ok"]) {
+		assert.equal(expectedStep("faith", typed), null, typed);
+		assert.equal(owedStep({ lastStep: "faith", reply: typed, calledTools: ["saveMemory"], answerText: "Let me share the Gospel with you." }), null, typed);
+	}
+	assert.equal(expectedStep("faith", "saved and growing in the word"), "walk");
+	// Skipping faith skips the walk and testimony that build on it.
+	assert.equal(expectedStep("faith", "Skip for now"), "church");
+	assert.equal(expectedStep("faith", "What does it mean to be saved?"), "faith");
+});
+
+test("a card ends the message unless a tool beside it needs telling about", async () => {
+	const { cardEndsMessage } = await import("../src/lib/onboarding-rules.ts");
+	assert.equal(cardEndsMessage(["presentChoices"]), true);
+	assert.equal(cardEndsMessage(["saveMemory", "presentChoices"]), true);
+	assert.equal(cardEndsMessage(["saveTestimony", "presentChoices"]), true);
+	// Today's cross and a saved church's sermon studies are told before the next card.
+	assert.equal(cardEndsMessage(["getDailyCross", "presentChoices"]), false);
+	assert.equal(cardEndsMessage(["setChurch", "presentChoices"]), false);
+	assert.equal(cardEndsMessage(["saveMemory"]), false);
+	assert.equal(cardEndsMessage([]), false);
+});
+
+test("older Apple builds get the walk and testimony cards as plain cards", async () => {
+	const { cardForLegacyClient } = await import("../src/lib/onboarding-rules.ts");
+	const walk = cardForLegacyClient(resolveChoiceCard({ step: "walk" }));
+	assert.equal(walk.step, "other");
+	assert.equal(walk.question, "How long have you walked with the Lord?");
+	assert.equal(walk.options.length, 4);
+	assert.equal(cardForLegacyClient(resolveChoiceCard({ step: "testimony" })).step, "other");
+	assert.deepEqual(cardForLegacyClient(resolveChoiceCard({ step: "faith" })), resolveChoiceCard({ step: "faith" }));
 });
 
 test("the welcome learns their walk: how long, then how they came to Christ", async () => {
@@ -181,7 +229,7 @@ test("the faith card's \"saved\" opens its explanation, linked in one place", as
 			if (card.terms?.includes(term)) assert.match(card.question, new RegExp(`\\b${term}\\b`), term);
 		}
 		for (const line of [entry.title, entry.ask, ...entry.sections.map((section) => section.text)]) {
-			assert.ok(!/[--]/.test(line), line);
+			assert.ok(!DASH.test(line), line);
 		}
 	}
 });

@@ -50,9 +50,15 @@ function isNewSignUp(createdAt: Date | null | undefined): boolean {
 export function needsTextInterview(
 	user: { onboardedAt: Date | null; onboardingConversationId: string | null; createdAt: Date } | null | undefined,
 	welcomeTurn: boolean,
+	now: Date = new Date(),
 ): boolean {
-	return Boolean(user && !welcomeTurn && !user.onboardedAt && !user.onboardingConversationId && isNewSignUp(user.createdAt));
+	if (!user || welcomeTurn || user.onboardedAt || user.onboardingConversationId || !isNewSignUp(user.createdAt)) return false;
+	// Only in their first two weeks: past that it would only nag someone who
+	// never answered (the prompt also ends it when they ignore two questions).
+	return now.getTime() - user.createdAt.getTime() <= TEXT_INTERVIEW_WINDOW_MS;
 }
+
+const TEXT_INTERVIEW_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 
 /** SureWord's first message, with the text size card under it, as stored parts. */
 function welcomeParts() {
@@ -107,6 +113,9 @@ export async function startOnboarding(userId: string, mode: OnboardingStartMode)
 			if (mode === "auto") {
 				if (user.onboardedAt) return { status: "done" as const };
 				if (existing) return { status: "active" as const, conversationId: existing.id, created: false };
+				// They had a welcome and deleted it: that is a no, so it is not
+				// recreated on every launch (Settings still reopens it).
+				if (user.onboardingConversationId) return { status: "not_eligible" as const };
 				const own = isNewSignUp(user.createdAt)
 					? 0
 					: await tx.conversation.count({
