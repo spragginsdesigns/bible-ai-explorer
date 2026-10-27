@@ -46,7 +46,7 @@ struct ChurchSectionView: View {
         case .failed:
             HStack(spacing: Spacing.md) {
                 Text("Couldn't load your church.")
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.textMuted)
                 Spacer()
                 Button("Retry") { Task { await model.load() } }
@@ -93,7 +93,7 @@ struct ChurchSectionView: View {
                     model.clearQuery()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textFaint)
                 }
                 .buttonStyle(SubtleButtonStyle())
@@ -105,7 +105,7 @@ struct ChurchSectionView: View {
             HStack(spacing: Spacing.sm) {
                 ProgressView().controlSize(.small)
                 Text("Looking up your church and reading its website\u{2026}")
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.accent)
                 Spacer(minLength: 0)
             }
@@ -115,7 +115,7 @@ struct ChurchSectionView: View {
         // actions); only the per-keystroke search reports inline.
         if let searchError = model.searchError {
             Text(searchError)
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.danger)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -150,7 +150,7 @@ struct ChurchSectionView: View {
     private func resultRow(_ result: ChurchSearchResult) -> some View {
         HStack(spacing: Spacing.md) {
             Image(systemName: "building.2")
-                .font(.system(size: 13))
+                .appFont(.system(size: 13))
                 .foregroundStyle(theme.accent)
                 .frame(width: 28, height: 28)
                 .background(theme.accentSoft, in: .rect(cornerRadius: Radius.full))
@@ -160,11 +160,11 @@ struct ChurchSectionView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(result.name)
-                    .font(.system(size: 13, weight: .semibold))
+                    .appFont(.system(size: 13, weight: .semibold))
                     .foregroundStyle(theme.text)
                     .lineLimit(2)
                 Text(result.address)
-                    .font(.system(size: 11))
+                    .appFont(.system(size: 11))
                     .foregroundStyle(theme.textMuted)
                     .lineLimit(2)
             }
@@ -174,7 +174,7 @@ struct ChurchSectionView: View {
                 ProgressView().controlSize(.small)
             } else {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .semibold))
+                    .appFont(.system(size: 10, weight: .semibold))
                     .foregroundStyle(theme.textGhost)
             }
         }
@@ -189,10 +189,10 @@ struct ChurchSectionView: View {
             photo(profile)
             VStack(alignment: .leading, spacing: 2) {
                 Text(profile.name)
-                    .font(.system(size: 14, weight: .semibold))
+                    .appFont(.system(size: 14, weight: .semibold))
                     .foregroundStyle(theme.text)
                 Text(profile.address)
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.textMuted)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -233,7 +233,7 @@ struct ChurchSectionView: View {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 blockLabel("ABOUT")
                 Text(about)
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.textSecondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -268,7 +268,7 @@ struct ChurchSectionView: View {
         ZStack {
             theme.surface
             Image(systemName: "building.2")
-                .font(.system(size: 24))
+                .appFont(.system(size: 24))
                 .foregroundStyle(theme.accent)
         }
     }
@@ -278,7 +278,7 @@ struct ChurchSectionView: View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             blockLabel("MISSION")
             Text(mission)
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.textSecondary)
                 .lineLimit(isMissionExpanded ? nil : ChurchRules.missionClampLines)
 
@@ -290,13 +290,13 @@ struct ChurchSectionView: View {
                     isMissionExpanded.toggle()
                 }
                 .buttonStyle(.plain)
-                .font(.system(size: 11, weight: .semibold))
+                .appFont(.system(size: 11, weight: .semibold))
                 .foregroundStyle(theme.accent)
             }
 
             if let source, let host = ChurchRules.hostname(of: source), let url = URL(string: source) {
                 Link("From \(host)", destination: url)
-                    .font(.system(size: 11))
+                    .appFont(.system(size: 11))
                     .foregroundStyle(theme.textFaint)
                     .accessibilityLabel(
                         "Open the source of this mission statement on \(host)"
@@ -344,16 +344,16 @@ struct ChurchSectionView: View {
         Link(destination: url) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: icon)
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.textFaint)
                     .frame(width: 16)
                 Text(label)
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.textSecondary)
                     .lineLimit(1)
                 if external {
                     Image(systemName: "arrow.up.right")
-                        .font(.system(size: 9, weight: .semibold))
+                        .appFont(.system(size: 9, weight: .semibold))
                         .foregroundStyle(theme.textGhost)
                 }
                 Spacer(minLength: 0)
@@ -365,14 +365,14 @@ struct ChurchSectionView: View {
 
     private func blockLabel(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 10, weight: .bold))
+            .appFont(.system(size: 10, weight: .bold))
             .kerning(0.8)
             .foregroundStyle(theme.textGhost)
     }
 
     private func hint(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 11))
+            .appFont(.system(size: 11))
             .foregroundStyle(theme.textGhost)
             .frame(maxWidth: .infinity, alignment: .leading)
     }

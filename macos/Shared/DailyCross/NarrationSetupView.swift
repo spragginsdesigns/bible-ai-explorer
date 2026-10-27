@@ -158,13 +158,13 @@ struct NarrationSetupView: View {
             if let error = model.error {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(error)
-                        .font(.system(size: 14))
+                        .appFont(.system(size: 14))
                         .foregroundStyle(theme.textSecondary)
                         .lineSpacing(4)
                         .accessibilityAddTraits(.updatesFrequently)
                     Button("Reload voices") { attempt += 1 }
                         .buttonStyle(.plain)
-                        .font(.system(size: 14, weight: .semibold))
+                        .appFont(.system(size: 14, weight: .semibold))
                         .foregroundStyle(theme.accent)
                         .frame(minHeight: 48)
                 }
@@ -173,7 +173,7 @@ struct NarrationSetupView: View {
                 onGenerate(model.commit())
             } label: {
                 Text("Generate audio narrative")
-                    .font(.system(size: 15, weight: .bold))
+                    .appFont(.system(size: 15, weight: .bold))
                     .foregroundStyle(Color(red: 10 / 255, green: 10 / 255, blue: 10 / 255))
                     .frame(maxWidth: .infinity, minHeight: 52)
                     .background(theme.accent, in: .rect(cornerRadius: Radius.lg))
@@ -181,7 +181,7 @@ struct NarrationSetupView: View {
             }
             .buttonStyle(.plain)
             Text("Made only on your request. Today's audio is saved, so you can return and listen again.")
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.textSecondary)
                 .lineSpacing(3)
         }
@@ -193,16 +193,16 @@ struct NarrationSetupView: View {
     private var heading: some View {
         HStack(alignment: .top, spacing: Spacing.md) {
             Image(systemName: "headphones")
-                .font(.system(size: 22))
+                .appFont(.system(size: 22))
                 .foregroundStyle(theme.accent)
                 .padding(.top, 4)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text("Let today's word meet you in audio")
-                    .font(.system(size: 19, weight: .semibold))
+                    .appFont(.system(size: 19, weight: .semibold))
                     .foregroundStyle(theme.text)
                 Text("Your verse, reflection, study path and prayer, narrated when you choose.")
-                    .font(.system(size: 14))
+                    .appFont(.system(size: 14))
                     .foregroundStyle(theme.textSecondary)
                     .lineSpacing(4)
             }
@@ -218,10 +218,10 @@ struct NarrationSetupView: View {
                 HStack(spacing: Spacing.sm) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Narrator")
-                            .font(.system(size: 12))
+                            .appFont(.system(size: 12))
                             .foregroundStyle(theme.textSecondary)
                         Text(name)
-                            .font(.system(size: 14, weight: .semibold))
+                            .appFont(.system(size: 14, weight: .semibold))
                             .foregroundStyle(theme.text)
                     }
                     Spacer()
@@ -244,7 +244,7 @@ struct NarrationSetupView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         if model.catalog == nil, model.error == nil {
                             Text("Loading voices…")
-                                .font(.system(size: 14))
+                                .appFont(.system(size: 14))
                                 .foregroundStyle(theme.textSecondary)
                                 .padding(Spacing.md)
                         }
@@ -274,10 +274,10 @@ struct NarrationSetupView: View {
                 HStack(spacing: Spacing.sm) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(voice.name)
-                            .font(.system(size: 14, weight: .semibold))
+                            .appFont(.system(size: 14, weight: .semibold))
                             .foregroundStyle(theme.text)
                         Text(voice.description)
-                            .font(.system(size: 12))
+                            .appFont(.system(size: 12))
                             .foregroundStyle(theme.textSecondary)
                     }
                     Spacer()
@@ -311,7 +311,7 @@ struct NarrationSetupView: View {
     private var delivery: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Text("Delivery")
-                .font(.system(size: 14, weight: .semibold))
+                .appFont(.system(size: 14, weight: .semibold))
                 .foregroundStyle(theme.text)
             HStack(spacing: Spacing.sm) {
                 ForEach(NarrationStyle.allCases) { style in
@@ -320,7 +320,7 @@ struct NarrationSetupView: View {
                         model.selection.style = style
                     } label: {
                         Text(style.label)
-                            .font(.system(size: 13, weight: .semibold))
+                            .appFont(.system(size: 13, weight: .semibold))
                             .foregroundStyle(selected ? theme.accent : theme.text)
                             .frame(maxWidth: .infinity, minHeight: 48)
                             .background(selected ? theme.accentSoft : .clear, in: .rect(cornerRadius: Radius.lg))
@@ -335,7 +335,7 @@ struct NarrationSetupView: View {
                 }
             }
             Text(model.selection.style.description)
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.textSecondary)
         }
     }

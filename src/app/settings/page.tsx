@@ -255,14 +255,14 @@ export default function SettingsPage() {
 				</span>
 				<span className="min-w-0 flex-1">
 					<span className="flex items-baseline gap-2">
-						<span className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+						<span className="text-[0.9375rem] font-semibold text-neutral-900 dark:text-neutral-100">
 							SureWord for Android
 						</span>
 						<span className="text-metadata font-semibold text-amber-600/80 dark:text-amber-400/70">
 							{ANDROID_VERSION}
 						</span>
 					</span>
-					<span className="block text-[13px] leading-[18px] text-neutral-500 dark:text-neutral-400">
+					<span className="block text-[0.8125rem] leading-[1.125rem] text-neutral-500 dark:text-neutral-400">
 						Offline KJV reading, tap a verse for an explanation, and your
 						daily walk in Pick Up Your Cross.
 					</span>
@@ -281,14 +281,14 @@ export default function SettingsPage() {
 				</span>
 				<span className="min-w-0 flex-1">
 					<span className="flex items-baseline gap-2">
-						<span className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+						<span className="text-[0.9375rem] font-semibold text-neutral-900 dark:text-neutral-100">
 							SureWord for macOS
 						</span>
 						<span className="text-metadata font-semibold text-amber-600/80 dark:text-amber-400/70">
 							{MACOS_VERSION}
 						</span>
 					</span>
-					<span className="block text-[13px] leading-[18px] text-neutral-500 dark:text-neutral-400">
+					<span className="block text-[0.8125rem] leading-[1.125rem] text-neutral-500 dark:text-neutral-400">
 						Native Mac app (macOS 15+), now with tap-a-verse explanations
 						and Pick Up Your Cross. The DMG is not notarized: on first launch,
 						open System Settings → Privacy &amp; Security and choose Open Anyway.
@@ -310,7 +310,7 @@ export default function SettingsPage() {
 								<p className="truncate text-lg font-bold text-neutral-900 dark:text-neutral-100">
 									{name || "Signed in"}
 								</p>
-								<p className="truncate text-[13px] text-neutral-500 dark:text-neutral-400">
+								<p className="truncate text-[0.8125rem] text-neutral-500 dark:text-neutral-400">
 									{email || "SureWord account"}
 								</p>
 							</div>
@@ -319,7 +319,7 @@ export default function SettingsPage() {
 							<div className="flex flex-col gap-3 p-4">
 								{confirmSignOut ? (
 									<>
-										<p className="text-[13px] text-neutral-500 dark:text-neutral-400">
+										<p className="text-[0.8125rem] text-neutral-500 dark:text-neutral-400">
 											Sign out? You can sign back in at any time.
 										</p>
 										<div className="flex gap-2">
@@ -376,7 +376,7 @@ export default function SettingsPage() {
 											type="button"
 											aria-pressed={active}
 											onClick={() => setTheme(id)}
-											className={`flex flex-col gap-2 rounded-xl border p-2 text-[13px] font-bold transition-colors ${
+											className={`flex flex-col gap-2 rounded-xl border p-2 text-[0.8125rem] font-bold transition-colors ${
 												active
 													? "border-amber-500/60 dark:border-amber-400/50 bg-amber-500/10 dark:bg-amber-400/10 text-amber-700 dark:text-amber-300 ring-2 ring-amber-500/20"
 													: "border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.02] text-neutral-600 dark:text-neutral-400 hover:bg-black/[0.05] dark:hover:bg-white/[0.05]"
@@ -445,7 +445,7 @@ export default function SettingsPage() {
 										onClick={() => void chooseAnswerLanguage(choice)}
 										className="flex min-h-[48px] items-center gap-3 px-4 py-3 text-left transition-colors first:rounded-t-2xl last:rounded-b-2xl hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
 									>
-										<span className="min-w-0 flex-1 text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+										<span className="min-w-0 flex-1 text-[0.9375rem] font-semibold text-neutral-900 dark:text-neutral-100">
 											{label}
 										</span>
 										{active ? (
@@ -471,7 +471,7 @@ export default function SettingsPage() {
 										className="flex min-h-[56px] items-center gap-3 px-4 py-3 text-left transition-colors first:rounded-t-2xl last:rounded-b-2xl hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
 									>
 										<span
-											className={`flex h-10 w-12 flex-shrink-0 items-center justify-center rounded-lg border text-[13px] font-extrabold tracking-wider ${
+											className={`flex h-10 w-12 flex-shrink-0 items-center justify-center rounded-lg border text-[0.8125rem] font-extrabold tracking-wider ${
 												active
 													? "border-amber-500/50 bg-amber-500/10 text-amber-700 dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-300"
 													: "border-black/[0.08] bg-black/[0.03] text-neutral-500 dark:border-white/[0.08] dark:bg-white/[0.03] dark:text-neutral-400"
@@ -480,10 +480,10 @@ export default function SettingsPage() {
 											{TRANSLATION_DETAILS[id].badge}
 										</span>
 										<span className="min-w-0 flex-1">
-											<span className="block text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+											<span className="block text-[0.9375rem] font-semibold text-neutral-900 dark:text-neutral-100">
 												{TRANSLATION_DETAILS[id].name}
 											</span>
-											<span className="block text-[13px] text-neutral-500 dark:text-neutral-400">
+											<span className="block text-[0.8125rem] text-neutral-500 dark:text-neutral-400">
 												{TRANSLATION_DETAILS[id].note}
 											</span>
 										</span>
@@ -556,10 +556,10 @@ export default function SettingsPage() {
 									className="flex min-h-[56px] items-center gap-3 rounded-b-2xl px-4 py-3 text-left transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
 								>
 									<span className="min-w-0 flex-1">
-										<span className="block text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+										<span className="block text-[0.9375rem] font-semibold text-neutral-900 dark:text-neutral-100">
 											Manage memories
 										</span>
-										<span className="block text-[13px] text-neutral-500 dark:text-neutral-400">
+										<span className="block text-[0.8125rem] text-neutral-500 dark:text-neutral-400">
 											{memoryCount === null ? "…" : `${memoryCount} saved`}
 										</span>
 									</span>
@@ -654,17 +654,17 @@ export default function SettingsPage() {
 						<div className={`${SETTINGS_CARD} flex flex-col items-center gap-2 px-6 py-7 text-center`}>
 							{/* eslint-disable-next-line @next/next/no-img-element */}
 							<img src="/favicon-96x96.png" alt="" width={64} height={64} className="sidebar-brand-icon" />
-							<p className="text-[26px] leading-none text-amber-600 dark:text-amber-300 font-[family-name:var(--font-pirata)]">
+							<p className="text-[1.625rem] leading-none text-amber-600 dark:text-amber-300 font-[family-name:var(--font-pirata)]">
 								SureWord
 							</p>
-							<p className="text-[13px] text-neutral-500 dark:text-neutral-400">
+							<p className="text-[0.8125rem] text-neutral-500 dark:text-neutral-400">
 								Version {WEB_VERSION} · A Bible study assistant rooted in the King James Version.
 							</p>
 						</div>
 						<SettingsGroup>
 							<Link
 								href="/whats-new"
-								className="flex min-h-[52px] items-center justify-between gap-3 rounded-2xl px-4 text-[15px] font-semibold text-neutral-900 transition-colors hover:bg-black/[0.03] dark:text-neutral-100 dark:hover:bg-white/[0.03]"
+								className="flex min-h-[52px] items-center justify-between gap-3 rounded-2xl px-4 text-[0.9375rem] font-semibold text-neutral-900 transition-colors hover:bg-black/[0.03] dark:text-neutral-100 dark:hover:bg-white/[0.03]"
 							>
 								What&apos;s new in SureWord
 								<ChevronRight className="w-4 h-4 text-neutral-400 dark:text-neutral-600" aria-hidden />
@@ -674,13 +674,13 @@ export default function SettingsPage() {
 						{getTheApp}
 						<SettingsGroup label="Why SureWord">
 							<div className="flex flex-col gap-3 p-4">
-								<p className="text-[13px] leading-[20px] text-neutral-600 dark:text-neutral-300">
+								<p className="text-[0.8125rem] leading-[1.25rem] text-neutral-600 dark:text-neutral-300">
 									Ask a generic AI if the Bible is really the Word of God and you&apos;ll hear
 									&ldquo;it depends on your viewpoint.&rdquo; SureWord never hedges - it answers
 									as a Bible-believing Christian, standing on Scripture as the inerrant,
 									infallible, final authority for every answer.
 								</p>
-								<blockquote className="border-l-2 border-amber-500/50 pl-3 text-[13px] italic text-amber-700 dark:text-amber-300">
+								<blockquote className="border-l-2 border-amber-500/50 pl-3 text-[0.8125rem] italic text-amber-700 dark:text-amber-300">
 									&ldquo;All scripture is given by inspiration of God&rdquo; - 2 Timothy 3:16
 								</blockquote>
 							</div>
@@ -704,7 +704,7 @@ export default function SettingsPage() {
 							<h1 className="text-screen-title font-bold text-neutral-900 dark:text-neutral-100">
 								{current.title}
 							</h1>
-							<p className="text-[13px] text-neutral-500 dark:text-neutral-400">{current.summary}</p>
+							<p className="text-[0.8125rem] text-neutral-500 dark:text-neutral-400">{current.summary}</p>
 						</div>
 					</header>
 					<div className="flex flex-col gap-6">{renderPane(current.id)}</div>
@@ -720,10 +720,10 @@ export default function SettingsPage() {
 					>
 						<AccountAvatar size={48} />
 						<span className="min-w-0 flex-1">
-							<span className="block truncate text-[16px] font-bold text-neutral-900 dark:text-neutral-100">
+							<span className="block truncate text-[1rem] font-bold text-neutral-900 dark:text-neutral-100">
 								{name || "Signed in"}
 							</span>
-							<span className="block truncate text-[13px] text-neutral-500 dark:text-neutral-400">
+							<span className="block truncate text-[0.8125rem] text-neutral-500 dark:text-neutral-400">
 								{email || "SureWord account"}
 							</span>
 						</span>
@@ -741,10 +741,10 @@ export default function SettingsPage() {
 								>
 									<PaneTile pane={item} size="md" />
 									<span className="min-w-0 flex-1">
-										<span className="block text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+										<span className="block text-[0.9375rem] font-semibold text-neutral-900 dark:text-neutral-100">
 											{item.title}
 										</span>
-										<span className="block truncate text-[13px] text-neutral-500 dark:text-neutral-400">
+										<span className="block truncate text-[0.8125rem] text-neutral-500 dark:text-neutral-400">
 											{hubSubtitles[item.id]}
 										</span>
 									</span>

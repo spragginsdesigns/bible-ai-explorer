@@ -77,7 +77,7 @@ export default function FeedbackSection() {
 				YOUR MESSAGE
 			</h2>
 			<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-3">
-				<p className="text-[13px] leading-5 text-neutral-500 dark:text-neutral-400">
+				<p className="text-[0.8125rem] leading-5 text-neutral-500 dark:text-neutral-400">
 					Tell us what is broken, what is missing, or what you would want SureWord to do. A
 					person reads every one of these.
 				</p>

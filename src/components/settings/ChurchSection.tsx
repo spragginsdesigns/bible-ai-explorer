@@ -200,10 +200,10 @@ const ChurchSection: React.FC = () => {
 						<Church className="w-5 h-5" />
 					</span>
 					<div className="min-w-0 flex-1">
-						<p className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+						<p className="text-[0.9375rem] font-semibold text-neutral-900 dark:text-neutral-100">
 							My church
 						</p>
-						<p className="text-[13px] text-neutral-400 dark:text-neutral-500">
+						<p className="text-[0.8125rem] text-neutral-400 dark:text-neutral-500">
 							Pick your home church so SureWord knows the congregation you belong to.
 							Its mission statement is read from the church&apos;s public website.
 						</p>
@@ -242,17 +242,17 @@ const ChurchSection: React.FC = () => {
 										</span>
 									)}
 									<div className="min-w-0 flex-1">
-										<p className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+										<p className="text-[0.9375rem] font-semibold text-neutral-900 dark:text-neutral-100">
 											{church.name}
 										</p>
-										<p className="mt-0.5 flex items-start gap-1.5 text-[13px] text-neutral-400 dark:text-neutral-500">
+										<p className="mt-0.5 flex items-start gap-1.5 text-[0.8125rem] text-neutral-400 dark:text-neutral-500">
 											<MapPin className="mt-0.5 h-3 w-3 flex-shrink-0" />
 											<span className="min-w-0">{church.address}</span>
 										</p>
 										{church.phone && (
 											<a
 												href={`tel:${church.phone.replace(/[^\d+]/g, "")}`}
-												className="mt-0.5 flex items-center gap-1.5 text-[13px] text-neutral-500 hover:text-amber-600 dark:text-neutral-400 dark:hover:text-amber-400 transition-colors"
+												className="mt-0.5 flex items-center gap-1.5 text-[0.8125rem] text-neutral-500 hover:text-amber-600 dark:text-neutral-400 dark:hover:text-amber-400 transition-colors"
 											>
 												<Phone className="h-3 w-3 flex-shrink-0" />
 												{church.phone}
@@ -296,7 +296,7 @@ const ChurchSection: React.FC = () => {
 										</p>
 										<p
 											className={cn(
-												"whitespace-pre-line text-[13px] leading-5 text-neutral-600 dark:text-neutral-300",
+												"whitespace-pre-line text-[0.8125rem] leading-5 text-neutral-600 dark:text-neutral-300",
 												missionIsLong && !missionExpanded && "line-clamp-6"
 											)}
 										>
@@ -331,7 +331,7 @@ const ChurchSection: React.FC = () => {
 										<p className="text-metadata font-bold tracking-[0.12em] text-neutral-500 dark:text-neutral-500">
 											ABOUT
 										</p>
-										<p className="whitespace-pre-line text-[13px] leading-5 text-neutral-600 dark:text-neutral-300">
+										<p className="whitespace-pre-line text-[0.8125rem] leading-5 text-neutral-600 dark:text-neutral-300">
 											{church.about}
 										</p>
 									</div>
@@ -427,7 +427,7 @@ const ChurchSection: React.FC = () => {
 								</div>
 
 								{saving ? (
-									<p className="flex items-center gap-2 text-[13px] text-neutral-500 dark:text-neutral-400">
+									<p className="flex items-center gap-2 text-[0.8125rem] text-neutral-500 dark:text-neutral-400">
 										<Loader2 className="h-3.5 w-3.5 flex-shrink-0 animate-spin text-amber-600 dark:text-amber-400" />
 										Looking up your church and reading its website…
 									</p>
@@ -481,10 +481,10 @@ const ChurchSection: React.FC = () => {
 													)}
 												</span>
 												<span className="min-w-0 flex-1">
-													<span className="block truncate text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+													<span className="block truncate text-[0.9375rem] font-semibold text-neutral-900 dark:text-neutral-100">
 														{result.name}
 													</span>
-													<span className="block text-[13px] text-neutral-400 dark:text-neutral-500">
+													<span className="block text-[0.8125rem] text-neutral-400 dark:text-neutral-500">
 														{result.address}
 													</span>
 												</span>

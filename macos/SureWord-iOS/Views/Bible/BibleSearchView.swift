@@ -30,22 +30,22 @@ struct BibleSearchView: View {
 
                 if let error = search.error {
                     Text(error)
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textMuted)
                         .padding(.vertical, Spacing.xs)
                     Button("Retry search") { search.retry() }
-                        .font(.system(size: 14, weight: .semibold))
+                        .appFont(.system(size: 14, weight: .semibold))
                         .foregroundStyle(theme.accent)
                         .buttonStyle(.plain)
                 } else if let status = search.status(account: account) {
                     Text(status)
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textFaint)
                         .padding(.vertical, Spacing.xs)
                         .accessibilityAddTraits(.updatesFrequently)
                 } else if search.searched.isEmpty, !search.loading {
                     Text(search.hint(account: account))
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textFaint)
                         .padding(.vertical, Spacing.md)
                 }
@@ -97,7 +97,7 @@ struct BibleSearchView: View {
                         search.selectedTranslation = id
                     } label: {
                         Text(id.label)
-                            .font(.system(size: 12, weight: .bold))
+                            .appFont(.system(size: 12, weight: .bold))
                             .foregroundStyle(active ? theme.accent : theme.textMuted)
                             .padding(.horizontal, Spacing.md)
                             .frame(minHeight: 32)
@@ -122,11 +122,11 @@ struct BibleSearchView: View {
         } label: {
             HStack(spacing: Spacing.sm) {
                 Text("Go to \(label(for: reference))")
-                    .font(.system(size: 14, weight: .semibold))
+                    .appFont(.system(size: 14, weight: .semibold))
                     .foregroundStyle(theme.accent)
                 Spacer()
                 Image(systemName: "arrow.right")
-                    .font(.system(size: 12, weight: .semibold))
+                    .appFont(.system(size: 12, weight: .semibold))
                     .foregroundStyle(theme.accent)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -147,10 +147,10 @@ struct BibleSearchView: View {
         } label: {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text("\(Bible.book(order: hit.order)?.name ?? "Book \(hit.order)") \(hit.chapter):\(hit.verse) \(hit.translation.label)")
-                    .font(.system(size: 12, weight: .bold))
+                    .appFont(.system(size: 12, weight: .bold))
                     .foregroundStyle(theme.accent)
                 Text(hit.text)
-                    .font(.custom(FontFamily.verse, size: 15))
+                    .appFont(.custom(FontFamily.verse, size: 15))
                     .foregroundStyle(theme.textSecondary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)

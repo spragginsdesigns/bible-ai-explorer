@@ -9,11 +9,11 @@ struct ChapterAudioBar: View {
         if model.isOpen {
             VStack(spacing: 6) {
                 HStack {
-                    Text(model.reference + (model.verse.map { " · \($0)" } ?? "") + (model.edition == .alive ? " · Alive" : "")).font(.headline)
+                    Text(model.reference + (model.verse.map { " · \($0)" } ?? "") + (model.edition == .alive ? " · Alive" : "")).appFont(.headline)
                     Spacer()
                     Button("Close narration", systemImage: "xmark", action: model.close).labelStyle(.iconOnly)
                 }
-                if let error = model.error { Text(error).foregroundStyle(theme.danger).font(.callout) }
+                if let error = model.error { Text(error).foregroundStyle(theme.danger).appFont(.callout) }
                 if model.stillListening {
                     HStack { Text("Still listening?"); Spacer(); Button("Keep listening", action: model.keepListening) }
                 } else {
@@ -21,7 +21,7 @@ struct ChapterAudioBar: View {
                         Button("Previous verse", systemImage: "backward.end.fill") { model.skipVerse(-1) }.labelStyle(.iconOnly)
                         Button(model.isPlaying ? "Pause narration" : "Play narration", systemImage: model.isPlaying ? "pause.fill" : "play.fill", action: model.toggle).labelStyle(.iconOnly)
                         Button("Next verse", systemImage: "forward.end.fill") { model.skipVerse(1) }.labelStyle(.iconOnly)
-                        Text(model.isReady ? Listen.formatClock(model.elapsed) : "Loading…").monospacedDigit().font(.caption)
+                        Text(model.isReady ? Listen.formatClock(model.elapsed) : "Loading…").monospacedDigit().appFont(.caption)
                         Spacer()
                         Button(Listen.formatRate(app.settings.listenRate), action: model.cycleRate).accessibilityLabel("Playback speed")
                     }.disabled(!model.isReady)

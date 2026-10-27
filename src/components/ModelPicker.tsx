@@ -755,7 +755,7 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 	// min-w-0 so the wider summary chip shrinks with the composer instead of
 	// pushing the attach and send buttons off a narrow screen.
 	return (
-		<div ref={containerRef} className="relative min-w-0">
+		<div ref={containerRef} className="relative min-w-0 max-w-full">
 			<button
 				ref={triggerRef}
 				type="button"
@@ -765,10 +765,10 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 				aria-controls={menuId}
 				aria-label={`Choose AI model, currently ${activeLabel}${premium ? ", Pro" : ""}`}
 				title={activeLabel}
-				className="flex h-11 max-w-[240px] items-center gap-1 rounded-lg border border-black/[0.08] px-2 text-xs font-semibold text-neutral-500 transition-colors hover:bg-black/[0.05] hover:text-amber-700 dark:border-white/[0.08] dark:text-neutral-400 dark:hover:bg-white/[0.06] dark:hover:text-amber-400"
+				className="flex min-h-[44px] w-full max-w-[240px] items-center gap-[4px] rounded-lg border border-black/[0.08] px-[8px] py-[8px] text-xs font-semibold text-neutral-500 transition-colors hover:bg-black/[0.05] hover:text-amber-700 dark:border-white/[0.08] dark:text-neutral-400 dark:hover:bg-white/[0.06] dark:hover:text-amber-400"
 			>
 				{!data && !loadFailed ? (
-					<Loader2 className="h-3.5 w-3.5 flex-shrink-0 animate-spin" />
+					<Loader2 className="h-[14px] w-[14px] flex-shrink-0 animate-spin" />
 				) : premium ? (
 					<Image
 						src="/chat-home/sureword-mark.png"
@@ -776,13 +776,13 @@ const ModelPicker: React.FC<ModelPickerProps> = ({ placement = "above" }) => {
 						height={14}
 						alt=""
 						aria-hidden
-						className="h-3.5 w-3.5 flex-shrink-0 object-contain"
+						className="h-[14px] w-[14px] flex-shrink-0 object-contain"
 					/>
 				) : (
-					<Sparkles className="h-3.5 w-3.5 flex-shrink-0" />
+					<Sparkles className="h-[14px] w-[14px] flex-shrink-0" />
 				)}
 				<span className="min-w-0 flex-1 truncate text-left">{activeLabel}</span>
-				<ChevronDown className="h-3 w-3 flex-shrink-0" />
+				<ChevronDown className="h-[12px] w-[12px] flex-shrink-0" />
 			</button>
 
 			{open && typeof document !== "undefined"

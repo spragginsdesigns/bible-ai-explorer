@@ -55,13 +55,13 @@ struct PersonalTextSection: View {
 
             HStack(spacing: Spacing.md) {
                 Text(status)
-                    .font(.system(size: 11))
+                    .appFont(.system(size: 11))
                     .foregroundStyle(errorText == nil ? theme.textGhost : theme.danger)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityAddTraits(.updatesFrequently)
 
                 Text("\(draft.count) / \(maxLength)")
-                    .font(.system(size: 11))
+                    .appFont(.system(size: 11))
                     .monospacedDigit()
                     .foregroundStyle(theme.textGhost)
                     .accessibilityLabel("\(draft.count) of \(maxLength) characters used")
@@ -83,7 +83,7 @@ struct PersonalTextSection: View {
         let shape = RoundedRectangle(cornerRadius: Radius.md)
 
         return TextEditor(text: binding)
-            .font(.system(size: 13))
+            .appFont(.system(size: 13))
             .frame(minHeight: minHeight)
             // The editor paints its own opaque ground, which reads as a light
             // patch on the dark shell; the Form row supplies the surface here.
@@ -96,7 +96,7 @@ struct PersonalTextSection: View {
             .overlay(alignment: .topLeading) {
                 if draft.isEmpty {
                     Text(placeholder)
-                        .font(.system(size: 13))
+                        .appFont(.system(size: 13))
                         .foregroundStyle(theme.textGhost)
                         .padding(.horizontal, Spacing.sm)
                         .padding(.vertical, Spacing.sm + 2)
@@ -184,7 +184,7 @@ struct PersonalTextSection: View {
 
     private func hint(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 11))
+            .appFont(.system(size: 11))
             .foregroundStyle(theme.textGhost)
             .frame(maxWidth: .infinity, alignment: .leading)
     }

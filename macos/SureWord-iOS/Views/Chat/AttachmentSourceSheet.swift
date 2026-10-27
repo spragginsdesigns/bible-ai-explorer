@@ -75,14 +75,14 @@ struct AttachmentSourceSheet: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("ADD TO YOUR MESSAGE")
-                        .font(.system(size: 11, weight: .semibold))
+                        .appFont(.system(size: 11, weight: .semibold))
                         .tracking(1.2)
                         .foregroundStyle(theme.accent)
                     Text("Choose an attachment")
-                        .font(.system(size: 20, weight: .semibold))
+                        .appFont(.system(size: 20, weight: .semibold))
                         .foregroundStyle(theme.text)
                     Text("Photos, screenshots, documents, and text files")
-                        .font(.system(size: 13))
+                        .appFont(.system(size: 13))
                         .foregroundStyle(theme.textMuted)
                 }
                 Spacer(minLength: 0)
@@ -90,7 +90,7 @@ struct AttachmentSourceSheet: View {
                     dismiss()
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .semibold))
+                        .appFont(.system(size: 14, weight: .semibold))
                         .foregroundStyle(theme.textMuted)
                         .frame(width: 36, height: 36)
                         .background(theme.surface, in: .circle)
@@ -106,21 +106,21 @@ struct AttachmentSourceSheet: View {
                     } label: {
                         HStack(spacing: Spacing.md) {
                             Image(systemName: option.systemImage)
-                                .font(.system(size: 18))
+                                .appFont(.system(size: 18))
                                 .foregroundStyle(theme.accent)
                                 .frame(width: 40, height: 40)
                                 .background(theme.accentSoft, in: .rect(cornerRadius: Radius.md))
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(option.label)
-                                    .font(.system(size: 15, weight: .semibold))
+                                    .appFont(.system(size: 15, weight: .semibold))
                                     .foregroundStyle(theme.text)
                                 Text(option.detail)
-                                    .font(.system(size: 12))
+                                    .appFont(.system(size: 12))
                                     .foregroundStyle(theme.textMuted)
                             }
                             Spacer(minLength: 0)
                             Image(systemName: "chevron.right")
-                                .font(.system(size: 13, weight: .semibold))
+                                .appFont(.system(size: 13, weight: .semibold))
                                 .foregroundStyle(theme.textGhost)
                         }
                         .padding(Spacing.md)

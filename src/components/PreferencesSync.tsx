@@ -77,7 +77,7 @@ export default function PreferencesSync() {
 			role="status"
 			className="fixed inset-x-4 bottom-24 z-50 mx-auto flex max-w-sm items-start gap-3 rounded-xl border border-red-500/25 bg-white/95 px-4 py-3 shadow-lg backdrop-blur dark:border-red-400/20 dark:bg-neutral-900/95 lg:bottom-6"
 		>
-			<p className="min-w-0 flex-1 text-[13px] text-red-600 dark:text-red-400">{error}</p>
+			<p className="min-w-0 flex-1 text-[0.8125rem] text-red-600 dark:text-red-400">{error}</p>
 			<button
 				type="button"
 				onClick={dismissPreferencesSyncError}

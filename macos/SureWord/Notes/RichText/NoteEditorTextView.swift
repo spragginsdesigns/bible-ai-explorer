@@ -8,6 +8,8 @@ import SwiftUI
 /// user's caret, so `updateNSView` only forwards the theme; content changes go
 /// through `NoteRichTextController.load(html:)`.
 struct NoteEditorTextView: NSViewRepresentable {
+    @Environment(\.textScaleFactor) private var appScale
+    @ScaledMetric private var systemScale: CGFloat = 1
     @Environment(\.theme) private var theme
 
     let controller: NoteRichTextController
@@ -52,12 +54,15 @@ struct NoteEditorTextView: NSViewRepresentable {
         scrollView.autohidesScrollers = true
         scrollView.documentView = textView
 
+        controller.textScale = appScale * systemScale
+        textView.textScale = controller.textScale
         controller.textView = textView
         controller.theme = theme
         return scrollView
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        controller.textScale = appScale * systemScale
         guard let textView = scrollView.documentView as? NoteTextView else { return }
         if controller.textView !== textView { controller.textView = textView }
         if controller.theme != theme { controller.theme = theme }

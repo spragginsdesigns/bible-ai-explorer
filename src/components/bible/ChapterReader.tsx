@@ -1,7 +1,6 @@
 "use client";
 
 import { getBsbChapter } from "@/lib/bible/bsb";
-import { TEXT_SCALE_CSS_VAR } from "@/lib/text-scale";
 import { readerVerseSegments, readerSectionHeadings } from "@/lib/bible/redLetters";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -789,7 +788,7 @@ const ChapterReader: React.FC = () => {
             <button
               type="button"
               onClick={() => router.back()}
-              className="text-[15px] font-semibold text-amber-600 dark:text-amber-400"
+              className="text-[0.9375rem] font-semibold text-amber-600 dark:text-amber-400"
             >
               ‹ Back
             </button>
@@ -821,7 +820,7 @@ const ChapterReader: React.FC = () => {
           <button
             type="button"
             onClick={() => router.back()}
-            className="justify-self-start text-[15px] font-semibold text-amber-600 dark:text-amber-400"
+            className="justify-self-start text-[0.9375rem] font-semibold text-amber-600 dark:text-amber-400"
           >
             ‹ Back
           </button>
@@ -830,7 +829,7 @@ const ChapterReader: React.FC = () => {
             <Link
               href={`/bible/chapters?book=${order}`}
               aria-label={`Choose chapter, ${reference}`}
-              className="inline-flex min-h-9 max-w-full items-center gap-1 rounded-full px-3 text-[15px] font-semibold text-neutral-900 dark:text-neutral-100 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
+              className="inline-flex min-h-9 max-w-full items-center gap-1 rounded-full px-3 text-[0.9375rem] font-semibold text-neutral-900 dark:text-neutral-100 hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
             >
               <span className="truncate">{reference}</span>
               <ChevronDown className="h-3.5 w-3.5 flex-shrink-0 text-neutral-500 dark:text-neutral-400" aria-hidden />
@@ -911,7 +910,7 @@ const ChapterReader: React.FC = () => {
         {loading ? (
           <div className="flex flex-col items-center justify-center p-12">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-amber-500/30 border-t-amber-500 dark:border-amber-400/30 dark:border-t-amber-400" />
-            <p className="mt-4 text-[13px] text-neutral-400 dark:text-neutral-500">
+            <p className="mt-4 text-[0.8125rem] text-neutral-400 dark:text-neutral-500">
               {translation === "NKJV" ? "Loading the NKJV…" : "Opening the chapter…"}
             </p>
           </div>
@@ -980,11 +979,11 @@ const ChapterReader: React.FC = () => {
                       className={`font-[family-name:var(--font-cormorant)]${
                         parchment ? "" : " text-neutral-700 dark:text-neutral-300"
                       }`}
-                      // The reader's own steps are px, which the rem-based app text
-                      // size cannot reach, so the account size multiplies them here.
+                      // Preserve the reader's own steps, expressed in rem so browser
+                      // font preferences and the app root size each apply once.
                       style={{
-                        fontSize: `calc(${fontSize}px * var(${TEXT_SCALE_CSS_VAR}, 1))`,
-                        lineHeight: `calc(${lineHeight}px * var(${TEXT_SCALE_CSS_VAR}, 1))`,
+                        fontSize: `${fontSize / 16}rem`,
+                        lineHeight: `${lineHeight / 16}rem`,
                       }}
                     >
                       <span
@@ -1141,7 +1140,7 @@ const ChapterReader: React.FC = () => {
             />
           }
         >
-          <p className="line-clamp-4 px-4 pb-3 font-[family-name:var(--font-cormorant)] text-[17px] leading-[26px] text-neutral-600 dark:text-neutral-300">
+          <p className="line-clamp-4 px-4 pb-3 font-[family-name:var(--font-cormorant)] text-[1.0625rem] leading-[1.625rem] text-neutral-600 dark:text-neutral-300">
             {selectionPlain}
           </p>
 
@@ -1171,19 +1170,19 @@ const ChapterReader: React.FC = () => {
                   </div>
                 ) : insightStatus === "error" ? (
                   <div className="flex flex-col gap-2">
-                    <p className="text-[13px] leading-[19px] text-neutral-500 dark:text-neutral-400">
+                    <p className="text-[0.8125rem] leading-[1.1875rem] text-neutral-500 dark:text-neutral-400">
                       {insightError}
                     </p>
                     <button
                       type="button"
                       onClick={retryInsight}
-                      className="self-start text-[13.5px] font-semibold text-amber-600 dark:text-amber-400"
+                      className="self-start text-[0.84375rem] font-semibold text-amber-600 dark:text-amber-400"
                     >
                       Try again
                     </button>
                   </div>
                 ) : insightStatus !== "idle" ? (
-                  <p className="text-[14.5px] leading-[22px] text-neutral-700 dark:text-neutral-200">
+                  <p className="text-[0.90625rem] leading-[1.375rem] text-neutral-700 dark:text-neutral-200">
                     {insightText}
                     {insightStatus === "streaming" && (
                       <span className="text-amber-600 dark:text-amber-400"> ▍</span>

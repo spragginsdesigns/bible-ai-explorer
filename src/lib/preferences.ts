@@ -479,7 +479,8 @@ export { TEXT_SCALE_PREF_KEY };
 
 export function readTextScalePref(): TextScale {
 	if (typeof window === "undefined") return DEFAULT_TEXT_SCALE;
-	return normalizeTextScale(window.localStorage.getItem(TEXT_SCALE_PREF_KEY));
+	try { return normalizeTextScale(window.localStorage.getItem(TEXT_SCALE_PREF_KEY)); }
+	catch { return DEFAULT_TEXT_SCALE; }
 }
 
 export function writeTextScalePref(scale: TextScale) {

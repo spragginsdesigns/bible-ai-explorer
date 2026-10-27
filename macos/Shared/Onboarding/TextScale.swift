@@ -4,12 +4,8 @@ import SwiftUI
 /// `TEXT_SCALES` in `src/lib/preferences-contract.ts`, `TEXT_SCALE_FACTORS`
 /// in `src/lib/onboarding-rules.ts` and `src/lib/text-scale.ts`.
 ///
-/// Apple applies a size two ways at once. The app root steps Dynamic Type up
-/// from whatever the system is set to (never instead of it), which reaches
-/// every text style font and the system controls. Most of SureWord's text is
-/// set in fixed point sizes, which Dynamic Type does not touch, so the screens
-/// people read most (chat answers, the Walk with me cards, the Bible reader)
-/// also multiply their sizes by `factor` through `\.textScaleFactor`.
+/// The app factor and system Dynamic Type are independent. AppTypography
+/// resolves each font from its baseline once, with both multipliers.
 enum TextScale: String, CaseIterable, Sendable, Identifiable {
     case standard, large, largest
 
@@ -35,14 +31,13 @@ enum TextScale: String, CaseIterable, Sendable, Identifiable {
         }
     }
 
-    /// Dynamic Type steps added on top of the system's size: Large is two
-    /// steps (about 15% at the default size), Largest four (about 30%).
-    var dynamicTypeSteps: Int {
-        switch self {
-        case .standard: 0
-        case .large: 2
-        case .largest: 4
-        }
+    var canDecrease: Bool { self != .standard }
+    var canIncrease: Bool { self != .largest }
+
+    func stepped(_ direction: Int) -> Self {
+        let index = Self.allCases.firstIndex(of: self) ?? 0
+        let delta = direction == 0 ? 0 : direction > 0 ? 1 : -1
+        return Self.allCases[min(max(index + delta, 0), Self.allCases.count - 1)]
     }
 
     /// The scale a text size chip ("Large") stands for, or nil for anything else.
@@ -56,12 +51,9 @@ enum TextScale: String, CaseIterable, Sendable, Identifiable {
         raw.flatMap(TextScale.init(rawValue:)) ?? .default
     }
 
-    /// The system's own size, stepped up by this scale and clamped to the
-    /// largest size Dynamic Type has.
+    /// App sizing never replaces or caps the user's accessibility setting.
     func dynamicTypeSize(over system: DynamicTypeSize) -> DynamicTypeSize {
-        let sizes = DynamicTypeSize.allCases
-        guard let index = sizes.firstIndex(of: system) else { return system }
-        return sizes[min(index + dynamicTypeSteps, sizes.count - 1)]
+        system
     }
 }
 
@@ -79,19 +71,18 @@ extension EnvironmentValues {
 }
 
 private struct TextScaleRoot: ViewModifier {
-    @Environment(\.dynamicTypeSize) private var systemSize
     let scale: TextScale
 
     func body(content: Content) -> some View {
         content
-            .dynamicTypeSize(scale.dynamicTypeSize(over: systemSize))
+            .appFont(.body)
             .environment(\.textScaleFactor, scale.factor)
     }
 }
 
 extension View {
-    /// Apply the account's text size to everything below: Dynamic Type for
-    /// text styles and system controls, and the factor for fixed sizes.
+    /// Keep the shared preference reactive, including sheets, without changing
+    /// view identity or replacing the system's Dynamic Type setting.
     func textScaled(_ scale: TextScale) -> some View {
         modifier(TextScaleRoot(scale: scale))
     }

@@ -47,7 +47,7 @@ struct CrossView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(model.todayLabel)
-                        .font(.footnote)
+                        .appFont(.footnote)
                         .foregroundStyle(theme.textFaint)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.bottom, Spacing.xl)
@@ -119,15 +119,15 @@ struct CrossView: View {
             GlassCard {
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     Text(entry.reference)
-                        .font(.subheadline.weight(.bold))
+                        .appFont(.subheadline.weight(.bold))
                         .foregroundStyle(theme.accent)
                     Text(entry.text)
-                        .font(.custom(FontFamily.verse, size: 20, relativeTo: .title3))
+                        .appFont(.custom(FontFamily.verse, size: 20, relativeTo: .title3))
                         .foregroundStyle(theme.text)
                         .lineSpacing(11)
                         .textSelection(.enabled)
                     Text(entry.reason)
-                        .font(.footnote)
+                        .appFont(.footnote)
                         .italic()
                         .foregroundStyle(theme.textMuted)
                     if let item = entry.shareCardItem {
@@ -184,7 +184,7 @@ struct CrossView: View {
         if let question = entry.question {
             TimelineStop(glyph: "?", label: "CARRY THIS") {
                 Text(question)
-                    .font(.subheadline.weight(.medium))
+                    .appFont(.subheadline.weight(.medium))
                     .foregroundStyle(theme.text)
                     .lineSpacing(6)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -202,7 +202,7 @@ struct CrossView: View {
                 goDeeper(entry)
             } label: {
                 Label("Go deeper in chat", systemImage: "sparkles")
-                    .font(.subheadline.weight(.bold))
+                    .appFont(.subheadline.weight(.bold))
                     .foregroundStyle(theme.accent)
                     .frame(maxWidth: .infinity, minHeight: 48)
                     .background(theme.accentSoft, in: .rect(cornerRadius: Radius.lg))
@@ -223,7 +223,7 @@ struct CrossView: View {
                     confirmingReplace = true
                 } label: {
                     Label("A different word for today", systemImage: "arrow.clockwise")
-                        .font(.footnote.weight(.semibold))
+                        .appFont(.footnote.weight(.semibold))
                         .foregroundStyle(theme.textFaint)
                         .frame(maxWidth: .infinity, minHeight: 44)
                         .overlay {
@@ -262,7 +262,7 @@ struct CrossView: View {
 
             Spacer()
         }
-        .font(.caption)
+        .appFont(.caption)
         .foregroundStyle(theme.textFaint)
         .disabled(model.isLoading || model.isReplacing)
     }
@@ -274,7 +274,7 @@ struct CrossView: View {
             ProgressView()
                 .tint(theme.accent)
             Text("Preparing a fresh word. You can keep reading this one while SureWord searches.")
-                .font(.footnote)
+                .appFont(.footnote)
                 .foregroundStyle(theme.textSecondary)
                 .lineSpacing(4)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -291,14 +291,14 @@ struct CrossView: View {
     private func replacePanel(_ entry: DailyCrossEntry) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text("Replace today's word with a new one? \(entry.reference) won't come back.")
-                .font(.footnote)
+                .appFont(.footnote)
                 .foregroundStyle(theme.textSecondary)
                 .lineSpacing(4)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             TextField("Anything it should centre on? (optional)", text: $focus)
                 .textFieldStyle(.plain)
-                .font(.subheadline)
+                .appFont(.subheadline)
                 .padding(Spacing.sm)
                 .background(theme.surface, in: .rect(cornerRadius: Radius.sm))
                 .overlay {
@@ -330,7 +330,7 @@ struct CrossView: View {
 
     private func paragraph(_ text: String) -> some View {
         Text(text)
-            .font(.subheadline)
+            .appFont(.subheadline)
             .foregroundStyle(theme.textSecondary)
             .lineSpacing(6)
             .textSelection(.enabled)
@@ -345,7 +345,7 @@ struct CrossView: View {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     HStack(spacing: Spacing.sm) {
                         Text("\(step.book) \(step.chapter)")
-                            .font(.subheadline.weight(.bold))
+                            .appFont(.subheadline.weight(.bold))
                             .foregroundStyle(theme.accent)
                         // The daily cross is told to build its path out of the
                         // user's plan; this is how they see that it did.
@@ -355,7 +355,7 @@ struct CrossView: View {
                             chapter: step.chapter
                         ) {
                             Text("FROM YOUR PLAN")
-                                .font(.system(size: 9.5, weight: .bold))
+                                .appFont(.system(size: 9.5, weight: .bold))
                                 .kerning(0.8)
                                 .foregroundStyle(theme.textFaint)
                                 .padding(.horizontal, 6)
@@ -366,14 +366,14 @@ struct CrossView: View {
                         }
                     }
                     Text(step.focus)
-                        .font(.footnote)
+                        .appFont(.footnote)
                         .foregroundStyle(theme.textSecondary)
                         .lineSpacing(4)
                         .multilineTextAlignment(.leading)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
+                    .appFont(.footnote.weight(.semibold))
                     .foregroundStyle(theme.textFaint)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -398,7 +398,7 @@ struct CrossView: View {
         GlassCard(padding: Spacing.xl) {
             VStack(spacing: Spacing.md) {
                 Text(message)
-                    .font(.footnote)
+                    .appFont(.footnote)
                     .foregroundStyle(theme.textSecondary)
                     .multilineTextAlignment(.center)
                 Button("Refresh today's word") { model.load(force: true) }
@@ -412,7 +412,7 @@ struct CrossView: View {
         GlassCard(padding: Spacing.xl) {
             VStack(spacing: Spacing.md) {
                 Text(message)
-                    .font(.footnote)
+                    .appFont(.footnote)
                     .foregroundStyle(theme.textSecondary)
                     .multilineTextAlignment(.center)
                 Button("Try again") { model.load(force: true) }
@@ -516,7 +516,7 @@ private struct TimelineStop<Content: View>: View {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 if let label {
                     Text(label)
-                        .font(.caption2.weight(.bold))
+                        .appFont(.caption2.weight(.bold))
                         .kerning(1.2)
                         .foregroundStyle(theme.accentDim)
                         .padding(.top, 6)
@@ -534,11 +534,11 @@ private struct TimelineStop<Content: View>: View {
             Circle().strokeBorder(theme.accentBorder, lineWidth: 1)
             if let systemImage {
                 Image(systemName: systemImage)
-                    .font(.footnote.weight(.bold))
+                    .appFont(.footnote.weight(.bold))
                     .foregroundStyle(theme.accent)
             } else {
                 Text(glyph)
-                    .font(.footnote.weight(.bold))
+                    .appFont(.footnote.weight(.bold))
                     .foregroundStyle(theme.accent)
             }
         }
@@ -581,7 +581,7 @@ private struct LoadingBars: View {
             }
 
             Text("Preparing your day in the Word…")
-                .font(.footnote)
+                .appFont(.footnote)
                 .foregroundStyle(theme.textFaint)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.top, Spacing.sm)

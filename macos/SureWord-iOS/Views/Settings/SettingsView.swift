@@ -39,11 +39,11 @@ struct SettingsView: View {
                         avatar
                         VStack(alignment: .leading, spacing: 2) {
                             Text(SettingsProfile.name(clerk.user) ?? "Signed in")
-                                .font(.body.weight(.semibold))
+                                .appFont(.body.weight(.semibold))
                                 .foregroundStyle(theme.text)
                             if let email = SettingsProfile.email(clerk.user) {
                                 Text(email)
-                                    .font(.footnote)
+                                    .appFont(.footnote)
                                     .foregroundStyle(theme.textFaint)
                             }
                         }
@@ -133,7 +133,7 @@ struct SettingsView: View {
         } label: {
             HStack(spacing: Spacing.md) {
                 Image(systemName: "textformat.size")
-                    .font(.body)
+                    .appFont(.body)
                     .foregroundStyle(theme.accent)
                     .frame(width: 28)
                     .accessibilityHidden(true)
@@ -151,7 +151,7 @@ struct SettingsView: View {
         } label: {
             HStack(spacing: Spacing.md) {
                 Image(systemName: "figure.walk")
-                    .font(.body)
+                    .appFont(.body)
                     .foregroundStyle(theme.accent)
                     .frame(width: 28)
                     .accessibilityHidden(true)
@@ -159,7 +159,7 @@ struct SettingsView: View {
                     Text("Walk me through SureWord")
                         .foregroundStyle(theme.text)
                     Text(app.onboarding.startError ?? "A short guided start, any time")
-                        .font(.footnote)
+                        .appFont(.footnote)
                         .foregroundStyle(theme.textFaint)
                         .lineLimit(2)
                 }
@@ -222,7 +222,7 @@ struct SettingsView: View {
 
     private var avatar: some View {
         Text(SettingsProfile.initial(clerk.user))
-            .font(.system(size: 18, weight: .semibold))
+            .appFont(.system(size: 18, weight: .semibold))
             .foregroundStyle(theme.accent)
             .frame(width: 44, height: 44)
             .background(theme.accentSoft, in: .circle)
@@ -241,7 +241,7 @@ struct SettingsView: View {
         } label: {
             HStack(spacing: Spacing.md) {
                 Image(systemName: symbol)
-                    .font(.body)
+                    .appFont(.body)
                     .foregroundStyle(theme.accent)
                     .frame(width: 28)
                     .accessibilityHidden(true)
@@ -249,7 +249,7 @@ struct SettingsView: View {
                     Text(title)
                         .foregroundStyle(theme.text)
                     Text(subtitle)
-                        .font(.footnote)
+                        .appFont(.footnote)
                         .foregroundStyle(theme.textFaint)
                         .lineLimit(2)
                 }

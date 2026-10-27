@@ -20,6 +20,7 @@ struct ChatTabView: View {
     /// The answer whose Share sheet is open, if any.
     @State private var shareCard: ShareCardItem?
     @State private var isModelPickerPresented = false
+    @State private var isTextSizePresented = false
     /// A plan or Learn receipt tapped in chat pushes that screen onto this
     /// stack - the same screens the Bible home's cards push.
     @State private var studyRoute: StudyRoute?
@@ -79,9 +80,9 @@ struct ChatTabView: View {
                         ChatArtwork.image("sureword-mark").resizable().scaledToFit().frame(width: 40, height: 40).accessibilityHidden(true)
                     }
                     VStack(alignment: .leading, spacing: 0) {
-                        Text("SureWord").font(.custom(FontFamily.brand, size: 27)).foregroundStyle(ChatAppearance.colors(for: theme).text)
+                        Text("SureWord").appFont(.custom(FontFamily.brand, size: 27)).foregroundStyle(ChatAppearance.colors(for: theme).text)
                         if let title = chat.activeConversation?.title {
-                            Text(title).font(.caption2).foregroundStyle(ChatAppearance.colors(for: theme).textMuted).lineLimit(1)
+                            Text(title).appFont(.caption2).foregroundStyle(ChatAppearance.colors(for: theme).textMuted).lineLimit(1)
                         }
                     }
                 }
@@ -97,6 +98,7 @@ struct ChatTabView: View {
                 Menu {
                     Button("Choose AI model", systemImage: "sparkles") { isModelPickerPresented = true }
                     Button("Conversation history", systemImage: "clock") { chat.isHistoryPresented = true }
+                    Button("Text size", systemImage: "textformat.size") { isTextSizePresented = true }
                     Button("Settings", systemImage: "gearshape") { studyRoute = .settings }
                 } label: { Image(systemName: "ellipsis") }
                     .accessibilityLabel("Chat options")
@@ -105,7 +107,7 @@ struct ChatTabView: View {
         .overlay(alignment: .top) {
             if let toast {
                 Text(toast)
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.text)
                     .padding(.horizontal, Spacing.lg)
                     .padding(.vertical, Spacing.sm)
@@ -117,6 +119,17 @@ struct ChatTabView: View {
         }
         .sheet(isPresented: $chat.isHistoryPresented) {
             ChatHistorySheet(chat: chat)
+        }
+        .sheet(isPresented: $isTextSizePresented) {
+            NavigationStack {
+                Form { Section("Text size") { TextSizeControls() } }
+                    .navigationTitle("Text size")
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { isTextSizePresented = false }
+                        }
+                    }
+            }
         }
         .navigationDestination(item: $studyRoute) { route in
             switch route {

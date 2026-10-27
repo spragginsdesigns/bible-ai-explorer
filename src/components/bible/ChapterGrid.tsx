@@ -19,7 +19,7 @@ const ChapterGrid: React.FC = () => {
       <div className="min-h-[100dvh] gradient-mesh">
         <div className="mx-auto w-full max-w-2xl px-5">
           <div className="flex items-center py-3">
-            <Link href="/bible" className="text-[15px] font-semibold text-amber-600 dark:text-amber-400">
+            <Link href="/bible" className="text-[0.9375rem] font-semibold text-amber-600 dark:text-amber-400">
               ‹ Back
             </Link>
           </div>
@@ -37,10 +37,10 @@ const ChapterGrid: React.FC = () => {
     <div className="min-h-[100dvh] gradient-mesh">
       <div className="mx-auto w-full max-w-2xl lg:max-w-5xl px-5 lg:px-8 pb-28 lg:pb-16">
         <div className="flex items-center gap-4 py-3 lg:py-6">
-          <Link href="/bible" className="text-[15px] font-semibold text-amber-600 dark:text-amber-400">
+          <Link href="/bible" className="text-[0.9375rem] font-semibold text-amber-600 dark:text-amber-400">
             ‹ Back
           </Link>
-          <h1 className="flex-1 truncate text-center text-[15px] lg:text-xl font-semibold text-neutral-900 dark:text-neutral-100">
+          <h1 className="flex-1 truncate text-center text-[0.9375rem] lg:text-xl font-semibold text-neutral-900 dark:text-neutral-100">
             {book.name}
           </h1>
           <span className="w-11" aria-hidden />
@@ -52,7 +52,7 @@ const ChapterGrid: React.FC = () => {
               key={chapter}
               href={`/bible/chapter?book=${book.order}&chapter=${chapter}`}
               aria-label={`${book.name} chapter ${chapter}`}
-              className="flex aspect-square items-center justify-center rounded-lg border border-black/[0.08] dark:border-white/[0.06] bg-black/[0.03] dark:bg-white/[0.03] text-[15px] font-semibold tabular-nums text-neutral-700 dark:text-neutral-300 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] hover:border-amber-500/30 dark:hover:border-amber-400/20 transition-colors"
+              className="flex aspect-square items-center justify-center rounded-lg border border-black/[0.08] dark:border-white/[0.06] bg-black/[0.03] dark:bg-white/[0.03] text-[0.9375rem] font-semibold tabular-nums text-neutral-700 dark:text-neutral-300 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] hover:border-amber-500/30 dark:hover:border-amber-400/20 transition-colors"
             >
               {chapter}
             </Link>

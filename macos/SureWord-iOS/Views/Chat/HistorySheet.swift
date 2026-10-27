@@ -34,7 +34,7 @@ struct ChatHistorySheet: View {
 
                 if let actionError = actions.error {
                     Text(actionError)
-                        .font(.system(size: 13))
+                        .appFont(.system(size: 13))
                         .foregroundStyle(theme.danger)
                         .accessibilityAddTraits(.isStaticText)
                 }
@@ -45,7 +45,7 @@ struct ChatHistorySheet: View {
                     }
                     if results.isEmpty, !chat.conversations.isEmpty {
                         Text(HistorySearch.noMatches(query))
-                            .font(.system(size: 13))
+                            .appFont(.system(size: 13))
                             .foregroundStyle(theme.textMuted)
                     }
                 } header: {
@@ -101,7 +101,7 @@ struct ChatHistorySheet: View {
                 Spacer()
                 if conversation.id == chat.activeConversationID {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 12, weight: .semibold))
+                        .appFont(.system(size: 12, weight: .semibold))
                         .foregroundStyle(theme.accent)
                 }
             }

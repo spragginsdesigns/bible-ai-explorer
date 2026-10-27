@@ -1,5 +1,5 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { Asset } from "expo-asset";
 import {
 	AtkinsonHyperlegible_400Regular,
@@ -17,8 +17,8 @@ import {
 	useEditorBridge,
 	useKeyboard,
 } from "@10play/tentap-editor";
-import { radius, spacing } from "@/theme";
-import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import { fonts, radius, spacing } from "@/theme";
+import { useTextScaleFactor, useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import type { NoteSavePayload } from "../types";
 import { countWords, htmlToPlainText } from "../utils";
@@ -133,14 +133,15 @@ const bridgeExtensions = (c: Colors) => [
 	}),
 ];
 
-const editorTheme = (c: Colors) => ({
+const editorTheme = (c: Colors, factor: number) => ({
 	webview: { backgroundColor: c.bgMid },
 	webviewContainer: { backgroundColor: c.bgMid },
 	toolbar: {
 		toolbarBody: {
 			flex: 0,
 			flexGrow: 0,
-			height: 48,
+			height: "auto" as const,
+			minHeight: 48,
 			minWidth: "100%" as const,
 			backgroundColor: c.bgElevated,
 			// The surrounding row draws the divider so it spans the extra button too.
@@ -149,7 +150,7 @@ const editorTheme = (c: Colors) => ({
 			borderTopColor: "transparent",
 			borderBottomColor: "transparent",
 		},
-		toolbarButton: { backgroundColor: "transparent", paddingHorizontal: 5 },
+		toolbarButton: { backgroundColor: "transparent", paddingHorizontal: 5, minHeight: 48, minWidth: 48 },
 		iconWrapper: { borderRadius: radius.sm, backgroundColor: "transparent", padding: 2 },
 		iconWrapperActive: { backgroundColor: c.accentSoft },
 		iconWrapperDisabled: { opacity: 0.25 },
@@ -158,14 +159,22 @@ const editorTheme = (c: Colors) => ({
 		iconDisabled: { tintColor: c.textGhost },
 		linkBarTheme: {
 			addLinkContainer: {
+				// TenTap's merged defaults fix this row at 44 and Insert at 32.
+				// Use auto rather than undefined: lodash.merge skips undefined.
+				flex: 0,
+				flexGrow: 0,
+				height: "auto" as const,
+				minHeight: 48,
+				width: "100%" as const,
+				flexWrap: "wrap" as const,
 				backgroundColor: c.bgElevated,
 				borderTopColor: c.borderStrong,
 				borderBottomColor: "transparent",
 			},
-			linkInput: { backgroundColor: c.bgElevated, color: c.text },
+			linkInput: { backgroundColor: c.bgElevated, color: c.text, fontSize: 16 * factor, minHeight: 48, minWidth: 120 },
 			placeholderTextColor: c.textGhost,
-			doneButton: { backgroundColor: c.accentSoft },
-			doneButtonText: { color: c.accent },
+			doneButton: { backgroundColor: c.accentSoft, height: "auto" as const, minHeight: 48, alignItems: "center" as const },
+			doneButtonText: { color: c.accent, fontFamily: fonts.body, fontSize: 15 * factor, lineHeight: 22 * factor },
 		},
 	},
 });
@@ -243,9 +252,11 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 		const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 		const { colors } = useTheme();
+		const textScaleFactor = useTextScaleFactor();
+		const { fontScale } = useWindowDimensions();
 		const styles = useThemedStyles(createStyles);
 		const extensions = useMemo(() => bridgeExtensions(colors), [colors]);
-		const theme = useMemo(() => editorTheme(colors), [colors]);
+		const theme = useMemo(() => editorTheme(colors, textScaleFactor), [colors, textScaleFactor]);
 
 		const onSaveRef = useRef(onSave);
 		onSaveRef.current = onSave;
@@ -268,6 +279,11 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 		// Same condition the Toolbar applies to itself, lifted so the wikilink
 		// button appears and disappears with it as one bar.
 		const editorState = useBridgeState(editor);
+		useEffect(() => {
+			if (!editorState.isReady) return;
+			// Replace one stylesheet without reloading the document or touching saved HTML.
+			editorRef.current.injectCSS(`.ProseMirror { font-size: ${16 * textScaleFactor}px; overflow-wrap: anywhere; } .ProseMirror pre { white-space: pre-wrap; overflow-wrap: anywhere; }`, "sureword-text-size");
+		}, [textScaleFactor, editorState.isReady]);
 		const { isKeyboardUp } = useKeyboard();
 		const toolbarHidden = !isKeyboardUp || !editorState.isFocused;
 
@@ -352,14 +368,14 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 
 		return (
 			<View style={styles.container}>
-				<RichText editor={editor} allowFileAccess />
+				<RichText editor={editor} allowFileAccess textZoom={Math.round(fontScale * 100)} />
 				<View style={[styles.toolbarWrap, { paddingBottom: bottomInset }]}>
 					<View style={[styles.toolbarRow, toolbarHidden && styles.toolbarRowHidden]}>
 						<GlyphButton
 							Icon={Link}
 							accessibilityLabel="Link to a note"
 							onPress={onRequestWikilink}
-							size={34}
+							size={48}
 							style={styles.wikilinkButton}
 						/>
 						<View style={styles.toolbarDivider} />

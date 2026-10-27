@@ -7,11 +7,10 @@ import {
 	Modal,
 	Pressable,
 	StyleSheet,
-	Text as ScriptureText,
 	View,
 	type ListRenderItemInfo,
 } from "react-native";
-import { AppText as Text } from "@/components/AppText";
+import { AppText as Text, AppScriptText as ScriptureText } from "@/components/AppText";
 import { typography } from "@/theme";
 import { useFocusEffect, useLocalSearchParams, useRouter, useSegments } from "expo-router";
 import { useChapterAudio } from "@/features/bible/useChapterAudio";

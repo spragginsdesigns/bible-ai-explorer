@@ -66,14 +66,14 @@ struct NotesSection: View {
     private var emptyDetail: some View {
         VStack(spacing: Spacing.sm) {
             Image(systemName: "note.text")
-                .font(.system(size: 30))
+                .appFont(.system(size: 30))
                 .foregroundStyle(theme.textGhost)
             Text("Select a note")
-                .font(.system(size: 15, weight: .semibold))
+                .appFont(.system(size: 15, weight: .semibold))
                 .foregroundStyle(theme.textMuted)
             // ⌘N is already "New chat" in the app menu, so notes take ⇧⌘N.
             Text("Or press ⇧⌘N to start a new Bible study note.")
-                .font(.system(size: 12.5))
+                .appFont(.system(size: 12.5))
                 .foregroundStyle(theme.textGhost)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

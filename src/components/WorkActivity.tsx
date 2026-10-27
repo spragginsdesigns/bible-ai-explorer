@@ -24,7 +24,7 @@ export default function WorkActivity({ progress, isStreaming }: { progress: Chat
 			<ChevronDown className={`h-4 w-4 ${expanded ? "rotate-180" : ""}`} />
 		</button>
 		{live && progress.phase !== "answering" && <div aria-live="polite" className="space-y-3 rounded-2xl border border-amber-600/20 bg-neutral-500/5 p-4 dark:border-amber-400/20">
-			<div className="flex items-center gap-2 text-[13px] tracking-wide text-amber-700 dark:text-amber-400/70"><Sparkles className="h-3.5 w-3.5" aria-hidden="true" />Activity</div>
+			<div className="flex items-center gap-2 text-[0.8125rem] tracking-wide text-amber-700 dark:text-amber-400/70"><Sparkles className="h-3.5 w-3.5" aria-hidden="true" />Activity</div>
 			<p className="text-base leading-relaxed text-neutral-800 dark:text-neutral-200">{progress.label}</p>
 			{elapsed - progress.lastActivityMs >= 20_000 && <p>Still waiting for the response. No new update yet.</p>}
 		</div>}

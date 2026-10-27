@@ -81,7 +81,7 @@ struct ChatInputBar: View {
                             ProgressView().controlSize(.small)
                         } else {
                             Image(systemName: "paperclip")
-                                .font(.system(size: 16, weight: .medium))
+                                .appFont(.system(size: 16, weight: .medium))
                                 .foregroundStyle(theme.textMuted)
                         }
                     }
@@ -96,7 +96,7 @@ struct ChatInputBar: View {
                 TextField("Ask a Bible question...", text: $chat.input,
                           prompt: Text("Ask a Bible question...").foregroundStyle(theme.textGhost), axis: .vertical)
                     .textFieldStyle(.plain)
-                    .font(.body)
+                    .appFont(.body)
                     .foregroundStyle(theme.text)
                     .lineLimit(1...8)
                     .focused($isFocused)
@@ -108,7 +108,7 @@ struct ChatInputBar: View {
                         chat.stop()
                     } label: {
                         Image(systemName: "stop.fill")
-                            .font(.system(size: 13, weight: .bold))
+                            .appFont(.system(size: 13, weight: .bold))
                             .foregroundStyle(theme.danger)
                             .frame(width: 44, height: 44)
                             .background(theme.dangerSoft, in: .circle)
@@ -120,7 +120,7 @@ struct ChatInputBar: View {
                 } else {
                     Button(action: submit) {
                         Image(systemName: "arrow.up")
-                            .font(.system(size: 14, weight: .bold))
+                            .appFont(.system(size: 14, weight: .bold))
                             .foregroundStyle(chat.canSend ? theme.bg : theme.textGhost)
                             .frame(width: 44, height: 44)
                             .background(
@@ -255,14 +255,14 @@ struct ChatInputBar: View {
                 chat.clearAttachmentError()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .semibold))
+                    .appFont(.system(size: 10, weight: .semibold))
                     .foregroundStyle(theme.textFaint)
                     .frame(width: 24, height: 24)
                     .contentShape(.rect)
             }
             .buttonStyle(.plain)
         }
-        .font(.system(size: 11))
+        .appFont(.system(size: 11))
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.sm)
         .background(theme.dangerSoft, in: .rect(cornerRadius: Radius.md))
@@ -287,7 +287,7 @@ struct ChatInputBar: View {
                         Text(chat.videoStatus ?? (chat.transcribingVoiceMessage
                             ? "Uploading and transcribing the voice message..."
                             : "Uploading..."))
-                            .font(.system(size: 11))
+                            .appFont(.system(size: 11))
                             .foregroundStyle(theme.textMuted)
                     }
                     .padding(.horizontal, Spacing.md)
@@ -340,16 +340,16 @@ struct ChatInputBar: View {
                 } label: {
                     HStack(spacing: Spacing.sm) {
                         Text(command.command)
-                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .appFont(.system(size: 12, weight: .semibold, design: .monospaced))
                             .foregroundStyle(theme.accent)
                         if let hint = command.hint {
                             Text(hint)
-                                .font(.system(size: 11, design: .monospaced))
+                                .appFont(.system(size: 11, design: .monospaced))
                                 .foregroundStyle(theme.textGhost)
                                 .lineLimit(1)
                         }
                         Text(command.description)
-                            .font(.system(size: 11))
+                            .appFont(.system(size: 11))
                             .foregroundStyle(theme.textMuted)
                             .lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -376,7 +376,7 @@ struct ChatInputBar: View {
                 chat.attachment = nil
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .semibold))
+                    .appFont(.system(size: 10, weight: .semibold))
                     .foregroundStyle(theme.textFaint)
                     .frame(width: 24, height: 24)
                     .contentShape(.rect)
@@ -384,7 +384,7 @@ struct ChatInputBar: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Remove attachment")
         }
-        .font(.system(size: 11))
+        .appFont(.system(size: 11))
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.sm)
         .background(theme.accentSoft, in: .rect(cornerRadius: Radius.md))

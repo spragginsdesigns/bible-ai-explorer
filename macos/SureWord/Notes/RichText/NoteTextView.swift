@@ -25,6 +25,8 @@ final class NoteTextView: NSTextView {
         didSet { needsDisplay = true }
     }
 
+    var textScale: CGFloat = 1 { didSet { needsDisplay = true } }
+
     var theme: SureWordColors = .dark {
         didSet { needsDisplay = true }
     }
@@ -63,7 +65,7 @@ final class NoteTextView: NSTextView {
 
             if let depth = decorations.quoteDepth[offset], depth > 0 {
                 for level in 0..<depth {
-                    let x = left + CGFloat(level) * NoteAttributedText.Metrics.quoteIndent + 3
+                    let x = left + CGFloat(level) * NoteAttributedText.Metrics.quoteIndent * textScale + 3
                     NSColor(theme.accent).withAlphaComponent(0.55).setFill()
                     NSRect(x: x, y: top + 2, width: 2, height: max(height - 4, 4)).fill()
                 }
@@ -80,9 +82,9 @@ final class NoteTextView: NSTextView {
             }
 
             if let marker = decorations.markers[offset] {
-                let indent = decorations.listIndent[offset] ?? NoteAttributedText.Metrics.listIndent
+                let indent = decorations.listIndent[offset] ?? (NoteAttributedText.Metrics.listIndent * textScale)
                 let attributes: [NSAttributedString.Key: Any] = [
-                    .font: NSFont.systemFont(ofSize: NoteAttributedText.Metrics.bodySize - 1),
+                    .font: NSFont.systemFont(ofSize: (NoteAttributedText.Metrics.bodySize - 1) * textScale),
                     .foregroundColor: NSColor(marker == "☑" ? theme.accent : theme.textFaint),
                 ]
                 let string = NSAttributedString(string: marker, attributes: attributes)
@@ -186,12 +188,12 @@ final class NoteTextView: NSTextView {
         enumerateParagraphFrames { offset, frame in
             guard hit == nil else { return }
             guard let marker = decorations.markers[offset], marker == "☐" || marker == "☑" else { return }
-            let indent = decorations.listIndent[offset] ?? NoteAttributedText.Metrics.listIndent
+            let indent = decorations.listIndent[offset] ?? (NoteAttributedText.Metrics.listIndent * textScale)
             let rect = NSRect(
                 x: frame.minX + origin.x,
                 y: frame.minY + origin.y,
                 width: indent,
-                height: min(frame.height, 26)
+                height: min(frame.height, 26 * textScale)
             )
             if rect.contains(point) { hit = offset }
         }

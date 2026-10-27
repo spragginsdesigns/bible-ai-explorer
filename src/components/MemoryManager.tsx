@@ -314,13 +314,13 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({ open, onClose, onMemoryCo
 					<div className="rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] p-3.5">
 						{summary === undefined && !summaryLoading && (
 							<div className="flex flex-col gap-2.5">
-								<p className="text-xs leading-[17px] text-neutral-400 dark:text-neutral-500">
+								<p className="text-xs leading-[1.0625rem] text-neutral-400 dark:text-neutral-500">
 									See an AI-written summary of everything SureWord remembers about you.
 								</p>
 								<button
 									type="button"
 									onClick={() => void handleGenerateSummary()}
-									className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[13px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
+									className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[0.8125rem] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
 								>
 									<Sparkles className="w-4 h-4" />
 									Generate summary
@@ -331,7 +331,7 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({ open, onClose, onMemoryCo
 							<button
 								type="button"
 								disabled
-								className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[13px] font-bold text-amber-600 dark:text-amber-400 opacity-70"
+								className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[0.8125rem] font-bold text-amber-600 dark:text-amber-400 opacity-70"
 							>
 								<Loader2 className="w-4 h-4 animate-spin" />
 								Writing your summary…
@@ -349,7 +349,7 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({ open, onClose, onMemoryCo
 								</p>
 								{summary.sections.map((section, i) => (
 									<div key={i}>
-										<p className="text-[13px] font-bold text-amber-600 dark:text-amber-400">
+										<p className="text-[0.8125rem] font-bold text-amber-600 dark:text-amber-400">
 											{section.title}
 										</p>
 										<p className="text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
@@ -394,7 +394,7 @@ const MemoryManager: React.FC<MemoryManagerProps> = ({ open, onClose, onMemoryCo
 							type="button"
 							onClick={() => void handleAdd()}
 							disabled={!draft.trim() || adding}
-							className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 rounded-xl border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 px-3 text-[13px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors disabled:opacity-50"
+							className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 rounded-xl border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 px-3 text-[0.8125rem] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors disabled:opacity-50"
 							aria-label="Add memory"
 						>
 							{adding ? (

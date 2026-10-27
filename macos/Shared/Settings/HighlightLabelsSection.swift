@@ -65,7 +65,7 @@ struct HighlightLabelsSection: View {
             }
 
             Text(status)
-                .font(.system(size: 11))
+                .appFont(.system(size: 11))
                 .foregroundStyle(errorText == nil ? theme.textGhost : theme.danger)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityAddTraits(.updatesFrequently)
@@ -117,7 +117,7 @@ struct HighlightLabelsSection: View {
 
                 Button("Reset") { reset(id) }
                     .buttonStyle(SubtleButtonStyle())
-                    .font(.system(size: 11, weight: .semibold))
+                    .appFont(.system(size: 11, weight: .semibold))
                     .foregroundStyle(theme.textMuted)
                     .disabled(isSaving || isRowEmpty(id))
                     .accessibilityLabel("Reset the \(preset.name) label and meaning")
@@ -291,7 +291,7 @@ struct HighlightLabelsSection: View {
 
     private func hint(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 11))
+            .appFont(.system(size: 11))
             .foregroundStyle(theme.textGhost)
             .frame(maxWidth: .infinity, alignment: .leading)
     }

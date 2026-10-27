@@ -38,7 +38,7 @@ struct SignInView: View {
                     VStack(spacing: Spacing.sm) {
                         BrandMark(size: 52)
                         Text("Scripture-rooted study, grounded in the King James Bible.")
-                            .font(.system(size: 14))
+                            .appFont(.system(size: 14))
                             .foregroundStyle(theme.textMuted)
                             .multilineTextAlignment(.center)
                     }
@@ -80,10 +80,10 @@ struct SignInView: View {
         VStack(spacing: Spacing.md) {
             VStack(spacing: Spacing.xs) {
                 Text("Welcome to SureWord")
-                    .font(.system(size: 17, weight: .semibold))
+                    .appFont(.system(size: 17, weight: .semibold))
                     .foregroundStyle(theme.text)
                 Text("New here? Create a free account. Already have one? Sign in.")
-                    .font(.system(size: 13))
+                    .appFont(.system(size: 13))
                     .foregroundStyle(theme.textMuted)
                     .multilineTextAlignment(.center)
             }
@@ -107,7 +107,7 @@ struct SignInView: View {
             HStack(spacing: Spacing.sm) {
                 Rectangle().fill(theme.border).frame(height: 1)
                 Text("or")
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.textGhost)
                 Rectangle().fill(theme.border).frame(height: 1)
             }
@@ -122,13 +122,13 @@ struct SignInView: View {
 
             if let message {
                 Text(message)
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.danger)
                     .multilineTextAlignment(.center)
                     .accessibilityIdentifier("auth-message")
             } else {
                 Text(AuthWelcomeCopy.providerFootnote)
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.textGhost)
                     .multilineTextAlignment(.center)
             }
@@ -255,7 +255,7 @@ private struct OutlineAuthButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 13, weight: .medium))
+            .appFont(.system(size: 13, weight: .medium))
             .foregroundStyle(isEnabled ? theme.text : theme.textGhost)
             .padding(.horizontal, Spacing.lg)
             .padding(.vertical, Spacing.sm)

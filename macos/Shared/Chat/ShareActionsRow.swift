@@ -30,7 +30,7 @@ struct ShareActionsRow: View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             ForEach(notices, id: \.self) { notice in
                 Text(notice)
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.textMuted)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -47,7 +47,7 @@ struct ShareActionsRow: View {
                                 action.label(composerText: chat.input),
                                 systemImage: action == .verify ? "play.circle" : action == .check ? "checkmark.shield" : "bubble.left"
                             )
-                                .font(.system(size: 13, weight: .medium))
+                                .appFont(.system(size: 13, weight: .medium))
                                 .lineLimit(1)
                                 .foregroundStyle(theme.accent)
                                 .padding(.horizontal, Spacing.md)
@@ -67,7 +67,7 @@ struct ShareActionsRow: View {
                     chat.shareNotices = nil
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .semibold))
+                        .appFont(.system(size: 11, weight: .semibold))
                         .foregroundStyle(theme.textFaint)
                         .frame(width: 28, height: 28)
                         .contentShape(.rect)

@@ -14,6 +14,11 @@
 		]
 	},
 	"releases": {
+		"1.105.0": {
+			"title": "Comfortable text sizes",
+			"headline": "Make SureWord easier to read.",
+			"why": "Clear smaller, larger and reset controls keep text within three comfortable sizes. Scripture, notes, chat and navigation adjust together."
+		},
 		"1.104.0": {
 			"title": "Getting to know you",
 			"headline": "SureWord learns your walk with God.",

@@ -57,7 +57,7 @@ struct GuideChoiceCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text(questionText)
-                .font(.system(size: 17 * textScale, weight: .semibold))
+                .appFont(.system(size: 17, weight: .semibold))
                 .foregroundStyle(theme.text)
                 .tint(theme.accent)
                 .fixedSize(horizontal: false, vertical: true)
@@ -100,7 +100,7 @@ struct GuideChoiceCard: View {
                                 answer(OnboardingRules.hourLabel(hour))
                             } label: {
                                 Text(OnboardingRules.hourLabel(hour))
-                                    .font(.system(size: 16 * textScale))
+                                    .appFont(.system(size: 16))
                                     .foregroundStyle(theme.text)
                                     .frame(minWidth: 76, minHeight: minTapHeight)
                                     .padding(.horizontal, Spacing.sm)
@@ -122,7 +122,7 @@ struct GuideChoiceCard: View {
 
             if speakHint, isActive {
                 Text(Self.speakHint)
-                    .font(.system(size: 13 * textScale))
+                    .appFont(.system(size: 13))
                     .foregroundStyle(theme.textSecondary)
             }
         }
@@ -176,7 +176,7 @@ struct GuideChoiceCard: View {
                 answer(card.skipLabel)
             } label: {
                 Text(card.skipLabel)
-                    .font(.system(size: 14 * textScale))
+                    .appFont(.system(size: 14))
                     .foregroundStyle(theme.textSecondary)
                     .frame(minHeight: 44)
             }
@@ -187,7 +187,7 @@ struct GuideChoiceCard: View {
     private func footerButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Label(title, systemImage: systemImage)
-                .font(.system(size: 15 * textScale))
+                .appFont(.system(size: 15))
                 .foregroundStyle(theme.accent)
                 .frame(minHeight: 44)
         }
@@ -197,18 +197,18 @@ struct GuideChoiceCard: View {
     /// Each text size previews itself, so the choice is made by looking. The
     /// preview replaces the current factor rather than stacking on it.
     private func optionButton(_ label: String, preview: TextScale? = nil, action: @escaping () -> Void) -> some View {
-        let size: CGFloat = 17 * (preview?.factor ?? textScale)
+        let size: CGFloat = 17 * (preview?.factor ?? textScale) / textScale
         let isChosen = !isActive && chosen == label
         return Button(action: action) {
             HStack(spacing: Spacing.sm) {
                 Text(label)
-                    .font(.system(size: size, weight: .medium))
+                    .appFont(.system(size: size, weight: .medium))
                     .foregroundStyle(theme.text)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if isChosen {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 15 * textScale, weight: .semibold))
+                        .appFont(.system(size: 15, weight: .semibold))
                         .foregroundStyle(theme.accent)
                         .accessibilityHidden(true)
                 }
@@ -249,17 +249,17 @@ struct GuideGlossarySheet: View {
                         ForEach(entry.sections, id: \.text) { section in
                             VStack(alignment: .leading, spacing: Spacing.sm) {
                                 Text(section.text)
-                                    .font(.system(size: 17 * textScale))
+                                    .appFont(.system(size: 17))
                                     .foregroundStyle(theme.text)
                                     .fixedSize(horizontal: false, vertical: true)
                                 ForEach(section.verses, id: \.reference) { verse in
                                     VStack(alignment: .leading, spacing: 6) {
                                         Text(verse.text)
-                                            .font(.custom(FontFamily.verse, size: 20 * textScale, relativeTo: .title3))
+                                            .appFont(.custom(FontFamily.verse, size: 20, relativeTo: .title3))
                                             .foregroundStyle(theme.text)
                                             .fixedSize(horizontal: false, vertical: true)
                                         Text("\(verse.reference) (KJV)")
-                                            .font(.system(size: 14 * textScale, weight: .semibold))
+                                            .appFont(.system(size: 14, weight: .semibold))
                                             .foregroundStyle(theme.accent)
                                     }
                                     .padding(Spacing.md)
@@ -276,7 +276,7 @@ struct GuideGlossarySheet: View {
                                 onAsk(entry.ask)
                             } label: {
                                 Label("Talk with SureWord about this", systemImage: "bubble.left.and.text.bubble.right")
-                                    .font(.system(size: 16 * textScale, weight: .semibold))
+                                    .appFont(.system(size: 16, weight: .semibold))
                                     .foregroundStyle(theme.accent)
                                     .frame(maxWidth: .infinity, minHeight: 52)
                                     .background(theme.accentSoft, in: .capsule)
@@ -321,12 +321,12 @@ private struct GuideChurchStep: View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             if model.state == .unavailable {
                 Text("Church search is not available right now.")
-                    .font(.system(size: 14 * textScale))
+                    .appFont(.system(size: 14))
                     .foregroundStyle(theme.textSecondary)
             } else {
                 TextField("Search by church name and city", text: $model.query)
                     .textFieldStyle(.roundedBorder)
-                    .font(.system(size: 16 * textScale))
+                    .appFont(.system(size: 16))
                     .autocorrectionDisabled()
                     .onChange(of: model.query) { _, _ in model.queryChanged() }
 
@@ -352,10 +352,10 @@ private struct GuideChurchStep: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(result.name)
-                                .font(.system(size: 16 * textScale, weight: .medium))
+                                .appFont(.system(size: 16, weight: .medium))
                                 .foregroundStyle(theme.text)
                             Text(result.address)
-                                .font(.system(size: 13 * textScale))
+                                .appFont(.system(size: 13))
                                 .foregroundStyle(theme.textMuted)
                         }
                         .frame(maxWidth: .infinity, minHeight: minTapHeight, alignment: .leading)
@@ -384,7 +384,7 @@ private struct GuideChurchStep: View {
 
     private func hint(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 13 * textScale))
+            .appFont(.system(size: 13))
             .foregroundStyle(theme.textMuted)
     }
 }
@@ -400,7 +400,7 @@ struct GuideShowMeCard: View {
     var body: some View {
         HStack(alignment: .center, spacing: Spacing.md) {
             Text(card.caption)
-                .font(.system(size: 15 * textScale))
+                .appFont(.system(size: 15))
                 .foregroundStyle(theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -433,7 +433,7 @@ struct GuideVoiceToggle: View {
                 Image(systemName: app.onboarding.voice.isSpeaking ? "speaker.wave.2.fill" : "speaker.wave.2")
                     .foregroundStyle(theme.accent)
                 Text("Read it to me")
-                    .font(.system(size: 15 * textScale, weight: .medium))
+                    .appFont(.system(size: 15, weight: .medium))
                     .foregroundStyle(theme.text)
             }
         }

@@ -95,7 +95,7 @@ export default function SermonsPage() {
 		<main className="mx-auto w-full max-w-3xl px-5 pt-6 pb-28 sm:px-8 lg:pt-10 lg:pb-10">
 			<Link
 				href="/study"
-				className="inline-block min-h-[40px] pt-2 text-[15px] font-semibold text-amber-600 dark:text-amber-400"
+				className="inline-block min-h-[40px] pt-2 text-[0.9375rem] font-semibold text-amber-600 dark:text-amber-400"
 			>
 				‹ Study
 			</Link>

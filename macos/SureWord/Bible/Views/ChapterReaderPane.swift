@@ -35,6 +35,8 @@ private struct ParchmentSheet: View {
 /// verses grows the range, as tapping does on Android. The right-click menu
 /// keeps its per-verse items as well.
 struct ChapterReaderPane: View {
+    @Environment(\.textScaleFactor) private var textScale
+    @ScaledMetric private var systemTextScale: CGFloat = 1
     @Environment(\.appearsActive) private var appearsActive
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.theme) private var theme
@@ -99,7 +101,7 @@ struct ChapterReaderPane: View {
             // what the LC Greek is, or where the red letters and headings
             // come from.
             Text(lcGreek ? LCGreek.note : ReaderAnnotations.sourceNote(translation))
-                .font(.system(size: 11))
+                .appFont(.system(size: 11))
                 .foregroundStyle(theme.textMuted)
                 .padding(.bottom, Spacing.xs)
 
@@ -193,7 +195,7 @@ struct ChapterReaderPane: View {
             } label: {
                 Label("Chapters", systemImage: "chevron.left")
                     .labelStyle(.titleAndIcon)
-                    .font(.system(size: 12, weight: .semibold))
+                    .appFont(.system(size: 12, weight: .semibold))
                     .foregroundStyle(theme.accent)
                     .lineLimit(1)
                     .fixedSize()
@@ -202,7 +204,7 @@ struct ChapterReaderPane: View {
             .help("Back to the chapter list")
 
             Text(model.reference)
-                .font(.system(size: 15, weight: .semibold))
+                .appFont(.system(size: 15, weight: .semibold))
                 .foregroundStyle(theme.text)
                 .lineLimit(1)
 
@@ -262,7 +264,7 @@ struct ChapterReaderPane: View {
                 app.openConnections(order: book, chapter: model.chapter, verse: model.sheet.selection?.start)
             } label: {
                 Label("Connections", systemImage: AppSection.connections.symbol)
-                    .font(.system(size: 11, weight: .semibold)).lineLimit(1)
+                    .appFont(.system(size: 11, weight: .semibold)).lineLimit(1)
             }
             .buttonStyle(SubtleButtonStyle())
             .fixedSize()
@@ -271,7 +273,7 @@ struct ChapterReaderPane: View {
                 showAtlas(book, model.chapter)
             } label: {
                 Label("Who's here", systemImage: "person.2")
-                    .font(.system(size: 11, weight: .semibold))
+                    .appFont(.system(size: 11, weight: .semibold))
                     .lineLimit(1)
             }
             .buttonStyle(SubtleButtonStyle())
@@ -304,7 +306,7 @@ struct ChapterReaderPane: View {
     private func translationChip(_ label: String, help: String, isActive: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: 11, weight: .bold))
+                .appFont(.system(size: 11, weight: .bold))
                 .lineLimit(1)
                 .fixedSize()
                 .foregroundStyle(isActive ? theme.accent : theme.textMuted)
@@ -335,7 +337,7 @@ struct ChapterReaderPane: View {
     ) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: size, weight: .bold))
+                .appFont(.system(size: size, weight: .bold))
                 .foregroundStyle(theme.textSecondary)
                 .frame(width: 28, height: 22)
                 .background(theme.surface, in: .rect(cornerRadius: Radius.sm))
@@ -357,7 +359,7 @@ struct ChapterReaderPane: View {
         VStack(spacing: Spacing.md) {
             ProgressView().controlSize(.small)
             Text(translation == .nkjv ? "Loading the NKJV…" : "Opening the chapter…")
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.textFaint)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -367,7 +369,7 @@ struct ChapterReaderPane: View {
         GlassCard {
             VStack(spacing: Spacing.md) {
                 Text(message)
-                    .font(.system(size: 13))
+                    .appFont(.system(size: 13))
                     .foregroundStyle(theme.textSecondary)
                     .multilineTextAlignment(.center)
                 Button("Try again") {
@@ -448,7 +450,7 @@ struct ChapterReaderPane: View {
                 askAI(model.reference, model.chapterText)
             } label: {
                 Text("✦ Ask AI")
-                    .font(.system(size: 13, weight: .bold))
+                    .appFont(.system(size: 13, weight: .bold))
             }
             .buttonStyle(AccentButtonStyle())
             // The accent button is a translucent amber wash, which had the
@@ -546,7 +548,7 @@ struct ChapterReaderPane: View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(Array((isTitle ? [model.reference] : verse.headings).enumerated()), id: \.offset) { _, heading in
                 Text(heading)
-                    .font(.custom(FontFamily.verseItalic, size: isTitle ? 28 : 24))
+                    .appFont(.custom(FontFamily.verseItalic, size: isTitle ? 28 : 24))
                     .foregroundStyle(parchment ? theme.parchmentInk : theme.text)
                     .padding(.top, isTitle ? 0 : 16)
                     .padding(.bottom, isTitle ? 24 : 20)
@@ -587,7 +589,7 @@ struct ChapterReaderPane: View {
                 tap(number)
             } label: {
                 verseText(verse)
-                    .lineSpacing(model.lineHeight - model.fontSize)
+                    .lineSpacing((model.lineHeight - model.fontSize) * textScale * systemTextScale)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(.rect)
             }
@@ -678,24 +680,24 @@ struct ChapterReaderPane: View {
         let redLetter = theme.isDark ? Color(hex: 0xEF8A83) : Color(hex: 0xA12E2A)
 
         var result = Text("\(verse.number) ")
-            .font(.system(size: 11, weight: .bold))
+            .appFont(.system(size: 11, weight: .bold), scale: textScale * systemTextScale)
             .foregroundStyle(numberInk)
         if verse.omitted {
             result = result
                 + Text("Not included in this edition\u{2019}s main text.")
-                .font(.system(size: 14))
+                .appFont(.system(size: 14), scale: textScale * systemTextScale)
                 .italic()
                 .foregroundStyle(parchment ? theme.parchmentInk.opacity(0.55) : theme.textMuted)
         }
         for segment in verse.segments {
             result = result
                 + Text(segment.text)
-                .font(
+                .appFont(
                     .custom(
                         segment.italic ? FontFamily.verseItalic : FontFamily.verse,
                         size: model.fontSize
                     )
-                )
+                , scale: textScale * systemTextScale)
                 .italic(segment.italic)
                 .foregroundStyle(segment.jesusSpeech ? redLetter : ink)
         }
@@ -772,7 +774,7 @@ struct ChapterReaderPane: View {
         let selection = sheet.activeSelection
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text(text)
-                .font(.custom(FontFamily.verse, size: 17))
+                .appFont(.custom(FontFamily.verse, size: 17))
                 .foregroundStyle(theme.textSecondary)
                 .lineLimit(4)
                 .padding(.horizontal, Spacing.lg)
@@ -784,7 +786,7 @@ struct ChapterReaderPane: View {
                 // first verse only rather than firing one per selected verse.
                 if (sheet.studyTab == .words || sheet.studyTab == .seeAlso), selection.count > 1 {
                     Text("For verse \(selection.start)")
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textFaint)
                 }
                 switch sheet.studyTab {
@@ -859,7 +861,7 @@ struct ChapterReaderPane: View {
         return VStack(alignment: .leading, spacing: Spacing.sm) {
             if matched.isEmpty {
                 Text("No study notes mention \(reference) yet.")
-                    .font(.system(size: 13))
+                    .appFont(.system(size: 13))
                     .foregroundStyle(theme.textMuted)
             } else {
                 ForEach(matched) { note in
@@ -869,11 +871,11 @@ struct ChapterReaderPane: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("✎ \(note.title)")
-                                .font(.system(size: 13.5, weight: .bold))
+                                .appFont(.system(size: 13.5, weight: .bold))
                                 .foregroundStyle(theme.accent)
                             if !note.excerpt.isEmpty {
                                 Text(note.excerpt)
-                                    .font(.system(size: 12.5))
+                                    .appFont(.system(size: 12.5))
                                     .foregroundStyle(theme.textSecondary)
                                     .lineLimit(2)
                             }
@@ -890,7 +892,7 @@ struct ChapterReaderPane: View {
                 Task { await saveToNote(context) }
             } label: {
                 Text("＋ Add \(reference) to a note")
-                    .font(.system(size: 13, weight: .semibold))
+                    .appFont(.system(size: 13, weight: .semibold))
                     .foregroundStyle(theme.accent)
                     .frame(maxWidth: .infinity, minHeight: 38)
                     .background(theme.accentSoft, in: RoundedRectangle(cornerRadius: Radius.md))
@@ -1037,7 +1039,7 @@ struct ChapterReaderPane: View {
             // NKJV line does not read "NKJV - © Thomas Nelson - text via …"
             // with two different dashes in one sentence.
             Text(lcGreek ? "\(LCGreek.label) \u{2014} \(LCGreek.copyright)" : "\(translation.name) \u{2014} \(translation.copyright)")
-                .font(.system(size: 11))
+                .appFont(.system(size: 11))
                 .italic()
                 .foregroundStyle(parchment ? theme.parchmentInk.opacity(0.55) : theme.textGhost)
                 .frame(maxWidth: .infinity)
@@ -1063,7 +1065,7 @@ struct ChapterReaderPane: View {
             model.go(to: target)
         } label: {
             Text(title)
-                .font(.system(size: 13, weight: .semibold))
+                .appFont(.system(size: 13, weight: .semibold))
                 .foregroundStyle(accent ? theme.accent : theme.textSecondary)
                 .frame(maxWidth: .infinity, minHeight: 40)
                 .background(

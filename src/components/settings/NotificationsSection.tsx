@@ -117,10 +117,10 @@ const NotificationsSection: React.FC = () => {
 						<MessageSquare className="w-5 h-5" />
 					</span>
 					<div className="min-w-0 flex-1">
-						<p className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+						<p className="text-[0.9375rem] font-semibold text-neutral-900 dark:text-neutral-100">
 							Notify when an answer is ready
 						</p>
-						<p className="text-[13px] text-neutral-400 dark:text-neutral-500">
+						<p className="text-[0.8125rem] text-neutral-400 dark:text-neutral-500">
 							Leave the app while SureWord is answering and it keeps working. This tells you when
 							the answer has landed.
 						</p>
@@ -143,10 +143,10 @@ const NotificationsSection: React.FC = () => {
 						<Bell className="w-5 h-5" />
 					</span>
 					<div className="min-w-0 flex-1">
-						<p className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+						<p className="text-[0.9375rem] font-semibold text-neutral-900 dark:text-neutral-100">
 							Daily verse notification
 						</p>
-						<p className="text-[13px] text-neutral-400 dark:text-neutral-500">
+						<p className="text-[0.8125rem] text-neutral-400 dark:text-neutral-500">
 							An AI-picked verse each morning, shaped by what you&apos;ve been reading and asking
 							about.
 						</p>
@@ -162,7 +162,7 @@ const NotificationsSection: React.FC = () => {
 				</div>
 				{settings.enabled ? (
 					<div className="flex items-center justify-between gap-3 border-t border-black/[0.06] dark:border-white/[0.06] pt-3">
-						<p className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">Arrives at</p>
+						<p className="text-[0.9375rem] font-semibold text-neutral-900 dark:text-neutral-100">Arrives at</p>
 						<div className="flex items-center gap-2">
 							<button
 								type="button"

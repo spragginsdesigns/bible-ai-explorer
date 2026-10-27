@@ -31,7 +31,7 @@ struct ReadingHistoryView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack {
-                Text("Reading log").font(.title2.bold()).foregroundStyle(theme.text)
+                Text("Reading log").appFont(.title2.bold()).foregroundStyle(theme.text)
                     .accessibilityAddTraits(.isHeader)
                 Spacer()
                 #if os(macOS)
@@ -48,7 +48,7 @@ struct ReadingHistoryView: View {
                     let days = ReadingLogRules.groupByDay(model.history)
                     let today = ReadingLogRules.localDateKey(Date())
                     if !days.isEmpty {
-                        Text("History").font(.title3.bold()).foregroundStyle(theme.text).padding(.top, Spacing.sm)
+                        Text("History").appFont(.title3.bold()).foregroundStyle(theme.text).padding(.top, Spacing.sm)
                             .accessibilityAddTraits(.isHeader)
                     }
                     ForEach(days) { day in daySection(day, today: today) }
@@ -156,10 +156,10 @@ struct ReadingHistoryView: View {
 
     private func statTile(_ tile: ReadingStatTile) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(tile.value).font(.system(size: 26, weight: .bold)).foregroundStyle(theme.text)
+            Text(tile.value).appFont(.system(size: 26, weight: .bold)).foregroundStyle(theme.text)
                 .lineLimit(1).minimumScaleFactor(0.6)
-            Text(tile.label).font(.caption).foregroundStyle(theme.textSecondary)
-            Text(tile.sub).font(.caption2).foregroundStyle(theme.textFaint).padding(.top, 2)
+            Text(tile.label).appFont(.caption).foregroundStyle(theme.textSecondary)
+            Text(tile.sub).appFont(.caption2).foregroundStyle(theme.textFaint).padding(.top, 2)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(Spacing.md)
@@ -174,7 +174,7 @@ struct ReadingHistoryView: View {
     private func daySection(_ day: ReadingLogDay, today: String) -> some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Text(ReadingLogRules.dayHeading(day.date, today: today))
-                .font(.caption.weight(.semibold)).foregroundStyle(theme.textMuted)
+                .appFont(.caption.weight(.semibold)).foregroundStyle(theme.textMuted)
                 .accessibilityAddTraits(.isHeader)
             VStack(spacing: 0) {
                 ForEach(Array(day.chapters.enumerated()), id: \.element.id) { index, row in
@@ -195,19 +195,19 @@ struct ReadingHistoryView: View {
         } label: {
             HStack(spacing: Spacing.md) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("\(row.bookName) \(row.chapter)").font(.subheadline.weight(.semibold)).foregroundStyle(theme.text)
+                    Text("\(row.bookName) \(row.chapter)").appFont(.subheadline.weight(.semibold)).foregroundStyle(theme.text)
                     if let meta = row.meta {
-                        Text(meta).font(.caption2).foregroundStyle(theme.textFaint)
+                        Text(meta).appFont(.caption2).foregroundStyle(theme.textFaint)
                     }
                 }
                 Spacer(minLength: Spacing.sm)
                 if row.completed {
-                    Text("✓ Read").font(.caption.weight(.semibold)).foregroundStyle(theme.accent)
+                    Text("✓ Read").appFont(.caption.weight(.semibold)).foregroundStyle(theme.accent)
                 } else {
                     VStack(alignment: .trailing, spacing: Spacing.xs) {
                         ReadingProgressBar(fraction: row.barFraction, height: 4, fill: theme.accentDim)
                             .frame(width: 72)
-                        Text("Part").font(.caption2).foregroundStyle(theme.textFaint)
+                        Text("Part").appFont(.caption2).foregroundStyle(theme.textFaint)
                     }
                 }
             }
@@ -253,12 +253,12 @@ struct ReadingHistoryView: View {
     // MARK: Pieces
 
     private func bodyText(_ text: String) -> some View {
-        Text(text).font(.subheadline).foregroundStyle(theme.textSecondary)
+        Text(text).appFont(.subheadline).foregroundStyle(theme.textSecondary)
             .fixedSize(horizontal: false, vertical: true)
     }
     private func link(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title).font(.subheadline).foregroundStyle(theme.accent).padding(.vertical, Spacing.sm)
+            Text(title).appFont(.subheadline).foregroundStyle(theme.accent).padding(.vertical, Spacing.sm)
         }
         .buttonStyle(.plain)
     }
@@ -298,9 +298,9 @@ struct ReadingSyncStatus: View {
     var body: some View {
         if let error = model.error {
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                Text(error).font(.caption).foregroundStyle(theme.danger)
+                Text(error).appFont(.caption).foregroundStyle(theme.danger)
                     .accessibilityAddTraits(.isStaticText)
-                Button("Retry reading sync") { model.retry() }.font(.caption)
+                Button("Retry reading sync") { model.retry() }.appFont(.caption)
             }
             .padding(Spacing.sm)
         }

@@ -49,15 +49,15 @@ type Selection =
   | { kind: "person" | "place"; id: string }
   | null;
 const chipClass =
-  "inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-3 py-1.5 text-[13px] font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] transition-colors";
+  "inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.03] px-3 py-1.5 text-[0.8125rem] font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] transition-colors";
 const refChipClass =
-  "inline-flex min-h-[40px] items-center rounded-full border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 px-3 py-1.5 text-[13px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors";
+  "inline-flex min-h-[40px] items-center rounded-full border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 px-3 py-1.5 text-[0.8125rem] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors";
 /** A person's action chip: View journey, Immediate family, Trace connection. */
 function actionChipClass(active: boolean): string {
   return `min-h-[44px] rounded-lg border px-4 text-sm font-semibold transition-colors ${active ? "border-amber-500/60 bg-amber-500/15 text-amber-600 dark:text-amber-400" : "border-amber-500/40 text-amber-600 hover:bg-amber-500/10 dark:text-amber-400"}`;
 }
 const sectionLabelClass =
-  "pt-5 pb-2 text-[11.5px] font-bold uppercase tracking-[0.1em] text-amber-600/80 dark:text-amber-400/70";
+  "pt-5 pb-2 text-[0.71875rem] font-bold uppercase tracking-[0.1em] text-amber-600/80 dark:text-amber-400/70";
 function validMode(value: string | null): Mode {
   return value === "people" || value === "places" ? value : "timeline";
 }
@@ -248,7 +248,7 @@ const AtlasScreen: React.FC = () => {
           <div className="flex items-center gap-4 py-3 lg:py-6">
             <Link
               href="/study"
-              className="min-h-[40px] pt-2 text-[15px] font-semibold text-amber-600 dark:text-amber-400"
+              className="min-h-[40px] pt-2 text-[0.9375rem] font-semibold text-amber-600 dark:text-amber-400"
             >
               ‹ Study
             </Link>
@@ -259,7 +259,7 @@ const AtlasScreen: React.FC = () => {
             </h1>
             <span className="w-14" aria-hidden />
           </div>
-          <p className="mb-4 text-center text-[13px] leading-5 text-neutral-500 dark:text-neutral-400">
+          <p className="mb-4 text-center text-[0.8125rem] leading-5 text-neutral-500 dark:text-neutral-400">
             <span className="font-bold text-amber-600 dark:text-amber-400">
               Traditional chronology
             </span>{" "}
@@ -346,7 +346,7 @@ const AtlasScreen: React.FC = () => {
               <p className={sectionLabelClass}>Who&apos;s in this chapter</p>
               {chapterView.people.length === 0 &&
               chapterView.places.length === 0 ? (
-                <p className="text-[13px] leading-5 text-neutral-500 dark:text-neutral-400">
+                <p className="text-[0.8125rem] leading-5 text-neutral-500 dark:text-neutral-400">
                   The atlas records no one and nowhere by name in{" "}
                   {chapterScope.name} {chapterScope.chapter}.
                 </p>
@@ -491,18 +491,18 @@ function SearchResults({
                     className="flex min-h-[76px] w-full items-center gap-4 rounded-xl border border-black/[0.08] dark:border-white/[0.06] bg-black/[0.03] dark:bg-white/[0.03] px-4 py-3.5 text-left transition-colors hover:border-amber-500/30 hover:bg-black/[0.06] dark:border-white/[0.06] dark:hover:border-amber-400/20 dark:hover:bg-white/[0.06]"
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[15px] font-bold text-neutral-900 dark:text-neutral-100">
+                      <span className="block text-[0.9375rem] font-bold text-neutral-900 dark:text-neutral-100">
                         {hit.name}
                       </span>
                       {hit.disambiguator && (
-                        <span className="block text-[11.5px] text-neutral-400 dark:text-neutral-500">
+                        <span className="block text-[0.71875rem] text-neutral-400 dark:text-neutral-500">
                           {hit.disambiguator}
                         </span>
                       )}
-                      <span className="mt-0.5 block line-clamp-2 text-[13px] leading-5 text-neutral-500 dark:text-neutral-400">
+                      <span className="mt-0.5 block line-clamp-2 text-[0.8125rem] leading-5 text-neutral-500 dark:text-neutral-400">
                         {hit.description}
                       </span>
-                      <span className="mt-1 block text-[11.5px] text-neutral-400/80 dark:text-neutral-500">
+                      <span className="mt-1 block text-[0.71875rem] text-neutral-400/80 dark:text-neutral-500">
                         <span className="font-semibold text-amber-600 dark:text-amber-400">
                           {atlasDateLabel(
                             undefined,
@@ -554,7 +554,7 @@ function TimelineBody({
                   aria-hidden
                   className="relative flex w-7 flex-shrink-0 flex-col items-center"
                 >
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[13px] font-bold text-amber-600 dark:text-amber-400 shadow-[0_0_6px_rgba(200,160,40,0.5)]">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[0.8125rem] font-bold text-amber-600 dark:text-amber-400 shadow-[0_0_6px_rgba(200,160,40,0.5)]">
                     ✦
                   </span>
                   <span className="mt-1 w-0.5 flex-1 rounded bg-amber-500/25 dark:bg-amber-400/20" />
@@ -564,16 +564,16 @@ function TimelineBody({
                   onClick={() => onOpenEvent(event)}
                   className="min-h-[108px] min-w-0 flex-1 rounded-xl border border-black/[0.08] dark:border-white/[0.06] bg-black/[0.03] dark:bg-white/[0.03] px-4 py-3 text-left hover:bg-black/[0.06] dark:hover:bg-white/[0.06] hover:border-amber-500/30 dark:hover:border-amber-400/20 transition-colors"
                 >
-                  <span className="block text-[11.5px] font-bold tabular-nums tracking-wide text-amber-600 dark:text-amber-400">
+                  <span className="block text-[0.71875rem] font-bold tabular-nums tracking-wide text-amber-600 dark:text-amber-400">
                     {atlasDateLabel(event.date, event.yearLabel)}
                   </span>
-                  <span className="mt-0.5 block text-[15.5px] font-bold leading-6 text-neutral-900 dark:text-neutral-100">
+                  <span className="mt-0.5 block text-[0.96875rem] font-bold leading-6 text-neutral-900 dark:text-neutral-100">
                     {event.title}
                   </span>
-                  <span className="mt-1 block line-clamp-3 text-[13px] leading-5 text-neutral-500 dark:text-neutral-400">
+                  <span className="mt-1 block line-clamp-3 text-[0.8125rem] leading-5 text-neutral-500 dark:text-neutral-400">
                     {event.summary}
                   </span>
-                  <span className="mt-1.5 block text-[11.5px] text-neutral-400/80 dark:text-neutral-500">
+                  <span className="mt-1.5 block text-[0.71875rem] text-neutral-400/80 dark:text-neutral-500">
                     {event.refs.join(" · ")}
                   </span>
                 </button>
@@ -582,7 +582,7 @@ function TimelineBody({
           </ol>
         </section>
       ))}
-      <p className="pt-4 text-[11.5px] leading-5 text-neutral-400/80 dark:text-neutral-500">
+      <p className="pt-4 text-[0.71875rem] leading-5 text-neutral-400/80 dark:text-neutral-500">
         {USSHER_NOTE}
       </p>
     </div>
@@ -634,17 +634,17 @@ function DirectoryBody({
                     {item.name}
                   </span>
                   {item.disambiguator && (
-                    <span className="text-[11.5px] text-neutral-400 dark:text-neutral-500">
+                    <span className="text-[0.71875rem] text-neutral-400 dark:text-neutral-500">
                       {item.disambiguator}
                     </span>
                   )}
                 </span>
                 {item.description && (
-                  <span className="mt-0.5 line-clamp-2 block text-[13px] leading-5 text-neutral-600 dark:text-neutral-400">
+                  <span className="mt-0.5 line-clamp-2 block text-[0.8125rem] leading-5 text-neutral-600 dark:text-neutral-400">
                     {item.description}
                   </span>
                 )}
-                <span className="mt-0.5 block text-[11.5px] text-neutral-400 dark:text-neutral-500">
+                <span className="mt-0.5 block text-[0.71875rem] text-neutral-400 dark:text-neutral-500">
                   {entityRowMeta(item)}
                 </span>
               </span>
@@ -690,7 +690,7 @@ function EraChip({
       title={title}
       aria-pressed={active}
       onClick={onClick}
-      className={`min-h-[40px] flex-shrink-0 rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors ${active ? "border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-amber-600 dark:text-amber-400" : "border-black/[0.1] dark:border-white/[0.08] text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"}`}
+      className={`min-h-[40px] flex-shrink-0 rounded-full border px-3.5 py-1.5 text-[0.78125rem] font-semibold transition-colors ${active ? "border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-amber-600 dark:text-amber-400" : "border-black/[0.1] dark:border-white/[0.08] text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"}`}
     >
       {label}
     </button>
@@ -847,7 +847,7 @@ function AskButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="mt-6 flex min-h-[48px] w-full items-center justify-center rounded-xl border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[15px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
+      className="mt-6 flex min-h-[48px] w-full items-center justify-center rounded-xl border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[0.9375rem] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
     >
       ✦ Ask about this
     </button>
@@ -867,10 +867,10 @@ function EventDetail({
       <h3 className="pr-8 font-[family-name:var(--font-pirata)] text-2xl text-neutral-900 dark:text-neutral-100">
         {event.title}
       </h3>
-      <p className="mt-1 text-[12.5px] font-semibold text-neutral-400 dark:text-neutral-500">
+      <p className="mt-1 text-[0.78125rem] font-semibold text-neutral-400 dark:text-neutral-500">
         {atlasDateLabel(event.date, event.yearLabel)} · {event.era}
       </p>
-      <p className="mt-3 text-[14.5px] leading-6 text-neutral-700 dark:text-neutral-300">
+      <p className="mt-3 text-[0.90625rem] leading-6 text-neutral-700 dark:text-neutral-300">
         {event.summary}
       </p>
       <p className={sectionLabelClass}>In Scripture</p>
@@ -976,22 +976,22 @@ function EntityDetail({
         {entity.name}
       </h3>
       {entity.disambiguator && (
-        <p className="mt-0.5 text-[12.5px] text-neutral-400 dark:text-neutral-500">
+        <p className="mt-0.5 text-[0.78125rem] text-neutral-400 dark:text-neutral-500">
           {entity.disambiguator}
         </p>
       )}
-      <p className="mt-1 text-[13px] text-neutral-500 dark:text-neutral-400">
+      <p className="mt-1 text-[0.8125rem] text-neutral-500 dark:text-neutral-400">
         {entitySubtitle(entity)}
       </p>
       {alsoCalledLine(entity) && (
-        <p className="mt-0.5 text-[12.5px] italic text-neutral-400 dark:text-neutral-500">
+        <p className="mt-0.5 text-[0.78125rem] italic text-neutral-400 dark:text-neutral-500">
           {alsoCalledLine(entity)}
         </p>
       )}
-      <p className="mt-4 text-[15px] leading-6 text-neutral-700 dark:text-neutral-300">
+      <p className="mt-4 text-[0.9375rem] leading-6 text-neutral-700 dark:text-neutral-300">
         {entity.description}
       </p>
-      <p className="mt-2 text-[11.5px] text-neutral-400/80 dark:text-neutral-500">
+      <p className="mt-2 text-[0.71875rem] text-neutral-400/80 dark:text-neutral-500">
         {entityCounts(entity)}
       </p>
       <p className={sectionLabelClass}>In Scripture</p>
@@ -1009,7 +1009,7 @@ function EntityDetail({
                 type="button"
                 aria-pressed={!familyOnly}
                 onClick={() => setFamilyOnly(false)}
-                className={`min-h-[40px] rounded-lg px-3 text-[13px] font-bold transition-colors ${!familyOnly ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : "text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.05] dark:hover:bg-white/[0.05]"}`}
+                className={`min-h-[40px] rounded-lg px-3 text-[0.8125rem] font-bold transition-colors ${!familyOnly ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : "text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.05] dark:hover:bg-white/[0.05]"}`}
               >
                 All relationships
               </button>
@@ -1017,14 +1017,14 @@ function EntityDetail({
                 type="button"
                 aria-pressed={familyOnly}
                 onClick={() => setFamilyOnly(true)}
-                className={`min-h-[40px] rounded-lg px-3 text-[13px] font-bold transition-colors ${familyOnly ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : "text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.05] dark:hover:bg-white/[0.05]"}`}
+                className={`min-h-[40px] rounded-lg px-3 text-[0.8125rem] font-bold transition-colors ${familyOnly ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : "text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.05] dark:hover:bg-white/[0.05]"}`}
               >
                 Immediate family
               </button>
             </div>
           )}
           {familyOnly && visibleRelations.length === 0 && (
-            <p className="text-[13px] text-neutral-500 dark:text-neutral-400">
+            <p className="text-[0.8125rem] text-neutral-500 dark:text-neutral-400">
               No immediate family is recorded for {entity.name}.
             </p>
           )}
@@ -1064,7 +1064,7 @@ function EntityDetail({
           </div>
           {legacyConnections.length > 0 && !familyOnly && (
             <div className="mt-3">
-              <p className="mb-2 text-[11.5px] font-bold uppercase tracking-[0.08em] text-neutral-400 dark:text-neutral-500">
+              <p className="mb-2 text-[0.71875rem] font-bold uppercase tracking-[0.08em] text-neutral-400 dark:text-neutral-500">
                 Other recorded connections
               </p>
               <div className="flex flex-wrap gap-2">
@@ -1080,7 +1080,7 @@ function EntityDetail({
           )}
           {selectedRelation && (
             <div className="mt-2 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-3">
-              <p className="text-[13px] font-semibold text-neutral-700 dark:text-neutral-300">
+              <p className="text-[0.8125rem] font-semibold text-neutral-700 dark:text-neutral-300">
                 {selectedRelation.label} ·{" "}
                 {relationCertaintyLabel(selectedRelation.relation.certainty)}
               </p>
@@ -1111,14 +1111,14 @@ function EntityDetail({
                   onClick={() => onOpenEvent(event.id)}
                   className="flex min-h-[58px] w-full items-center gap-4 rounded-xl border border-black/[0.08] dark:border-white/[0.06] bg-black/[0.03] dark:bg-white/[0.03] px-4 py-3 text-left"
                 >
-                  <span className="w-36 flex-shrink-0 text-[11.5px] font-bold tabular-nums text-amber-600 dark:text-amber-400">
+                  <span className="w-36 flex-shrink-0 text-[0.71875rem] font-bold tabular-nums text-amber-600 dark:text-amber-400">
                     {atlasDateLabel(undefined, event.yearLabel)}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[14px] font-semibold text-neutral-700 dark:text-neutral-300">
+                    <span className="block text-[0.875rem] font-semibold text-neutral-700 dark:text-neutral-300">
                       {event.title}
                     </span>
-                    <span className="block text-[11.5px] text-neutral-400/80 dark:text-neutral-500">
+                    <span className="block text-[0.71875rem] text-neutral-400/80 dark:text-neutral-500">
                       {event.era}
                     </span>
                   </span>
@@ -1234,7 +1234,7 @@ function EntityDetail({
                 <LoadingText text="Tracing the shortest cited path…" />
               )}
               {connection.error && (
-                <p className="mt-2 text-[13px] text-red-600 dark:text-red-400">
+                <p className="mt-2 text-[0.8125rem] text-red-600 dark:text-red-400">
                   {connection.error}
                 </p>
               )}
@@ -1242,7 +1242,7 @@ function EntityDetail({
                 !connection.error &&
                 connectionTarget &&
                 !connection.path && (
-                  <p className="mt-2 text-[13px] text-neutral-600 dark:text-neutral-300">
+                  <p className="mt-2 text-[0.8125rem] text-neutral-600 dark:text-neutral-300">
                     No cited connection was found.
                   </p>
                 )}
@@ -1264,7 +1264,7 @@ function EntityDetail({
                           <span aria-hidden className="text-neutral-400">›</span>
                         </span>
                         {step.disambiguator && (
-                          <span className="text-[11.5px] text-neutral-400 dark:text-neutral-500">
+                          <span className="text-[0.71875rem] text-neutral-400 dark:text-neutral-500">
                             {step.disambiguator}
                           </span>
                         )}
@@ -1299,7 +1299,7 @@ function EntityDetail({
 }
 function LoadingText({ text }: { text: string }) {
   return (
-    <p className="py-12 text-center text-[13px] text-neutral-400 dark:text-neutral-500">
+    <p className="py-12 text-center text-[0.8125rem] text-neutral-400 dark:text-neutral-500">
       {text}
     </p>
   );

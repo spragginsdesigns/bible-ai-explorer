@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 import { readTextScalePref } from "@/lib/preferences";
-import { usePreference } from "@/lib/preferencesSync";
-import { DEFAULT_TEXT_SCALE, applyTextScaleToDocument } from "@/lib/text-scale";
+import { notifyPreferencesChanged, usePreference } from "@/lib/preferencesSync";
+import { DEFAULT_TEXT_SCALE, TEXT_SCALE_PREF_KEY, applyTextScaleToDocument } from "@/lib/text-scale";
 
 /**
  * Keeps <html> at the account's text size. Mounted once from the root layout:
@@ -14,6 +14,13 @@ import { DEFAULT_TEXT_SCALE, applyTextScaleToDocument } from "@/lib/text-scale";
  */
 export default function TextScaleRoot() {
 	const scale = usePreference(readTextScalePref, DEFAULT_TEXT_SCALE);
+	useEffect(() => {
+		const onStorage = (event: StorageEvent) => {
+			if (event.key === TEXT_SCALE_PREF_KEY || event.key === null) notifyPreferencesChanged();
+		};
+		window.addEventListener("storage", onStorage);
+		return () => window.removeEventListener("storage", onStorage);
+	}, []);
 	useEffect(() => {
 		// Read the cache itself, not `scale`: the hydration pass renders the
 		// server's standard size first, and applying that would undo the boot

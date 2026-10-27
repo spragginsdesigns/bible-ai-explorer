@@ -70,7 +70,7 @@ struct VerseActionBarView: View {
 
             if let message {
                 Text(message.text)
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(message.tone == .danger ? theme.danger : theme.textMuted)
                     .padding(.horizontal, Spacing.lg)
                     .accessibilityAddTraits(.updatesFrequently)
@@ -92,7 +92,7 @@ struct VerseActionBarView: View {
                     if selected {
                         Circle().strokeBorder(theme.text, lineWidth: 2)
                         Image(systemName: "xmark")
-                            .font(.system(size: 12, weight: .bold))
+                            .appFont(.system(size: 12, weight: .bold))
                             .foregroundStyle(Self.dotGlyph)
                     }
                 }
@@ -119,7 +119,7 @@ struct VerseActionBarView: View {
                     Circle().strokeBorder(theme.text, lineWidth: 2)
                 }
                 Image(systemName: customActive || mixedRemove ? "xmark" : "plus")
-                    .font(.system(size: customActive || mixedRemove ? 12 : 14, weight: .bold))
+                    .appFont(.system(size: customActive || mixedRemove ? 12 : 14, weight: .bold))
                     .foregroundStyle(customActive ? Self.dotGlyph : theme.textMuted)
             }
             .frame(width: Self.dotSize, height: Self.dotSize)
@@ -138,11 +138,11 @@ struct VerseActionBarView: View {
         let tint = action.active ? theme.accent : theme.text
         let label = VStack(spacing: 4) {
             Image(systemName: action.systemImage)
-                .font(.system(size: 20))
+                .appFont(.system(size: 20))
                 .foregroundStyle(tint)
-                .frame(height: 24)
+                .frame(minHeight: 24)
             Text(action.label)
-                .font(.system(size: 11, weight: .medium))
+                .appFont(.system(size: 11, weight: .medium))
                 .foregroundStyle(action.active ? theme.accent : theme.textMuted)
                 .lineLimit(1)
         }
@@ -172,10 +172,10 @@ struct CustomHighlightSheet: View {
     var body: some View {
         VStack(spacing: Spacing.lg) {
             Text("Custom color")
-                .font(.system(size: 16, weight: .semibold))
+                .appFont(.system(size: 16, weight: .semibold))
                 .foregroundStyle(theme.text)
             ColorPicker("Color", selection: $color, supportsOpacity: false)
-                .font(.system(size: 14, weight: .semibold))
+                .appFont(.system(size: 14, weight: .semibold))
                 .foregroundStyle(theme.textSecondary)
             Circle()
                 .fill(color)

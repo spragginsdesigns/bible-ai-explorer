@@ -20,7 +20,7 @@ struct LearnView: View {
                 if let today = model.today {
                     ToolbarItem(placement: .topBarTrailing) {
                         Text("\(today.knownCount) verses you know")
-                            .font(.system(size: 13))
+                            .appFont(.system(size: 13))
                             .foregroundStyle(theme.textMuted)
                             .fixedSize()
                     }

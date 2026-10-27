@@ -145,7 +145,7 @@ const AppSidebar: React.FC<AppSidebarProps> = ({
 					/>
 					<Link
 						href="/today"
-						className="sidebar-brand-wordmark text-[23px] leading-none font-normal text-amber-600 dark:text-amber-300 font-[family-name:var(--font-pirata)]"
+						className="sidebar-brand-wordmark text-[1.4375rem] leading-none font-normal text-amber-600 dark:text-amber-300 font-[family-name:var(--font-pirata)]"
 					>
 						SureWord
 					</Link>

@@ -59,14 +59,14 @@ struct ListenCard: View {
     private var lockedPanel: some View {
         VStack(spacing: Spacing.sm) {
             Text("🔒")
-                .font(.system(size: 20))
+                .appFont(.system(size: 20))
                 .accessibilityHidden(true)
             Text("Listen is part of SureWord Pro")
-                .font(.system(size: 15, weight: .semibold))
+                .appFont(.system(size: 15, weight: .semibold))
                 .foregroundStyle(theme.text)
                 .multilineTextAlignment(.center)
             Text("A spoken devotional for today's word, made when you choose. Listen is included with SureWord Pro.")
-                .font(.system(size: 13.5))
+                .appFont(.system(size: 13.5))
                 .foregroundStyle(theme.textFaint)
                 .lineSpacing(4)
                 .multilineTextAlignment(.center)
@@ -83,10 +83,10 @@ struct ListenCard: View {
         VStack(spacing: Spacing.sm) {
             ShimmerBar()
             Text("Preparing your devotional…")
-                .font(.system(size: 14))
+                .appFont(.system(size: 14))
                 .foregroundStyle(theme.textSecondary)
             Text("This usually takes about a minute.")
-                .font(.system(size: 12.5))
+                .appFont(.system(size: 12.5))
                 .foregroundStyle(theme.textFaint)
         }
         .frame(maxWidth: .infinity)
@@ -97,7 +97,7 @@ struct ListenCard: View {
     /// Before the opening status read answers.
     private var loadingPanel: some View {
         Text("Loading audio…")
-            .font(.system(size: 14))
+            .appFont(.system(size: 14))
             .foregroundStyle(theme.textSecondary)
             .frame(maxWidth: .infinity)
             .multilineTextAlignment(.center)
@@ -117,7 +117,7 @@ struct ListenCard: View {
     private var failedPanel: some View {
         VStack(spacing: Spacing.md) {
             Text(model.failureText ?? Listen.prepareFailureText)
-                .font(.system(size: 14))
+                .appFont(.system(size: 14))
                 .foregroundStyle(theme.textSecondary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
@@ -132,7 +132,7 @@ struct ListenCard: View {
     private var player: some View {
         if let title = model.audio?.title {
             Text(title)
-                .font(.system(size: 15, weight: .semibold))
+                .appFont(.system(size: 15, weight: .semibold))
                 .foregroundStyle(theme.text)
         }
 
@@ -147,7 +147,7 @@ struct ListenCard: View {
                 model.transcriptOpen.toggle()
             } label: {
                 Text(model.transcriptOpen ? "Hide transcript ▴" : "Read along ▾")
-                    .font(.system(size: 13, weight: .semibold))
+                    .appFont(.system(size: 13, weight: .semibold))
                     .foregroundStyle(theme.accentDim)
             }
             .buttonStyle(.plain)
@@ -155,7 +155,7 @@ struct ListenCard: View {
 
             if model.transcriptOpen {
                 Text(script)
-                    .font(.system(size: 14.5))
+                    .appFont(.system(size: 14.5))
                     .foregroundStyle(theme.textSecondary)
                     .lineSpacing(8)
                     .textSelection(.enabled)
@@ -169,7 +169,7 @@ struct ListenCard: View {
             model.togglePlay()
         } label: {
             Image(systemName: model.isPlaying ? "pause.fill" : "play.fill")
-                .font(.system(size: 15, weight: .bold))
+                .appFont(.system(size: 15, weight: .bold))
                 .foregroundStyle(theme.accent)
                 .frame(width: 48, height: 48)
                 .background(theme.accentSoft, in: .circle)
@@ -210,7 +210,7 @@ struct ListenCard: View {
                 Spacer()
                 Text(Listen.formatClock(model.duration))
             }
-            .font(.system(size: 12).monospacedDigit())
+            .appFont(.system(size: 12).monospacedDigit())
             .foregroundStyle(theme.textFaint)
         }
     }
@@ -220,7 +220,7 @@ struct ListenCard: View {
             settings.listenRate = Listen.nextRate(settings.listenRate)
         } label: {
             Text(Listen.formatRate(settings.listenRate))
-                .font(.system(size: 13, weight: .bold).monospacedDigit())
+                .appFont(.system(size: 13, weight: .bold).monospacedDigit())
                 .foregroundStyle(theme.accent)
                 .frame(width: 56, height: 36)
                 .background(theme.accentSoft, in: .capsule)

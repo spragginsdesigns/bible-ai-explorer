@@ -4,7 +4,7 @@
 
 @layer base {
 	:root {
-		--sureword-mobile-tab-height: 72px;
+		--sureword-mobile-tab-height: max(72px, 4.5rem);
 		--sureword-mobile-tab-clearance: calc(var(--sureword-mobile-tab-height) + max(env(safe-area-inset-bottom), 8px) + 1px);
 		--background: 40 20% 98%;
 		--foreground: 20 15% 8%;

@@ -67,7 +67,7 @@ export default function InsightTeaser({ status, text, error, onPress, onRetry }:
       ) : (
         <>
           {text ? (
-            <span className="line-clamp-2 text-[14px] leading-[21px] text-neutral-600 dark:text-neutral-300">
+            <span className="line-clamp-2 text-[0.875rem] leading-[1.3125rem] text-neutral-600 dark:text-neutral-300">
               {text}
             </span>
           ) : null}

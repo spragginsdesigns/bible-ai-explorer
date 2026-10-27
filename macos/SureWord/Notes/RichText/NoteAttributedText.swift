@@ -75,7 +75,7 @@ enum NoteAttributedText {
 
     // MARK: - Document → attributed string
 
-    static func attributedString(for document: NoteDocument, theme: SureWordColors) -> NSAttributedString {
+    static func attributedString(for document: NoteDocument, theme: SureWordColors, scale: CGFloat = 1) -> NSAttributedString {
         let result = NSMutableAttributedString()
         let blocks = document.blocks.isEmpty ? [NoteBlock()] : document.blocks
 
@@ -97,6 +97,18 @@ enum NoteAttributedText {
 
             if index < blocks.count - 1 {
                 result.append(NSAttributedString(string: "\n", attributes: blockAttributes))
+            }
+        }
+        if scale != 1 {
+            result.enumerateAttribute(.font, in: NSRange(location: 0, length: result.length)) { value, range, _ in
+                guard let font = value as? NSFont else { return }
+                result.addAttribute(.font, value: NSFont(descriptor: font.fontDescriptor, size: font.pointSize * scale) ?? font, range: range)
+            }
+        }
+        if scale != 1 {
+            result.enumerateAttribute(.paragraphStyle, in: NSRange(location: 0, length: result.length)) { value, range, _ in
+                guard let style = value as? NSParagraphStyle else { return }
+                result.addAttribute(.paragraphStyle, value: scaledParagraph(style, by: scale), range: range)
             }
         }
         return result
@@ -207,6 +219,14 @@ enum NoteAttributedText {
         return attributes
     }
 
+    private static func scaledParagraph(_ source: NSParagraphStyle, by scale: CGFloat) -> NSParagraphStyle {
+        guard let style = source.mutableCopy() as? NSMutableParagraphStyle else { return source }
+        style.firstLineHeadIndent *= scale
+        style.headIndent *= scale
+        style.paragraphSpacing *= scale
+        return style
+    }
+
     static func paragraphStyle(for block: NoteBlock) -> NSParagraphStyle {
         let style = NSMutableParagraphStyle()
         let indent =
@@ -239,11 +259,18 @@ enum NoteAttributedText {
     static func runAttributes(
         block: NoteBlock,
         marks: [NoteMark],
-        theme: SureWordColors
+        theme: SureWordColors,
+        scale: CGFloat = 1
     ) -> [NSAttributedString.Key: Any] {
         var attributes = self.attributes(for: block, theme: theme)
         apply(marks: marks, to: &attributes, block: block, theme: theme)
         attributes[marksKey] = MarksBox(marks)
+        if let style = attributes[.paragraphStyle] as? NSParagraphStyle {
+            attributes[.paragraphStyle] = scaledParagraph(style, by: scale)
+        }
+        if let font = attributes[.font] as? NSFont {
+            attributes[.font] = NSFont(descriptor: font.fontDescriptor, size: font.pointSize * scale) ?? font
+        }
         return attributes
     }
 
@@ -319,7 +346,7 @@ enum NoteAttributedText {
     /// styling their own block and marks give them, so an edit that breaks a
     /// link leaves no colour behind. Unchanged links, which is most
     /// keystrokes, touch nothing.
-    static func styleWikilinks(_ links: [DrawnWikilink], in storage: NSTextStorage, theme: SureWordColors) {
+    static func styleWikilinks(_ links: [DrawnWikilink], in storage: NSTextStorage, theme: SureWordColors, scale: CGFloat = 1) {
         var drawn: [DrawnWikilink] = []
         storage.enumerateAttribute(wikilinkKey, in: NSRange(location: 0, length: storage.length)) { value, range, _ in
             if let noteID = value as? String { drawn.append(DrawnWikilink(range: range, noteID: noteID)) }
@@ -329,7 +356,7 @@ enum NoteAttributedText {
         storage.beginEditing()
         for link in drawn {
             storage.enumerateAttributes(in: link.range) { attributes, range, _ in
-                if let plain = withoutWikilink(attributes, theme: theme) {
+                if let plain = withoutWikilink(attributes, theme: theme, scale: scale) {
                     storage.setAttributes(plain, range: range)
                 } else {
                     storage.removeAttribute(wikilinkKey, range: range)
@@ -352,11 +379,12 @@ enum NoteAttributedText {
     /// any link styling. Nil for a run with no block (foreign text).
     static func withoutWikilink(
         _ attributes: [NSAttributedString.Key: Any],
-        theme: SureWordColors
+        theme: SureWordColors,
+        scale: CGFloat = 1
     ) -> [NSAttributedString.Key: Any]? {
         guard let block = (attributes[blockKey] as? BlockBox)?.block else { return nil }
         let marks = (attributes[marksKey] as? MarksBox)?.marks ?? []
-        return runAttributes(block: block, marks: marks, theme: theme)
+        return runAttributes(block: block, marks: marks, theme: theme, scale: scale)
     }
 
     // MARK: - List markers

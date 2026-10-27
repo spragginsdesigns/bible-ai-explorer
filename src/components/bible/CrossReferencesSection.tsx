@@ -223,22 +223,22 @@ export default function CrossReferencesSection({
 					}`}
 				>
 					{state.status === "ready" && state.items.length === 0 ? (
-						<p className="text-[13px] text-neutral-500 dark:text-neutral-400">
+						<p className="text-[0.8125rem] text-neutral-500 dark:text-neutral-400">
 							No related passages for this verse.
 						</p>
 					) : state.status === "loading" ? (
-						<p role="status" className="text-[13px] text-neutral-500 dark:text-neutral-400">
+						<p role="status" className="text-[0.8125rem] text-neutral-500 dark:text-neutral-400">
 							Loading related passages…
 						</p>
 					) : state.status === "error" ? (
 						<div className="flex items-center gap-3">
-							<p className="flex-1 text-[13px] text-neutral-500 dark:text-neutral-400">
+							<p className="flex-1 text-[0.8125rem] text-neutral-500 dark:text-neutral-400">
 								Related passages could not be loaded.
 							</p>
 							<button
 								type="button"
 								onClick={() => void load()}
-								className="text-[13px] font-semibold text-amber-600 dark:text-amber-400"
+								className="text-[0.8125rem] font-semibold text-amber-600 dark:text-amber-400"
 							>
 								Try again
 							</button>
@@ -248,7 +248,7 @@ export default function CrossReferencesSection({
 							{state.items.map((item) => {
 								const href = chapterHref(item.reference, translation);
 								const referenceLabel = (
-									<span className="text-[13.5px] font-bold text-amber-600 dark:text-amber-400">
+									<span className="text-[0.84375rem] font-bold text-amber-600 dark:text-amber-400">
 										{item.reference}
 									</span>
 								);
@@ -262,7 +262,7 @@ export default function CrossReferencesSection({
 											referenceLabel
 										)}
 										{item.text && (
-											<p className="pt-1 font-[family-name:var(--font-cormorant)] text-[16px] leading-6 text-neutral-700 dark:text-neutral-300">
+											<p className="pt-1 font-[family-name:var(--font-cormorant)] text-[1rem] leading-6 text-neutral-700 dark:text-neutral-300">
 												{item.text}
 											</p>
 										)}

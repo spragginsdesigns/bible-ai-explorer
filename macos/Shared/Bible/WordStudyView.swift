@@ -13,6 +13,8 @@ import SwiftUI
 /// it. That version showed the reader letters they could not read; this one
 /// shows them what the letters say.
 struct WordStudyView: View {
+    @Environment(\.textScaleFactor) private var textScale
+    @ScaledMetric private var systemTextScale: CGFloat = 1
     @Environment(\.theme) private var theme
 
     let api: APIClient
@@ -68,13 +70,13 @@ struct WordStudyView: View {
     @ViewBuilder
     private func header(language: String?, textName: String?) -> some View {
         Text(caption)
-            .font(.system(size: 10, weight: .bold))
+            .appFont(.system(size: 10, weight: .bold))
             .tracking(1.2)
             .foregroundStyle(theme.textMuted)
 
         if let subtitle = Self.subtitle(language: language, textName: textName) {
             Text(subtitle)
-                .font(.system(size: 11))
+                .appFont(.system(size: 11))
                 .foregroundStyle(theme.textFaint)
         }
     }
@@ -104,7 +106,7 @@ struct WordStudyView: View {
                     .frame(width: width, height: 13)
             }
             Text(Self.loadingLine(book: book))
-                .font(.system(size: 11.5))
+                .appFont(.system(size: 11.5))
                 .foregroundStyle(theme.textFaint)
         }
         .padding(.vertical, Spacing.xs)
@@ -125,7 +127,7 @@ struct WordStudyView: View {
     /// credentials refused). Neither is retryable, so neither offers a button.
     private var messageLine: some View {
         Text(model.message ?? VerseWordsModel.noTextMessage)
-            .font(.system(size: 12))
+            .appFont(.system(size: 12))
             .foregroundStyle(theme.textMuted)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -135,14 +137,14 @@ struct WordStudyView: View {
     private var failureState: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(model.message ?? VerseWordsModel.buildFailureMessage)
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.textMuted)
                 .fixedSize(horizontal: false, vertical: true)
             Button("Retry") {
                 Task { await model.retry() }
             }
             .buttonStyle(.plain)
-            .font(.system(size: 12, weight: .semibold))
+            .appFont(.system(size: 12, weight: .semibold))
             .foregroundStyle(theme.accent)
         }
         .padding(.vertical, Spacing.xs)
@@ -171,7 +173,7 @@ struct WordStudyView: View {
                     kjvLine(row, open: open)
                     if !row.sense.isEmpty {
                         Text(row.sense)
-                            .font(.system(size: 12.5))
+                            .appFont(.system(size: 12.5))
                             .foregroundStyle(theme.textMuted)
                             .fixedSize(horizontal: false, vertical: true)
                             .multilineTextAlignment(.leading)
@@ -183,7 +185,7 @@ struct WordStudyView: View {
                 // beginning with a prefixed particle still needs the paragraph
                 // direction flipped or the pieces land in English order.
                 Text(row.original)
-                    .font(.system(size: 21))
+                    .appFont(.system(size: 21))
                     .foregroundStyle(theme.text)
                     .multilineTextAlignment(.trailing)
                     .environment(
@@ -214,12 +216,12 @@ struct WordStudyView: View {
     /// transliteration trailing it small and italic on the same line.
     private func kjvLine(_ row: VerseWordRow, open: Bool) -> Text {
         let kjv = Text(row.kjv)
-            .font(.custom(FontFamily.verse, size: 18).weight(.semibold))
+            .appFont(.custom(FontFamily.verse, size: 18).weight(.semibold), scale: textScale * systemTextScale)
             .foregroundStyle(open ? theme.accent : theme.text)
         guard !row.translit.isEmpty else { return kjv }
         return kjv
             + Text("  \(row.translit)")
-            .font(.system(size: 11.5).italic())
+            .appFont(.system(size: 11.5).italic(), scale: textScale * systemTextScale)
             .foregroundStyle(theme.textFaint)
     }
 
@@ -237,13 +239,13 @@ struct WordStudyView: View {
             HStack(alignment: .firstTextBaseline, spacing: Spacing.md) {
                 if let translit {
                     Text(translit)
-                        .font(.custom(FontFamily.verseItalic, size: 20))
+                        .appFont(.custom(FontFamily.verseItalic, size: 20))
                         .foregroundStyle(theme.accent)
                 }
                 Spacer(minLength: Spacing.sm)
                 if let head {
                     Text(VerseWordsModel.headword(head))
-                        .font(.system(size: 28))
+                        .appFont(.system(size: 28))
                         .foregroundStyle(theme.text)
                 }
             }
@@ -254,7 +256,7 @@ struct WordStudyView: View {
             ForEach(Array(words.enumerated()), id: \.offset) { _, word in
                 if let meta = VerseWordsModel.metaLine(word) {
                     Text(meta)
-                        .font(.system(size: 12.5))
+                        .appFont(.system(size: 12.5))
                         .foregroundStyle(theme.textMuted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -292,7 +294,7 @@ struct WordStudyView: View {
 
     private func featureChip(_ feature: String) -> some View {
         Text(feature)
-            .font(.system(size: 12))
+            .appFont(.system(size: 12))
             .foregroundStyle(theme.textMuted)
             .padding(.horizontal, 7)
             .padding(.vertical, 2)
@@ -302,11 +304,11 @@ struct WordStudyView: View {
     private func labelled(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
-                .font(.system(size: 10, weight: .bold))
+                .appFont(.system(size: 10, weight: .bold))
                 .tracking(0.8)
                 .foregroundStyle(theme.textGhost)
             Text(value)
-                .font(.system(size: 13.5))
+                .appFont(.system(size: 13.5))
                 .foregroundStyle(theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -316,7 +318,7 @@ struct WordStudyView: View {
     private func elsewhere(_ examples: [StrongsOccurrence]) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("ELSEWHERE IN THE KJV")
-                .font(.system(size: 10, weight: .bold))
+                .appFont(.system(size: 10, weight: .bold))
                 .tracking(0.8)
                 .foregroundStyle(theme.textGhost)
 
@@ -325,11 +327,11 @@ struct WordStudyView: View {
                     _, example in
                     HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
                         Text(example.reference)
-                            .font(.system(size: 12.5, weight: .bold))
+                            .appFont(.system(size: 12.5, weight: .bold))
                             .foregroundStyle(theme.accentDim)
                             .fixedSize(horizontal: true, vertical: false)
                         Text(example.text)
-                            .font(.custom(FontFamily.verse, size: 15))
+                            .appFont(.custom(FontFamily.verse, size: 15))
                             .foregroundStyle(theme.textSecondary)
                             .lineLimit(2)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -394,7 +396,7 @@ struct WordStudyView: View {
     ) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: 13, weight: .bold))
+                .appFont(.system(size: 13, weight: .bold))
                 .foregroundStyle(primary ? theme.accent : theme.text)
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
@@ -422,13 +424,13 @@ struct WordStudyView: View {
         if !study.study.isEmpty || !study.carry.isEmpty {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text("WHAT THE ORIGINAL SAYS")
-                    .font(.system(size: 10, weight: .bold))
+                    .appFont(.system(size: 10, weight: .bold))
                     .tracking(1.2)
                     .foregroundStyle(theme.textMuted)
 
                 ForEach(Array(study.study.enumerated()), id: \.offset) { _, paragraph in
                     Text(paragraph)
-                        .font(.system(size: 14.5))
+                        .appFont(.system(size: 14.5))
                         .foregroundStyle(theme.textSecondary)
                         .lineSpacing(4)
                         .fixedSize(horizontal: false, vertical: true)
@@ -451,10 +453,10 @@ struct WordStudyView: View {
     private func carryCallout(_ carry: String) -> some View {
         (
             Text("Carry this. ")
-                .font(.system(size: 13.5, weight: .bold))
+                .appFont(.system(size: 13.5, weight: .bold), scale: textScale * systemTextScale)
                 .foregroundStyle(theme.accent)
                 + Text(carry)
-                .font(.system(size: 13.5))
+                .appFont(.system(size: 13.5), scale: textScale * systemTextScale)
                 .foregroundStyle(theme.textSecondary)
         )
         .lineSpacing(3)
@@ -479,7 +481,7 @@ struct WordStudyView: View {
                 .frame(width: 4, height: 4)
             Text("Tap a word for more")
         }
-        .font(.system(size: 11.5))
+        .appFont(.system(size: 11.5))
         .foregroundStyle(theme.textGhost)
         .padding(.top, Spacing.xs)
     }

@@ -53,7 +53,7 @@ function lemmaOf(word: VerseWordDetail, rtl: boolean): string {
 }
 
 const CHIP_CLASS =
-	"rounded-md bg-black/[0.05] px-1.5 py-0.5 text-[12.5px] text-neutral-500 dark:bg-white/[0.07] dark:text-neutral-400";
+	"rounded-md bg-black/[0.05] px-1.5 py-0.5 text-[0.78125rem] text-neutral-500 dark:bg-white/[0.07] dark:text-neutral-400";
 const LABEL_CLASS =
 	"text-metadata font-bold uppercase tracking-wide text-neutral-400 dark:text-neutral-500";
 
@@ -114,7 +114,7 @@ const WordStudySection: React.FC<WordStudySectionProps> = ({
 						/>
 					))}
 				</div>
-				<p role="status" className="pt-2 text-[12.5px] text-neutral-500 dark:text-neutral-400">
+				<p role="status" className="pt-2 text-[0.78125rem] text-neutral-500 dark:text-neutral-400">
 					{`Reading the ${language}…`}
 				</p>
 			</div>
@@ -128,7 +128,7 @@ const WordStudySection: React.FC<WordStudySectionProps> = ({
 		return (
 			<div className="mb-2 rounded-xl border border-black/[0.08] bg-black/[0.03] px-3 py-2.5 dark:border-white/[0.08] dark:bg-white/[0.03]">
 				<p className={LABEL_CLASS}>{caption}</p>
-				<p className="pt-1.5 text-[13px] text-neutral-500 dark:text-neutral-400">
+				<p className="pt-1.5 text-[0.8125rem] text-neutral-500 dark:text-neutral-400">
 					No original-language text for this verse.
 				</p>
 			</div>
@@ -140,14 +140,14 @@ const WordStudySection: React.FC<WordStudySectionProps> = ({
 			<div className="mb-2 rounded-xl border border-black/[0.08] bg-black/[0.03] px-3 py-2.5 dark:border-white/[0.08] dark:bg-white/[0.03]">
 				<p className={LABEL_CLASS}>{caption}</p>
 				<div className="flex items-center gap-3 pt-1.5">
-					<p className="flex-1 text-[13px] leading-[19px] text-neutral-500 dark:text-neutral-400">
+					<p className="flex-1 text-[0.8125rem] leading-[1.1875rem] text-neutral-500 dark:text-neutral-400">
 						{state.message}
 					</p>
 					{state.retryable && (
 						<button
 							type="button"
 							onClick={retry}
-							className="text-[13px] font-semibold text-amber-600 dark:text-amber-400"
+							className="text-[0.8125rem] font-semibold text-amber-600 dark:text-amber-400"
 						>
 							Retry
 						</button>
@@ -163,7 +163,7 @@ const WordStudySection: React.FC<WordStudySectionProps> = ({
 	return (
 		<div className="mb-2">
 			<p className={LABEL_CLASS}>{caption}</p>
-			<p className="pb-2 text-[12.5px] text-neutral-400 dark:text-neutral-500">
+			<p className="pb-2 text-[0.78125rem] text-neutral-400 dark:text-neutral-500">
 				{`${study.language} · ${study.textName} · in reading order`}
 			</p>
 
@@ -186,7 +186,7 @@ const WordStudySection: React.FC<WordStudySectionProps> = ({
 							>
 								<span className="min-w-0">
 									<span
-										className={`font-[family-name:var(--font-cormorant)] text-[18px] font-semibold leading-tight ${
+										className={`font-[family-name:var(--font-cormorant)] text-[1.125rem] font-semibold leading-tight ${
 											open
 												? "text-amber-700 dark:text-amber-300"
 												: "text-neutral-800 dark:text-neutral-100"
@@ -195,19 +195,19 @@ const WordStudySection: React.FC<WordStudySectionProps> = ({
 										{row.kjv}
 									</span>
 									{row.translit && (
-										<span className="ml-1.5 text-[11.5px] italic text-neutral-400 dark:text-neutral-500">
+										<span className="ml-1.5 text-[0.71875rem] italic text-neutral-400 dark:text-neutral-500">
 											{row.translit}
 										</span>
 									)}
 									{row.sense && (
-										<span className="mt-0.5 block text-[12.5px] leading-[17px] text-neutral-500 dark:text-neutral-400">
+										<span className="mt-0.5 block text-[0.78125rem] leading-[1.0625rem] text-neutral-500 dark:text-neutral-400">
 											{row.sense}
 										</span>
 									)}
 								</span>
 								<span
 									dir={rtl ? "rtl" : "ltr"}
-									className={`text-[21px] leading-tight text-neutral-700 dark:text-neutral-200 ${
+									className={`text-[1.3125rem] leading-tight text-neutral-700 dark:text-neutral-200 ${
 										rtl ? "text-right" : "text-left"
 									}`}
 									style={{ fontFamily: SCRIPT_FONT }}
@@ -238,7 +238,7 @@ const WordStudySection: React.FC<WordStudySectionProps> = ({
 				{study.study.map((paragraph, index) => (
 					<p
 						key={index}
-						className="pb-2 text-[14.5px] leading-[22px] text-neutral-700 dark:text-neutral-200"
+						className="pb-2 text-[0.90625rem] leading-[1.375rem] text-neutral-700 dark:text-neutral-200"
 					>
 						{paragraph}
 					</p>
@@ -247,13 +247,13 @@ const WordStudySection: React.FC<WordStudySectionProps> = ({
 			</>
 			) : null}
 			{study.carry && (
-				<div className="rounded-r-lg border-l-2 border-amber-500 bg-black/[0.03] px-3 py-2 text-[13.5px] leading-5 text-neutral-700 dark:border-amber-400 dark:bg-white/[0.03] dark:text-neutral-200">
+				<div className="rounded-r-lg border-l-2 border-amber-500 bg-black/[0.03] px-3 py-2 text-[0.84375rem] leading-5 text-neutral-700 dark:border-amber-400 dark:bg-white/[0.03] dark:text-neutral-200">
 					<span className="font-bold text-amber-600 dark:text-amber-400">Carry this. </span>
 					{study.carry}
 				</div>
 			)}
 
-			<p className="pt-3 text-[11.5px] text-neutral-400/80 dark:text-neutral-600">
+			<p className="pt-3 text-[0.71875rem] text-neutral-400/80 dark:text-neutral-600">
 				{`Grounded in the ${study.textName} and Strong's · Tap a word for more`}
 			</p>
 		</div>
@@ -296,12 +296,12 @@ const WordDetail: React.FC<WordDetailProps> = ({ study, row, head, entry, rtl, o
 	return (
 		<div className="rounded-xl border border-amber-500/30 bg-black/[0.04] px-3.5 py-3 dark:border-amber-400/25 dark:bg-white/[0.05]">
 			<div className="flex items-baseline justify-between gap-3">
-				<span className="font-[family-name:var(--font-cormorant)] text-[20px] italic text-amber-600 dark:text-amber-400">
+				<span className="font-[family-name:var(--font-cormorant)] text-[1.25rem] italic text-amber-600 dark:text-amber-400">
 					{translit}
 				</span>
 				<span
 					dir={rtl ? "rtl" : "ltr"}
-					className="text-[28px] leading-tight text-neutral-800 dark:text-neutral-100"
+					className="text-[1.75rem] leading-tight text-neutral-800 dark:text-neutral-100"
 					style={{ fontFamily: SCRIPT_FONT }}
 				>
 					{lemma}
@@ -311,7 +311,7 @@ const WordDetail: React.FC<WordDetailProps> = ({ study, row, head, entry, rtl, o
 			{grammarLines.map((word, index) => (
 				<p
 					key={`${word.strongs}-${index}`}
-					className="pt-1 text-[12.5px] text-neutral-500 dark:text-neutral-400"
+					className="pt-1 text-[0.78125rem] text-neutral-500 dark:text-neutral-400"
 				>
 					{word.grammar ? `${word.strongs} · ${word.grammar.summary}` : word.strongs}
 				</p>
@@ -335,7 +335,7 @@ const WordDetail: React.FC<WordDetailProps> = ({ study, row, head, entry, rtl, o
 						className="mt-1.5 h-3 w-4/5 animate-pulse rounded-full bg-black/[0.06] dark:bg-white/[0.08]"
 					/>
 				) : definition ? (
-					<p className="pt-0.5 text-[13.5px] leading-5 text-neutral-700 dark:text-neutral-200">
+					<p className="pt-0.5 text-[0.84375rem] leading-5 text-neutral-700 dark:text-neutral-200">
 						{definition}
 					</p>
 				) : null}
@@ -356,10 +356,10 @@ const WordDetail: React.FC<WordDetailProps> = ({ study, row, head, entry, rtl, o
 									key={example.reference}
 									className="grid grid-cols-[auto_1fr] items-baseline gap-x-2.5"
 								>
-									<span className="whitespace-nowrap text-[12.5px] font-bold text-amber-600 dark:text-amber-400">
+									<span className="whitespace-nowrap text-[0.78125rem] font-bold text-amber-600 dark:text-amber-400">
 										{example.reference}
 									</span>
-									<span className="line-clamp-2 font-[family-name:var(--font-cormorant)] text-[15px] leading-5 text-neutral-600 dark:text-neutral-300">
+									<span className="line-clamp-2 font-[family-name:var(--font-cormorant)] text-[0.9375rem] leading-5 text-neutral-600 dark:text-neutral-300">
 										{example.text}
 									</span>
 								</li>
@@ -373,7 +373,7 @@ const WordDetail: React.FC<WordDetailProps> = ({ study, row, head, entry, rtl, o
 				<button
 					type="button"
 					onClick={() => onAsk(askPrompt, true)}
-					className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-2 text-[13px] font-bold text-amber-600 transition-colors hover:bg-amber-500/20 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-400 dark:hover:bg-amber-400/20"
+					className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-2 text-[0.8125rem] font-bold text-amber-600 transition-colors hover:bg-amber-500/20 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-400 dark:hover:bg-amber-400/20"
 				>
 					Ask about this word
 				</button>
@@ -381,7 +381,7 @@ const WordDetail: React.FC<WordDetailProps> = ({ study, row, head, entry, rtl, o
 					<button
 						type="button"
 						onClick={() => onAsk(everyPrompt, false)}
-						className="rounded-lg border border-black/[0.1] bg-black/[0.04] px-2 py-2 text-[13px] font-bold text-neutral-700 transition-colors hover:bg-black/[0.08] dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-neutral-200 dark:hover:bg-white/[0.1]"
+						className="rounded-lg border border-black/[0.1] bg-black/[0.04] px-2 py-2 text-[0.8125rem] font-bold text-neutral-700 transition-colors hover:bg-black/[0.08] dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-neutral-200 dark:hover:bg-white/[0.1]"
 					>
 						{occurrences ? `Every verse · ${occurrences.total}` : "Every verse"}
 					</button>

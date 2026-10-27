@@ -23,7 +23,7 @@ struct CrossReferencesView: View {
                     Button("Try again") {
                         Task { await model.retry(reference: reference, translation: translation) }
                     }
-                    .font(.system(size: 14, weight: .bold))
+                    .appFont(.system(size: 14, weight: .bold))
                     .foregroundStyle(theme.accent)
                     .buttonStyle(.plain)
                 }
@@ -43,7 +43,7 @@ struct CrossReferencesView: View {
 
     private func message(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 14))
+            .appFont(.system(size: 14))
             .foregroundStyle(theme.textMuted)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -55,7 +55,7 @@ struct CrossReferencesView: View {
                     onNavigate(target)
                 } label: {
                     Text(item.reference)
-                        .font(.system(size: 14, weight: .bold))
+                        .appFont(.system(size: 14, weight: .bold))
                         .foregroundStyle(theme.accent)
                         .frame(minHeight: 32, alignment: .leading)
                         .contentShape(.rect)
@@ -65,12 +65,12 @@ struct CrossReferencesView: View {
                 .accessibilityAddTraits(.isLink)
             } else {
                 Text(item.reference)
-                    .font(.system(size: 14, weight: .bold))
+                    .appFont(.system(size: 14, weight: .bold))
                     .foregroundStyle(theme.accent)
             }
             if let text = item.text {
                 Text(text)
-                    .font(.custom(FontFamily.verse, size: 17))
+                    .appFont(.custom(FontFamily.verse, size: 17))
                     .foregroundStyle(theme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }

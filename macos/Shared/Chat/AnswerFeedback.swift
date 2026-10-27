@@ -242,7 +242,7 @@ struct AnswerFeedbackButtons: View {
             onSelect(chosen ? nil : choice)
         } label: {
             Image(systemName: chosen ? choice.filledSymbol : choice.symbol)
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(chosen ? theme.accent : theme.textFaint)
                 #if os(iOS)
                 // Android's 44pt touch target.
@@ -312,11 +312,11 @@ struct FeedbackReasonSheet: View {
     private var panel: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text(AnswerFeedback.reasonTitle)
-                .font(.system(size: 15, weight: .semibold))
+                .appFont(.system(size: 15, weight: .semibold))
                 .foregroundStyle(theme.text)
 
             Text(AnswerFeedback.reasonPrompt)
-                .font(.system(size: 13))
+                .appFont(.system(size: 13))
                 .foregroundStyle(theme.textMuted)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -333,7 +333,7 @@ struct FeedbackReasonSheet: View {
                 Button("Skip", action: onSkip)
                     .buttonStyle(SubtleButtonStyle())
                     .foregroundStyle(theme.textMuted)
-                    .font(.system(size: 13))
+                    .appFont(.system(size: 13))
                     .accessibilityLabel("Skip the reason")
 
                 Spacer(minLength: 0)
@@ -351,7 +351,7 @@ struct FeedbackReasonSheet: View {
         TextField(AnswerFeedback.reasonPlaceholder, text: reasonBinding, axis: .vertical)
             .textFieldStyle(.plain)
             .lineLimit(1...3)
-            .font(.system(size: 13))
+            .appFont(.system(size: 13))
             .foregroundStyle(theme.text)
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.sm)
@@ -375,7 +375,7 @@ struct FeedbackReasonSheet: View {
             }
         } label: {
             Text(tag.label)
-                .font(.system(size: 12, weight: chosen ? .medium : .regular))
+                .appFont(.system(size: 12, weight: chosen ? .medium : .regular))
                 .foregroundStyle(chosen ? theme.accent : theme.textSecondary)
                 .padding(.horizontal, Spacing.md)
                 .padding(.vertical, 6)

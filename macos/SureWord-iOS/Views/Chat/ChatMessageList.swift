@@ -144,17 +144,17 @@ struct ChatErrorCard: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             if let title {
                 Text(title)
-                    .font(.system(size: 14, weight: .bold))
+                    .appFont(.system(size: 14, weight: .bold))
                     .foregroundStyle(theme.text)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Text(message)
-                .font(.system(size: 13))
+                .appFont(.system(size: 13))
                 .foregroundStyle(theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             if let code {
                 Text("ref: \(code)")
-                    .font(.system(size: 11))
+                    .appFont(.system(size: 11))
                     .foregroundStyle(theme.textGhost)
             }
             if let action {

@@ -37,7 +37,7 @@ struct WorkActivityView: View {
                 HStack(spacing: 8) {
                     if live { ProgressView().controlSize(.small) }
                     Text(title(elapsed))
-                    Image(systemName: expanded ? "chevron.up" : "chevron.down").font(.system(size: 11))
+                    Image(systemName: expanded ? "chevron.up" : "chevron.down").appFont(.system(size: 11))
                 }
                 .frame(minHeight: 44)
                 .contentShape(Rectangle())
@@ -50,8 +50,8 @@ struct WorkActivityView: View {
             if live, progress.phase != "answering" {
                 VStack(alignment: .leading, spacing: 10) {
                     Label("Activity", systemImage: "sparkles")
-                        .font(.system(size: 13)).foregroundStyle(theme.accentDim)
-                    Text(progress.label).font(.system(size: 15)).foregroundStyle(theme.text)
+                        .appFont(.system(size: 13)).foregroundStyle(theme.accentDim)
+                    Text(progress.label).appFont(.system(size: 15)).foregroundStyle(theme.text)
                         .fixedSize(horizontal: false, vertical: true)
                     if elapsed - progress.lastActivityMs >= 20_000 {
                         Text("Still waiting for the response. No new update yet.").foregroundStyle(theme.textMuted)
@@ -79,7 +79,7 @@ struct WorkActivityView: View {
                 .overlay(alignment: .leading) { Rectangle().fill(theme.border).frame(width: 1) }
             }
         }
-        .font(.system(size: 14))
+        .appFont(.system(size: 14))
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
@@ -114,12 +114,12 @@ struct WorkActivityEntryRow: View {
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: Self.symbol(kind: entry.kind, state: entry.state))
-                        .font(.system(size: 13))
+                        .appFont(.system(size: 13))
                     Text(entry.label)
                         .fixedSize(horizontal: false, vertical: true)
                     if hasDetails {
                         Image(systemName: expanded ? "chevron.up" : "chevron.down")
-                            .font(.system(size: 11))
+                            .appFont(.system(size: 11))
                     }
                 }
                 .frame(minHeight: 44)

@@ -28,21 +28,21 @@ struct LearnPane: View {
         HStack(spacing: Spacing.md) {
             Button(action: onDismiss) {
                 Label("Bible", systemImage: "chevron.left")
-                    .font(.system(size: 12, weight: .semibold))
+                    .appFont(.system(size: 12, weight: .semibold))
                     .foregroundStyle(theme.accent)
             }
             .buttonStyle(SubtleButtonStyle())
             .help("Back to the books")
 
             Text("Learn a verse")
-                .font(.system(size: 15, weight: .semibold))
+                .appFont(.system(size: 15, weight: .semibold))
                 .foregroundStyle(theme.text)
 
             Spacer(minLength: Spacing.md)
 
             if let today = model.today {
                 Text("\(today.knownCount) verses you know")
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.textMuted)
                     .fixedSize()
             }

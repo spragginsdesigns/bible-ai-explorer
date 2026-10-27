@@ -19,7 +19,7 @@ struct SermonStudiesView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Spacing.md) {
                 Text("A guided walk through each recorded service, so you can follow the message even when you could not be there.")
-                    .font(.system(size: 15))
+                    .appFont(.system(size: 15))
                     .foregroundStyle(theme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -42,7 +42,7 @@ struct SermonStudiesView: View {
                 } else if let error {
                     card {
                         Text(error)
-                            .font(.system(size: 15))
+                            .appFont(.system(size: 15))
                             .foregroundStyle(theme.textSecondary)
                         Button("Try again") { Task { await load() } }
                             .foregroundStyle(theme.accent)
@@ -51,10 +51,10 @@ struct SermonStudiesView: View {
                 } else if studies != nil {
                     card {
                         Text("No studies yet")
-                            .font(.system(size: 16, weight: .semibold))
+                            .appFont(.system(size: 16, weight: .semibold))
                             .foregroundStyle(theme.text)
                         Text("Studies appear here after a service is recorded and processed. Set your church in Settings to follow along.")
-                            .font(.system(size: 15))
+                            .appFont(.system(size: 15))
                             .foregroundStyle(theme.textSecondary)
                     }
                 }
@@ -92,21 +92,21 @@ struct SermonStudiesView: View {
             HStack(spacing: Spacing.sm) {
                 if let when = SermonFormat.serviceDate(study.serviceDate) {
                     Text(when)
-                        .font(.system(size: 13))
+                        .appFont(.system(size: 13))
                         .foregroundStyle(theme.textMuted)
                 }
                 if let text = study.preachingText {
                     Text(text)
-                        .font(.system(size: 13, weight: .semibold))
+                        .appFont(.system(size: 13, weight: .semibold))
                         .foregroundStyle(theme.accent)
                 }
             }
             Text(study.title)
-                .font(.system(size: 17, weight: .semibold))
+                .appFont(.system(size: 17, weight: .semibold))
                 .foregroundStyle(theme.text)
                 .multilineTextAlignment(.leading)
             Text(study.bigIdea)
-                .font(.system(size: 15))
+                .appFont(.system(size: 15))
                 .foregroundStyle(theme.textSecondary)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)

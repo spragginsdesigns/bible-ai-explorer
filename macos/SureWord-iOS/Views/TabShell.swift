@@ -228,9 +228,6 @@ struct TabShell: View {
             }
             .presentationDragIndicator(.visible)
         }
-        .onChange(of: app.settings.textScale, initial: true) { _, scale in
-            app.bible.textScaleFactor = scale.factor
-        }
         // Walk with me starts itself once the AI consent sheet is settled.
         .task(id: app.aiConsent.isCurrent && app.aiConsent.prompt == nil) {
             await app.onboarding.autoStartIfNeeded(
@@ -304,6 +301,7 @@ extension View {
     /// `help` adds Walk with me's "?" beside the gear, for the main screens.
     func settingsGearToolbar(help: HelpScreen? = nil) -> some View {
         toolbar {
+            ToolbarItem(placement: .topBarTrailing) { TextSizeQuickButton() }
             if let help {
                 ToolbarItem(placement: .topBarTrailing) {
                     GuideHelpButton(screen: help)

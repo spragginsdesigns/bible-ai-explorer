@@ -63,7 +63,7 @@ struct InsertWikilinkSheet: View {
                             ? "No other notes yet. Type a title above to link ahead of time."
                             : "No notes match that search."
                     )
-                    .font(.footnote)
+                    .appFont(.footnote)
                     .foregroundStyle(theme.textFaint)
                     .frame(maxWidth: .infinity)
                     .multilineTextAlignment(.center)
@@ -78,16 +78,16 @@ struct InsertWikilinkSheet: View {
                             HStack(spacing: Spacing.md) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(title)
-                                        .font(.body.weight(.medium))
+                                        .appFont(.body.weight(.medium))
                                         .foregroundStyle(theme.textSecondary)
                                         .lineLimit(1)
                                     Text(NoteUtils.relativeTime(note.updatedAt))
-                                        .font(.caption)
+                                        .appFont(.caption)
                                         .foregroundStyle(theme.textGhost)
                                 }
                                 Spacer(minLength: 0)
                                 Image(systemName: "link")
-                                    .font(.footnote)
+                                    .appFont(.footnote)
                                     .foregroundStyle(theme.textGhost)
                             }
                             .contentShape(.rect)

@@ -36,7 +36,7 @@ struct QuizPrimaryButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 16, weight: .semibold))
+            .appFont(.system(size: 16, weight: .semibold))
             .foregroundStyle(isEnabled ? theme.onAccent : theme.textGhost)
             .frame(maxWidth: .infinity, minHeight: 50)
             .background(
@@ -55,7 +55,7 @@ struct QuizOutlineButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 14, weight: .semibold))
+            .appFont(.system(size: 14, weight: .semibold))
             .foregroundStyle(isEnabled ? (accent ? theme.accent : theme.textSecondary) : theme.textGhost)
             .padding(.horizontal, Spacing.md)
             .frame(maxWidth: .infinity, minHeight: 44)
@@ -74,7 +74,7 @@ struct QuizQuietButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 15))
+            .appFont(.system(size: 15))
             .foregroundStyle(configuration.isPressed ? theme.textSecondary : theme.textMuted)
             .frame(minHeight: 40)
             .padding(.horizontal, Spacing.md)
@@ -85,7 +85,7 @@ struct QuizQuietButtonStyle: ButtonStyle {
 private enum QuizFont {
     /// The question: large and clear. Dynamic Type on iPhone; the Mac has no
     /// text-size setting, so a fixed size reads the same as the web page.
-    static var prompt: Font {
+    static var prompt: AppFont {
         #if os(macOS)
         return .system(size: 22, weight: .semibold)
         #else
@@ -93,7 +93,7 @@ private enum QuizFont {
         #endif
     }
 
-    static var option: Font {
+    static var option: AppFont {
         #if os(macOS)
         return .system(size: 15)
         #else
@@ -101,7 +101,7 @@ private enum QuizFont {
         #endif
     }
 
-    static func scripture(_ size: CGFloat) -> Font { .custom(FontFamily.verse, size: size) }
+    static func scripture(_ size: CGFloat) -> AppFont { .custom(FontFamily.verse, size: size) }
 }
 
 // MARK: - Entry card
@@ -134,18 +134,18 @@ struct QuizEntryCard: View {
         if visible {
             VStack(spacing: Spacing.md) {
                 Text("Quiz me on \(title)")
-                    .font(.system(size: 20, weight: .semibold))
+                    .appFont(.system(size: 20, weight: .semibold))
                     .foregroundStyle(theme.text)
                     .multilineTextAlignment(.center)
                     .accessibilityAddTraits(.isHeader)
                 Text("\(QuizContract.length) questions from what you just read. Every answer comes with its verse.")
-                    .font(.system(size: 15))
+                    .appFont(.system(size: 15))
                     .foregroundStyle(theme.textMuted)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
                 if showsKJVNote {
                     Text("Questions come from the King James text.")
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textFaint)
                         .multilineTextAlignment(.center)
                 }
@@ -242,7 +242,7 @@ private struct QuizHeader: View {
         VStack(spacing: Spacing.md) {
             ZStack {
                 Text(model.phase == .results ? model.title : "\(model.title) quiz")
-                    .font(.system(size: 18, weight: .semibold))
+                    .appFont(.system(size: 18, weight: .semibold))
                     .foregroundStyle(theme.text)
                     .lineLimit(1)
                     .padding(.horizontal, 64)
@@ -250,7 +250,7 @@ private struct QuizHeader: View {
                 HStack {
                     Button(action: onClose) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 17, weight: .medium))
+                            .appFont(.system(size: 17, weight: .medium))
                             .foregroundStyle(theme.textSecondary)
                             .frame(width: 44, height: 44)
                             .contentShape(.rect)
@@ -260,7 +260,7 @@ private struct QuizHeader: View {
                     Spacer()
                     if showsProgress {
                         Text("\(model.index + 1) of \(model.count)")
-                            .font(.system(size: 15))
+                            .appFont(.system(size: 15))
                             .foregroundStyle(theme.textMuted)
                             .monospacedDigit()
                             .accessibilityLabel("Question \(model.index + 1) of \(model.count)")
@@ -305,12 +305,12 @@ private struct QuizLoadingView: View {
         VStack(spacing: Spacing.md) {
             ProgressView().controlSize(.regular)
             Text(QuizRules.loadingLine(title: model.title))
-                .font(.system(size: 15))
+                .appFont(.system(size: 15))
                 .foregroundStyle(theme.textSecondary)
                 .multilineTextAlignment(.center)
             if model.slow {
                 Text(QuizRules.slowLoadingLine)
-                    .font(.system(size: 13))
+                    .appFont(.system(size: 13))
                     .foregroundStyle(theme.textFaint)
                     .multilineTextAlignment(.center)
                     .transition(.opacity)
@@ -332,7 +332,7 @@ private struct QuizErrorView: View {
     var body: some View {
         VStack(spacing: Spacing.md) {
             Text(message)
-                .font(.system(size: 15))
+                .appFont(.system(size: 15))
                 .foregroundStyle(theme.textSecondary)
                 .multilineTextAlignment(.center)
             Button("Retry", action: onRetry)
@@ -362,12 +362,12 @@ private struct QuizQuestionView: View {
                         VStack(alignment: .leading, spacing: Spacing.lg) {
                             if model.canSwitchDepth { depthSwitch }
                             Text(QuizRules.verseLabel(reference: question.reference, verses: question.verses))
-                                .font(.system(size: 13, weight: .semibold))
+                                .appFont(.system(size: 13, weight: .semibold))
                                 .tracking(1.6)
                                 .foregroundStyle(theme.accent)
                                 .padding(.top, Spacing.sm)
                             Text(question.prompt)
-                                .font(QuizFont.prompt)
+                                .appFont(QuizFont.prompt)
                                 .foregroundStyle(theme.text)
                                 .fixedSize(horizontal: false, vertical: true)
                                 .accessibilityAddTraits(.isHeader)
@@ -444,7 +444,7 @@ private struct QuizQuestionView: View {
             }
             #if os(macOS)
             Text(model.checked ? "Press Return" : "Choose with A to D, then press Return")
-                .font(.system(size: 11))
+                .appFont(.system(size: 11))
                 .foregroundStyle(theme.textFaint)
             #endif
         }
@@ -520,7 +520,7 @@ struct QuizOptionRow: View {
             HStack(spacing: Spacing.md) {
                 letterBadge
                 Text(text)
-                    .font(QuizFont.option)
+                    .appFont(QuizFont.option)
                     .foregroundStyle(state == .dimmed ? theme.textFaint : theme.text)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -565,7 +565,7 @@ struct QuizOptionRow: View {
     private var letterBadge: some View {
         let filled = state == .selected || state == .correct
         return Text(letter)
-            .font(.system(size: 15, weight: .semibold))
+            .appFont(.system(size: 15, weight: .semibold))
             .foregroundStyle(filled ? theme.onAccent : (state == .dimmed ? theme.textFaint : theme.textSecondary))
             .frame(width: 34, height: 34)
             .background(filled ? theme.accent : .clear, in: .circle)
@@ -587,7 +587,7 @@ struct QuizOptionRow: View {
                 .foregroundStyle(theme.quizWrong)
         case .answer:
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 20))
+                .appFont(.system(size: 20))
                 .foregroundStyle(theme.accent)
         default:
             EmptyView()
@@ -608,8 +608,8 @@ struct QuizOptionRow: View {
 private struct QuizTrailingLabelStyle: LabelStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack(spacing: 6) {
-            configuration.icon.font(.system(size: 20))
-            configuration.title.font(.system(size: 15, weight: .semibold))
+            configuration.icon.appFont(.system(size: 20))
+            configuration.title.appFont(.system(size: 15, weight: .semibold))
         }
         .fixedSize()
     }
@@ -627,11 +627,11 @@ struct QuizVerseCard: View {
             Rectangle().fill(theme.accent).frame(width: 3)
             VStack(alignment: .leading, spacing: Spacing.md) {
                 Text(question.reference.uppercased())
-                    .font(.system(size: 13, weight: .semibold))
+                    .appFont(.system(size: 13, weight: .semibold))
                     .tracking(2.4)
                     .foregroundStyle(theme.accent)
                 Text(question.verseText)
-                    .font(QuizFont.scripture(23))
+                    .appFont(QuizFont.scripture(23))
                     .foregroundStyle(theme.text)
                     .lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)
@@ -639,7 +639,7 @@ struct QuizVerseCard: View {
                 if let note = question.note, !note.isEmpty {
                     Divider().overlay(theme.border)
                     Text(note)
-                        .font(.system(size: 14))
+                        .appFont(.system(size: 14))
                         .foregroundStyle(theme.textMuted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -693,16 +693,16 @@ private struct QuizResultsView: View {
                 VStack(spacing: Spacing.lg) {
                     VStack(spacing: Spacing.sm) {
                         Image(systemName: "sparkle")
-                            .font(.system(size: 34, weight: .light))
+                            .appFont(.system(size: 34, weight: .light))
                             .foregroundStyle(theme.accent)
                             .accessibilityHidden(true)
                         Text(QuizRules.headline(correct: model.correctCount, total: model.count))
-                            .font(QuizFont.scripture(36))
+                            .appFont(QuizFont.scripture(36))
                             .foregroundStyle(theme.text)
                             .multilineTextAlignment(.center)
                             .accessibilityAddTraits(.isHeader)
                         Text(QuizRules.subline(missed: model.missed.count))
-                            .font(.system(size: 16))
+                            .appFont(.system(size: 16))
                             .foregroundStyle(theme.textMuted)
                             .multilineTextAlignment(.center)
                     }
@@ -751,22 +751,22 @@ private struct QuizMissedCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text("Missed")
-                .font(.system(size: 13, weight: .semibold))
+                .appFont(.system(size: 13, weight: .semibold))
                 .foregroundStyle(theme.accent)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
                 .background(theme.accentSoft, in: .rect(cornerRadius: Radius.sm))
             Text(question.prompt)
-                .font(.system(size: 17, weight: .semibold))
+                .appFont(.system(size: 17, weight: .semibold))
                 .foregroundStyle(theme.text)
                 .fixedSize(horizontal: false, vertical: true)
             if let chosen, question.options.indices.contains(chosen) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Your answer")
-                        .font(.system(size: 13))
+                        .appFont(.system(size: 13))
                         .foregroundStyle(theme.textMuted)
                     Text(question.options[chosen])
-                        .font(QuizFont.scripture(19))
+                        .appFont(QuizFont.scripture(19))
                         .strikethrough(true, color: theme.textFaint)
                         .foregroundStyle(theme.textFaint)
                 }
@@ -775,21 +775,21 @@ private struct QuizMissedCard: View {
             if question.options.indices.contains(question.answerIndex) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Correct answer")
-                        .font(.system(size: 13))
+                        .appFont(.system(size: 13))
                         .foregroundStyle(theme.accent)
                     Text(question.options[question.answerIndex])
-                        .font(QuizFont.scripture(22))
+                        .appFont(QuizFont.scripture(22))
                         .foregroundStyle(theme.accent)
                 }
                 .accessibilityElement(children: .combine)
             }
             Divider().overlay(theme.border)
             Text(question.verseText)
-                .font(QuizFont.scripture(20))
+                .appFont(QuizFont.scripture(20))
                 .foregroundStyle(theme.text)
                 .fixedSize(horizontal: false, vertical: true)
             Text(question.reference.uppercased())
-                .font(.system(size: 12, weight: .semibold))
+                .appFont(.system(size: 12, weight: .semibold))
                 .tracking(2.4)
                 .foregroundStyle(theme.textFaint)
             HStack(alignment: .top, spacing: Spacing.md) {
@@ -837,27 +837,27 @@ private struct QuizReflectionCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text("Carry it with you")
-                .font(.system(size: 21, weight: .semibold))
+                .appFont(.system(size: 21, weight: .semibold))
                 .foregroundStyle(theme.text)
                 .accessibilityAddTraits(.isHeader)
             Text(reflection.prompt)
-                .font(.system(size: 15))
+                .appFont(.system(size: 15))
                 .foregroundStyle(theme.textMuted)
                 .fixedSize(horizontal: false, vertical: true)
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text(reflection.verseText)
-                    .font(QuizFont.scripture(20))
+                    .appFont(QuizFont.scripture(20))
                     .foregroundStyle(theme.text)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(reflection.reference.uppercased())
-                    .font(.system(size: 12, weight: .semibold))
+                    .appFont(.system(size: 12, weight: .semibold))
                     .tracking(2.4)
                     .foregroundStyle(theme.accent)
             }
             if let noteID = model.savedNoteID {
                 HStack {
                     Label("Saved to your notes", systemImage: "checkmark.circle.fill")
-                        .font(.system(size: 14, weight: .medium))
+                        .appFont(.system(size: 14, weight: .medium))
                         .foregroundStyle(theme.accent)
                     Spacer()
                     Button("Open") { onOpen(noteID) }
@@ -868,14 +868,14 @@ private struct QuizReflectionCard: View {
                 ZStack(alignment: .topLeading) {
                     if model.reflectionText.isEmpty {
                         Text("Write a few words...")
-                            .font(.system(size: 15))
+                            .appFont(.system(size: 15))
                             .foregroundStyle(theme.textFaint)
                             .padding(.horizontal, 5)
                             .padding(.vertical, 8)
                             .allowsHitTesting(false)
                     }
                     TextEditor(text: $model.reflectionText)
-                        .font(.system(size: 15))
+                        .appFont(.system(size: 15))
                         .foregroundStyle(theme.text)
                         .scrollContentBackground(.hidden)
                         .frame(minHeight: 96)
@@ -889,7 +889,7 @@ private struct QuizReflectionCard: View {
                 HStack {
                     if let error = model.reflectionError {
                         Text(error)
-                            .font(.system(size: 13))
+                            .appFont(.system(size: 13))
                             .foregroundStyle(theme.danger)
                     }
                     Spacer()
@@ -925,7 +925,7 @@ private struct QuizChapterColumn: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: Spacing.sm) {
                     Text(model.title)
-                        .font(QuizFont.scripture(32))
+                        .appFont(QuizFont.scripture(32))
                         .foregroundStyle(theme.text)
                         .padding(.bottom, Spacing.sm)
                         .accessibilityAddTraits(.isHeader)
@@ -934,11 +934,11 @@ private struct QuizChapterColumn: View {
                         let lit = model.highlightedVerses.contains(number)
                         HStack(alignment: .firstTextBaseline, spacing: Spacing.md) {
                             Text("\(number)")
-                                .font(.system(size: 12))
+                                .appFont(.system(size: 12))
                                 .foregroundStyle(lit ? theme.accent : theme.textFaint)
                                 .frame(minWidth: 20, alignment: .trailing)
                             Text(text)
-                                .font(QuizFont.scripture(19))
+                                .appFont(QuizFont.scripture(19))
                                 .foregroundStyle(theme.text)
                                 .lineSpacing(2)
                                 .fixedSize(horizontal: false, vertical: true)

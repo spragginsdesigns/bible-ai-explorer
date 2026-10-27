@@ -39,7 +39,7 @@ struct NotesLibraryView: View {
 
             if let error = library.error {
                 Text(error)
-                    .font(.footnote)
+                    .appFont(.footnote)
                     .foregroundStyle(theme.danger)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, Spacing.lg)
@@ -197,11 +197,11 @@ struct NotesLibraryView: View {
                     Circle().fill(dotColor).frame(width: 6, height: 6)
                 }
                 if let systemImage {
-                    Image(systemName: systemImage).font(.caption2)
+                    Image(systemName: systemImage).appFont(.caption2)
                 }
                 Text(label)
             }
-            .font(.subheadline)
+            .appFont(.subheadline)
             .foregroundStyle(isActive ? theme.accent : theme.textMuted)
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, 6)
@@ -303,14 +303,14 @@ struct NotesLibraryView: View {
     private var emptyState: some View {
         VStack(spacing: Spacing.xs) {
             Text(library.totalNotes == 0 ? "No notes yet" : "Nothing matches")
-                .font(.headline)
+                .appFont(.headline)
                 .foregroundStyle(theme.textMuted)
             Text(
                 library.totalNotes == 0
                     ? "Tap the compose button to start your first Bible study note."
                     : "Try a different search or clear your filters."
             )
-            .font(.subheadline)
+            .appFont(.subheadline)
             .foregroundStyle(theme.textGhost)
             .multilineTextAlignment(.center)
         }
@@ -340,13 +340,13 @@ private struct NoteTemplatePickerSheet: View {
             List {
                 if let error {
                     Text(error)
-                        .font(.footnote)
+                        .appFont(.footnote)
                         .foregroundStyle(theme.danger)
                         .accessibilityAddTraits(.isStaticText)
                 }
                 if isBusy {
                     Text("Creating your note...")
-                        .font(.footnote)
+                        .appFont(.footnote)
                         .foregroundStyle(theme.textMuted)
                 }
                 ForEach(NoteTemplates.options) { option in
@@ -355,10 +355,10 @@ private struct NoteTemplatePickerSheet: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(option.label)
-                                .font(.system(size: 15, weight: .semibold))
+                                .appFont(.system(size: 15, weight: .semibold))
                                 .foregroundStyle(theme.text)
                             Text(option.description)
-                                .font(.footnote)
+                                .appFont(.footnote)
                                 .foregroundStyle(theme.textMuted)
                         }
                         .padding(.vertical, 4)
@@ -417,13 +417,13 @@ private struct NoteRow: View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: Spacing.sm) {
                 Text(note.title.isEmpty ? "Untitled Note" : note.title)
-                    .font(.body.weight(.semibold))
+                    .appFont(.body.weight(.semibold))
                     .foregroundStyle(theme.text)
                     .lineLimit(1)
                 Spacer()
                 if note.isPinned {
                     Image(systemName: "pin.fill")
-                        .font(.caption2)
+                        .appFont(.caption2)
                         .foregroundStyle(theme.accent)
                 }
             }
@@ -431,7 +431,7 @@ private struct NoteRow: View {
             Text(note.plainText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 ? "Empty note"
                 : note.plainText)
-                .font(.subheadline)
+                .appFont(.subheadline)
                 .foregroundStyle(theme.textFaint)
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -444,12 +444,12 @@ private struct NoteRow: View {
                 }
                 if tags.count > 4 {
                     Text("+\(tags.count - 4)")
-                        .font(.caption2)
+                        .appFont(.caption2)
                         .foregroundStyle(theme.textGhost)
                 }
                 Spacer()
                 Text(meta)
-                    .font(.caption)
+                    .appFont(.caption)
                     .foregroundStyle(theme.textGhost)
             }
         }
@@ -522,7 +522,7 @@ private struct CreateItemSheet: View {
                             ? "Folders group your studies; filter by them from the list."
                             : "Tags show as coloured dots on each note."
                     )
-                    .font(.footnote)
+                    .appFont(.footnote)
                     .foregroundStyle(theme.textGhost)
                 }
             }

@@ -381,7 +381,7 @@ function Stats({ overview }: { overview: ReadingOverview }) {
 		<ul className="grid grid-cols-3 gap-2 lg:gap-3">
 			{tiles.map((tile) => (
 				<li key={tile.label} className="glass-card flex min-w-0 flex-col rounded-2xl p-3 lg:p-4">
-					<span className="text-[26px] font-bold leading-8 tabular-nums text-neutral-900 dark:text-neutral-100">
+					<span className="text-[1.625rem] font-bold leading-8 tabular-nums text-neutral-900 dark:text-neutral-100">
 						{tile.value}
 					</span>
 					<span className="text-metadata text-neutral-600 dark:text-neutral-300">

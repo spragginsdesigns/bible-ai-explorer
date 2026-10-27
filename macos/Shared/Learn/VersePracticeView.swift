@@ -25,7 +25,7 @@ struct VersePracticeView: View {
     @State private var draft = ""
     @State private var score: TypedScore?
 
-    private var verseFont: Font { .custom(FontFamily.verse, size: 30, relativeTo: .title) }
+    private var verseFont: AppFont { .custom(FontFamily.verse, size: 30, relativeTo: .title) }
 
     var body: some View {
         VStack(spacing: Spacing.xl) {
@@ -37,7 +37,7 @@ struct VersePracticeView: View {
             }
 
             Text(LearnPractice.hint(mode, stage: stage))
-                .font(.system(size: 14))
+                .appFont(.system(size: 14))
                 .foregroundStyle(theme.textMuted)
                 .multilineTextAlignment(.center)
 
@@ -47,7 +47,7 @@ struct VersePracticeView: View {
                         onModeChange(item)
                     } label: {
                         Text(item.label)
-                            .font(.system(size: 14, weight: item == mode ? .bold : .regular))
+                            .appFont(.system(size: 14, weight: item == mode ? .bold : .regular))
                             .foregroundStyle(item == mode ? theme.accent : theme.textMuted)
                             .padding(.horizontal, Spacing.md)
                             .frame(minHeight: 44)
@@ -76,7 +76,7 @@ struct VersePracticeView: View {
                 if word.hidden && !revealed.contains(index) {
                     hiddenWord(word.blank, index: index, label: "Reveal word \(index + 1)")
                 } else {
-                    Text(word.text).font(verseFont).foregroundStyle(theme.text)
+                    Text(word.text).appFont(verseFont).foregroundStyle(theme.text)
                 }
             }
         }
@@ -87,7 +87,7 @@ struct VersePracticeView: View {
         return CenteredFlow(spacing: 8, lineSpacing: 4) {
             ForEach(Array(words.enumerated()), id: \.offset) { index, word in
                 if revealed.contains(index) {
-                    Text(word.text).font(verseFont).foregroundStyle(theme.text)
+                    Text(word.text).appFont(verseFont).foregroundStyle(theme.text)
                 } else {
                     hiddenWord(word.clue, index: index, label: "See word \(index + 1)")
                 }
@@ -100,7 +100,7 @@ struct VersePracticeView: View {
             revealed.insert(index)
         } label: {
             Text(shown)
-                .font(verseFont)
+                .appFont(verseFont)
                 .underline()
                 .foregroundStyle(theme.accent)
         }
@@ -117,7 +117,7 @@ struct VersePracticeView: View {
         let done = placed.count == round.answer.count
         return VStack(spacing: Spacing.lg) {
             Text(placed.map { round.choices[$0] }.joined(separator: " "))
-                .font(verseFont)
+                .appFont(verseFont)
                 .foregroundStyle(theme.text)
                 .multilineTextAlignment(.center)
                 .frame(minHeight: 44)
@@ -137,7 +137,7 @@ struct VersePracticeView: View {
                                 expected = result.expected
                             } label: {
                                 Text(word)
-                                    .font(.custom(FontFamily.verse, size: 20, relativeTo: .body))
+                                    .appFont(.custom(FontFamily.verse, size: 20, relativeTo: .body))
                                     .foregroundStyle(theme.text)
                                     .padding(.horizontal, Spacing.md)
                                     .frame(minHeight: 44)
@@ -169,7 +169,7 @@ struct VersePracticeView: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             TextField("", text: $draft, axis: .vertical)
                 .lineLimit(5...10)
-                .font(.custom(FontFamily.verse, size: 20, relativeTo: .body))
+                .appFont(.custom(FontFamily.verse, size: 20, relativeTo: .body))
                 .foregroundStyle(theme.text)
                 #if os(iOS)
                 .textInputAutocapitalization(.sentences)
@@ -195,7 +195,7 @@ struct VersePracticeView: View {
                 onTypedScore(result.perfect)
             } label: {
                 Text("Check the verse")
-                    .font(.system(size: 15, weight: .bold))
+                    .appFont(.system(size: 15, weight: .bold))
                     .foregroundStyle(theme.text)
                     .padding(.horizontal, Spacing.lg)
                     .frame(minHeight: 48)
@@ -210,7 +210,7 @@ struct VersePracticeView: View {
 
             if let score {
                 scoredText(score)
-                    .font(.custom(FontFamily.verse, size: 20, relativeTo: .body))
+                    .appFont(.custom(FontFamily.verse, size: 20, relativeTo: .body))
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
                 note(score.perfect ? "Word for word." : "The marked words are the ones to mend.")
@@ -245,7 +245,7 @@ struct VersePracticeView: View {
 
     private func note(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 14))
+            .appFont(.system(size: 14))
             .foregroundStyle(theme.textMuted)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)

@@ -146,25 +146,25 @@ private struct SpotlightOverlay: View {
     private var caption: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text(request.caption)
-                .font(.system(size: 16 * textScale))
+                .appFont(.system(size: 16))
                 .foregroundStyle(theme.text)
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
                 if let stop = request.stop, let count = request.stopCount {
                     Text("\(stop + 1) of \(count)")
-                        .font(.system(size: 13 * textScale))
+                        .appFont(.system(size: 13))
                         .foregroundStyle(theme.textMuted)
                 }
                 Spacer(minLength: Spacing.md)
                 if request.stop != nil, !request.isLastStop {
                     Button("Stop", action: onClose)
                         .buttonStyle(SubtleButtonStyle())
-                        .font(.system(size: 15 * textScale))
+                        .appFont(.system(size: 15))
                         .foregroundStyle(theme.textSecondary)
                 }
                 Button(request.isLastStop ? "Done" : "Next", action: onNext)
                     .buttonStyle(AccentButtonStyle())
-                    .font(.system(size: 15 * textScale, weight: .semibold))
+                    .appFont(.system(size: 15, weight: .semibold))
                     .keyboardShortcut(.defaultAction)
             }
         }

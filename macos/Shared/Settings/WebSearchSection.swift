@@ -27,7 +27,7 @@ struct WebSearchSection: View {
                 "Lets SureWord look up supplementary material online (church history, "
                     + "archaeology, current events). Scripture stays the final authority."
             )
-            .font(.system(size: 11))
+            .appFont(.system(size: 11))
             .foregroundStyle(theme.textGhost)
             .frame(maxWidth: .infinity, alignment: .leading)
         }

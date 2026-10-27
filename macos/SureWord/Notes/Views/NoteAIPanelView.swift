@@ -30,10 +30,10 @@ struct NoteAIPanelView: View {
     private var header: some View {
         HStack(spacing: Spacing.sm) {
             Image(systemName: "sparkles")
-                .font(.system(size: 11))
+                .appFont(.system(size: 11))
                 .foregroundStyle(theme.accent)
             Text("AI Assistant")
-                .font(.system(size: 12, weight: .semibold))
+                .appFont(.system(size: 12, weight: .semibold))
                 .foregroundStyle(theme.textSecondary)
             Spacer()
             if !ai.messages.isEmpty {
@@ -94,13 +94,13 @@ struct NoteAIPanelView: View {
     private var emptyState: some View {
         VStack(spacing: 6) {
             Text("✦")
-                .font(.system(size: 24))
+                .appFont(.system(size: 24))
                 .foregroundStyle(theme.accentDim)
             Text("Ask about your note")
-                .font(.system(size: 13, weight: .semibold))
+                .appFont(.system(size: 13, weight: .semibold))
                 .foregroundStyle(theme.textMuted)
             Text("The AI can see this note and can write Scripture straight into it.")
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.textGhost)
                 .multilineTextAlignment(.center)
             Button("✦  Suggest Verses") {
@@ -119,7 +119,7 @@ struct NoteAIPanelView: View {
             Task { await ai.suggestVerses() }
         } label: {
             Text("✦  Suggest Verses")
-                .font(.system(size: 11.5))
+                .appFont(.system(size: 11.5))
                 .foregroundStyle(theme.accentDim)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -138,16 +138,16 @@ struct NoteAIPanelView: View {
                     VStack(alignment: .leading, spacing: 1) {
                         HStack(spacing: 4) {
                             Text(command.command)
-                                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                                .appFont(.system(size: 12, weight: .semibold, design: .monospaced))
                                 .foregroundStyle(theme.accent)
                             if let hint = command.hint {
                                 Text(hint)
-                                    .font(.system(size: 11, design: .monospaced))
+                                    .appFont(.system(size: 11, design: .monospaced))
                                     .foregroundStyle(theme.textFaint)
                             }
                         }
                         Text(command.description)
-                            .font(.system(size: 11))
+                            .appFont(.system(size: 11))
                             .foregroundStyle(theme.textMuted)
                             .lineLimit(1)
                     }
@@ -171,7 +171,7 @@ struct NoteAIPanelView: View {
         HStack(alignment: .bottom, spacing: Spacing.sm) {
             TextField("Ask about your note…", text: $ai.input, axis: .vertical)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13))
+                .appFont(.system(size: 13))
                 .lineLimit(1...6)
                 .onSubmit { Task { await ai.submit() } }
 
@@ -205,7 +205,7 @@ struct NoteAIMessageView: View {
     var body: some View {
         if message.role == .user {
             Text(message.content)
-                .font(.system(size: 13))
+                .appFont(.system(size: 13))
                 .foregroundStyle(theme.text)
                 .textSelection(.enabled)
                 .padding(.horizontal, Spacing.md)
@@ -228,18 +228,18 @@ struct NoteAIMessageView: View {
                     }
                     if message.isStreaming, let activity = message.activity {
                         Text("\(activity)…")
-                            .font(.system(size: 11.5))
+                            .appFont(.system(size: 11.5))
                             .foregroundStyle(theme.textFaint)
                     }
                     if !message.retrievedVerses.isEmpty {
                         ForEach(message.retrievedVerses) { verse in
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(verse.reference)
-                                    .font(.system(size: 11, weight: .semibold))
+                                    .appFont(.system(size: 11, weight: .semibold))
                                     .foregroundStyle(theme.accent)
                                 if let text = verse.text {
                                     Text(text)
-                                        .font(.custom(FontFamily.verse, size: 15))
+                                        .appFont(.custom(FontFamily.verse, size: 15))
                                         .foregroundStyle(theme.textSecondary)
                                         .textSelection(.enabled)
                                 }
@@ -249,7 +249,7 @@ struct NoteAIMessageView: View {
                     ForEach(message.noteActions) { action in
                         HStack(spacing: 6) {
                             Image(systemName: "pencil")
-                                .font(.system(size: 10))
+                                .appFont(.system(size: 10))
                                 .foregroundStyle(theme.accent)
                             Text(action.created ? "Created note" : "Added to note")
                                 .foregroundStyle(theme.textSecondary)
@@ -257,7 +257,7 @@ struct NoteAIMessageView: View {
                                 .foregroundStyle(theme.accent)
                                 .fontWeight(.semibold)
                         }
-                        .font(.system(size: 11.5))
+                        .appFont(.system(size: 11.5))
                         .padding(.horizontal, Spacing.md)
                         .padding(.vertical, 6)
                         .background(theme.accentSoft, in: .rect(cornerRadius: Radius.sm))

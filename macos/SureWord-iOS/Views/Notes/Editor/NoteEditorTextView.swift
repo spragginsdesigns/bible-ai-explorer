@@ -13,6 +13,7 @@ import UIKit
 /// SwiftUI's `.keyboard` toolbar only attaches to SwiftUI text inputs, so a
 /// formatting bar placed there never shows while this UIKit view is editing.
 struct NoteEditorTextView<Accessory: View>: UIViewRepresentable {
+    @Environment(\.textScaleFactor) private var appScale
     @Environment(\.theme) private var theme
 
     let controller: NoteRichTextController
@@ -67,12 +68,14 @@ struct NoteEditorTextView<Accessory: View>: UIViewRepresentable {
         context.coordinator.accessoryHost = host
         textView.inputAccessoryView = host.view
 
+        controller.appTextScale = appScale
         controller.textView = textView
         controller.theme = theme
         return textView
     }
 
     func updateUIView(_ textView: NoteTextView, context: Context) {
+        controller.appTextScale = appScale
         if controller.textView !== textView { controller.textView = textView }
         if controller.theme != theme { controller.theme = theme }
         context.coordinator.accessoryHost?.rootView = accessoryView
@@ -87,6 +90,7 @@ struct NoteEditorTextView<Accessory: View>: UIViewRepresentable {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(theme.surface)
                 .environment(\.theme, theme)
+                .environment(\.textScaleFactor, appScale)
         )
     }
 

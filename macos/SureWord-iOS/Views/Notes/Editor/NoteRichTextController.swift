@@ -40,6 +40,9 @@ final class NoteRichTextController {
     /// size). Follows the attached text view's content size category and
     /// re-renders when it changes, so the canvas rescales mid-edit.
     private(set) var textScale: CGFloat = 1
+    var appTextScale: CGFloat = 1 {
+        didSet { if appTextScale != oldValue { contentSizeCategoryDidChange() } }
+    }
 
     var theme: SureWordColors = .dark {
         didSet {
@@ -63,7 +66,7 @@ final class NoteRichTextController {
     @ObservationIgnored weak var textView: NoteTextView? {
         didSet {
             guard let textView else { return }
-            textScale = NoteAttributedText.Metrics.textScale(for: textView.traitCollection)
+            textScale = NoteAttributedText.Metrics.textScale(for: textView.traitCollection) * appTextScale
             textView.textScale = textScale
             wire(textView)
             guard let html = pendingHTML else { return }
@@ -577,7 +580,7 @@ final class NoteRichTextController {
     /// step, because the document did not change.
     func contentSizeCategoryDidChange() {
         guard let textView else { return }
-        let scale = NoteAttributedText.Metrics.textScale(for: textView.traitCollection)
+        let scale = NoteAttributedText.Metrics.textScale(for: textView.traitCollection) * appTextScale
         guard abs(scale - textScale) > 0.001 else { return }
         textScale = scale
         textView.textScale = scale
@@ -629,11 +632,20 @@ final class NoteRichTextController {
     /// Re-derive display attributes after an appearance change without touching
     /// the document.
     private func restyleAll() {
-        guard textView != nil else { return }
+        guard let textView else { return }
+        // Pending marks at an empty caret are not in the document yet. A
+        // display-only rescale must retain them without adding an edit.
+        let typing = textView.typingAttributes
+        let block = (typing[NoteAttributedText.blockKey] as? NoteAttributedText.BlockBox)?.block
+        let marks = (typing[NoteAttributedText.marksKey] as? NoteAttributedText.MarksBox)?.marks ?? []
         render(
             currentDocument(),
-            selection: textView?.selectedRange ?? NSRange(location: 0, length: 0)
+            selection: textView.selectedRange
         )
+        if let block {
+            textView.typingAttributes = NoteAttributedText.runAttributes(block: block, marks: marks, theme: theme, scale: textScale)
+            refreshState()
+        }
     }
 
     /// Called by the coordinator after the user types.
@@ -721,7 +733,7 @@ final class NoteRichTextController {
             if let marker = markers[index] {
                 decorations.markers[offset] = marker
                 decorations.listIndent[offset] =
-                    CGFloat(block.listDepth) * NoteAttributedText.Metrics.listIndent
+                    CGFloat(block.listDepth) * NoteAttributedText.Metrics.listIndent * textScale
             }
             let quotes = block.containers.filter { $0.kind == .blockquote }.count
             if quotes > 0 { decorations.quoteDepth[offset] = quotes }

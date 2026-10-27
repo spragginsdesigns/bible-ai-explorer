@@ -27,7 +27,7 @@ export default function SupportPage() {
 			</h1>
 			<p className="mt-2 text-sm text-neutral-500">{SUPPORT_PAGE.byline}</p>
 
-			<section className="mt-8 space-y-6 text-[15px] leading-relaxed">
+			<section className="mt-8 space-y-6 text-[0.9375rem] leading-relaxed">
 				<LegalBlocks
 					blocks={SUPPORT_PAGE.blocks}
 					classNames={{

@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
@@ -10,7 +10,21 @@ import styles from "./MobileBottomNav.module.css";
 const ICONS = { today: Sun, bible: BookOpen, chat: MessageCircle, connections: Network, study: Compass };
 /** Pure presentation shared with local UI fixtures. The real shell retains its session guard. */
 export function PrimaryNavigation({ pathname }: { pathname: string }) {
-  return <nav aria-label="Primary" className={`${styles.nav} ${pathname === "/" ? styles.chat : ""}`}>
+  const navRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const update = () => {
+      const height = nav.getBoundingClientRect().height;
+      if (height > 0) document.documentElement.style.setProperty("--sureword-mobile-tab-clearance", `${height}px`);
+      else document.documentElement.style.removeProperty("--sureword-mobile-tab-clearance");
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(nav);
+    return () => { observer.disconnect(); document.documentElement.style.removeProperty("--sureword-mobile-tab-clearance"); };
+  }, []);
+  return <nav ref={navRef} aria-label="Primary" className={`${styles.nav} ${pathname === "/" ? styles.chat : ""}`}>
     <div className={styles.tabs}>{PRIMARY_DESTINATIONS.map(({ id, href, label }) => {
       const Icon = ICONS[id];
       const active = primarySectionForPath(pathname) === id;

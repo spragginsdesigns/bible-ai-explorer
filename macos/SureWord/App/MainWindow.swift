@@ -24,13 +24,11 @@ struct MainWindow: View {
                 .spotlightTarget(app.section.primary.tabTarget)
                 .spotlightHost()
                 .toolbar {
+                    ToolbarItem(placement: .primaryAction) { TextSizeQuickButton() }
                     ToolbarItem(placement: .primaryAction) {
                         GuideHelpButton(screen: app.section.primary.helpScreen)
                     }
                 }
-        }
-        .onChange(of: app.settings.textScale, initial: true) { _, scale in
-            app.bible.textScaleFactor = scale.factor
         }
         // Walk with me starts itself once the AI consent sheet is settled.
         .task(id: app.aiConsent.isCurrent && app.aiConsent.prompt == nil) {
@@ -225,7 +223,7 @@ struct Sidebar: View {
                 Section("Recent") {
                     if let error = actions.error {
                         Text(error)
-                            .font(.system(size: 12))
+                            .appFont(.system(size: 12))
                             .foregroundStyle(theme.danger)
                     }
                     ForEach(results) { conversation in
@@ -233,7 +231,7 @@ struct Sidebar: View {
                     }
                     if results.isEmpty {
                         Text(HistorySearch.noMatches(query))
-                            .font(.system(size: 12))
+                            .appFont(.system(size: 12))
                             .foregroundStyle(theme.textMuted)
                     }
                 }
@@ -328,14 +326,14 @@ struct HistoryPicker: View {
         VStack(spacing: 0) {
             TextField("Search conversations…", text: $query)
                 .textFieldStyle(.plain)
-                .font(.system(size: 15))
+                .appFont(.system(size: 15))
                 .padding(Spacing.lg)
 
             Divider().overlay(theme.border)
 
             if let error = actions.error {
                 Text(error)
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.danger)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, Spacing.lg)
@@ -404,10 +402,10 @@ struct PlaceholderPane: View {
             MeshBackground()
             VStack(spacing: Spacing.sm) {
                 Text(title)
-                    .font(.system(size: 18, weight: .semibold))
+                    .appFont(.system(size: 18, weight: .semibold))
                     .foregroundStyle(theme.text)
                 Text(detail)
-                    .font(.system(size: 13))
+                    .appFont(.system(size: 13))
                     .foregroundStyle(theme.textMuted)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 380)

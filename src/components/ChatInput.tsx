@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
 	Camera,
 	ClipboardPaste,
@@ -25,6 +26,9 @@ import type { VerseAttachment } from "@/lib/chat/verseActions";
 import type { ChatAttachmentDescriptor } from "@/lib/chat-attachment-types";
 import ChatFileAttachments from "./ChatFileAttachments";
 import ModelPicker from "./ModelPicker";
+import { readTextScalePref } from "@/lib/preferences";
+import { usePreference } from "@/lib/preferencesSync";
+import { DEFAULT_TEXT_SCALE } from "@/lib/text-scale";
 
 interface ChatInputProps {
 	onSend: (text: string) => void;
@@ -146,6 +150,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 	const [attachMenuOpen, setAttachMenuOpen] = useState(false);
 	const [pasteError, setPasteError] = useState<string | null>(null);
 	const text = value ?? innerText;
+	const textScale = usePreference(readTextScalePref, DEFAULT_TEXT_SCALE);
 	const setText = useCallback(
 		(next: string) => {
 			if (onChangeText) onChangeText(next);
@@ -161,11 +166,22 @@ const ChatInput: React.FC<ChatInputProps> = ({
 	}, [focusSignal]);
 
 	useEffect(() => {
-		if (textareaRef.current) {
-			textareaRef.current.style.height = "auto";
-			textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + "px";
-		}
-	}, [text]);
+		const textarea = textareaRef.current;
+		if (!textarea) return;
+		const resize = () => {
+			textarea.style.height = "auto";
+			textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+		};
+		resize();
+		// Width, browser font preferences and the app root size can all reflow
+		// unchanged text. Observing the parent and root covers those cases.
+		const observer = new ResizeObserver(resize);
+		if (textarea.parentElement) observer.observe(textarea.parentElement);
+		observer.observe(document.documentElement);
+		const rootChanges = new MutationObserver(resize);
+		rootChanges.observe(document.documentElement, { attributes: true, attributeFilter: ["style", "class"] });
+		return () => { observer.disconnect(); rootChanges.disconnect(); };
+	}, [text, textScale]);
 
 	const suggestions = useMemo(
 		() => (commands.length > 0 ? matchSlashCommands(text, commands) : []),
@@ -241,6 +257,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
 	useEffect(() => {
 		if (!attachMenuOpen) return;
+		attachMenuRef.current?.querySelector<HTMLButtonElement>('button[role="menuitem"]:not(:disabled)')?.focus();
 		const onPointer = (event: MouseEvent) => {
 			const target = event.target as Node;
 			if (attachMenuRef.current?.contains(target)) return;
@@ -249,6 +266,33 @@ const ChatInput: React.FC<ChatInputProps> = ({
 		};
 		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.key === "Escape") closeAttachMenu();
+			if (event.key === "Tab") {
+				// A portal can leave the browser's sequential-focus starting point
+				// at the end of body even after trigger.focus(). Choose its real
+				// document-order neighbour before removing the focused menu item.
+				event.preventDefault();
+				const focusable = Array.from(document.querySelectorAll<HTMLElement>(
+					'a[href], button, input, textarea, select, [tabindex]'
+				)).filter(element => element.tabIndex >= 0 && !element.matches(":disabled") &&
+					element.getClientRects().length > 0 && !element.closest('[aria-hidden="true"]') &&
+					!attachMenuRef.current?.contains(element));
+				const index = focusable.indexOf(attachButtonRef.current as HTMLButtonElement);
+				const next = index >= 0 ? focusable[index + (event.shiftKey ? -1 : 1)] : undefined;
+				closeAttachMenu();
+				next?.focus();
+				return;
+			}
+			if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+			if (!(event.target instanceof Node) || !attachMenuRef.current?.contains(event.target)) return;
+			const items = Array.from(attachMenuRef.current.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]:not(:disabled)'));
+			if (!items.length) return;
+			event.preventDefault();
+			const current = items.indexOf(document.activeElement as HTMLButtonElement);
+			const next = event.key === "Home" ? 0
+				: event.key === "End" ? items.length - 1
+					: current < 0 ? (event.key === "ArrowDown" ? 0 : items.length - 1)
+						: (current + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+			items[next].focus();
 		};
 		document.addEventListener("mousedown", onPointer);
 		document.addEventListener("keydown", onKeyDown);
@@ -452,7 +496,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 							disabled={inputDisabled}
 							className="block w-full bg-transparent px-1 py-1.5 text-body text-neutral-800 dark:text-neutral-200 placeholder:text-neutral-400 dark:placeholder:text-neutral-600 resize-none outline-none max-h-[200px]"
 						/>
-						<div className="mt-0.5 flex items-center gap-1">
+						<div className="mt-0.5 flex flex-wrap items-center gap-1">
 							<ModelPicker placement={pickerPlacement} />
 							{/* The labelled 44px button below is the keyboard trigger; the
 							    native controls stay click targets only. */}
@@ -500,42 +544,41 @@ const ChatInput: React.FC<ChatInputProps> = ({
 									aria-label="Attach files"
 									aria-haspopup="menu"
 									aria-expanded={attachMenuOpen}
-									className="flex h-11 w-11 items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-black/[0.05] hover:text-amber-700 disabled:opacity-30 dark:text-neutral-400 dark:hover:bg-white/[0.06] dark:hover:text-amber-400"
+									className="flex h-[44px] w-[44px] items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-black/[0.05] hover:text-amber-700 disabled:opacity-30 dark:text-neutral-400 dark:hover:bg-white/[0.06] dark:hover:text-amber-400"
 								>
-									{uploadingAttachments ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+									{uploadingAttachments ? <Loader2 className="h-[20px] w-[20px] animate-spin" /> : <Paperclip className="h-[20px] w-[20px]" />}
 								</button>
-								{attachMenuOpen && !disabled && (
+								{attachMenuOpen && !disabled && createPortal(
 									<div
 										ref={attachMenuRef}
 										role="menu"
 										aria-label="Choose an attachment"
-										className={`absolute left-0 z-50 w-64 overflow-hidden rounded-xl border border-black/[0.08] bg-white py-1 shadow-lg dark:border-white/[0.08] dark:bg-neutral-900 ${
-											pickerPlacement === "below" ? "top-full mt-2" : "bottom-full mb-2"
-										}`}
+										className="fixed inset-x-[12px] top-1/2 z-[100] mx-auto max-h-[calc(100dvh-24px)] max-w-sm -translate-y-1/2 overflow-y-auto overscroll-contain rounded-xl border border-black/[0.08] bg-white py-1 shadow-lg dark:border-white/[0.08] dark:bg-neutral-900"
 									>
 										{attachmentOptions.map(({ key, label, detail, icon: Icon, run }) => (
 											<button
 												type="button"
 												role="menuitem"
+												tabIndex={-1}
 												key={key}
 												onClick={() => {
-													setAttachMenuOpen(false);
+													closeAttachMenu();
 													run();
 												}}
-												className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.05]"
+												className="flex min-h-[44px] w-full items-center gap-[8px] px-[12px] py-[10px] text-left transition-colors hover:bg-black/[0.03] dark:hover:bg-white/[0.05]"
 											>
-												<Icon className="h-4 w-4 flex-shrink-0 text-neutral-500 dark:text-neutral-400" />
+												<Icon className="h-[20px] w-[20px] flex-shrink-0 text-neutral-500 dark:text-neutral-400" />
 												<span className="min-w-0 flex-1">
-													<span className="block truncate text-sm font-semibold text-neutral-800 dark:text-neutral-200">
+													<span className="block whitespace-normal break-words text-sm font-semibold text-neutral-800 dark:text-neutral-200">
 														{label}
 													</span>
-													<span className="block truncate text-xs text-neutral-400 dark:text-neutral-500">
+													<span className="block whitespace-normal break-words text-xs text-neutral-400 dark:text-neutral-500">
 														{detail}
 													</span>
 												</span>
 											</button>
 										))}
-									</div>
+									</div>, document.body
 								)}
 							</div>
 							<div className="flex-1" />
@@ -547,9 +590,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
 									type="button"
 									aria-label="Stop generating"
 									onClick={onStop}
-									className="flex-shrink-0 p-2.5 rounded-lg bg-gradient-to-b from-neutral-800 to-neutral-900 hover:from-neutral-700 hover:to-neutral-800 dark:from-white/15 dark:to-white/5 dark:hover:from-white/20 dark:hover:to-white/10 text-amber-500 dark:text-amber-400 border border-neutral-700 dark:border-white/[0.1] transition-all duration-200 min-w-[44px] min-h-[44px] flex items-center justify-center"
+									className="flex-shrink-0 p-[10px] rounded-lg bg-gradient-to-b from-neutral-800 to-neutral-900 hover:from-neutral-700 hover:to-neutral-800 dark:from-white/15 dark:to-white/5 dark:hover:from-white/20 dark:hover:to-white/10 text-amber-500 dark:text-amber-400 border border-neutral-700 dark:border-white/[0.1] transition-all duration-200 min-w-[44px] min-h-[44px] flex items-center justify-center"
 								>
-									<Square className="w-4 h-4" fill="currentColor" />
+									<Square className="w-[20px] h-[20px]" fill="currentColor" />
 								</button>
 							) : (
 								<button
@@ -558,9 +601,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
 									aria-label="Send message"
 									onClick={handleSubmit}
 									disabled={disabled || !canSend}
-									className="flex-shrink-0 p-2.5 rounded-lg bg-gradient-to-b from-neutral-800 to-neutral-900 hover:from-neutral-700 hover:to-neutral-800 dark:from-white/15 dark:to-white/5 dark:hover:from-white/20 dark:hover:to-white/10 text-white border border-neutral-700 dark:border-white/[0.1] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 min-w-[44px] min-h-[44px] flex items-center justify-center"
+									className="flex-shrink-0 p-[10px] rounded-lg bg-gradient-to-b from-neutral-800 to-neutral-900 hover:from-neutral-700 hover:to-neutral-800 dark:from-white/15 dark:to-white/5 dark:hover:from-white/20 dark:hover:to-white/10 text-white border border-neutral-700 dark:border-white/[0.1] disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 min-w-[44px] min-h-[44px] flex items-center justify-center"
 								>
-									<Send className="w-4 h-4" />
+									<Send className="w-[20px] h-[20px]" />
 								</button>
 							)}
 						</div>

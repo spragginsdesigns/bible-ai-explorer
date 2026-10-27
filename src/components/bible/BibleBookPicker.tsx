@@ -99,7 +99,7 @@ export default function BibleBookPicker() {
                           href={`/bible/chapters?book=${book.order}`}
                           className="flex items-center justify-between gap-4 rounded-xl border border-black/[0.08] dark:border-white/[0.06] bg-black/[0.03] dark:bg-white/[0.03] px-4 py-3.5 hover:bg-black/[0.06] dark:hover:bg-white/[0.06] hover:border-amber-500/30 dark:hover:border-amber-400/20 transition-colors"
                         >
-                          <span className="truncate text-[15px] font-semibold text-neutral-700 dark:text-neutral-300">
+                          <span className="truncate text-[0.9375rem] font-semibold text-neutral-700 dark:text-neutral-300">
                             {book.name}
                           </span>
                           <span className="flex-shrink-0 text-xs tabular-nums text-neutral-600 dark:text-neutral-400">

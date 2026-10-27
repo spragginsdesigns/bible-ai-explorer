@@ -205,7 +205,7 @@ export default function HighlightLabelsSection() {
 				YOUR COLOURS
 			</h2>
 			<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-3">
-				<p className="text-[13px] leading-5 text-neutral-500 dark:text-neutral-400">
+				<p className="text-[0.8125rem] leading-5 text-neutral-500 dark:text-neutral-400">
 					Name each colour for why you reach for it, and tell SureWord what it means to you.
 					Yellow might be a favourite verse, blue a promise you lean on, red a warning or the
 					words of Christ. The assistant reads these meanings, so a marked verse carries your
@@ -214,7 +214,7 @@ export default function HighlightLabelsSection() {
 
 				{!loaded ? (
 					<div className="flex min-h-24 items-center justify-between gap-3 rounded-xl border border-black/[0.08] dark:border-white/[0.08] px-3">
-						<p className="text-[13px] text-neutral-400 dark:text-neutral-500">
+						<p className="text-[0.8125rem] text-neutral-400 dark:text-neutral-500">
 							{loadFailed ? "Couldn't load your highlight labels." : "Loading highlight labels…"}
 						</p>
 						{loadFailed ? (

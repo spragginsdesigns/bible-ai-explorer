@@ -70,20 +70,20 @@ struct BibleSidebar: View {
         } label: {
             HStack(spacing: Spacing.md) {
                 Image(systemName: "arrow.right")
-                    .font(.system(size: 16))
+                    .appFont(.system(size: 16))
                     .foregroundStyle(theme.accent)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Continue reading")
-                        .font(.system(size: 13, weight: .bold))
+                        .appFont(.system(size: 13, weight: .bold))
                         .foregroundStyle(theme.accent)
                     Text(lastRead.label)
-                        .font(.system(size: 11))
+                        .appFont(.system(size: 11))
                         .foregroundStyle(theme.textMuted)
                         .lineLimit(1)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
+                    .appFont(.system(size: 12, weight: .semibold))
                     .foregroundStyle(theme.accent)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -110,12 +110,12 @@ struct BibleSidebar: View {
         @Bindable var search = model.search
         return HStack(spacing: Spacing.sm) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.textGhost)
 
             TextField("Search verses or \"John 3:16\"", text: $search.query)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13))
+                .appFont(.system(size: 13))
                 .foregroundStyle(theme.text)
 
             if !search.query.isEmpty {
@@ -123,7 +123,7 @@ struct BibleSidebar: View {
                     search.clear()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textGhost)
                 }
                 .buttonStyle(.plain)
@@ -149,7 +149,7 @@ struct BibleSidebar: View {
                         open(jump, translation: translation)
                     } label: {
                         Text("Go to \(label(for: jump)) →")
-                            .font(.system(size: 13, weight: .semibold))
+                            .appFont(.system(size: 13, weight: .semibold))
                             .foregroundStyle(theme.accent)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(Spacing.md)
@@ -165,23 +165,23 @@ struct BibleSidebar: View {
 
                 if let error = search.error {
                     Text(error)
-                        .font(.system(size: 11))
+                        .appFont(.system(size: 11))
                         .foregroundStyle(theme.textMuted)
                         .padding(.vertical, Spacing.xs)
                     Button("Retry search") { search.retry() }
-                        .font(.system(size: 13, weight: .semibold))
+                        .appFont(.system(size: 13, weight: .semibold))
                         .foregroundStyle(theme.accent)
                         .buttonStyle(.plain)
                 } else if let status = search.status(account: account) {
                     Text(status)
-                        .font(.system(size: 11))
+                        .appFont(.system(size: 11))
                         .foregroundStyle(theme.textFaint)
                         .padding(.vertical, Spacing.xs)
                 } else if search.searched.isEmpty, !search.loading {
                     // Shown whenever no search has run yet, reference or not:
                     // `search.tsx` renders the hint on the same condition.
                     Text(search.hint(account: account))
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textFaint)
                         .padding(.vertical, Spacing.md)
                 }
@@ -192,10 +192,10 @@ struct BibleSidebar: View {
                     } label: {
                         VStack(alignment: .leading, spacing: Spacing.xs) {
                             Text("\(Bible.book(order: hit.order)?.name ?? "Book \(hit.order)") \(hit.chapter):\(hit.verse) \(hit.translation.label)")
-                                .font(.system(size: 12, weight: .bold))
+                                .appFont(.system(size: 12, weight: .bold))
                                 .foregroundStyle(theme.accent)
                             Text(hit.text)
-                                .font(.custom(FontFamily.verse, size: 14))
+                                .appFont(.custom(FontFamily.verse, size: 14))
                                 .foregroundStyle(theme.textSecondary)
                                 .lineLimit(2)
                                 .multilineTextAlignment(.leading)
@@ -227,7 +227,7 @@ struct BibleSidebar: View {
                         search.selectedTranslation = id
                     } label: {
                         Text(id.label)
-                            .font(.system(size: 11, weight: .bold))
+                            .appFont(.system(size: 11, weight: .bold))
                             .foregroundStyle(active ? theme.accent : theme.textMuted)
                             .padding(.horizontal, Spacing.sm)
                             .padding(.vertical, 4)
@@ -272,7 +272,7 @@ struct BibleSidebar: View {
                             switch row {
                             case .group(let group):
                                 Text(group.title.uppercased())
-                                    .font(.system(size: 10, weight: .semibold))
+                                    .appFont(.system(size: 10, weight: .semibold))
                                     .kerning(1)
                                     .foregroundStyle(theme.textMuted)
                                     .padding(.top, Spacing.sm)
@@ -298,16 +298,16 @@ struct BibleSidebar: View {
         } label: {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: expanded ? "chevron.down" : "chevron.right")
-                    .font(.system(size: 9, weight: .semibold))
+                    .appFont(.system(size: 9, weight: .semibold))
                     .foregroundStyle(theme.textFaint)
                     .frame(width: 10)
                 Text(testament.title.uppercased())
-                    .font(.system(size: 10, weight: .bold))
+                    .appFont(.system(size: 10, weight: .bold))
                     .kerning(1.2)
                     .foregroundStyle(theme.textFaint)
                 Spacer()
                 Text("\(books.count) books")
-                    .font(.system(size: 10))
+                    .appFont(.system(size: 10))
                     .monospacedDigit()
                     .foregroundStyle(theme.textGhost)
             }
@@ -326,11 +326,11 @@ struct BibleSidebar: View {
         } label: {
             HStack {
                 Text(book.name)
-                    .font(.system(size: 13, weight: .semibold))
+                    .appFont(.system(size: 13, weight: .semibold))
                     .foregroundStyle(isSelected ? theme.accent : theme.textSecondary)
                 Spacer()
                 Text("\(book.chapters)")
-                    .font(.system(size: 11))
+                    .appFont(.system(size: 11))
                     .monospacedDigit()
                     .foregroundStyle(theme.textGhost)
             }

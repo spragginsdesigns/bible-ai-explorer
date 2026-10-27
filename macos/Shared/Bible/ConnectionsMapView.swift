@@ -21,10 +21,10 @@ struct ConnectionsMapView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Spacing.lg) {
                 Text("See Scripture illuminate Scripture.")
-                    .font(.custom(FontFamily.verse, size: 24))
+                    .appFont(.custom(FontFamily.verse, size: 24))
                     .foregroundStyle(theme.text)
                 search
-                if let error = queryError { Text(error).foregroundStyle(theme.danger).font(.callout) }
+                if let error = queryError { Text(error).foregroundStyle(theme.danger).appFont(.callout) }
                 scopePickers
                 if model.loading { ProgressView("Loading connections…").frame(maxWidth: .infinity) }
                 if let error = model.error {
@@ -41,12 +41,12 @@ struct ConnectionsMapView: View {
                     .frame(maxWidth: .infinity)
                     .accessibilityLabel("\(links.count) connections from \(place.reference), arranged around all 66 books of the Bible")
                     Text("\(place.reference) · \(links.count) connections")
-                        .font(.headline).foregroundStyle(theme.text)
+                        .appFont(.headline).foregroundStyle(theme.text)
                     sectionPicker
                     versePicker(chapter)
                     if let verse = place.verse, texts.indices.contains(verse - 1) {
                         Text(VerseMarkup.plainText(texts[verse - 1]))
-                            .font(.custom(FontFamily.verse, size: 20))
+                            .appFont(.custom(FontFamily.verse, size: 20))
                             .foregroundStyle(theme.textSecondary)
                     }
                     if place.verse != nil && !links.isEmpty {
@@ -157,14 +157,14 @@ struct ConnectionsMapView: View {
         return VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack {
                 Button(target.reference) { openReader(target) }
-                    .font(.headline).foregroundStyle(theme.accent)
+                    .appFont(.headline).foregroundStyle(theme.accent)
                 Spacer()
-                Text(canon.title).font(.caption).foregroundStyle(canon.color)
+                Text(canon.title).appFont(.caption).foregroundStyle(canon.color)
             }
-            if place.verse == nil { Text("From verse \(link[0])").font(.caption).foregroundStyle(theme.textMuted) }
+            if place.verse == nil { Text("From verse \(link[0])").appFont(.caption).foregroundStyle(theme.textMuted) }
             ConnectionQuoteView(place: target, translation: app.settings.translation)
             Button("Explore its connections") { app.connectionPlace = target }
-                .font(.callout).foregroundStyle(theme.accent)
+                .appFont(.callout).foregroundStyle(theme.accent)
         }
         .padding(Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -177,7 +177,7 @@ struct ConnectionsMapView: View {
         return NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.lg) {
-                    Text(place.reference).font(.title2.bold())
+                    Text(place.reference).appFont(.title2.bold())
                     if model.explaining { ProgressView("Following the connections…") }
                     if !parsed.summary.isEmpty { Text(parsed.summary).textSelection(.enabled) }
                     ForEach(Array(parsed.items.enumerated()), id: \.offset) { _, item in
@@ -187,7 +187,7 @@ struct ConnectionsMapView: View {
                                     showingExplanation = false
                                     openReader(ConnectionsPlace(order: target.order, chapter: target.chapter, verse: target.verse))
                                 }
-                            }.font(.headline)
+                            }.appFont(.headline)
                             Text(item.text).textSelection(.enabled)
                         }
                     }
@@ -233,7 +233,7 @@ private struct ConnectionQuoteView: View {
     @State private var quote: String?
     var body: some View {
         Group {
-            if let quote { Text(quote).font(.custom(FontFamily.verse, size: 17)).foregroundStyle(theme.textSecondary) }
+            if let quote { Text(quote).appFont(.custom(FontFamily.verse, size: 17)).foregroundStyle(theme.textSecondary) }
         }
         .task(id: "\(place.reference):\(translation.rawValue)") {
             quote = nil

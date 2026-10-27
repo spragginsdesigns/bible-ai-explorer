@@ -88,14 +88,14 @@ struct SermonStudiesPane: View {
                 if backToList { selectedID = nil } else { onDismiss() }
             } label: {
                 Label(backToList ? "Sermon studies" : "Bible", systemImage: "chevron.left")
-                    .font(.system(size: 12, weight: .semibold))
+                    .appFont(.system(size: 12, weight: .semibold))
                     .foregroundStyle(theme.accent)
             }
             .buttonStyle(SubtleButtonStyle())
             .help(backToList ? "Back to the studies" : "Back to the books")
 
             Text("Sermon studies")
-                .font(.system(size: 15, weight: .semibold))
+                .appFont(.system(size: 15, weight: .semibold))
                 .foregroundStyle(theme.text)
 
             Spacer(minLength: Spacing.md)
@@ -107,7 +107,7 @@ struct SermonStudiesPane: View {
                     Task { await load() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 12, weight: .semibold))
+                        .appFont(.system(size: 12, weight: .semibold))
                         .foregroundStyle(theme.textMuted)
                 }
                 .buttonStyle(SubtleButtonStyle())
@@ -125,7 +125,7 @@ struct SermonStudiesPane: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Spacing.md) {
                 Text("A guided walk through each recorded service, so you can follow the message even when you could not be there.")
-                    .font(.system(size: 13))
+                    .appFont(.system(size: 13))
                     .foregroundStyle(theme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -149,7 +149,7 @@ struct SermonStudiesPane: View {
                 } else if let error {
                     card(selected: false) {
                         Text(error)
-                            .font(.system(size: 13))
+                            .appFont(.system(size: 13))
                             .foregroundStyle(theme.textSecondary)
                         Button("Try again") { Task { await load() } }
                             .buttonStyle(.plain)
@@ -158,10 +158,10 @@ struct SermonStudiesPane: View {
                 } else if studies != nil {
                     card(selected: false) {
                         Text("No studies yet")
-                            .font(.system(size: 14, weight: .semibold))
+                            .appFont(.system(size: 14, weight: .semibold))
                             .foregroundStyle(theme.text)
                         Text("Studies appear here after a service is recorded and processed. Set your church in Settings to follow along.")
-                            .font(.system(size: 13))
+                            .appFont(.system(size: 13))
                             .foregroundStyle(theme.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -181,21 +181,21 @@ struct SermonStudiesPane: View {
             HStack(spacing: Spacing.sm) {
                 if let when = SermonFormat.serviceDate(study.serviceDate) {
                     Text(when)
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textMuted)
                 }
                 if let text = study.preachingText {
                     Text(text)
-                        .font(.system(size: 12, weight: .semibold))
+                        .appFont(.system(size: 12, weight: .semibold))
                         .foregroundStyle(theme.accent)
                 }
             }
             Text(study.title)
-                .font(.system(size: 15, weight: .semibold))
+                .appFont(.system(size: 15, weight: .semibold))
                 .foregroundStyle(theme.text)
                 .multilineTextAlignment(.leading)
             Text(study.bigIdea)
-                .font(.system(size: 13))
+                .appFont(.system(size: 13))
                 .foregroundStyle(theme.textSecondary)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
@@ -217,13 +217,13 @@ struct SermonStudiesPane: View {
     private var noSelection: some View {
         VStack(spacing: Spacing.sm) {
             Image(systemName: "building.columns")
-                .font(.system(size: 28))
+                .appFont(.system(size: 28))
                 .foregroundStyle(theme.textGhost)
             Text("Choose a study")
-                .font(.system(size: 16, weight: .semibold))
+                .appFont(.system(size: 16, weight: .semibold))
                 .foregroundStyle(theme.text)
             Text("Each study walks through one service: what was preached, the passages, and a question to carry into your week.")
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.textMuted)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 320)

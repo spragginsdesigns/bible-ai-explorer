@@ -925,9 +925,18 @@ y=274 and the ring was drawn, with and without animations.
 
 `User.textScale` (`standard` / `large` / `largest`, factors 1, 1.15, 1.3 on
 top of the system font scale) is part of the account preferences document, so
-it follows the reader to every device. Android applies it in `AppText`, the
-one text primitive; web sets a root class; Apple maps it onto Dynamic Type.
-It is also in Settings, Appearance.
+it follows the reader to every device. Settings, Appearance & reading offers
+labeled decrease and increase controls, disabled at Standard and Largest,
+Reset to Standard, and a live Scripture preview. The app adjustment has a
+hard maximum of 30 percent above its baseline. Browser zoom and operating
+system accessibility text sizes remain independent.
+
+Android applies the app factor once through shared text primitives and the
+native Scripture, composer and notes-editor paths. Web applies a relative
+root font size and relative typography. Apple resolves fonts through shared
+typography with independent Dynamic Type support. The Bible's reader-specific
+font choice remains an additional reading preference. See
+`docs/accessibility-text-size-2026-10-27.md` for implementation and proof status.
 
 ### Read it to me (voice mode)
 

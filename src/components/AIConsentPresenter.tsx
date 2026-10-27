@@ -82,8 +82,8 @@ export function AIConsentSettingsSection() {
   const state = useSyncExternalStore(aiConsentGate.subscribe, aiConsentGate.getSnapshot, aiConsentGate.getSnapshot);
   const current = !!state.record;
   return <div className="glass-card gradient-border flex flex-col items-start gap-3 rounded-2xl p-4">
-    <h3 className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">{copy.AI_CONSENT_SETTINGS_TITLE}</h3>
-    <p className="text-[13px] leading-[18px] text-neutral-500 dark:text-neutral-400">{current ? copy.aiConsentStatusLabel(state.record) : copy.AI_CONSENT_OFF_LABEL}</p>
+    <h3 className="text-[0.9375rem] font-semibold text-neutral-900 dark:text-neutral-100">{copy.AI_CONSENT_SETTINGS_TITLE}</h3>
+    <p className="text-[0.8125rem] leading-[1.125rem] text-neutral-500 dark:text-neutral-400">{current ? copy.aiConsentStatusLabel(state.record) : copy.AI_CONSENT_OFF_LABEL}</p>
     {state.error && !state.prompt ? <p role="alert" className="text-sm text-destructive">{state.error}</p> : null}
     <Button variant="outline" disabled={state.saving} onClick={() => {
       if (!current) { aiConsentGate.reconsider(); return; }

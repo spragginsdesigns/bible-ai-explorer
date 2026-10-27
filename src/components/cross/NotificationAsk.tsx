@@ -49,10 +49,10 @@ const NotificationAsk: React.FC = () => {
 					<Bell className="w-5 h-5" />
 				</span>
 				<div className="min-w-0 flex-1">
-					<p className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+					<p className="text-[0.9375rem] font-semibold text-neutral-900 dark:text-neutral-100">
 						Get tomorrow&apos;s word as a notification
 					</p>
-					<p className="text-[13px] text-neutral-500 dark:text-neutral-400">
+					<p className="text-[0.8125rem] text-neutral-500 dark:text-neutral-400">
 						An AI-picked verse each morning, shaped by what you&apos;ve been reading and asking about.
 					</p>
 				</div>

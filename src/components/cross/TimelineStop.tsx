@@ -26,7 +26,7 @@ export default function TimelineStop({
 	return (
 		<div className="flex gap-3">
 			<div className="flex w-7 flex-col items-center">
-				<div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[13px] font-bold text-amber-600 dark:text-amber-400 shadow-[0_0_8px_rgba(217,119,6,0.35)] dark:shadow-[0_0_8px_rgba(251,191,36,0.3)]">
+				<div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[0.8125rem] font-bold text-amber-600 dark:text-amber-400 shadow-[0_0_8px_rgba(217,119,6,0.35)] dark:shadow-[0_0_8px_rgba(251,191,36,0.3)]">
 					{glyph}
 				</div>
 				{!last && (
@@ -35,7 +35,7 @@ export default function TimelineStop({
 			</div>
 			<div className={`flex flex-1 flex-col gap-2 ${last ? "" : "pb-7"}`}>
 				{label && (
-					<h2 className="pt-1.5 text-[11.5px] font-bold tracking-[0.1em] text-amber-700/70 dark:text-amber-500/60">
+					<h2 className="pt-1.5 text-[0.71875rem] font-bold tracking-[0.1em] text-amber-700/70 dark:text-amber-500/60">
 						{label}
 					</h2>
 				)}

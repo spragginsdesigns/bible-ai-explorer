@@ -96,7 +96,7 @@ struct ReadingPlanView: View {
             VStack(spacing: Spacing.sm) {
                 ProgressView()
                 Text("Loading your plan…")
-                    .font(.system(size: 14))
+                    .appFont(.system(size: 14))
                     .foregroundStyle(theme.textFaint)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -111,10 +111,10 @@ struct ReadingPlanView: View {
         VStack(spacing: Spacing.md) {
             ProgressView().controlSize(.large)
             Text("Writing your plan…")
-                .font(.system(size: 18, weight: .semibold))
+                .appFont(.system(size: 18, weight: .semibold))
                 .foregroundStyle(theme.text)
             Text("SureWord is laying out all \(goalDays) days from the Scriptures. This takes up to two minutes - you can leave this open.")
-                .font(.system(size: 14))
+                .appFont(.system(size: 14))
                 .foregroundStyle(theme.textMuted)
                 .multilineTextAlignment(.center)
         }
@@ -128,7 +128,7 @@ struct ReadingPlanView: View {
         if let error = model.error {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Label(error, systemImage: "exclamationmark.triangle")
-                    .font(.system(size: 14))
+                    .appFont(.system(size: 14))
                     .foregroundStyle(theme.textSecondary)
                 Button("Try again") { model.reload() }
                     .buttonStyle(AccentButtonStyle())
@@ -148,11 +148,11 @@ struct ReadingPlanView: View {
         GlassCard {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(plan.title)
-                    .font(.custom(FontFamily.brand, size: 28, relativeTo: .title))
+                    .appFont(.custom(FontFamily.brand, size: 28, relativeTo: .title))
                     .foregroundStyle(theme.text)
                 if !plan.description.isEmpty {
                     Text(plan.description)
-                        .font(.system(size: 14))
+                        .appFont(.system(size: 14))
                         .foregroundStyle(theme.textMuted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -160,15 +160,15 @@ struct ReadingPlanView: View {
                     .padding(.top, Spacing.xs)
                 HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
                     Text("\(plan.percent)%")
-                        .font(.system(size: 24, weight: .bold))
+                        .appFont(.system(size: 24, weight: .bold))
                         .monospacedDigit()
                         .foregroundStyle(theme.accent)
                     Text(PlanView.progressCaption(plan))
-                        .font(.system(size: 13))
+                        .appFont(.system(size: 13))
                         .foregroundStyle(theme.textFaint)
                 }
                 Label(PlanView.streakLabel(plan.streak), systemImage: "flame")
-                    .font(.system(size: 14, weight: .semibold))
+                    .appFont(.system(size: 14, weight: .semibold))
                     .foregroundStyle(plan.streak > 0 ? theme.accentDim : theme.textMuted)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -182,10 +182,10 @@ struct ReadingPlanView: View {
             GlassCard {
                 VStack(alignment: .leading, spacing: Spacing.sm) {
                     Text("You finished it.")
-                        .font(.system(size: 17, weight: .bold))
+                        .appFont(.system(size: 17, weight: .bold))
                         .foregroundStyle(theme.accent)
                     Text("Every day of \(plan.title) is read. Archive it from the ⋯ menu above to start another.")
-                        .font(.system(size: 14))
+                        .appFont(.system(size: 14))
                         .foregroundStyle(theme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -194,7 +194,7 @@ struct ReadingPlanView: View {
         } else if let today = PlanView.currentPlanDay(plan) {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 Text(PlanView.dayHeadline(plan).uppercased())
-                    .font(.system(size: 12, weight: .bold))
+                    .appFont(.system(size: 12, weight: .bold))
                     .kerning(1.1)
                     .foregroundStyle(theme.accent)
 
@@ -206,7 +206,7 @@ struct ReadingPlanView: View {
 
                 if !today.focus.isEmpty {
                     Text(today.focus)
-                        .font(.system(size: 15))
+                        .appFont(.system(size: 15))
                         .foregroundStyle(theme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -218,7 +218,7 @@ struct ReadingPlanView: View {
                         today.done ? "Read" : "Mark this day read",
                         systemImage: today.done ? "checkmark.circle.fill" : "circle"
                     )
-                    .font(.system(size: 15, weight: .semibold))
+                    .appFont(.system(size: 15, weight: .semibold))
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .foregroundStyle(today.done ? theme.accent : theme.textMuted)
                     .background(today.done ? theme.accentSoft : .clear, in: .rect(cornerRadius: Radius.md))
@@ -235,7 +235,7 @@ struct ReadingPlanView: View {
 
                 if !today.done {
                     Text("Reading these chapters in SureWord marks the day on its own.")
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textGhost)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -255,9 +255,9 @@ struct ReadingPlanView: View {
         } label: {
             HStack(spacing: 4) {
                 Text("\(reading.book) \(reading.chapter)")
-                    .font(.system(size: 14, weight: .bold))
+                    .appFont(.system(size: 14, weight: .bold))
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .bold))
+                    .appFont(.system(size: 10, weight: .bold))
             }
             .foregroundStyle(theme.accent)
             .padding(.horizontal, Spacing.md)
@@ -282,17 +282,17 @@ struct ReadingPlanView: View {
         let isToday = day.state == .today
         return HStack(spacing: Spacing.md) {
             Text("\(day.day)")
-                .font(.system(size: 13, weight: .bold))
+                .appFont(.system(size: 13, weight: .bold))
                 .monospacedDigit()
                 .foregroundStyle(theme.textFaint)
                 .frame(minWidth: 30, alignment: .leading)
             VStack(alignment: .leading, spacing: 2) {
                 Text(PlanView.describeReadings(day.readings))
-                    .font(.system(size: 15, weight: .semibold))
+                    .appFont(.system(size: 15, weight: .semibold))
                     .foregroundStyle(theme.textSecondary)
                     .lineLimit(2)
                 Text(stateCaption(day))
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.textGhost)
             }
             Spacer(minLength: Spacing.sm)
@@ -300,7 +300,7 @@ struct ReadingPlanView: View {
                 model.setDayDone(day.day, done: !day.done)
             } label: {
                 Image(systemName: day.done ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 20))
+                    .appFont(.system(size: 20))
                     .foregroundStyle(day.done ? theme.accent : theme.textGhost)
                     .frame(width: 44, height: 44)
                     .contentShape(.rect)
@@ -333,7 +333,7 @@ struct ReadingPlanView: View {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 errorBanner
                 Text("Pick a plan and read straight through. Chapters you read in SureWord tick themselves off - there is nothing to remember.")
-                    .font(.system(size: 15))
+                    .appFont(.system(size: 15))
                     .foregroundStyle(theme.textMuted)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -344,7 +344,7 @@ struct ReadingPlanView: View {
                 if model.presets.isEmpty && model.hasLoaded && model.error == nil {
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         Text("No plans came back from the server. Try again in a moment.")
-                            .font(.system(size: 14))
+                            .appFont(.system(size: 14))
                             .foregroundStyle(theme.textFaint)
                         Button("Try again") { model.reload() }
                             .buttonStyle(AccentButtonStyle())
@@ -368,19 +368,19 @@ struct ReadingPlanView: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline, spacing: Spacing.sm) {
                     Text(preset.title)
-                        .font(.system(size: 16, weight: .bold))
+                        .appFont(.system(size: 16, weight: .bold))
                         .foregroundStyle(theme.text)
                     Spacer(minLength: Spacing.sm)
                     if model.activity == .starting(preset.key) {
                         ProgressView()
                     }
                     Text("\(preset.dayCount) days")
-                        .font(.system(size: 13))
+                        .appFont(.system(size: 13))
                         .monospacedDigit()
                         .foregroundStyle(theme.accent)
                 }
                 Text(preset.description)
-                    .font(.system(size: 14))
+                    .appFont(.system(size: 14))
                     .foregroundStyle(theme.textMuted)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
@@ -407,7 +407,7 @@ struct ReadingPlanView: View {
                     axis: .vertical
                 )
                 .lineLimit(3...6)
-                .font(.system(size: 15))
+                .appFont(.system(size: 15))
                 .foregroundStyle(theme.text)
                 .padding(Spacing.md)
                 .background(theme.surface, in: .rect(cornerRadius: Radius.md))
@@ -426,7 +426,7 @@ struct ReadingPlanView: View {
                 // so 365 was unreachable (`ReadingPlanModel.adjustedGoalDays`).
                 Stepper {
                     Text("\(goalDays) days")
-                        .font(.system(size: 15, weight: .semibold))
+                        .appFont(.system(size: 15, weight: .semibold))
                         .monospacedDigit()
                         .foregroundStyle(theme.text)
                 } onIncrement: {
@@ -442,7 +442,7 @@ struct ReadingPlanView: View {
                             goalDays = choice
                         } label: {
                             Text("\(choice)")
-                                .font(.system(size: 14, weight: goalDays == choice ? .bold : .regular))
+                                .appFont(.system(size: 14, weight: goalDays == choice ? .bold : .regular))
                                 .monospacedDigit()
                                 .foregroundStyle(goalDays == choice ? theme.accent : theme.textMuted)
                                 .frame(maxWidth: .infinity, minHeight: 36)
@@ -476,7 +476,7 @@ struct ReadingPlanView: View {
                 .disabled(model.isBusy || goal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                 Text("A written plan takes up to two minutes - SureWord reads your study and lays out every day.")
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.textGhost)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -486,7 +486,7 @@ struct ReadingPlanView: View {
 
     private func sectionLabel(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 11, weight: .bold))
+            .appFont(.system(size: 11, weight: .bold))
             .kerning(1.2)
             .foregroundStyle(theme.textFaint)
             .padding(.top, Spacing.sm)

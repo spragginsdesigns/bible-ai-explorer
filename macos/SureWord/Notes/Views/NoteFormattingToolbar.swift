@@ -114,7 +114,7 @@ struct NoteFormattingToolbar: View {
     ) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(isActive ? theme.accent : theme.textMuted)
                 .frame(width: 26, height: 24)
                 .background(isActive ? theme.accentSoft : .clear, in: .rect(cornerRadius: Radius.sm))

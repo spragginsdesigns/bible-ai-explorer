@@ -57,11 +57,11 @@ private struct DawnLaunchSplash: View {
                 VStack {
                     Spacer().frame(height: geometry.size.height * 0.15)
                     Text("SureWord")
-                        .font(.custom(FontFamily.brand, size: min(72, geometry.size.width * 0.15)))
+                        .appFont(.custom(FontFamily.brand, size: min(72, geometry.size.width * 0.15)))
                     Spacer()
                     VStack(spacing: 10) {
-                        Text("Your walk with God.").font(.title2)
-                        Text("One step at a time.").font(.body)
+                        Text("Your walk with God.").appFont(.title2)
+                        Text("One step at a time.").appFont(.body)
                             .foregroundStyle(Color(red: 239 / 255, green: 222 / 255, blue: 192 / 255))
                     }
                     .multilineTextAlignment(.center)

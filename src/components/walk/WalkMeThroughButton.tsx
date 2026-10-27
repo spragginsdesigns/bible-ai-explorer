@@ -34,7 +34,7 @@ export default function WalkMeThroughButton() {
 				type="button"
 				onClick={() => void open()}
 				disabled={pending}
-				className="flex min-h-[52px] w-full items-center justify-between gap-3 rounded-2xl px-4 text-left text-[15px] font-semibold text-neutral-900 transition-colors hover:bg-black/[0.03] disabled:opacity-60 dark:text-neutral-100 dark:hover:bg-white/[0.03]"
+				className="flex min-h-[52px] w-full items-center justify-between gap-3 rounded-2xl px-4 text-left text-[0.9375rem] font-semibold text-neutral-900 transition-colors hover:bg-black/[0.03] disabled:opacity-60 dark:text-neutral-100 dark:hover:bg-white/[0.03]"
 			>
 				Walk me through SureWord
 				{pending ? (

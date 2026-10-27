@@ -101,15 +101,15 @@ struct MemoriesView: View {
             case .loaded(let summary?, let generatedAt):
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     Text(summary.overview)
-                        .font(.system(size: 13))
+                        .appFont(.system(size: 13))
                         .foregroundStyle(theme.text)
                     ForEach(summary.sections) { section in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(section.title)
-                                .font(.system(size: 12, weight: .bold))
+                                .appFont(.system(size: 12, weight: .bold))
                                 .foregroundStyle(theme.text)
                             Text(section.content)
-                                .font(.system(size: 12))
+                                .appFont(.system(size: 12))
                                 .foregroundStyle(theme.textMuted)
                         }
                     }
@@ -128,7 +128,7 @@ struct MemoriesView: View {
                 if model.summaryState == .loading {
                     ProgressView().controlSize(.small)
                     Text("Writing your summary…")
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textMuted)
                 } else {
                     Button(model.summaryButtonLabel) {
@@ -176,7 +176,7 @@ struct MemoriesView: View {
             if let loadError = model.loadError {
                 HStack(spacing: Spacing.md) {
                     Text(loadError)
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.danger)
                     Spacer()
                     Button("Retry") { Task { await model.load() } }
@@ -189,21 +189,21 @@ struct MemoriesView: View {
                 ForEach(model.groups) { group in
                     VStack(alignment: .leading, spacing: Spacing.xs) {
                         Text(group.label.uppercased())
-                            .font(.system(size: 10, weight: .bold))
+                            .appFont(.system(size: 10, weight: .bold))
                             .kerning(0.8)
                             .foregroundStyle(theme.textGhost)
                         ForEach(group.items) { memory in
                             VStack(alignment: .leading, spacing: 2) {
                                 HStack(alignment: .top, spacing: Spacing.sm) {
                                     Text(memory.content)
-                                        .font(.system(size: 13))
+                                        .appFont(.system(size: 13))
                                         .foregroundStyle(theme.text)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                     Button {
                                         pendingDelete = memory
                                     } label: {
                                         Image(systemName: "xmark")
-                                            .font(.system(size: 10, weight: .bold))
+                                            .appFont(.system(size: 10, weight: .bold))
                                             .foregroundStyle(theme.danger)
                                     }
                                     .buttonStyle(SubtleButtonStyle())
@@ -233,12 +233,12 @@ struct MemoriesView: View {
         HStack(spacing: Spacing.sm) {
             if let asked = MemoryFormat.askedLabel(memory.askedAt) {
                 Text(asked)
-                    .font(.system(size: 11))
+                    .appFont(.system(size: 11))
                     .foregroundStyle(theme.textGhost)
             }
             if status != .open {
                 Text(status == .answered ? "Answered" : "Closed")
-                    .font(.system(size: 10, weight: .bold))
+                    .appFont(.system(size: 10, weight: .bold))
                     .kerning(0.6)
                     .foregroundStyle(theme.textMuted)
             }
@@ -261,7 +261,7 @@ struct MemoriesView: View {
             Task { await model.setPrayerStatus(memory, to: status) }
         }
         .buttonStyle(SubtleButtonStyle())
-        .font(.system(size: 11))
+        .appFont(.system(size: 11))
         .foregroundStyle(theme.textMuted)
         .disabled(model.isPrayerPending(memory))
         .accessibilityLabel("\(title): \(memory.content)")
@@ -269,7 +269,7 @@ struct MemoriesView: View {
 
     private func hint(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 11))
+            .appFont(.system(size: 11))
             .foregroundStyle(theme.textGhost)
             .frame(maxWidth: .infinity, alignment: .leading)
     }

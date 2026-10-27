@@ -28,6 +28,14 @@ final class NoteRichTextController {
     private(set) var canIndentList = false
     private(set) var canOutdentList = false
 
+    var textScale: CGFloat = 1 {
+        didSet {
+            guard textScale != oldValue else { return }
+            textView?.textScale = textScale
+            restyleAll()
+        }
+    }
+
     var theme: SureWordColors = .dark {
         didSet {
             guard oldValue != theme else { return }
@@ -139,7 +147,7 @@ final class NoteRichTextController {
             }
             let block = self.block(in: storage, at: subrange.location) ?? NoteBlock()
             storage.setAttributes(
-                NoteAttributedText.runAttributes(block: block, marks: marks, theme: theme),
+                NoteAttributedText.runAttributes(block: block, marks: marks, theme: theme, scale: textScale),
                 range: subrange
             )
         }
@@ -166,7 +174,7 @@ final class NoteRichTextController {
             }
             let block = self.block(in: storage, at: subrange.location) ?? NoteBlock()
             storage.setAttributes(
-                NoteAttributedText.runAttributes(block: block, marks: marks, theme: theme),
+                NoteAttributedText.runAttributes(block: block, marks: marks, theme: theme, scale: textScale),
                 range: subrange
             )
         }
@@ -190,7 +198,8 @@ final class NoteRichTextController {
         textView.typingAttributes = NoteAttributedText.runAttributes(
             block: block,
             marks: marks,
-            theme: theme
+            theme: theme,
+            scale: textScale
         )
         refreshState()
     }
@@ -450,7 +459,7 @@ final class NoteRichTextController {
 
     private func render(_ document: NoteDocument, selection: NSRange, registersUndo: Bool) {
         guard let textView, let storage = textView.textStorage else { return }
-        let attributed = NoteAttributedText.attributedString(for: document, theme: theme)
+        let attributed = NoteAttributedText.attributedString(for: document, theme: theme, scale: textScale)
 
         isRendering = true
         defer { isRendering = false }
@@ -466,6 +475,13 @@ final class NoteRichTextController {
         let location = min(selection.location, attributed.length)
         let length = min(selection.length, attributed.length - location)
         textView.setSelectedRange(NSRange(location: location, length: length))
+        // NSTextView may retain its old typing font across a storage swap.
+        // Refresh display attributes without registering an edit or undo step.
+        if attributed.length > 0 {
+            textView.typingAttributes = attributed.attributes(at: min(location, attributed.length - 1), effectiveRange: nil)
+        } else {
+            textView.typingAttributes = NoteAttributedText.runAttributes(block: NoteBlock(), marks: [], theme: theme, scale: textScale)
+        }
 
         updateDecorations(for: document)
         refreshState(document: document)
@@ -474,12 +490,21 @@ final class NoteRichTextController {
     /// Re-derive display attributes after an appearance change without touching
     /// the document.
     private func restyleAll() {
-        guard textView != nil else { return }
+        guard let textView else { return }
+        // Pending marks at an empty caret are not in the document yet. A
+        // display-only rescale must retain them without adding an edit.
+        let typing = textView.typingAttributes
+        let block = (typing[NoteAttributedText.blockKey] as? NoteAttributedText.BlockBox)?.block
+        let marks = (typing[NoteAttributedText.marksKey] as? NoteAttributedText.MarksBox)?.marks ?? []
         render(
             currentDocument(),
-            selection: textView?.selectedRange() ?? NSRange(location: 0, length: 0),
+            selection: textView.selectedRange(),
             registersUndo: false
         )
+        if let block {
+            textView.typingAttributes = NoteAttributedText.runAttributes(block: block, marks: marks, theme: theme, scale: textScale)
+            refreshState()
+        }
     }
 
     /// Called by the coordinator after the user types.
@@ -514,7 +539,7 @@ final class NoteRichTextController {
             if let marker = markers[index] {
                 decorations.markers[offset] = marker
                 decorations.listIndent[offset] =
-                    CGFloat(block.listDepth) * NoteAttributedText.Metrics.listIndent
+                    CGFloat(block.listDepth) * NoteAttributedText.Metrics.listIndent * textScale
             }
             let quotes = block.containers.filter { $0.kind == .blockquote }.count
             if quotes > 0 { decorations.quoteDepth[offset] = quotes }
@@ -542,11 +567,11 @@ final class NoteRichTextController {
         let links = NoteWikilinks.matches(in: storage.string).map {
             NoteAttributedText.DrawnWikilink(range: $0.range, noteID: resolveWikilink?($0.target) ?? "")
         }
-        NoteAttributedText.styleWikilinks(links, in: storage, theme: theme)
+        NoteAttributedText.styleWikilinks(links, in: storage, theme: theme, scale: textScale)
         // Typing right after a link would otherwise carry its colour onto the
         // next character until the following pass.
         if textView.typingAttributes[NoteAttributedText.wikilinkKey] != nil,
-           let plain = NoteAttributedText.withoutWikilink(textView.typingAttributes, theme: theme) {
+           let plain = NoteAttributedText.withoutWikilink(textView.typingAttributes, theme: theme, scale: textScale) {
             textView.typingAttributes = plain
         }
     }

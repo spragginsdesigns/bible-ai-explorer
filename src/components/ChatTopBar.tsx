@@ -2,7 +2,7 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Brain, CircleHelp, Clock, Sun, Moon, Plus, Smartphone, Settings, MoreVertical } from "lucide-react";
+import { Brain, CircleHelp, Clock, Sun, Moon, Plus, Smartphone, Settings, MoreVertical, Type } from "lucide-react";
 import { useTheme } from "next-themes";
 import { UserButton } from "@clerk/nextjs";
 import GetAppLink from "./GetAppLink";
@@ -27,6 +27,7 @@ const ChatTopBar: React.FC<ChatTopBarProps> = ({ title, onToggleSidebar, onNewCh
         <button type="button" onClick={() => setTheme(document.documentElement.classList.contains("dark") ? "light" : "dark")}>
           <Sun size={20} className="hidden dark:block" /><Moon size={20} className="block dark:hidden" /> Toggle theme
         </button>
+        <Link href="/settings#text-size" className={styles.row}><Type size={20} /> Text size</Link>
         <Link href="/settings" className={styles.row}><Settings size={20} /> Settings</Link>
         <Link href="/settings#memory" className={styles.row}><Brain size={20} /> Memories</Link>
         <div className={styles.row}><UserButton /><span>Account</span></div>

@@ -81,11 +81,11 @@ export default function SentCardsSection() {
 		<section id="sent-cards" className="flex flex-col gap-2 scroll-mt-20 lg:scroll-mt-6">
 			<h2 className="text-metadata font-bold tracking-[0.15em] text-neutral-500 dark:text-neutral-500 px-1">CARDS YOU SENT</h2>
 			<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-3">
-				<p className="text-[13px] leading-5 text-neutral-500 dark:text-neutral-400">
+				<p className="text-[0.8125rem] leading-5 text-neutral-500 dark:text-neutral-400">
 					Words you sent to someone. Revoke one to take its link and picture back.
 				</p>
 				{cards === null ? (
-					<p className="text-[13px] text-neutral-500 dark:text-neutral-400">
+					<p className="text-[0.8125rem] text-neutral-500 dark:text-neutral-400">
 						{loadError ? (
 							<>
 								Couldn&apos;t load your cards.{" "}
@@ -98,7 +98,7 @@ export default function SentCardsSection() {
 						)}
 					</p>
 				) : cards.length === 0 ? (
-					<p className="text-[13px] text-neutral-500 dark:text-neutral-400">Cards you send appear here.</p>
+					<p className="text-[0.8125rem] text-neutral-500 dark:text-neutral-400">Cards you send appear here.</p>
 				) : (
 					<ul className="flex flex-col gap-2">
 						{cards.map((card) => {

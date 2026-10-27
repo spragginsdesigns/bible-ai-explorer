@@ -27,7 +27,7 @@ export default function PrivacyPage() {
 			</h1>
 			<p className="mt-2 text-sm text-neutral-500">{PRIVACY_POLICY.byline}</p>
 
-			<section className="mt-8 space-y-6 text-[15px] leading-relaxed">
+			<section className="mt-8 space-y-6 text-[0.9375rem] leading-relaxed">
 				<LegalBlocks
 					blocks={PRIVACY_POLICY.blocks}
 					classNames={{

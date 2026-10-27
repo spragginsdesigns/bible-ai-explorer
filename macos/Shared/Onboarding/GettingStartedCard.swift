@@ -20,14 +20,14 @@ struct GettingStartedCard: View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack {
                 Text("Getting started")
-                    .font(.system(size: 17 * textScale, weight: .semibold))
+                    .appFont(.system(size: 17, weight: .semibold))
                     .foregroundStyle(theme.text)
                 Spacer()
                 Button {
                     Task { await app.onboarding.dismissGettingStarted() }
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .semibold))
+                        .appFont(.system(size: 13, weight: .semibold))
                         .foregroundStyle(theme.textMuted)
                         .frame(width: 32, height: 32)
                         .contentShape(.rect)
@@ -54,16 +54,16 @@ struct GettingStartedCard: View {
         } label: {
             HStack(spacing: Spacing.md) {
                 Image(systemName: done ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 20))
+                    .appFont(.system(size: 20))
                     .foregroundStyle(done ? theme.accent : theme.textFaint)
                 Text(item.label)
-                    .font(.system(size: 16 * textScale))
+                    .appFont(.system(size: 16))
                     .foregroundStyle(done ? theme.textMuted : theme.text)
                     .strikethrough(done, color: theme.textMuted)
                 Spacer()
                 if !done {
                     Text("Show me")
-                        .font(.system(size: 13 * textScale, weight: .medium))
+                        .appFont(.system(size: 13, weight: .medium))
                         .foregroundStyle(theme.accent)
                 }
             }

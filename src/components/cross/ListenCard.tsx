@@ -281,10 +281,10 @@ export default function ListenCard({ reference }: { reference?: string | null })
 					<span aria-hidden className="text-xl text-amber-600 dark:text-amber-400">
 						🔒
 					</span>
-					<p className="text-center text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+					<p className="text-center text-[0.9375rem] font-semibold text-neutral-900 dark:text-neutral-100">
 						Listen is part of SureWord Pro
 					</p>
-					<p className="text-center text-[13.5px] leading-5 text-neutral-500 dark:text-neutral-400">
+					<p className="text-center text-[0.84375rem] leading-5 text-neutral-500 dark:text-neutral-400">
 						A spoken devotional for today&apos;s word, made when you choose.
 						Listen is included with SureWord Pro.
 					</p>
@@ -308,7 +308,7 @@ export default function ListenCard({ reference }: { reference?: string | null })
 					<p className="text-center text-sm text-neutral-600 dark:text-neutral-300">
 						Preparing your devotional…
 					</p>
-					<p className="text-center text-[12.5px] text-neutral-400 dark:text-neutral-500">
+					<p className="text-center text-[0.78125rem] text-neutral-400 dark:text-neutral-500">
 						This usually takes about a minute.
 					</p>
 				</div>
@@ -324,7 +324,7 @@ export default function ListenCard({ reference }: { reference?: string | null })
 		<TimelineStop glyph="♪" label="LISTEN">
 			<div className="glass-card gradient-border flex flex-col gap-3 rounded-2xl p-5">
 				{audio?.title && (
-					<p className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+					<p className="text-[0.9375rem] font-semibold text-neutral-900 dark:text-neutral-100">
 						{audio.title}
 					</p>
 				)}
@@ -401,7 +401,7 @@ export default function ListenCard({ reference }: { reference?: string | null })
 						type="button"
 						onClick={cycleRate}
 						aria-label={`Playback speed ${formatListenRate(rate)}, tap to change`}
-						className="h-9 w-14 shrink-0 rounded-full border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[13px] font-bold tabular-nums text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
+						className="h-9 w-14 shrink-0 rounded-full border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[0.8125rem] font-bold tabular-nums text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors"
 					>
 						{formatListenRate(rate)}
 					</button>
@@ -412,12 +412,12 @@ export default function ListenCard({ reference }: { reference?: string | null })
 						<button
 							type="button"
 							onClick={() => setTranscriptOpen((open) => !open)}
-							className="self-start text-[13px] font-semibold text-amber-700/70 dark:text-amber-500/70 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
+							className="self-start text-[0.8125rem] font-semibold text-amber-700/70 dark:text-amber-500/70 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
 						>
 							{transcriptOpen ? "Hide transcript ▴" : "Read along ▾"}
 						</button>
 						{transcriptOpen && (
-							<p className="whitespace-pre-line text-[14.5px] leading-[23px] text-neutral-700 dark:text-neutral-300">
+							<p className="whitespace-pre-line text-[0.90625rem] leading-[1.4375rem] text-neutral-700 dark:text-neutral-300">
 								{audio.script}
 							</p>
 						)}

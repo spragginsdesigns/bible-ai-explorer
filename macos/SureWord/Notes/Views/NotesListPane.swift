@@ -32,7 +32,7 @@ struct NotesListPane: View {
 
             if let error = library.error {
                 Text(error)
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.danger)
                     .padding(.horizontal, Spacing.lg)
                     .padding(.bottom, Spacing.sm)
@@ -93,7 +93,7 @@ struct NotesListPane: View {
     private var header: some View {
         HStack {
             Text("Notes")
-                .font(.custom(FontFamily.brand, size: 28))
+                .appFont(.custom(FontFamily.brand, size: 28))
                 .foregroundStyle(theme.text)
             Spacer()
             Button {
@@ -113,11 +113,11 @@ struct NotesListPane: View {
     private var searchField: some View {
         HStack(spacing: Spacing.sm) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 11))
+                .appFont(.system(size: 11))
                 .foregroundStyle(theme.textFaint)
             TextField("Search notes", text: $library.searchQuery)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13))
+                .appFont(.system(size: 13))
             if !library.searchQuery.isEmpty {
                 Button {
                     library.searchQuery = ""
@@ -203,12 +203,12 @@ struct NotesListPane: View {
                 }
             } label: {
                 Label(library.sortBy.label, systemImage: "arrow.up.arrow.down")
-                    .font(.system(size: 11))
+                    .appFont(.system(size: 11))
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
         }
-        .font(.system(size: 11))
+        .appFont(.system(size: 11))
         .foregroundStyle(theme.textFaint)
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.sm)
@@ -261,14 +261,14 @@ struct NotesListPane: View {
     private var emptyState: some View {
         VStack(spacing: Spacing.xs) {
             Text(library.totalNotes == 0 ? "No notes yet" : "Nothing matches")
-                .font(.system(size: 14, weight: .semibold))
+                .appFont(.system(size: 14, weight: .semibold))
                 .foregroundStyle(theme.textMuted)
             Text(
                 library.totalNotes == 0
                     ? "Press ⇧⌘N to start your first Bible study note."  // ⌘N is New chat
                     : "Try a different search or clear your filters."
             )
-            .font(.system(size: 12))
+            .appFont(.system(size: 12))
             .foregroundStyle(theme.textGhost)
             .multilineTextAlignment(.center)
         }
@@ -291,13 +291,13 @@ private struct NoteRow: View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: Spacing.sm) {
                 Text(note.title.isEmpty ? "Untitled Note" : note.title)
-                    .font(.system(size: 13.5, weight: .semibold))
+                    .appFont(.system(size: 13.5, weight: .semibold))
                     .foregroundStyle(theme.text)
                     .lineLimit(1)
                 Spacer()
                 if note.isPinned {
                     Image(systemName: "pin.fill")
-                        .font(.system(size: 9))
+                        .appFont(.system(size: 9))
                         .foregroundStyle(theme.accent)
                 }
             }
@@ -305,7 +305,7 @@ private struct NoteRow: View {
             Text(note.plainText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 ? "Empty note"
                 : note.plainText)
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.textFaint)
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -318,12 +318,12 @@ private struct NoteRow: View {
                 }
                 if tags.count > 4 {
                     Text("+\(tags.count - 4)")
-                        .font(.system(size: 10))
+                        .appFont(.system(size: 10))
                         .foregroundStyle(theme.textGhost)
                 }
                 Spacer()
                 Text(meta)
-                    .font(.system(size: 10.5))
+                    .appFont(.system(size: 10.5))
                     .foregroundStyle(theme.textGhost)
             }
         }
@@ -366,7 +366,7 @@ struct Chip: View {
                 }
                 Text(label)
             }
-            .font(.system(size: 11.5))
+            .appFont(.system(size: 11.5))
             .foregroundStyle(isActive ? theme.accent : theme.textMuted)
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, 5)
@@ -399,17 +399,17 @@ struct NoteTemplatePickerSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text("Start a note")
-                .font(.system(size: 15, weight: .semibold))
+                .appFont(.system(size: 15, weight: .semibold))
                 .foregroundStyle(theme.text)
 
             if let error {
                 Text(error)
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.danger)
             }
             if isBusy {
                 Text("Creating your note...")
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.textMuted)
             }
 
@@ -419,10 +419,10 @@ struct NoteTemplatePickerSheet: View {
                 } label: {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(option.label)
-                            .font(.system(size: 13.5, weight: .semibold))
+                            .appFont(.system(size: 13.5, weight: .semibold))
                             .foregroundStyle(theme.text)
                         Text(option.description)
-                            .font(.system(size: 12))
+                            .appFont(.system(size: 12))
                             .foregroundStyle(theme.textMuted)
                     }
                     .padding(Spacing.md)
@@ -483,7 +483,7 @@ struct CreateItemSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
             Text(kind == .folder ? "New folder" : "New tag")
-                .font(.system(size: 15, weight: .semibold))
+                .appFont(.system(size: 15, weight: .semibold))
                 .foregroundStyle(theme.text)
 
             TextField(kind == .folder ? "Folder name" : "Tag name", text: $name)
@@ -517,7 +517,7 @@ struct CreateItemSheet: View {
                     ? "Folders group your studies; filter by them from the list."
                     : "Tags show as coloured dots on each note."
             )
-            .font(.system(size: 11.5))
+            .appFont(.system(size: 11.5))
             .foregroundStyle(theme.textGhost)
 
             HStack {
@@ -558,7 +558,7 @@ struct RenameFolderSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.lg) {
-            Text("Rename folder").font(.system(size: 15, weight: .semibold))
+            Text("Rename folder").appFont(.system(size: 15, weight: .semibold))
             TextField("Folder name", text: $name)
                 .textFieldStyle(.roundedBorder)
                 .onSubmit(submit)

@@ -1,6 +1,20 @@
 {
 	"releases": [
 		{
+			"version": "1.105.0",
+			"versionCode": 122,
+			"date": "2026-10-27",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Adjust text with clear smaller, larger and reset buttons in Appearance & reading. Standard, Large and Largest keep text within a comfortable range.",
+						"Text size now reaches more of the app, including Scripture, notes and the message box. Navigation and controls make room for larger text."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.104.0",
 			"versionCode": 121,
 			"date": "2026-10-26",

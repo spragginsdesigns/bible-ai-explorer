@@ -41,7 +41,7 @@ struct AccentButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 13, weight: .medium))
+            .appFont(.system(size: 13, weight: .medium))
             .foregroundStyle(isEnabled ? theme.accent : theme.textGhost)
             .padding(.horizontal, Spacing.lg)
             .padding(.vertical, Spacing.sm)
@@ -85,7 +85,7 @@ struct BrandMark: View {
 
     var body: some View {
         Text("SureWord")
-            .font(.custom(FontFamily.brand, size: size))
+            .appFont(.custom(FontFamily.brand, size: size))
             .foregroundStyle(theme.accent)
     }
 }

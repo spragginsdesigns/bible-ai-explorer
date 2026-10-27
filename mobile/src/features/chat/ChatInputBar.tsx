@@ -21,7 +21,8 @@ import PasteInput, {
 } from "@mattermost/react-native-paste-input";
 import { Ionicons } from "@expo/vector-icons";
 import { fonts, radius, spacing, typography } from "@/theme";
-import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import { useTextScaleFactor, useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import { scaleTextDimensions } from "@/features/settings/textScale";
 import type { Colors } from "@/theme";
 import {
 	matchSlashCommands,
@@ -113,6 +114,7 @@ export function ChatInputBar({
 	const { colors: themeColors } = useTheme();
 	const colors = chatColors(themeColors);
 	const styles = useThemedStyles(createStyles);
+	const textScaleFactor = useTextScaleFactor();
 	const [innerText, setInnerText] = useState("");
 	const [attachmentMenuVisible, setAttachmentMenuVisible] = useState(false);
 	const inputRef = useRef<PasteTextInputInstance>(null);
@@ -345,7 +347,7 @@ export function ChatInputBar({
 					multiline
 					placeholder={placeholder}
 					placeholderTextColor={colors.textGhost}
-					style={[styles.inputWrapper, styles.input]}
+					style={[styles.inputWrapper, scaleTextDimensions(styles.input, textScaleFactor)]}
 					submitBehavior="newline"
 				/>
 				{generating ? (

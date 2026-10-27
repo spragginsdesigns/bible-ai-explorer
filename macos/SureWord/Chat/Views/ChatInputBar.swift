@@ -63,7 +63,7 @@ struct ChatInputBar: View {
 
                 TextField("Ask anything…", text: $chat.input, axis: .vertical)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 14))
+                    .appFont(.system(size: 14))
                     .lineLimit(1...8)
                     .focused($isFocused)
                     .onSubmit(submit)
@@ -201,7 +201,7 @@ struct ChatInputBar: View {
             }
             .buttonStyle(SubtleButtonStyle())
         }
-        .font(.system(size: 11))
+        .appFont(.system(size: 11))
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.sm)
         .background(theme.dangerSoft, in: .rect(cornerRadius: Radius.md))
@@ -222,7 +222,7 @@ struct ChatInputBar: View {
                 HStack(spacing: Spacing.sm) {
                     ProgressView().controlSize(.small)
                     Text(chat.videoStatus ?? (chat.transcribingVoiceMessage ? "Transcribing voice message…" : "Uploading…"))
-                        .font(.system(size: 11))
+                        .appFont(.system(size: 11))
                         .foregroundStyle(theme.textMuted)
                 }
                 .padding(.horizontal, Spacing.md)
@@ -255,15 +255,15 @@ struct ChatInputBar: View {
                 } label: {
                     HStack(spacing: Spacing.sm) {
                         Text(command.command)
-                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .appFont(.system(size: 12, weight: .semibold, design: .monospaced))
                             .foregroundStyle(theme.accent)
                         if let hint = command.hint {
                             Text(hint)
-                                .font(.system(size: 11, design: .monospaced))
+                                .appFont(.system(size: 11, design: .monospaced))
                                 .foregroundStyle(theme.textGhost)
                         }
                         Text(command.description)
-                            .font(.system(size: 11))
+                            .appFont(.system(size: 11))
                             .foregroundStyle(theme.textMuted)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -296,7 +296,7 @@ struct ChatInputBar: View {
             }
             .buttonStyle(SubtleButtonStyle())
         }
-        .font(.system(size: 11))
+        .appFont(.system(size: 11))
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.sm)
         .background(theme.accentSoft, in: .capsule)

@@ -25,7 +25,7 @@ struct ChapterGridPane: View {
                 }
             } else {
                 Text("That book could not be found.")
-                    .font(.system(size: 13))
+                    .appFont(.system(size: 13))
                     .foregroundStyle(theme.textMuted)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -35,10 +35,10 @@ struct ChapterGridPane: View {
     private func header(_ book: Book) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(book.name)
-                .font(.system(size: 20, weight: .semibold))
+                .appFont(.system(size: 20, weight: .semibold))
                 .foregroundStyle(theme.text)
             Text("\(book.chapters) \(book.chapters == 1 ? "chapter" : "chapters")")
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.textMuted)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -52,7 +52,7 @@ struct ChapterGridPane: View {
             model.open(order: book.order, chapter: chapter)
         } label: {
             Text("\(chapter)")
-                .font(.system(size: 14, weight: .semibold))
+                .appFont(.system(size: 14, weight: .semibold))
                 .monospacedDigit()
                 .foregroundStyle(theme.textSecondary)
                 .frame(maxWidth: .infinity)

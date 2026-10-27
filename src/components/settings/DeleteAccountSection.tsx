@@ -83,8 +83,8 @@ export default function DeleteAccountSection() {
 		return (
 			<div role="alert" className="flex flex-col gap-3">
 				<div>
-					<p className="text-[14px] font-semibold text-neutral-900 dark:text-neutral-100">{DELETE_ERROR_TITLE}</p>
-					<p className="text-[13px] text-neutral-500 dark:text-neutral-400">{errorMessage}</p>
+					<p className="text-[0.875rem] font-semibold text-neutral-900 dark:text-neutral-100">{DELETE_ERROR_TITLE}</p>
+					<p className="text-[0.8125rem] text-neutral-500 dark:text-neutral-400">{errorMessage}</p>
 				</div>
 				<div className="flex gap-2">
 					<button type="button" onClick={dismissError} className={cancelButton}>
@@ -102,11 +102,11 @@ export default function DeleteAccountSection() {
 		return (
 			<div role="alertdialog" aria-labelledby="delete-account-title" className="flex flex-col gap-3">
 				<div>
-					<p id="delete-account-title" className="text-[14px] font-semibold text-neutral-900 dark:text-neutral-100">
+					<p id="delete-account-title" className="text-[0.875rem] font-semibold text-neutral-900 dark:text-neutral-100">
 						{DELETE_CONFIRM_TITLE}
 					</p>
-					<p className="text-[13px] text-neutral-500 dark:text-neutral-400">{DELETE_CONFIRM_MESSAGE}</p>
-					<p className="mt-2 text-[13px] text-neutral-500 dark:text-neutral-400">{DELETE_APP_STORE_NOTICE}</p>
+					<p className="text-[0.8125rem] text-neutral-500 dark:text-neutral-400">{DELETE_CONFIRM_MESSAGE}</p>
+					<p className="mt-2 text-[0.8125rem] text-neutral-500 dark:text-neutral-400">{DELETE_APP_STORE_NOTICE}</p>
 				</div>
 				<div className="flex gap-2">
 					<button type="button" onClick={() => setStep("closed")} className={cancelButton}>
@@ -139,10 +139,10 @@ export default function DeleteAccountSection() {
 				}}
 			>
 				<div>
-					<p id="delete-account-type-title" className="text-[14px] font-semibold text-neutral-900 dark:text-neutral-100">
+					<p id="delete-account-type-title" className="text-[0.875rem] font-semibold text-neutral-900 dark:text-neutral-100">
 						{DELETE_TYPE_TITLE}
 					</p>
-					<p className="text-[13px] text-neutral-500 dark:text-neutral-400">{DELETE_TYPE_MESSAGE}</p>
+					<p className="text-[0.8125rem] text-neutral-500 dark:text-neutral-400">{DELETE_TYPE_MESSAGE}</p>
 				</div>
 				<input
 					value={typed}
@@ -154,7 +154,7 @@ export default function DeleteAccountSection() {
 					autoCapitalize="characters"
 					spellCheck={false}
 					autoFocus
-					className="min-h-[44px] rounded-xl border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] px-3 text-[15px] text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:border-red-500/40"
+					className="min-h-[44px] rounded-xl border border-black/[0.1] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.03] px-3 text-[0.9375rem] text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:outline-none focus:border-red-500/40"
 				/>
 				<div className="flex gap-2">
 					<button type="button" onClick={() => setStep("closed")} className={cancelButton}>

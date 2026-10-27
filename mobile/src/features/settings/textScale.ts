@@ -31,6 +31,22 @@ export function normalizeTextScale(value: unknown): TextScale {
 	return isTextScale(value) ? value : DEFAULT_TEXT_SCALE;
 }
 
+/** A bounded step, shared by controls and endpoint tests. */
+export function stepTextScale(value: unknown, direction: -1 | 1): TextScale {
+	const index = TEXT_SCALES.indexOf(normalizeTextScale(value));
+	return TEXT_SCALES[Math.max(0, Math.min(TEXT_SCALES.length - 1, index + direction))];
+}
+
+/** Nested text with no explicit size inherits its already-scaled native parent. */
+export function scaleTextDimensions<T extends object>(style: T, factor: number): T {
+	const dimensions = style as { fontSize?: number; lineHeight?: number };
+	return {
+		...style,
+		...(typeof dimensions.fontSize === "number" ? { fontSize: dimensions.fontSize * factor } : {}),
+		...(typeof dimensions.lineHeight === "number" ? { lineHeight: dimensions.lineHeight * factor } : {}),
+	};
+}
+
 /** The scale a text size chip ("Large") stands for, or null for anything else. */
 export function textScaleForLabel(label: string): TextScale | null {
 	const match = TEXT_SCALES.find((scale) => TEXT_SCALE_LABELS[scale] === label);

@@ -29,7 +29,7 @@ struct DailyCrossView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(model.todayLabel)
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textFaint)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.bottom, Spacing.xl)
@@ -90,15 +90,15 @@ struct DailyCrossView: View {
             GlassCard {
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     Text(entry.reference)
-                        .font(.system(size: 15, weight: .bold))
+                        .appFont(.system(size: 15, weight: .bold))
                         .foregroundStyle(theme.accent)
                     Text(entry.text)
-                        .font(.custom(FontFamily.verse, size: 19))
+                        .appFont(.custom(FontFamily.verse, size: 19))
                         .foregroundStyle(theme.text)
                         .lineSpacing(11)
                         .textSelection(.enabled)
                     Text(entry.reason)
-                        .font(.system(size: 13))
+                        .appFont(.system(size: 13))
                         .italic()
                         .foregroundStyle(theme.textMuted)
                     if let item = entry.shareCardItem {
@@ -144,7 +144,7 @@ struct DailyCrossView: View {
         if let question = entry.question {
             TimelineStop(glyph: "?", label: "CARRY THIS") {
                 Text(question)
-                    .font(.system(size: 14, weight: .medium))
+                    .appFont(.system(size: 14, weight: .medium))
                     .foregroundStyle(theme.text)
                     .lineSpacing(6)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -162,7 +162,7 @@ struct DailyCrossView: View {
                 goDeeper(entry)
             } label: {
                 Text("✦ Go deeper in chat")
-                    .font(.system(size: 14, weight: .bold))
+                    .appFont(.system(size: 14, weight: .bold))
                     .foregroundStyle(theme.accent)
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .background(theme.accentSoft, in: .rect(cornerRadius: Radius.lg))
@@ -183,7 +183,7 @@ struct DailyCrossView: View {
                     confirmingReplace = true
                 } label: {
                     Text("↻ A different word for today")
-                        .font(.system(size: 13, weight: .semibold))
+                        .appFont(.system(size: 13, weight: .semibold))
                         .foregroundStyle(theme.textFaint)
                         .frame(maxWidth: .infinity, minHeight: 40)
                         .overlay {
@@ -220,7 +220,7 @@ struct DailyCrossView: View {
 
             Spacer()
         }
-        .font(.system(size: 12))
+        .appFont(.system(size: 12))
         .foregroundStyle(theme.textFaint)
         .disabled(model.isLoading || model.isReplacing)
     }
@@ -232,7 +232,7 @@ struct DailyCrossView: View {
             ProgressView()
                 .controlSize(.small)
             Text("Preparing a fresh word. You can keep reading this one while SureWord searches.")
-                .font(.system(size: 13))
+                .appFont(.system(size: 13))
                 .foregroundStyle(theme.textSecondary)
                 .lineSpacing(4)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -248,14 +248,14 @@ struct DailyCrossView: View {
     private func replacePanel(_ entry: DailyCrossEntry) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text("Replace today's word with a new one? \(entry.reference) won't come back.")
-                .font(.system(size: 13))
+                .appFont(.system(size: 13))
                 .foregroundStyle(theme.textSecondary)
                 .lineSpacing(4)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             TextField("Anything it should centre on? (optional)", text: $focus)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13))
+                .appFont(.system(size: 13))
                 .padding(Spacing.sm)
                 .background(theme.surface, in: .rect(cornerRadius: Radius.sm))
                 .overlay {
@@ -284,7 +284,7 @@ struct DailyCrossView: View {
 
     private func paragraph(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 14))
+            .appFont(.system(size: 14))
             .foregroundStyle(theme.textSecondary)
             .lineSpacing(6)
             .textSelection(.enabled)
@@ -298,7 +298,7 @@ struct DailyCrossView: View {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 HStack(spacing: Spacing.sm) {
                     Text("\(step.book) \(step.chapter) ›")
-                        .font(.system(size: 13.5, weight: .bold))
+                        .appFont(.system(size: 13.5, weight: .bold))
                         .foregroundStyle(theme.accent)
                     // The daily cross is told to build its path out of the
                     // user's plan; this is how they see that it did.
@@ -308,7 +308,7 @@ struct DailyCrossView: View {
                         chapter: step.chapter
                     ) {
                         Text("FROM YOUR PLAN")
-                            .font(.system(size: 9.5, weight: .bold))
+                            .appFont(.system(size: 9.5, weight: .bold))
                             .kerning(0.8)
                             .foregroundStyle(theme.textFaint)
                             .padding(.horizontal, 6)
@@ -319,7 +319,7 @@ struct DailyCrossView: View {
                     }
                 }
                 Text(step.focus)
-                    .font(.system(size: 13))
+                    .appFont(.system(size: 13))
                     .foregroundStyle(theme.textSecondary)
                     .lineSpacing(4)
                     .multilineTextAlignment(.leading)
@@ -345,7 +345,7 @@ struct DailyCrossView: View {
         GlassCard(padding: Spacing.xl) {
             VStack(spacing: Spacing.md) {
                 Text(message)
-                    .font(.system(size: 13))
+                    .appFont(.system(size: 13))
                     .foregroundStyle(theme.textSecondary)
                     .multilineTextAlignment(.center)
                 Button("Refresh today's word") { model.load(force: true) }
@@ -360,7 +360,7 @@ struct DailyCrossView: View {
         GlassCard(padding: Spacing.xl) {
             VStack(spacing: Spacing.md) {
                 Text(message)
-                    .font(.system(size: 13))
+                    .appFont(.system(size: 13))
                     .foregroundStyle(theme.textSecondary)
                     .multilineTextAlignment(.center)
                 Button("Try again") { model.load(force: true) }
@@ -462,7 +462,7 @@ private struct TimelineStop<Content: View>: View {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 if let label {
                     Text(label)
-                        .font(.system(size: 11, weight: .bold))
+                        .appFont(.system(size: 11, weight: .bold))
                         .kerning(1.2)
                         .foregroundStyle(theme.accentDim)
                         .padding(.top, 6)
@@ -479,7 +479,7 @@ private struct TimelineStop<Content: View>: View {
             Circle().fill(theme.accentSoft)
             Circle().strokeBorder(theme.accentBorder, lineWidth: 1)
             Text(glyph)
-                .font(.system(size: 13, weight: .bold))
+                .appFont(.system(size: 13, weight: .bold))
                 .foregroundStyle(theme.accent)
         }
         .frame(width: 28, height: 28)
@@ -523,7 +523,7 @@ private struct LoadingBars: View {
             }
 
             Text("Preparing your day in the Word…")
-                .font(.system(size: 13))
+                .appFont(.system(size: 13))
                 .foregroundStyle(theme.textFaint)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.top, Spacing.sm)

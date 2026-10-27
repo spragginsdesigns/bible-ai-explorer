@@ -68,7 +68,7 @@ struct NoteAISheet: View {
                         if let error = ai.error {
                             VStack(alignment: .leading, spacing: Spacing.sm) {
                                 Text("Something went wrong: \(error)")
-                                    .font(.subheadline)
+                                    .appFont(.subheadline)
                                     .foregroundStyle(theme.danger)
                                 Button("Try again") {
                                     Task { await ai.retry() }
@@ -99,13 +99,13 @@ struct NoteAISheet: View {
     private var emptyState: some View {
         VStack(spacing: 6) {
             Image(systemName: "sparkles")
-                .font(.title)
+                .appFont(.title)
                 .foregroundStyle(theme.accentDim)
             Text("Ask about your note")
-                .font(.headline)
+                .appFont(.headline)
                 .foregroundStyle(theme.textMuted)
             Text("The AI can see this note and can write Scripture straight into it.")
-                .font(.subheadline)
+                .appFont(.subheadline)
                 .foregroundStyle(theme.textGhost)
                 .multilineTextAlignment(.center)
             Button {
@@ -126,7 +126,7 @@ struct NoteAISheet: View {
             Task { await ai.suggestVerses() }
         } label: {
             Label("Suggest Verses", systemImage: "sparkles")
-                .font(.subheadline)
+                .appFont(.subheadline)
                 .foregroundStyle(theme.accentDim)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -145,16 +145,16 @@ struct NoteAISheet: View {
                     VStack(alignment: .leading, spacing: 1) {
                         HStack(spacing: 4) {
                             Text(command.command)
-                                .font(.subheadline.weight(.semibold).monospaced())
+                                .appFont(.subheadline.weight(.semibold).monospaced())
                                 .foregroundStyle(theme.accent)
                             if let hint = command.hint {
                                 Text(hint)
-                                    .font(.footnote.monospaced())
+                                    .appFont(.footnote.monospaced())
                                     .foregroundStyle(theme.textFaint)
                             }
                         }
                         Text(command.description)
-                            .font(.footnote)
+                            .appFont(.footnote)
                             .foregroundStyle(theme.textMuted)
                             .lineLimit(1)
                     }
@@ -178,7 +178,7 @@ struct NoteAISheet: View {
         HStack(alignment: .bottom, spacing: Spacing.sm) {
             TextField("Ask about your note…", text: $ai.input, axis: .vertical)
                 .textFieldStyle(.plain)
-                .font(.body)
+                .appFont(.body)
                 .lineLimit(1...6)
                 .onSubmit { Task { await ai.submit() } }
 
@@ -215,7 +215,7 @@ private struct NoteAIMessageView: View {
     var body: some View {
         if message.role == .user {
             Text(message.content)
-                .font(.body)
+                .appFont(.body)
                 .foregroundStyle(theme.text)
                 .textSelection(.enabled)
                 .padding(.horizontal, Spacing.md)
@@ -238,18 +238,18 @@ private struct NoteAIMessageView: View {
                     }
                     if message.isStreaming, let activity = message.activity {
                         Text("\(activity)…")
-                            .font(.footnote)
+                            .appFont(.footnote)
                             .foregroundStyle(theme.textFaint)
                     }
                     if !message.retrievedVerses.isEmpty {
                         ForEach(message.retrievedVerses) { verse in
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(verse.reference)
-                                    .font(.footnote.weight(.semibold))
+                                    .appFont(.footnote.weight(.semibold))
                                     .foregroundStyle(theme.accent)
                                 if let text = verse.text {
                                     Text(text)
-                                        .font(.custom(FontFamily.verse, size: 15))
+                                        .appFont(.custom(FontFamily.verse, size: 15))
                                         .foregroundStyle(theme.textSecondary)
                                         .textSelection(.enabled)
                                 }
@@ -259,7 +259,7 @@ private struct NoteAIMessageView: View {
                     ForEach(message.noteActions) { action in
                         HStack(spacing: 6) {
                             Image(systemName: "pencil")
-                                .font(.caption2)
+                                .appFont(.caption2)
                                 .foregroundStyle(theme.accent)
                             Text(action.created ? "Created note" : "Added to note")
                                 .foregroundStyle(theme.textSecondary)
@@ -267,7 +267,7 @@ private struct NoteAIMessageView: View {
                                 .foregroundStyle(theme.accent)
                                 .fontWeight(.semibold)
                         }
-                        .font(.footnote)
+                        .appFont(.footnote)
                         .padding(.horizontal, Spacing.md)
                         .padding(.vertical, 6)
                         .background(theme.accentSoft, in: .rect(cornerRadius: Radius.sm))
@@ -298,12 +298,12 @@ private struct NoteMarkdownText: View {
             options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         ) {
             Text(parsed)
-                .font(.body)
+                .appFont(.body)
                 .foregroundStyle(theme.text)
                 .textSelection(.enabled)
         } else {
             Text(content)
-                .font(.body)
+                .appFont(.body)
                 .foregroundStyle(theme.text)
                 .textSelection(.enabled)
         }

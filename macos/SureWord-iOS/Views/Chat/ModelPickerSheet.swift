@@ -133,11 +133,11 @@ struct ModelPickerSheet: View {
     private var header: some View {
         VStack(spacing: 1) {
             Text(Self.title(house: house))
-                .font(.headline)
+                .appFont(.headline)
                 .foregroundStyle(theme.text)
             if let line = Self.summaryLine(summary) {
                 Text(line)
-                    .font(.system(size: 11.5))
+                    .appFont(.system(size: 11.5))
                     .foregroundStyle(theme.textMuted)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -183,13 +183,13 @@ struct ModelPickerSheet: View {
     private func houseRow(_ house: AIModelsResponse.HouseModel) -> some View {
         HStack {
             Text(house.label)
-                .font(.system(size: 14.5, weight: .bold))
+                .appFont(.system(size: 14.5, weight: .bold))
                 .foregroundStyle(theme.accent)
                 .lineLimit(1)
             if house.isPremium { PremiumMark(size: 16) }
             Spacer()
             Image(systemName: "checkmark")
-                .font(.system(size: 12, weight: .semibold))
+                .appFont(.system(size: 12, weight: .semibold))
                 .foregroundStyle(theme.accent)
         }
         .accessibilityElement(children: .combine)
@@ -225,7 +225,7 @@ struct ModelPickerSheet: View {
                 Section {
                     if searchResults.isEmpty {
                         Text(Self.emptySearchText)
-                            .font(.system(size: 13.5))
+                            .appFont(.system(size: 13.5))
                             .foregroundStyle(theme.textFaint)
                             .frame(maxWidth: .infinity, alignment: .center)
                     } else {
@@ -289,17 +289,17 @@ struct ModelPickerSheet: View {
     private func providerHeader(_ label: String, count: String, chevron: String?) -> some View {
         HStack(spacing: Spacing.sm) {
             Text(label.uppercased())
-                .font(.system(size: 11.5, weight: .bold))
+                .appFont(.system(size: 11.5, weight: .bold))
                 .tracking(1.2)
                 .foregroundStyle(theme.textFaint)
             Text(count)
-                .font(.system(size: 11.5))
+                .appFont(.system(size: 11.5))
                 .foregroundStyle(theme.textGhost)
                 .textCase(nil)
             Spacer()
             if let chevron {
                 Image(systemName: chevron)
-                    .font(.system(size: 12, weight: .semibold))
+                    .appFont(.system(size: 12, weight: .semibold))
                     .foregroundStyle(theme.textFaint)
             }
         }
@@ -325,11 +325,11 @@ struct ModelPickerSheet: View {
                     HStack(spacing: Spacing.xs) {
                         if let providerName {
                             Text(providerName)
-                                .font(.system(size: 11, weight: .semibold))
+                                .appFont(.system(size: 11, weight: .semibold))
                                 .foregroundStyle(theme.textFaint)
                         }
                         Text(model.label)
-                            .font(.system(size: 13.5, weight: active ? .bold : .semibold))
+                            .appFont(.system(size: 13.5, weight: active ? .bold : .semibold))
                             .foregroundStyle(active ? theme.accent : theme.text)
                             .lineLimit(1)
                         // Label, then Pro's mark, then the pills on the same
@@ -337,7 +337,7 @@ struct ModelPickerSheet: View {
                         if model.premium { PremiumMark(size: 16) }
                         ForEach(pills, id: \.self) { pill in
                             Text(pill)
-                                .font(.system(size: 10.5, weight: .semibold))
+                                .appFont(.system(size: 10.5, weight: .semibold))
                                 .foregroundStyle(theme.textMuted)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 1)
@@ -347,14 +347,14 @@ struct ModelPickerSheet: View {
                     }
                     if let meta {
                         Text(meta)
-                            .font(.system(size: 11.5))
+                            .appFont(.system(size: 11.5))
                             .foregroundStyle(theme.textFaint)
                             .lineLimit(1)
                     }
                 }
                 Spacer(minLength: Spacing.xs)
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 18))
+                    .appFont(.system(size: 18))
                     .foregroundStyle(theme.accent)
                     .opacity(active ? 1 : 0)
             }
@@ -384,7 +384,7 @@ struct ModelPickerSheet: View {
         return List {
             if let model {
                 Text(Self.optionsIntro(for: model))
-                    .font(.system(size: 13))
+                    .appFont(.system(size: 13))
                     .foregroundStyle(theme.textFaint)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 0, leading: Spacing.xs, bottom: 0, trailing: Spacing.xs))
@@ -489,12 +489,12 @@ struct ModelPickerSheet: View {
         } header: {
             HStack(spacing: Spacing.sm) {
                 Text(title)
-                    .font(.system(size: 11.5, weight: .bold))
+                    .appFont(.system(size: 11.5, weight: .bold))
                     .tracking(1.2)
                     .foregroundStyle(theme.textFaint)
                 Spacer()
                 Text(label(active))
-                    .font(.system(size: 11.5, weight: .bold))
+                    .appFont(.system(size: 11.5, weight: .bold))
                     .foregroundStyle(theme.accent)
                     .lineLimit(1)
             }
@@ -558,7 +558,7 @@ private struct EffortChipStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 12.5, weight: .bold))
+            .appFont(.system(size: 12.5, weight: .bold))
             .lineLimit(1)
             .minimumScaleFactor(0.85)
             .foregroundStyle(active ? theme.accent : theme.textMuted)

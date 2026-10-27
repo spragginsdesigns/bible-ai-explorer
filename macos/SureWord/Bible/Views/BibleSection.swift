@@ -67,7 +67,7 @@ struct BibleSection: View {
         .overlay(alignment: .bottom) {
             if let toast = model.toast {
                 Text(toast)
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.textSecondary)
                     .padding(.horizontal, Spacing.lg)
                     .padding(.vertical, Spacing.sm)
@@ -190,13 +190,13 @@ struct BibleSection: View {
     private var emptyState: some View {
         VStack(spacing: Spacing.sm) {
             Image(systemName: "book.closed")
-                .font(.system(size: 28))
+                .appFont(.system(size: 28))
                 .foregroundStyle(theme.textGhost)
             Text("Choose a book")
-                .font(.system(size: 16, weight: .semibold))
+                .appFont(.system(size: 16, weight: .semibold))
                 .foregroundStyle(theme.text)
             Text("All 66 books of the King James Bible are bundled with the app and read offline.")
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.textMuted)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 320)

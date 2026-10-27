@@ -78,7 +78,7 @@ struct NoteInfoSheet: View {
         } label: {
             Text(label).foregroundStyle(theme.textFaint)
         }
-        .font(.subheadline)
+        .appFont(.subheadline)
     }
 
     // MARK: Aliases
@@ -87,7 +87,7 @@ struct NoteInfoSheet: View {
         Section {
             if note.aliases.isEmpty {
                 Text(verbatim: "None. An alias lets a [[wikilink]] find this note by another name.")
-                    .font(.footnote)
+                    .appFont(.footnote)
                     .foregroundStyle(theme.textGhost)
             } else {
                 ForEach(note.aliases, id: \.self) { alias in
@@ -144,7 +144,7 @@ struct NoteInfoSheet: View {
         return Section {
             if entries.isEmpty, draft == nil {
                 Text("None yet.")
-                    .font(.footnote)
+                    .appFont(.footnote)
                     .foregroundStyle(theme.textGhost)
             }
             ForEach(entries, id: \.key) { entry in
@@ -171,7 +171,7 @@ struct NoteInfoSheet: View {
         HStack(spacing: Spacing.md) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(key)
-                    .font(.caption.weight(.semibold))
+                    .appFont(.caption.weight(.semibold))
                     .foregroundStyle(theme.textFaint)
                     .lineLimit(1)
                 Text(NotePropertyEditing.format(value))
@@ -292,14 +292,14 @@ struct NoteInfoSheet: View {
                             .fontWeight(.semibold)
                             .foregroundStyle(theme.danger)
                     }
-                    .font(.footnote)
+                    .appFont(.footnote)
                 }
                 .listRowBackground(theme.dangerSoft)
             } else if isFirstLoad {
                 ProgressView()
             } else if outgoing.isEmpty {
                 Text(verbatim: "None. Type [[ a note title ]] in this note, or use the link button above the keyboard.")
-                    .font(.footnote)
+                    .appFont(.footnote)
                     .foregroundStyle(theme.textGhost)
             } else {
                 ForEach(Array(outgoing.enumerated()), id: \.offset) { _, link in
@@ -321,7 +321,7 @@ struct NoteInfoSheet: View {
             } label: {
                 HStack(spacing: Spacing.md) {
                     Image(systemName: "arrow.right")
-                        .font(.footnote)
+                        .appFont(.footnote)
                         .foregroundStyle(theme.textMuted)
                     Text(label)
                         .foregroundStyle(theme.textSecondary)
@@ -337,7 +337,7 @@ struct NoteInfoSheet: View {
             // create that the server resolves the moment the note exists.
             HStack(spacing: Spacing.md) {
                 Image(systemName: "questionmark.circle")
-                    .font(.footnote)
+                    .appFont(.footnote)
                     .foregroundStyle(theme.textGhost)
                 Text(label)
                     .italic()
@@ -348,7 +348,7 @@ struct NoteInfoSheet: View {
                     ProgressView()
                 } else {
                     Button("Create") { createAndOpen(link.targetTitle) }
-                        .font(.footnote.weight(.semibold))
+                        .appFont(.footnote.weight(.semibold))
                         .buttonStyle(.borderless)
                         .accessibilityLabel("Create the note \(label)")
                 }
@@ -362,7 +362,7 @@ struct NoteInfoSheet: View {
                 EmptyView()
             } else if backlinks.isEmpty {
                 Text("No other note links here yet.")
-                    .font(.footnote)
+                    .appFont(.footnote)
                     .foregroundStyle(theme.textGhost)
             } else {
                 ForEach(backlinks, id: \.noteId) { backlink in
@@ -375,11 +375,11 @@ struct NoteInfoSheet: View {
                                 .foregroundStyle(theme.textSecondary)
                                 .lineLimit(1)
                             Text(backlink.snippet)
-                                .font(.footnote)
+                                .appFont(.footnote)
                                 .foregroundStyle(theme.textFaint)
                                 .lineLimit(2)
                             Text(NoteUtils.relativeTime(backlink.updatedAt))
-                                .font(.caption)
+                                .appFont(.caption)
                                 .foregroundStyle(theme.textGhost)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)

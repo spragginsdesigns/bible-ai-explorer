@@ -18,7 +18,7 @@ struct ChatWelcomeContent: View {
                     SureWordGuideAvatar(size: 190, hero: true)
                         .padding(.vertical, -18)
                     Text(headline.replacingOccurrences(of: " for ", with: "\nfor "))
-                        .font(.title.bold())
+                        .appFont(.title.bold())
                         .foregroundStyle(theme.text)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: 310)
@@ -26,7 +26,7 @@ struct ChatWelcomeContent: View {
                         .padding(.bottom, 24)
                         .accessibilityAddTraits(.isHeader)
                     Text("CHOSEN FROM YOUR STUDY")
-                        .font(.caption.weight(.semibold)).tracking(1.7)
+                        .appFont(.caption.weight(.semibold)).tracking(1.7)
                         .foregroundStyle(theme.textMuted)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.bottom, 16)
@@ -44,14 +44,14 @@ struct ChatWelcomeContent: View {
                             ForEach(visible) { item in
                                 Button { onSelect(item.question) } label: {
                                     VStack(alignment: .leading, spacing: 16) {
-                                        Text(item.question).font(.body).foregroundStyle(theme.text)
+                                        Text(item.question).appFont(.body).foregroundStyle(theme.text)
                                             .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                         Spacer(minLength: 0)
                                         HStack(alignment: .bottom) {
                                             if let label = item.label {
                                                 Text(QuestionPresentation.parseReferenceLabel(label) ?? label)
-                                                    .font(.caption).foregroundStyle(theme.accent)
+                                                    .appFont(.caption).foregroundStyle(theme.accent)
                                             }
                                             Spacer(minLength: 8)
                                             Image(systemName: "arrow.up.right").foregroundStyle(theme.accent).accessibilityHidden(true)
@@ -67,7 +67,7 @@ struct ChatWelcomeContent: View {
                     if !showAll && hiddenCount > 0 && !isLoading {
                         Button { showAll = true } label: {
                             HStack(spacing: 8) { Text("\(hiddenCount) more questions"); Image(systemName: "chevron.down") }
-                                .font(.subheadline.weight(.semibold)).foregroundStyle(theme.accent)
+                                .appFont(.subheadline.weight(.semibold)).foregroundStyle(theme.accent)
                                 .frame(minHeight: 48)
                         }.buttonStyle(.plain).padding(.top, 12)
                             .accessibilityLabel("Show \(hiddenCount) more questions from your study")

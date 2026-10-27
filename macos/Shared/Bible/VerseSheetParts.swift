@@ -46,12 +46,12 @@ struct InsightTeaserView: View {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     if let error = insight.error {
                         Text(error)
-                            .font(.system(size: 12))
+                            .appFont(.system(size: 12))
                             .foregroundStyle(theme.textMuted)
                     }
                     // Its own button so retrying never also expands the sheet.
                     Button("Try again", action: onRetry)
-                        .font(.system(size: 12, weight: .bold))
+                        .appFont(.system(size: 12, weight: .bold))
                         .foregroundStyle(theme.accent)
                         .buttonStyle(.plain)
                 }
@@ -61,7 +61,7 @@ struct InsightTeaserView: View {
                     VStack(alignment: .leading, spacing: Spacing.xs) {
                         if !insight.text.isEmpty {
                             Text(insight.text)
-                                .font(.system(size: 14))
+                                .appFont(.system(size: 14))
                                 .foregroundStyle(theme.textSecondary)
                                 .lineLimit(2)
                                 .multilineTextAlignment(.leading)
@@ -69,9 +69,9 @@ struct InsightTeaserView: View {
                         }
                         HStack(spacing: 2) {
                             Text("Study")
-                                .font(.system(size: 12, weight: .bold))
+                                .appFont(.system(size: 12, weight: .bold))
                             Image(systemName: "chevron.up")
-                                .font(.system(size: 11, weight: .bold))
+                                .appFont(.system(size: 11, weight: .bold))
                         }
                         .foregroundStyle(theme.accent)
                         .frame(maxWidth: .infinity, alignment: .trailing)

@@ -92,21 +92,21 @@ struct AIConsentSheet: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Image(systemName: "sparkles")
-                .font(.system(size: 26, weight: .semibold))
+                .appFont(.system(size: 26, weight: .semibold))
                 .foregroundStyle(theme.accent)
                 .accessibilityHidden(true)
             Text(isConfirming ? AIConsent.confirmTitle : AIConsent.title)
-                .font(.title2.weight(.bold))
+                .appFont(.title2.weight(.bold))
                 .foregroundStyle(theme.text)
                 .accessibilityAddTraits(.isHeader)
             Text(isConfirming ? AIConsent.confirmBody : AIConsent.body)
-                .font(.body)
+                .appFont(.body)
                 .foregroundStyle(theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             // `Link` opens through `openURL`, which is the system browser.
             if !isConfirming, let url = URL(string: AIConsent.privacyURL) {
                 Link(AIConsent.privacyLabel, destination: url)
-                    .font(.body.weight(.semibold))
+                    .appFont(.body.weight(.semibold))
                     .foregroundStyle(theme.accent)
             }
         }
@@ -117,7 +117,7 @@ struct AIConsentSheet: View {
     private var errorLine: some View {
         if let error = store.prompt?.error {
             Text(error)
-                .font(.footnote)
+                .appFont(.footnote)
                 .foregroundStyle(theme.danger)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -341,7 +341,7 @@ struct AIConsentSettingsSection: View {
                     .disabled(store.prompt != nil)
             }
             Text("What SureWord sends to AI providers to answer you, and your permission for it.")
-                .font(.system(size: 11))
+                .appFont(.system(size: 11))
                 .foregroundStyle(theme.textGhost)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }

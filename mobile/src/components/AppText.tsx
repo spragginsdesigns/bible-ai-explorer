@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { fonts, typography, type TypographyVariant } from "@/theme";
 import { useTextScaleFactor } from "@/features/settings/settingsStore";
+import { scaleTextDimensions } from "@/features/settings/textScale";
 
 /**
  * Shared text primitives. Native text remains the implementation so callers
@@ -57,15 +58,6 @@ function fontFor(style: TextStyle, italic: boolean): string | undefined {
  * explicit sizes; the system font scale still applies on top through
  * allowFontScaling, so this never replaces the reader's accessibility setting.
  */
-function scaled(style: TextStyle, factor: number): TextStyle {
-	if (factor === 1) return style;
-	return {
-		...style,
-		...(typeof style.fontSize === "number" ? { fontSize: Math.round(style.fontSize * factor) } : {}),
-		...(typeof style.lineHeight === "number" ? { lineHeight: Math.round(style.lineHeight * factor) } : {}),
-	};
-}
-
 function textStyle(style: TextProps["style"], variant?: TypographyVariant, root = false, factor = 1): TextStyle {
 	const flattened = flattenStyle(style);
 	const token = variant ? typography[variant] : root ? typography.body : undefined;
@@ -75,10 +67,10 @@ function textStyle(style: TextProps["style"], variant?: TypographyVariant, root 
 		!flattened.fontWeight &&
 		!flattened.fontStyle
 	) {
-		return scaled(flattened, factor);
+		return scaleTextDimensions(flattened, factor);
 	}
 	const italic = flattened.fontStyle === "italic";
-	return scaled({
+	return scaleTextDimensions({
 		...(token ?? {}),
 		...flattened,
 		fontFamily: fontFor({ ...(token ?? {}), ...flattened }, italic),
@@ -106,3 +98,11 @@ export const AppTextInput = React.forwardRef<
 	const factor = useTextScaleFactor();
 	return <NativeTextInput ref={ref} {...props} style={textStyle(style, variant, false, factor)} />;
 });
+
+/** Preserve native script and Scripture font inheritance while scaling explicit runs. */
+export const AppScriptText = React.forwardRef<React.ElementRef<typeof NativeText>, TextProps>(
+	function AppScriptText({ style, ...props }, ref) {
+		const factor = useTextScaleFactor();
+		return <NativeText ref={ref} {...props} style={scaleTextDimensions(flattenStyle(style), factor)} />;
+	},
+);

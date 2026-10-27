@@ -10,7 +10,9 @@ struct ChatMarkdownBody: View {
     @Environment(\.theme) private var theme
     /// The account's text size; these point sizes are fixed, so Dynamic Type
     /// alone would leave an answer at its standard size.
-    @Environment(\.textScaleFactor) private var scale
+    @Environment(\.textScaleFactor) private var appScale
+    @ScaledMetric private var systemScale: CGFloat = 1
+    private var scale: CGFloat { appScale * systemScale }
     let text: String
     /// True while the answer is still arriving. Mid-stream the buffer ends in
     /// half-typed markup, so the normalizer closes what the model has opened
@@ -37,14 +39,14 @@ struct ChatMarkdownBody: View {
     private func blockView(_ block: MarkdownBlock) -> some View {
         switch block {
         case .paragraph(let source):
-            Text(MarkdownInline.render(source, style: .body(theme, size: 15 * scale)))
+            Text(MarkdownInline.render(source, style: .body(theme, size: 15 * scale, scale: scale)))
                 .font(.system(size: 15 * scale))
                 .lineSpacing(5 * scale)
                 .bodyText(theme)
 
         case .heading(let level, let source):
             let style = headingStyle(level)
-            Text(MarkdownInline.render(source, style: .body(theme, size: style.size * scale)))
+            Text(MarkdownInline.render(source, style: .body(theme, size: style.size * scale, scale: scale)))
                 .font(.system(size: style.size * scale, weight: style.weight))
                 .foregroundStyle(style.color)
                 .padding(.top, level <= 2 ? Spacing.xs : 0)
@@ -60,7 +62,7 @@ struct ChatMarkdownBody: View {
 
         case .codeBlock(_, let code):
             Text(code)
-                .font(.system(size: 12.5, design: .monospaced))
+                .font(.system(size: 12.5 * scale, design: .monospaced))
                 .foregroundStyle(theme.textSecondary)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
@@ -99,14 +101,16 @@ struct ChatMarkdownBody: View {
 
 private struct BlockquoteView: View {
     @Environment(\.theme) private var theme
-    @Environment(\.textScaleFactor) private var scale
+    @Environment(\.textScaleFactor) private var appScale
+    @ScaledMetric private var systemScale: CGFloat = 1
+    private var scale: CGFloat { appScale * systemScale }
     let paragraphs: [String]
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, paragraph in
                 Text(MarkdownInline.render(paragraph, style: .verse(theme, scale: scale)))
-                    .font(.custom(FontFamily.verse, size: 18 * scale))
+                    .font(.custom(FontFamily.verse, fixedSize: 18 * scale))
                     .lineSpacing(4)
                     .foregroundStyle(theme.textSecondary)
                     .textSelection(.enabled)
@@ -128,7 +132,9 @@ private struct BlockquoteView: View {
 
 private struct ListView: View {
     @Environment(\.theme) private var theme
-    @Environment(\.textScaleFactor) private var scale
+    @Environment(\.textScaleFactor) private var appScale
+    @ScaledMetric private var systemScale: CGFloat = 1
+    private var scale: CGFloat { appScale * systemScale }
     let ordered: Bool
     let start: Int
     let items: [MarkdownListItem]
@@ -151,7 +157,7 @@ private struct ListView: View {
                 .font(.system(size: 15 * scale, weight: ordered ? .medium : .regular))
                 .foregroundStyle(theme.accent)
                 .frame(minWidth: ordered ? 18 * scale : 0, alignment: .trailing)
-            Text(MarkdownInline.render(text, style: .body(theme, size: 15 * scale)))
+            Text(MarkdownInline.render(text, style: .body(theme, size: 15 * scale, scale: scale)))
                 .font(.system(size: 15 * scale))
                 .lineSpacing(4)
                 .bodyText(theme)
@@ -163,6 +169,9 @@ private struct ListView: View {
 
 private struct TableView: View {
     @Environment(\.theme) private var theme
+    @Environment(\.textScaleFactor) private var appScale
+    @ScaledMetric private var systemScale: CGFloat = 1
+    private var scale: CGFloat { appScale * systemScale }
     let header: [String]
     let rows: [[String]]
 
@@ -170,8 +179,8 @@ private struct TableView: View {
         Grid(alignment: .topLeading, horizontalSpacing: 0, verticalSpacing: 0) {
             GridRow {
                 ForEach(Array(header.enumerated()), id: \.offset) { _, cell in
-                    Text(MarkdownInline.render(cell, style: .body(theme, size: 12)))
-                        .font(.system(size: 12, weight: .semibold))
+                    Text(MarkdownInline.render(cell, style: .body(theme, size: 12 * scale, scale: scale)))
+                        .font(.system(size: 12 * scale, weight: .semibold))
                         .foregroundStyle(theme.textMuted)
                         .padding(Spacing.sm)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -184,8 +193,8 @@ private struct TableView: View {
                 GridRow {
                     // Ragged rows happen in streamed output; pad to the header.
                     ForEach(0..<max(header.count, 1), id: \.self) { column in
-                        Text(MarkdownInline.render(column < row.count ? row[column] : "", style: .body(theme, size: 13)))
-                            .font(.system(size: 13))
+                        Text(MarkdownInline.render(column < row.count ? row[column] : "", style: .body(theme, size: 13 * scale, scale: scale)))
+                            .font(.system(size: 13 * scale))
                             .foregroundStyle(theme.textSecondary)
                             .textSelection(.enabled)
                             .fixedSize(horizontal: false, vertical: true)
@@ -216,17 +225,19 @@ enum MarkdownInline {
         /// Point size restyled runs inherit, so bold inside a heading or a
         /// table cell keeps that context's size.
         var size: CGFloat = 15
+        var scale: CGFloat = 1
         /// Set for Scripture: emphasis swaps to the Cormorant italic face
         /// instead of the synthesized system italic.
         var verseItalicFont: Font?
 
-        static func body(_ theme: SureWordColors, size: CGFloat = 15) -> Style {
+        static func body(_ theme: SureWordColors, size: CGFloat = 15, scale: CGFloat = 1) -> Style {
             Style(
                 baseColor: theme.textSecondary,
                 strongColor: theme.text,
                 accent: theme.accent,
                 codeBackground: theme.surfaceStrong,
-                size: size
+                size: size,
+                scale: scale
             )
         }
 
@@ -237,7 +248,8 @@ enum MarkdownInline {
                 accent: theme.accent,
                 codeBackground: theme.surfaceStrong,
                 size: 18 * scale,
-                verseItalicFont: .custom(FontFamily.verseItalic, size: 18 * scale)
+                scale: scale,
+                verseItalicFont: .custom(FontFamily.verseItalic, fixedSize: 18 * scale)
             )
         }
     }
@@ -252,7 +264,7 @@ enum MarkdownInline {
             let intent = run.inlinePresentationIntent ?? []
 
             if intent.contains(.code) {
-                attributed[run.range].font = .system(size: style.size - 1.5, design: .monospaced)
+                attributed[run.range].font = .system(size: style.size - 1.5 * style.scale, design: .monospaced)
                 attributed[run.range].foregroundColor = style.accent
                 attributed[run.range].backgroundColor = style.codeBackground
                 continue

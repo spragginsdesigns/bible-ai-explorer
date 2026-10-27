@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Image, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { AppText as Text } from "@/components/AppText";
 import { BrandTitle } from "@/components/ui";
 import { SureWordGuideAvatar } from "@/components/SureWordGuideAvatar";
@@ -21,6 +22,7 @@ export function ChatHeader({ title, phase = "idle", onNewChat, onOpenModelPicker
 	onHelp?: () => void;
 }) {
 	const [menuOpen, setMenuOpen] = useState(false);
+	const router = useRouter();
 	const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const { colors: theme } = useTheme();
 	const colors = chatColors(theme);
@@ -33,6 +35,7 @@ export function ChatHeader({ title, phase = "idle", onNewChat, onOpenModelPicker
 		timer.current = setTimeout(action, 220);
 	};
 	const options = [
+		{ label: "Text size", icon: "text-outline" as const, action: () => router.push("/settings/appearance") },
 		{ label: "Choose AI model", icon: "sparkles-outline" as const, action: onOpenModelPicker },
 		{ label: "Conversation history", icon: "time-outline" as const, action: onOpenHistory },
 		{ label: "Settings and Memories", icon: "settings-outline" as const, action: onOpenSettings },
@@ -57,7 +60,7 @@ export function ChatHeader({ title, phase = "idle", onNewChat, onOpenModelPicker
 				<Ionicons name="settings-outline" size={23} color={colors.textSecondary} />
 			</Pressable>
 		</View>
-		<BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)} title="Chat options">
+		<BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)} title="Chat options" scroll>
 			{options.map(option => <Pressable key={option.label} accessibilityRole="button" accessibilityLabel={option.label} onPress={() => choose(option.action)} style={({ pressed }) => [styles.option, pressed && styles.pressed]}>
 				<Ionicons name={option.icon} size={22} color={colors.accent} />
 				<Text style={styles.optionLabel}>{option.label}</Text>

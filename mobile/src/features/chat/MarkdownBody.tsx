@@ -10,6 +10,7 @@ import Markdown, {
 	type RenderRules,
 } from "react-native-markdown-display";
 import { fonts, radius, spacing, typography } from "@/theme";
+import { appMarkdownRules } from "./markdownText";
 import { useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
 import { openReferenceInReader, VERSE_REF_SCHEME, verseReferencePlugin } from "./verseLinks";
@@ -248,6 +249,7 @@ const flushableBlock =
  * rebuilds the renderer and reparses the document on every streamed token.
  */
 export const sureWordMarkdownRules: RenderRules = {
+	...appMarkdownRules,
 	softbreak: (node, _children, parents, styles: MarkdownStyleBag) => (
 		<Text key={node.key} style={styles.softbreak}>
 			{softbreakContent(parents)}

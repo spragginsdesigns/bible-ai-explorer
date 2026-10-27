@@ -63,7 +63,7 @@ struct ChatView: View {
         .overlay(alignment: .top) {
             if let toast {
                 Text(toast)
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.text)
                     .padding(.horizontal, Spacing.lg)
                     .padding(.vertical, Spacing.sm)
@@ -133,7 +133,7 @@ struct ChatView: View {
                             stored: settings.chatModelId
                         )
                     )
-                    .font(.system(size: 12, weight: .semibold))
+                    .appFont(.system(size: 12, weight: .semibold))
                     .lineLimit(1)
                     // A model id can be long enough to push the rest of the
                     // toolbar off the window; web caps the same caption at
@@ -141,7 +141,7 @@ struct ChatView: View {
                     .frame(maxWidth: 140)
                     .truncationMode(.middle)
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 9, weight: .semibold))
+                        .appFont(.system(size: 9, weight: .semibold))
                         .foregroundStyle(theme.textGhost)
                 }
             }
@@ -383,7 +383,7 @@ struct ErrorCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text(message)
-                .font(.system(size: 13))
+                .appFont(.system(size: 13))
                 .foregroundStyle(theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             Button(actionTitle, action: action)

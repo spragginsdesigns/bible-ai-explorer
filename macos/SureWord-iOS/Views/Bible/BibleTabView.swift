@@ -135,10 +135,10 @@ struct BibleTabView: View {
         } label: {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 14))
+                    .appFont(.system(size: 14))
                     .foregroundStyle(theme.textMuted)
                 Text("Search the Bible")
-                    .font(.system(size: 14))
+                    .appFont(.system(size: 14))
                     .foregroundStyle(theme.textMuted)
                 Spacer()
             }
@@ -170,19 +170,19 @@ struct BibleTabView: View {
         } label: {
             HStack(spacing: Spacing.md) {
                 Image(systemName: "arrow.right")
-                    .font(.system(size: 18))
+                    .appFont(.system(size: 18))
                     .foregroundStyle(theme.accent)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Continue reading")
-                        .font(.system(size: 15, weight: .bold))
+                        .appFont(.system(size: 15, weight: .bold))
                         .foregroundStyle(theme.accent)
                     Text(lastRead.label)
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textMuted)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
+                    .appFont(.system(size: 14, weight: .semibold))
                     .foregroundStyle(theme.accent)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -215,16 +215,16 @@ struct BibleTabView: View {
         } label: {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: expanded ? "chevron.down" : "chevron.right")
-                    .font(.system(size: 10, weight: .semibold))
+                    .appFont(.system(size: 10, weight: .semibold))
                     .foregroundStyle(theme.textFaint)
                     .frame(width: 12)
                 Text(testament.title.uppercased())
-                    .font(.system(size: 12, weight: .bold))
+                    .appFont(.system(size: 12, weight: .bold))
                     .kerning(1.2)
                     .foregroundStyle(theme.textFaint)
                 Spacer()
                 Text("\(count) \(count == 1 ? "book" : "books")")
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .monospacedDigit()
                     .foregroundStyle(theme.textGhost)
             }
@@ -237,7 +237,7 @@ struct BibleTabView: View {
 
     private func groupHeader(_ group: BookGroup) -> some View {
         Text(group.title.uppercased())
-            .font(.system(size: 11, weight: .semibold))
+            .appFont(.system(size: 11, weight: .semibold))
             .kerning(1)
             .foregroundStyle(theme.textMuted)
             .padding(.top, Spacing.sm)
@@ -251,11 +251,11 @@ struct BibleTabView: View {
         } label: {
             HStack {
                 Text(book.name)
-                    .font(.system(size: 15, weight: .semibold))
+                    .appFont(.system(size: 15, weight: .semibold))
                     .foregroundStyle(theme.textSecondary)
                 Spacer()
                 Text("\(book.chapters) \(book.chapters == 1 ? "chapter" : "chapters")")
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .monospacedDigit()
                     .foregroundStyle(theme.textGhost)
             }

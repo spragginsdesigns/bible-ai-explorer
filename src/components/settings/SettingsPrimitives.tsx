@@ -29,7 +29,7 @@ export function SettingsGroup({
 				{children}
 			</div>
 			{footer ? (
-				<p className="px-1 text-xs leading-[17px] text-neutral-400 dark:text-neutral-500">{footer}</p>
+				<p className="px-1 text-xs leading-[1.0625rem] text-neutral-400 dark:text-neutral-500">{footer}</p>
 			) : null}
 		</section>
 	);
@@ -88,9 +88,9 @@ export function SettingsRow({
 			<div className="flex items-center gap-3">
 				{icon}
 				<div className="min-w-0 flex-1">
-					<p className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">{title}</p>
+					<p className="text-[0.9375rem] font-semibold text-neutral-900 dark:text-neutral-100">{title}</p>
 					{description ? (
-						<p className="mt-0.5 text-[13px] leading-[18px] text-neutral-500 dark:text-neutral-400">
+						<p className="mt-0.5 text-[0.8125rem] leading-[1.125rem] text-neutral-500 dark:text-neutral-400">
 							{description}
 						</p>
 					) : null}

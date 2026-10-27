@@ -90,7 +90,7 @@ struct NoteFormattingToolbar: View {
     ) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 14))
+                .appFont(.system(size: 14))
                 .foregroundStyle(isActive ? theme.accent : theme.textMuted)
                 // One-finger targets while typing; smaller than this and the
                 // bar is unusable on a phone.

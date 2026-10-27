@@ -43,7 +43,7 @@ struct WhatsNewView: View {
                     content(document)
                 } else if failed {
                     Text("Couldn't load the release notes. Check your connection and try again.")
-                        .font(.callout)
+                        .appFont(.callout)
                         .foregroundStyle(theme.textMuted)
                     Button("Try again") { Task { await load() } }
                 } else {
@@ -78,7 +78,7 @@ struct WhatsNewView: View {
         let remaining = matching.count - shown.count
 
         Text("Every update, newest first. Version numbers are the Android app's, where SureWord's features arrive first.")
-            .font(.callout)
+            .appFont(.callout)
             .foregroundStyle(theme.textMuted)
 
         if focus != nil {
@@ -98,13 +98,13 @@ struct WhatsNewView: View {
             Text(browsing
                 ? "\(document.entries.count) releases"
                 : "\(matching.count) \(matching.count == 1 ? "release" : "releases") found")
-                .font(.footnote)
+                .appFont(.footnote)
                 .foregroundStyle(theme.textFaint)
         }
 
         if shown.isEmpty {
             Text("No release notes match. Try another word or change type.")
-                .font(.callout)
+                .appFont(.callout)
                 .foregroundStyle(theme.textMuted)
         }
 
@@ -124,13 +124,13 @@ struct WhatsNewView: View {
             monthLabel(document.beginning.dateRange)
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text(document.beginning.title)
-                    .font(.custom(FontFamily.verse, size: 24))
+                    .appFont(.custom(FontFamily.verse, size: 24))
                     .foregroundStyle(theme.text)
                 Text(document.beginning.summary)
                     .foregroundStyle(theme.textSecondary)
                 ForEach(document.beginning.items, id: \.self) { item in
                     Text("\u{2022}  \(item)")
-                        .font(.callout)
+                        .appFont(.callout)
                         .foregroundStyle(theme.textSecondary)
                 }
             }
@@ -147,7 +147,7 @@ struct WhatsNewView: View {
 
     private func monthLabel(_ text: String) -> some View {
         Text(text.uppercased())
-            .font(.caption.weight(.bold))
+            .appFont(.caption.weight(.bold))
             .tracking(2)
             .foregroundStyle(theme.accentDim)
             .padding(.top, Spacing.lg)
@@ -165,34 +165,34 @@ private struct ReleaseCard: View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(spacing: Spacing.sm) {
                 Text(WhatsNewRules.primaryKind(entry).label.uppercased())
-                    .font(.caption2.weight(.bold))
+                    .appFont(.caption2.weight(.bold))
                     .tracking(1)
                     .foregroundStyle(theme.accent)
                     .padding(.horizontal, Spacing.sm)
                     .padding(.vertical, 2)
                     .background(theme.accentSoft, in: .capsule)
                 Text("\(entry.version) · \(WhatsNewRules.formatDate(entry.date))")
-                    .font(.footnote)
+                    .appFont(.footnote)
                     .foregroundStyle(theme.textFaint)
             }
             Text(entry.title)
-                .font(.custom(FontFamily.verse, size: 24))
+                .appFont(.custom(FontFamily.verse, size: 24))
                 .foregroundStyle(theme.text)
                 .accessibilityAddTraits(.isHeader)
             if let headline = entry.headline {
                 Text(headline).foregroundStyle(theme.textSecondary)
             }
             if let why = entry.why {
-                Text(why).font(.callout).foregroundStyle(theme.textMuted)
+                Text(why).appFont(.callout).foregroundStyle(theme.textMuted)
             }
             ForEach(entry.sections, id: \.kind) { section in
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text(section.kind.label)
-                        .font(.footnote.weight(.bold))
+                        .appFont(.footnote.weight(.bold))
                         .foregroundStyle(theme.accent)
                     ForEach(section.items, id: \.self) { item in
                         Text("\u{2022}  \(item)")
-                            .font(.callout)
+                            .appFont(.callout)
                             .foregroundStyle(theme.textSecondary)
                     }
                 }
@@ -201,10 +201,10 @@ private struct ReleaseCard: View {
             if let verse = entry.verse {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text("\u{201C}\(verse.text)\u{201D}")
-                        .font(.custom(FontFamily.verseItalic, size: 18))
+                        .appFont(.custom(FontFamily.verseItalic, size: 18))
                         .foregroundStyle(theme.text)
                     Text(verse.reference)
-                        .font(.footnote)
+                        .appFont(.footnote)
                         .foregroundStyle(theme.accentDim)
                 }
                 .padding(.leading, Spacing.md)
@@ -251,12 +251,12 @@ struct WhatsNewCatchUpSheet: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Since you were last here")
-                    .font(.custom(FontFamily.verse, size: 28))
+                    .appFont(.custom(FontFamily.verse, size: 28))
                     .foregroundStyle(theme.text)
                     .accessibilityAddTraits(.isHeader)
                 Spacer()
                 Text("\(catchUp.newReleaseCount) \(catchUp.newReleaseCount == 1 ? "update" : "updates")")
-                    .font(.caption.weight(.bold))
+                    .appFont(.caption.weight(.bold))
                     .foregroundStyle(theme.bg)
                     .padding(.horizontal, Spacing.md)
                     .padding(.vertical, Spacing.xs)
@@ -277,7 +277,7 @@ struct WhatsNewCatchUpSheet: View {
                     Spacer()
                     Image(systemName: "chevron.right").accessibilityHidden(true)
                 }
-                .font(.callout.weight(.semibold))
+                .appFont(.callout.weight(.semibold))
                 .foregroundStyle(theme.accent)
                 .contentShape(Rectangle())
             }
@@ -300,13 +300,13 @@ struct WhatsNewCatchUpSheet: View {
         let destination = card.target.flatMap(WhatsNewRules.destination(for:))
         return VStack(alignment: .leading, spacing: Spacing.sm) {
             Label(card.version, systemImage: "sparkles")
-                .font(.caption.weight(.bold))
+                .appFont(.caption.weight(.bold))
                 .foregroundStyle(theme.accent)
             Text(card.title)
-                .font(.custom(FontFamily.verse, size: 21))
+                .appFont(.custom(FontFamily.verse, size: 21))
                 .foregroundStyle(theme.text)
             Text(card.summary)
-                .font(.callout)
+                .appFont(.callout)
                 .foregroundStyle(theme.textMuted)
                 .fixedSize(horizontal: false, vertical: true)
             Button {

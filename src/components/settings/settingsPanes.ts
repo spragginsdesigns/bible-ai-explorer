@@ -159,6 +159,7 @@ const PANE_IDS = new Set<string>(SETTINGS_PANES.map((pane) => pane.id));
  */
 const LEGACY_HASHES: Record<string, SettingsPaneId> = {
 	translation: "appearance",
+	"text-size": "appearance",
 	"highlight-labels": "highlights",
 	"about-me": "memory",
 	testimony: "memory",

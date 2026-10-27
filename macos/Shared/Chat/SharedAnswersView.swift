@@ -71,7 +71,7 @@ struct SharedAnswersSectionView: View {
         if let loadError = model.loadError {
             HStack(spacing: Spacing.md) {
                 Text(loadError)
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.danger)
                 Spacer()
                 Button("Retry") { Task { await model.load() } }
@@ -81,7 +81,7 @@ struct SharedAnswersSectionView: View {
             HStack(spacing: Spacing.sm) {
                 ProgressView().controlSize(.small)
                 Text("Loading your shared answers\u{2026}")
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.textMuted)
                 Spacer()
             }
@@ -98,7 +98,7 @@ struct SharedAnswersSectionView: View {
     private func row(_ share: SharedAnswerRow) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(share.title)
-                .font(.system(size: 13))
+                .appFont(.system(size: 13))
                 .foregroundStyle(share.isRevoked ? theme.textMuted : theme.text)
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -107,12 +107,12 @@ struct SharedAnswersSectionView: View {
                 if let createdAt = share.createdAt,
                    !MemoryFormat.relativeTime(createdAt).isEmpty {
                     Text(MemoryFormat.relativeTime(createdAt))
-                        .font(.system(size: 11))
+                        .appFont(.system(size: 11))
                         .foregroundStyle(theme.textGhost)
                 }
                 if share.isRevoked {
                     Text("Revoked")
-                        .font(.system(size: 10, weight: .bold))
+                        .appFont(.system(size: 10, weight: .bold))
                         .kerning(0.6)
                         .foregroundStyle(theme.textMuted)
                 }
@@ -125,13 +125,13 @@ struct SharedAnswersSectionView: View {
                         copy(share)
                     }
                     .buttonStyle(SubtleButtonStyle())
-                    .font(.system(size: 11))
+                    .appFont(.system(size: 11))
                     .foregroundStyle(theme.textMuted)
                     .accessibilityLabel("Copy this share link")
 
                     Button("Revoke") { pendingRevoke = share }
                         .buttonStyle(SubtleButtonStyle())
-                        .font(.system(size: 11))
+                        .appFont(.system(size: 11))
                         .foregroundStyle(theme.danger)
                         // Not mid-way through a search change on the same row.
                         .disabled(model.isRevoking(share) || model.isUpdatingListing(share))
@@ -144,7 +144,7 @@ struct SharedAnswersSectionView: View {
             if !share.isRevoked {
                 Toggle(isOn: listedBinding(share)) {
                     Text("Show in search")
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textMuted)
                 }
                 .toggleStyle(.switch)
@@ -201,7 +201,7 @@ struct SharedAnswersSectionView: View {
 
     private func hint(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 11))
+            .appFont(.system(size: 11))
             .foregroundStyle(theme.textGhost)
             .frame(maxWidth: .infinity, alignment: .leading)
     }

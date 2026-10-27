@@ -46,7 +46,7 @@ struct SettingsView: View {
 
             HStack {
                 Text("Changes save as you make them.")
-                    .font(.system(size: 11))
+                    .appFont(.system(size: 11))
                     .foregroundStyle(theme.textFaint)
                 Spacer()
                 Button("Done") { dismiss() }
@@ -162,11 +162,11 @@ struct SettingsView: View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 11, weight: .medium))
+                    .appFont(.system(size: 11, weight: .medium))
                     .foregroundStyle(theme.textFaint)
                 TextField("Search settings", text: $search)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .onSubmit {
                         if let first = visiblePanes.first { selection = first }
                     }
@@ -206,7 +206,7 @@ struct SettingsView: View {
                 }
                 if panes.isEmpty {
                     Text("No settings match \u{201C}\(search)\u{201D}.")
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textFaint)
                         .selectionDisabled()
                 }
@@ -222,10 +222,10 @@ struct SettingsView: View {
             avatar(size: 34)
             VStack(alignment: .leading, spacing: 1) {
                 Text(accountName ?? accountEmail ?? "Signed in")
-                    .font(.system(size: 13, weight: .semibold))
+                    .appFont(.system(size: 13, weight: .semibold))
                     .lineLimit(1)
                 Text(accountName == nil ? "SureWord account" : (accountEmail ?? "SureWord account"))
-                    .font(.system(size: 11))
+                    .appFont(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -239,7 +239,7 @@ struct SettingsView: View {
         return ZStack {
             Circle().fill(theme.accentSoft)
             Text(initial)
-                .font(.system(size: size * 0.42, weight: .semibold))
+                .appFont(.system(size: size * 0.42, weight: .semibold))
                 .foregroundStyle(theme.accent)
             if let url = clerk.user.flatMap({ URL(string: $0.imageUrl) }) {
                 AsyncImage(url: url) { image in
@@ -269,10 +269,10 @@ struct SettingsView: View {
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(pane.title)
-                        .font(.system(size: 20, weight: .bold))
+                        .appFont(.system(size: 20, weight: .bold))
                         .foregroundStyle(theme.text)
                     Text(pane.summary)
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textMuted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -338,14 +338,7 @@ struct SettingsView: View {
             }
 
             Section("Text size") {
-                Picker("Text size", selection: $settings.textScale) {
-                    ForEach(TextScale.allCases) { scale in
-                        Text(scale.label).tag(scale)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .spotlightTarget(.settingsTextSize)
-                hint("Makes chat answers, the Bible reader and Walk with me easier to read, on every device you use.")
+                TextSizeControls().spotlightTarget(.settingsTextSize)
             }
 
             Section("Bible") {
@@ -428,7 +421,7 @@ struct SettingsView: View {
             }
             Section("Why SureWord") {
                 Text("A Bible study assistant rooted in the King James Version.")
-                    .font(.system(size: 12, weight: .medium))
+                    .appFont(.system(size: 12, weight: .medium))
                     .foregroundStyle(theme.text)
                 hint(
                     "Ask a generic AI if the Bible is really the Word of God "
@@ -492,7 +485,7 @@ struct SettingsView: View {
                         .accessibilityLabel("One hour earlier")
 
                         Text(SettingsStore.formatHour(settings.verseOfDayHour))
-                            .font(.system(size: 12, weight: .semibold))
+                            .appFont(.system(size: 12, weight: .semibold))
                             .monospacedDigit()
                             .frame(width: 72)
 
@@ -577,7 +570,7 @@ struct SettingsView: View {
 
     private func hint(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 11))
+            .appFont(.system(size: 11))
             .foregroundStyle(theme.textGhost)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -717,7 +710,7 @@ struct SettingsIconTile: View {
             .frame(width: size, height: size)
             .overlay {
                 Image(systemName: pane.symbol)
-                    .font(.system(size: size * 0.5, weight: .semibold))
+                    .appFont(.system(size: size * 0.5, weight: .semibold))
                     .foregroundStyle(.white)
             }
             .accessibilityHidden(true)
@@ -730,7 +723,7 @@ private struct SettingsSidebarRow: View {
     var body: some View {
         Label {
             Text(pane.title)
-                .font(.system(size: 13))
+                .appFont(.system(size: 13))
         } icon: {
             SettingsIconTile(pane: pane)
         }

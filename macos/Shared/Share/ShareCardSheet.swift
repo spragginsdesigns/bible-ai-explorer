@@ -481,7 +481,7 @@ struct ShareCardSheet: View {
         VStack(spacing: 0) {
             HStack {
                 Text("Share")
-                    .font(.system(size: 15, weight: .semibold))
+                    .appFont(.system(size: 15, weight: .semibold))
                     .foregroundStyle(theme.text)
                 Spacer()
                 Button("Done", action: onClose)
@@ -549,7 +549,7 @@ struct ShareCardSheet: View {
                 shareImageButton
             } else {
                 Text(ShareCards.textOnlyNotice(for: model.target))
-                    .font(.system(size: 14))
+                    .appFont(.system(size: 14))
                     .foregroundStyle(theme.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.vertical, Spacing.md)
@@ -587,7 +587,7 @@ struct ShareCardSheet: View {
 
             if let actionError = model.actionError {
                 Text(actionError)
-                    .font(.system(size: 13))
+                    .appFont(.system(size: 13))
                     .foregroundStyle(theme.danger)
                     .multilineTextAlignment(.center)
             }
@@ -606,11 +606,11 @@ struct ShareCardSheet: View {
         )) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Add a word of encouragement")
-                    .font(.system(size: 14, weight: .semibold))
+                    .appFont(.system(size: 14, weight: .semibold))
                     .foregroundStyle(theme.textSecondary)
                 if let hint = model.noteHint {
                     Text(hint)
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textFaint)
                 }
             }
@@ -625,7 +625,7 @@ struct ShareCardSheet: View {
             Task { await model.shareImage() }
         } label: {
             Text(model.isPreparing ? "Preparing…" : "Share image")
-                .font(.system(size: 14, weight: .semibold))
+                .appFont(.system(size: 14, weight: .semibold))
                 .frame(maxWidth: .infinity, minHeight: 36)
         }
         .buttonStyle(AccentButtonStyle())
@@ -651,7 +651,7 @@ struct CrossSharePill: View {
     var body: some View {
         Button(action: action) {
             Label("Share", systemImage: "square.and.arrow.up")
-                .font(.system(size: 13, weight: .bold))
+                .appFont(.system(size: 13, weight: .bold))
                 .foregroundStyle(theme.accent)
                 .padding(.horizontal, Spacing.md)
                 .frame(minHeight: 36)
@@ -690,7 +690,7 @@ struct ShareCardPreviewFrame: View {
             case .error(let message):
                 VStack(spacing: Spacing.md) {
                     Text(message)
-                        .font(.system(size: 13))
+                        .appFont(.system(size: 13))
                         .foregroundStyle(theme.textSecondary)
                         .multilineTextAlignment(.center)
                     Button("Try again", action: onRetry)
@@ -703,7 +703,7 @@ struct ShareCardPreviewFrame: View {
                         .tint(theme.accent)
                     if let message {
                         Text(message)
-                            .font(.system(size: 13))
+                            .appFont(.system(size: 13))
                             .foregroundStyle(theme.textSecondary)
                             .multilineTextAlignment(.center)
                     }
@@ -739,7 +739,7 @@ struct ShareCardStyleChips: View {
                     HStack(spacing: 6) {
                         StyleSwatch(style: style)
                         Text(style.label)
-                            .font(.system(size: 13, weight: .semibold))
+                            .appFont(.system(size: 13, weight: .semibold))
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
                     }
@@ -806,7 +806,7 @@ struct GhostShareButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 14, weight: .semibold))
+            .appFont(.system(size: 14, weight: .semibold))
             .foregroundStyle(isEnabled ? theme.textSecondary : theme.textGhost)
             .padding(.horizontal, Spacing.lg)
             .padding(.vertical, Spacing.sm)

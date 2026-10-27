@@ -25,11 +25,11 @@ struct ChurchEventsCard: View {
         if !events.isEmpty {
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text(eyebrow.uppercased())
-                    .font(.system(size: 11, weight: .bold))
+                    .appFont(.system(size: 11, weight: .bold))
                     .kerning(1)
                     .foregroundStyle(theme.accent)
                 Text(title)
-                    .font(.system(size: 20, weight: .semibold))
+                    .appFont(.system(size: 20, weight: .semibold))
                     .foregroundStyle(theme.text)
                 ForEach(Array(events.enumerated()), id: \.element.id) { index, event in
                     if index > 0 { Divider().overlay(theme.borderStrong).padding(.top, Spacing.md) }
@@ -61,14 +61,14 @@ private struct ChurchEventRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(event.title)
-                .font(.system(size: 17, weight: .semibold))
+                .appFont(.system(size: 17, weight: .semibold))
                 .foregroundStyle(theme.text)
             Text(event.when)
-                .font(.system(size: 15, weight: .semibold))
+                .appFont(.system(size: 15, weight: .semibold))
                 .foregroundStyle(theme.accent)
             if !event.certain {
                 Text("TIME NOT CONFIRMED")
-                    .font(.system(size: 11, weight: .bold))
+                    .appFont(.system(size: 11, weight: .bold))
                     .kerning(0.5)
                     .foregroundStyle(theme.accent)
                     .padding(.horizontal, Spacing.sm)
@@ -77,19 +77,19 @@ private struct ChurchEventRow: View {
             }
             if !event.meta.isEmpty {
                 Text(event.meta)
-                    .font(.system(size: 13))
+                    .appFont(.system(size: 13))
                     .foregroundStyle(theme.textMuted)
             }
             if let details = event.details {
                 Text(details)
-                    .font(.system(size: 15))
+                    .appFont(.system(size: 15))
                     .foregroundStyle(theme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 Text("\u{201C}\(event.sourceQuote)\u{201D}")
-                    .font(.system(size: 15).italic())
+                    .appFont(.system(size: 15).italic())
                     .foregroundStyle(theme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 link("Hear the announcement →", url: event.sourceUrl)
@@ -106,7 +106,7 @@ private struct ChurchEventRow: View {
                             + (churchApp.map { "Check the \($0.name) app for the exact time." }
                                 ?? "Check with the church for the exact time.")
                     )
-                    .font(.system(size: 15))
+                    .appFont(.system(size: 15))
                     .foregroundStyle(theme.text)
                     .fixedSize(horizontal: false, vertical: true)
                     if let churchApp {
@@ -153,7 +153,7 @@ private struct ChurchEventRow: View {
             if let target = URL(string: url) { openURL(target) }
         } label: {
             Text(title)
-                .font(.system(size: 15, weight: .semibold))
+                .appFont(.system(size: 15, weight: .semibold))
                 .foregroundStyle(theme.accent)
                 .frame(minHeight: 32)
         }
@@ -168,7 +168,7 @@ private struct CalendarButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .labelStyle(.titleAndIcon)
-            .font(.system(size: 15, weight: .semibold))
+            .appFont(.system(size: 15, weight: .semibold))
             .foregroundStyle(theme.text)
             .lineLimit(1)
             .padding(.horizontal, Spacing.md)

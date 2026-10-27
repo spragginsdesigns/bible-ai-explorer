@@ -17,6 +17,8 @@ import UIKit
 /// survives a trip to another tab.
 struct ChapterReaderView: View {
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.textScaleFactor) private var appScale
+    @ScaledMetric private var systemScale: CGFloat = 1
     @Environment(\.theme) private var theme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(AppModel.self) private var app
@@ -208,7 +210,7 @@ struct ChapterReaderView: View {
             // what the LC Greek is, or where the red letters and headings
             // come from.
             Text(lcGreek ? LCGreek.note : ReaderAnnotations.sourceNote(translation))
-                .font(.system(size: 11))
+                .appFont(.system(size: 11))
                 .foregroundStyle(theme.textMuted)
                 .multilineTextAlignment(.trailing)
         }
@@ -219,7 +221,7 @@ struct ChapterReaderView: View {
     private func translationChip(_ label: String, name: String, isActive: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: 11, weight: .bold))
+                .appFont(.system(size: 11, weight: .bold))
                 .foregroundStyle(isActive ? theme.accent : theme.textMuted)
                 .padding(.horizontal, Spacing.sm)
                 .padding(.vertical, 4)
@@ -303,7 +305,7 @@ struct ChapterReaderView: View {
     ) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: size, weight: .bold))
+                .appFont(.system(size: size, weight: .bold))
                 .foregroundStyle(theme.textSecondary)
                 .frame(width: 30, height: 24)
                 .background(theme.surface, in: .rect(cornerRadius: Radius.sm))
@@ -325,7 +327,7 @@ struct ChapterReaderView: View {
         VStack(spacing: Spacing.md) {
             ProgressView().controlSize(.regular)
             Text(translation == .nkjv ? "Loading the NKJV…" : "Opening the chapter…")
-                .font(.system(size: 13))
+                .appFont(.system(size: 13))
                 .foregroundStyle(theme.textFaint)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -335,7 +337,7 @@ struct ChapterReaderView: View {
         GlassCard {
             VStack(spacing: Spacing.md) {
                 Text(message)
-                    .font(.system(size: 14))
+                    .appFont(.system(size: 14))
                     .foregroundStyle(theme.textSecondary)
                     .multilineTextAlignment(.center)
                 Button("Try again") {
@@ -364,7 +366,7 @@ struct ChapterReaderView: View {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         if model.readerVerses.first?.headings.isEmpty ?? true {
                             Text(model.reference)
-                                .font(.custom(FontFamily.verseItalic, size: 28))
+                                .appFont(.custom(FontFamily.verseItalic, size: 28))
                                 .foregroundStyle(ink)
                                 .padding(.bottom, 24)
                                 .accessibilityAddTraits(.isHeader)
@@ -536,7 +538,7 @@ struct ChapterReaderView: View {
             expandWithAI(reference: model.reference, text: model.chapterText)
         } label: {
             Label("Ask AI", systemImage: "sparkles")
-                .font(.system(size: 14, weight: .bold))
+                .appFont(.system(size: 14, weight: .bold))
         }
         .buttonStyle(AccentButtonStyle())
         // An opaque plate under the translucent accent, so gold never sits on
@@ -551,7 +553,7 @@ struct ChapterReaderView: View {
     private var toastView: some View {
         if let toast = model.toast {
             Text(toast)
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.textSecondary)
                 .padding(.horizontal, Spacing.lg)
                 .padding(.vertical, Spacing.sm)
@@ -584,7 +586,7 @@ struct ChapterReaderView: View {
             // Publisher headings: never part of the verse, never copied.
             ForEach(Array(verse.headings.enumerated()), id: \.offset) { _, heading in
                 Text(heading)
-                    .font(.custom(FontFamily.verseItalic, size: 24))
+                    .appFont(.custom(FontFamily.verseItalic, size: 24))
                     .foregroundStyle(ink)
                     .padding(.top, 16)
                     .padding(.bottom, 20)
@@ -597,7 +599,7 @@ struct ChapterReaderView: View {
                 tap(number)
             } label: {
                 Text(attributedVerse(verse, selected: selected, highlightHex: highlightHex))
-                    .lineSpacing(model.fontSize * 0.6)
+                    .lineSpacing(model.fontSize * appScale * systemScale * 0.6)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 4)
                     .background(
@@ -619,12 +621,12 @@ struct ChapterReaderView: View {
     /// the words themselves, as Android draws it.
     private func attributedVerse(_ verse: ReaderVerse, selected: Bool, highlightHex: String?) -> AttributedString {
         var result = AttributedString("\(verse.number)\u{2002}")
-        result.font = .system(size: 12)
+        result.font = .system(size: 12 * appScale * systemScale)
         result.foregroundColor = selected ? theme.accent : numberInk
 
         if verse.omitted {
             var note = AttributedString("Not included in this edition\u{2019}s main text.")
-            note.font = .system(size: 14).italic()
+            note.font = .system(size: 14 * appScale * systemScale).italic()
             note.foregroundColor = theme.textMuted
             result += note
         }
@@ -632,7 +634,7 @@ struct ChapterReaderView: View {
         let wash = highlightHex.map(HighlightColors.wash)
         for segment in verse.segments {
             var run = AttributedString(segment.text)
-            run.font = .custom(segment.italic ? FontFamily.verseItalic : FontFamily.verse, size: model.fontSize)
+            run.font = .custom(segment.italic ? FontFamily.verseItalic : FontFamily.verse, fixedSize: model.fontSize * appScale * systemScale)
             run.foregroundColor = segment.jesusSpeech ? redLetter : ink
             if let wash { run.backgroundColor = wash }
             result += run
@@ -657,7 +659,7 @@ struct ChapterReaderView: View {
             }
 
             Text(lcGreek ? "\(LCGreek.label) - \(LCGreek.copyright)" : "\(translation.name) - \(translation.copyright)")
-                .font(.system(size: 11))
+                .appFont(.system(size: 11))
                 .italic()
                 .foregroundStyle(parchment ? theme.parchmentInk.opacity(0.55) : theme.textGhost)
                 .frame(maxWidth: .infinity)
@@ -683,7 +685,7 @@ struct ChapterReaderView: View {
             model.go(to: target)
         } label: {
             Label(title, systemImage: systemImage)
-                .font(.system(size: 14, weight: .semibold))
+                .appFont(.system(size: 14, weight: .semibold))
                 .foregroundStyle(accent ? theme.accent : theme.textSecondary)
                 .frame(maxWidth: .infinity, minHeight: 44)
                 .background(
@@ -824,7 +826,7 @@ struct ChapterReaderView: View {
         let selection = sheet.activeSelection
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text(text)
-                .font(.custom(FontFamily.verse, size: 17))
+                .appFont(.custom(FontFamily.verse, size: 17))
                 .foregroundStyle(theme.textSecondary)
                 .lineLimit(4)
                 .padding(.horizontal, Spacing.lg)
@@ -836,7 +838,7 @@ struct ChapterReaderView: View {
                 // first verse only rather than firing one per selected verse.
                 if (sheet.studyTab == .words || sheet.studyTab == .seeAlso), selection.count > 1 {
                     Text("For verse \(selection.start)")
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textFaint)
                 }
                 switch sheet.studyTab {
@@ -889,7 +891,7 @@ struct ChapterReaderView: View {
                         )
                         if matched.isEmpty {
                             Text("No study notes mention \(reference) yet.")
-                                .font(.system(size: 13))
+                                .appFont(.system(size: 13))
                                 .foregroundStyle(theme.textMuted)
                         } else {
                             ForEach(matched) { note in
@@ -903,11 +905,11 @@ struct ChapterReaderView: View {
                                 } label: {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text("✎ \(note.title)")
-                                            .font(.system(size: 13.5, weight: .bold))
+                                            .appFont(.system(size: 13.5, weight: .bold))
                                             .foregroundStyle(theme.accent)
                                         if !note.excerpt.isEmpty {
                                             Text(note.excerpt)
-                                                .font(.system(size: 12.5))
+                                                .appFont(.system(size: 12.5))
                                                 .foregroundStyle(theme.textSecondary)
                                                 .lineLimit(2)
                                         }
@@ -923,7 +925,7 @@ struct ChapterReaderView: View {
                             Task { await saveToNote(context) }
                         } label: {
                             Text("＋ Add \(reference) to a note")
-                                .font(.system(size: 13, weight: .semibold))
+                                .appFont(.system(size: 13, weight: .semibold))
                                 .foregroundStyle(theme.accent)
                                 .frame(maxWidth: .infinity, minHeight: 38)
                                 .background(theme.accentSoft, in: RoundedRectangle(cornerRadius: Radius.md))

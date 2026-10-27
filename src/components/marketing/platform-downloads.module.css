@@ -1,10 +1,10 @@
-.downloads { margin-top: 28px; color: #cbd0c2; font-size: 12px; }
+.downloads { margin-top: 28px; color: #cbd0c2; font-size: 0.75rem; }
 .downloads a, .downloads button { font: inherit; color: inherit; }
 .downloads button { cursor: pointer; }
 .recommended { display: inline-flex; align-items: center; gap: 9px; min-height: 44px; padding: 10px 15px; border: 1px solid #d9b87870; border-radius: 8px; background: #d9b8780c; color: #d9b878 !important; font-weight: 600 !important; }
 .recommended:hover { background: #d9b8781a; }
 .recommended:disabled { opacity: .6; cursor: wait; }
-.caption { font-size: 11px; line-height: 1.6; color: #b6bcb0; margin: 8px 0 0; }
+.caption { font-size: 0.6875rem; line-height: 1.6; color: #b6bcb0; margin: 8px 0 0; }
 .alternatives { display: flex; align-items: center; flex-wrap: wrap; gap: 3px 15px; margin-top: 9px; }
 .alternatives > span { color: #b6bcb0; }
 /* 44px hit area; the negative block margin keeps the row's 36px visual height. */

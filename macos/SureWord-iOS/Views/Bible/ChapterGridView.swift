@@ -15,7 +15,7 @@ struct ChapterGridView: View {
     var body: some View {
         ScrollView {
             Text("\(book.chapters) \(book.chapters == 1 ? "chapter" : "chapters")")
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.textMuted)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, Spacing.lg)
@@ -28,11 +28,11 @@ struct ChapterGridView: View {
                         ChapterReaderView(order: book.order, chapter: chapter)
                     } label: {
                         Text("\(chapter)")
-                            .font(.system(size: 15, weight: .semibold))
+                            .appFont(.system(size: 15, weight: .semibold))
                             .monospacedDigit()
                             .foregroundStyle(theme.textSecondary)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 56)
+                            .frame(minHeight: 56)
                             .background(theme.surface, in: .rect(cornerRadius: Radius.md))
                             .overlay {
                                 RoundedRectangle(cornerRadius: Radius.md)

@@ -31,9 +31,9 @@ const SAVE_NOTE_ERROR = "The note could not be saved. Check your connection and 
 
 const FOCUS_RING =
 	"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--background))]";
-const GOLD_BUTTON = `flex min-h-12 w-full items-center justify-center rounded-xl bg-amber-500 px-5 text-[16px] font-bold text-neutral-950 motion-safe:transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-amber-500 dark:bg-amber-400 dark:hover:bg-amber-300 dark:disabled:hover:bg-amber-400 ${FOCUS_RING}`;
+const GOLD_BUTTON = `flex min-h-12 w-full items-center justify-center rounded-xl bg-amber-500 px-5 text-[1rem] font-bold text-neutral-950 motion-safe:transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-amber-500 dark:bg-amber-400 dark:hover:bg-amber-300 dark:disabled:hover:bg-amber-400 ${FOCUS_RING}`;
 const OUTLINE_BUTTON = `flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-black/[0.12] dark:border-white/[0.12] px-3 text-sm font-semibold text-neutral-700 dark:text-neutral-200 motion-safe:transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.05] ${FOCUS_RING}`;
-const QUIET_BUTTON = `min-h-11 rounded-lg px-4 text-[15px] font-semibold text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-100 ${FOCUS_RING}`;
+const QUIET_BUTTON = `min-h-11 rounded-lg px-4 text-[0.9375rem] font-semibold text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-100 ${FOCUS_RING}`;
 const SCRIPTURE = "font-[family-name:var(--font-cormorant)]";
 const PANEL =
 	"rounded-2xl border border-black/[0.08] dark:border-white/[0.08] bg-[hsl(var(--card))] shadow-sm";
@@ -117,7 +117,7 @@ export default function QuizScreen() {
 		return (
 			<CenteredNotice>
 				<p className="text-sm text-neutral-500 dark:text-neutral-400">That chapter could not be found.</p>
-				<Link href="/bible" className={`mt-4 text-[15px] font-semibold text-amber-600 dark:text-amber-400 ${FOCUS_RING}`}>
+				<Link href="/bible" className={`mt-4 text-[0.9375rem] font-semibold text-amber-600 dark:text-amber-400 ${FOCUS_RING}`}>
 					Open the Bible
 				</Link>
 			</CenteredNotice>
@@ -141,7 +141,7 @@ export default function QuizScreen() {
 				<div className={`${PANEL} flex max-w-sm flex-col items-center gap-3 px-6 py-8 text-center`}>
 					<DayStar className="h-7 w-7 text-amber-500 dark:text-amber-400" />
 					<h1 className="text-xl font-bold text-neutral-900 dark:text-neutral-100">Quiz me on {title}</h1>
-					<p className="text-[15px] leading-6 text-neutral-500 dark:text-neutral-400">
+					<p className="text-[0.9375rem] leading-6 text-neutral-500 dark:text-neutral-400">
 						Sign in to take a short quiz on this chapter. Every answer comes with its verse.
 					</p>
 					<Link href={`/sign-in?redirect_url=${encodeURIComponent(back)}`} className={`${GOLD_BUTTON} mt-2`}>
@@ -220,7 +220,7 @@ function QuizSession({ order, chapter, title, links }: { order: number; chapter:
 		const panel =
 			state.status === "error" ? (
 				<div role="alert" className="flex flex-col items-center gap-4 px-2 py-16 text-center">
-					<p className="max-w-sm text-[15px] leading-6 text-neutral-700 dark:text-neutral-200">{state.message}</p>
+					<p className="max-w-sm text-[0.9375rem] leading-6 text-neutral-700 dark:text-neutral-200">{state.message}</p>
 					<button
 						type="button"
 						onClick={() => load(lastDepth.current)}
@@ -265,9 +265,9 @@ function QuizLoading({ title }: { title: string }) {
 	return (
 		<div role="status" aria-live="polite" className="flex flex-col items-center justify-center gap-4 px-2 py-20 text-center">
 			<Spinner />
-			<p className="text-[16px] font-medium text-neutral-800 dark:text-neutral-100">{loadingLine(title)}</p>
+			<p className="text-[1rem] font-medium text-neutral-800 dark:text-neutral-100">{loadingLine(title)}</p>
 			<p
-				className={`text-[14px] text-neutral-500 dark:text-neutral-400 motion-safe:transition-opacity motion-safe:duration-500 ${
+				className={`text-[0.875rem] text-neutral-500 dark:text-neutral-400 motion-safe:transition-opacity motion-safe:duration-500 ${
 					slow ? "opacity-100" : "opacity-0"
 				}`}
 				aria-hidden={!slow}
@@ -349,7 +349,7 @@ function ChapterColumn({ title, verses, lit }: { title: string; verses: string[]
 									>
 										{n}
 									</span>
-									<span className={`${SCRIPTURE} text-[20px] leading-[1.5] text-neutral-800 dark:text-neutral-200`}>{text}</span>
+									<span className={`${SCRIPTURE} text-[1.25rem] leading-[1.5] text-neutral-800 dark:text-neutral-200`}>{text}</span>
 								</li>
 							);
 						})}
@@ -385,16 +385,16 @@ function QuizHeader({
 				>
 					<X className="h-6 w-6" aria-hidden />
 				</Link>
-				<h1 className="text-center text-[19px] font-semibold text-neutral-900 dark:text-neutral-100 lg:order-1 lg:text-left lg:font-[family-name:var(--font-cormorant)] lg:text-4xl">
+				<h1 className="text-center text-[1.1875rem] font-semibold text-neutral-900 dark:text-neutral-100 lg:order-1 lg:text-left lg:font-[family-name:var(--font-cormorant)] lg:text-4xl">
 					{title} quiz
 				</h1>
-				<span className="text-right text-[15px] tabular-nums text-neutral-500 dark:text-neutral-400 lg:hidden">
+				<span className="text-right text-[0.9375rem] tabular-nums text-neutral-500 dark:text-neutral-400 lg:hidden">
 					{index !== null ? `${index + 1} of ${count}` : ""}
 				</span>
 			</div>
 			{index !== null ? (
 				<div className="mt-4 flex items-center gap-3">
-					<span className="hidden text-[15px] tabular-nums text-neutral-500 dark:text-neutral-400 lg:inline">
+					<span className="hidden text-[0.9375rem] tabular-nums text-neutral-500 dark:text-neutral-400 lg:inline">
 						{index + 1} of {count}
 					</span>
 					<div className="flex flex-1 gap-1.5" aria-hidden>
@@ -540,13 +540,13 @@ function QuizRun({ quiz, title, links, chapterVerses, onDepth }: QuizRunProps) {
 
 				{index === 0 && !checked ? <DepthSwitch value={quiz.depth} onChange={onDepth} /> : null}
 
-				<p className="text-[13px] font-bold uppercase tracking-[0.14em] text-amber-600 dark:text-amber-400">
+				<p className="text-[0.8125rem] font-bold uppercase tracking-[0.14em] text-amber-600 dark:text-amber-400">
 					{verseLabel(question.reference, question.verses)}
 				</p>
 				<h2
 					ref={promptRef}
 					tabIndex={-1}
-					className="mt-2 text-[23px] font-semibold leading-[1.3] text-neutral-900 outline-none dark:text-neutral-50 lg:text-[26px]"
+					className="mt-2 text-[1.4375rem] font-semibold leading-[1.3] text-neutral-900 outline-none dark:text-neutral-50 lg:text-[1.625rem]"
 				>
 					{question.prompt}
 				</h2>
@@ -591,21 +591,21 @@ function QuizRun({ quiz, title, links, chapterVerses, onDepth }: QuizRunProps) {
 							Check answer
 						</button>
 					)}
-					<p className="hidden pt-2 text-[13px] text-neutral-400 dark:text-neutral-500 lg:block" aria-hidden>
+					<p className="hidden pt-2 text-[0.8125rem] text-neutral-400 dark:text-neutral-500 lg:block" aria-hidden>
 						Press Enter
 					</p>
 					{!checked && !revealed ? (
 						<button
 							type="button"
 							onClick={() => setRevealed(true)}
-							className={`mt-1 min-h-11 rounded-lg px-3 text-[15px] font-medium text-neutral-500 underline-offset-4 hover:text-neutral-800 hover:underline dark:text-neutral-400 dark:hover:text-neutral-100 ${FOCUS_RING}`}
+							className={`mt-1 min-h-11 rounded-lg px-3 text-[0.9375rem] font-medium text-neutral-500 underline-offset-4 hover:text-neutral-800 hover:underline dark:text-neutral-400 dark:hover:text-neutral-100 ${FOCUS_RING}`}
 						>
 							Show me the verse first
 						</button>
 					) : null}
 				</div>
 
-				<p className="mt-6 hidden border-t border-black/[0.08] pt-5 text-[13px] text-neutral-500 dark:border-white/[0.08] dark:text-neutral-400 lg:block">
+				<p className="mt-6 hidden border-t border-black/[0.08] pt-5 text-[0.8125rem] text-neutral-500 dark:border-white/[0.08] dark:text-neutral-400 lg:block">
 					Every answer is checked against the King James text.
 				</p>
 			</QuizCard>
@@ -639,7 +639,7 @@ function DepthSwitch({ value, onChange }: { value: QuizDepth; onChange: (depth: 
 						onClick={() => {
 							if (!on) onChange(choice.depth);
 						}}
-						className={`min-h-10 rounded-lg text-[14px] font-semibold motion-safe:transition-colors ${FOCUS_RING} ${
+						className={`min-h-10 rounded-lg text-[0.875rem] font-semibold motion-safe:transition-colors ${FOCUS_RING} ${
 							on
 								? "bg-amber-500/15 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300"
 								: "text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-100"
@@ -696,7 +696,7 @@ function OptionRow({
 		>
 			<span
 				aria-hidden
-				className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border text-[14px] font-bold ${
+				className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border text-[0.875rem] font-bold ${
 					gold
 						? "border-transparent bg-amber-500 text-neutral-950 dark:bg-amber-400"
 						: wrongPick
@@ -706,16 +706,16 @@ function OptionRow({
 			>
 				{letter}
 			</span>
-			<span className="flex-1 text-[16px] leading-[1.4] text-neutral-800 dark:text-neutral-100">{text}</span>
+			<span className="flex-1 text-[1rem] leading-[1.4] text-neutral-800 dark:text-neutral-100">{text}</span>
 			{showCorrect ? (
-				<span aria-hidden className="flex flex-shrink-0 items-center gap-2 text-[15px] font-semibold text-amber-700 dark:text-amber-400">
+				<span aria-hidden className="flex flex-shrink-0 items-center gap-2 text-[0.9375rem] font-semibold text-amber-700 dark:text-amber-400">
 					<span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-neutral-950 dark:bg-amber-400">
 						<Check className="h-4 w-4" strokeWidth={3} />
 					</span>
 					{rightPick ? "Right" : null}
 				</span>
 			) : wrongPick ? (
-				<span aria-hidden className="flex-shrink-0 text-[15px] font-semibold text-red-700/90 dark:text-red-300/90">
+				<span aria-hidden className="flex-shrink-0 text-[0.9375rem] font-semibold text-red-700/90 dark:text-red-300/90">
 					Not quite
 				</span>
 			) : null}
@@ -729,9 +729,9 @@ function VerseCard({ question, links }: { question: QuizQuestion; links: Links }
 		<div className={`${PANEL} relative overflow-hidden px-6 py-6`}>
 			<span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-amber-500 dark:bg-amber-400" />
 			<p className={`${SMALL_CAPS_REF} text-amber-700 dark:text-amber-400`}>{question.reference}</p>
-			<p className={`${SCRIPTURE} mt-3 text-[23px] leading-[1.45] text-neutral-900 dark:text-neutral-100`}>{question.verseText}</p>
+			<p className={`${SCRIPTURE} mt-3 text-[1.4375rem] leading-[1.45] text-neutral-900 dark:text-neutral-100`}>{question.verseText}</p>
 			{question.note ? (
-				<p className="mt-4 border-t border-black/[0.08] pt-4 text-[14.5px] leading-[1.55] text-neutral-500 dark:border-white/[0.08] dark:text-neutral-400">
+				<p className="mt-4 border-t border-black/[0.08] pt-4 text-[0.90625rem] leading-[1.55] text-neutral-500 dark:border-white/[0.08] dark:text-neutral-400">
 					{question.note}
 				</p>
 			) : null}
@@ -793,7 +793,7 @@ function Results({
 				>
 					<X className="h-6 w-6" aria-hidden />
 				</Link>
-				<p className="text-[19px] font-semibold text-neutral-900 dark:text-neutral-100">{title}</p>
+				<p className="text-[1.1875rem] font-semibold text-neutral-900 dark:text-neutral-100">{title}</p>
 			</div>
 
 			<div className={quiz.reflection ? "lg:grid lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)] lg:items-start lg:gap-6" : "mx-auto max-w-3xl"}>
@@ -803,12 +803,12 @@ function Results({
 						<h1
 							ref={headingRef}
 							tabIndex={-1}
-							className={`${SCRIPTURE} mt-3 text-[40px] font-semibold leading-[1.1] text-neutral-900 outline-none dark:text-neutral-50 lg:text-[46px]`}
+							className={`${SCRIPTURE} mt-3 text-[2.5rem] font-semibold leading-[1.1] text-neutral-900 outline-none dark:text-neutral-50 lg:text-[2.875rem]`}
 						>
 							{resultsHeadline(correct, total)}
 							<span className="hidden lg:inline"> from {title}</span>
 						</h1>
-						<p className="mt-2 text-[16px] text-neutral-500 dark:text-neutral-400">{resultsSubline(missed.length)}</p>
+						<p className="mt-2 text-[1rem] text-neutral-500 dark:text-neutral-400">{resultsSubline(missed.length)}</p>
 					</div>
 
 					{/* Narrow screens: one card per miss, as on Android. */}
@@ -816,10 +816,10 @@ function Results({
 						{quiz.questions.map((question, i) =>
 							answers[i] === question.answerIndex ? null : (
 								<div key={question.id} className={`${PANEL} p-5`}>
-									<span className="inline-block rounded-lg bg-amber-500/15 px-3 py-1 text-[14px] font-semibold text-amber-700 dark:bg-amber-400/15 dark:text-amber-400">
+									<span className="inline-block rounded-lg bg-amber-500/15 px-3 py-1 text-[0.875rem] font-semibold text-amber-700 dark:bg-amber-400/15 dark:text-amber-400">
 										Missed
 									</span>
-									<p className="mt-3 text-[17px] font-semibold leading-[1.4] text-neutral-900 dark:text-neutral-100">{question.prompt}</p>
+									<p className="mt-3 text-[1.0625rem] font-semibold leading-[1.4] text-neutral-900 dark:text-neutral-100">{question.prompt}</p>
 									<MissDetail quiz={quiz} question={question} answer={answers[i]} links={links} />
 								</div>
 							)
@@ -851,8 +851,8 @@ function Results({
 											</span>
 										)}
 										<span className="sr-only">{right ? "Right:" : "Missed:"}</span>
-										<span className="flex-1 text-[16px] text-neutral-800 dark:text-neutral-100">{question.prompt}</span>
-										<span className="flex-shrink-0 text-[15px] text-neutral-500 dark:text-neutral-400">{question.reference}</span>
+										<span className="flex-1 text-[1rem] text-neutral-800 dark:text-neutral-100">{question.prompt}</span>
+										<span className="flex-shrink-0 text-[0.9375rem] text-neutral-500 dark:text-neutral-400">{question.reference}</span>
 										{isOpen ? (
 											<ChevronDown className="h-4 w-4 flex-shrink-0 text-neutral-400" aria-hidden />
 										) : (
@@ -863,7 +863,7 @@ function Results({
 										<div id={panelId} className="mb-3 mt-1 rounded-xl border border-black/[0.08] bg-black/[0.015] px-6 py-5 dark:border-white/[0.08] dark:bg-white/[0.02]">
 											{right ? (
 												<>
-													<p className={`${SCRIPTURE} text-[21px] leading-[1.45] text-neutral-900 dark:text-neutral-100`}>{question.verseText}</p>
+													<p className={`${SCRIPTURE} text-[1.3125rem] leading-[1.45] text-neutral-900 dark:text-neutral-100`}>{question.verseText}</p>
 													<Link
 														href={links.reader(primaryVerse(question))}
 														className={`mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-400 ${FOCUS_RING}`}
@@ -918,16 +918,16 @@ function MissDetail({
 }) {
 	return (
 		<div>
-			<p className="mt-4 text-[13.5px] text-neutral-500 dark:text-neutral-400">Your answer</p>
-			<p className={`${SCRIPTURE} mt-0.5 text-[20px] text-neutral-500 line-through decoration-neutral-400 dark:text-neutral-500`}>
+			<p className="mt-4 text-[0.84375rem] text-neutral-500 dark:text-neutral-400">Your answer</p>
+			<p className={`${SCRIPTURE} mt-0.5 text-[1.25rem] text-neutral-500 line-through decoration-neutral-400 dark:text-neutral-500`}>
 				{answer === null ? "No answer" : question.options[answer]}
 			</p>
-			<p className="mt-3 text-[13.5px] font-semibold text-amber-700 dark:text-amber-400">Correct answer</p>
-			<p className={`${SCRIPTURE} mt-0.5 text-[22px] font-semibold text-amber-700 dark:text-amber-400`}>
+			<p className="mt-3 text-[0.84375rem] font-semibold text-amber-700 dark:text-amber-400">Correct answer</p>
+			<p className={`${SCRIPTURE} mt-0.5 text-[1.375rem] font-semibold text-amber-700 dark:text-amber-400`}>
 				{question.options[question.answerIndex]}
 			</p>
 			<div className="mt-4 border-t border-black/[0.08] pt-4 dark:border-white/[0.08]">
-				<p className={`${SCRIPTURE} text-[21px] leading-[1.45] text-neutral-900 dark:text-neutral-100`}>{question.verseText}</p>
+				<p className={`${SCRIPTURE} text-[1.3125rem] leading-[1.45] text-neutral-900 dark:text-neutral-100`}>{question.verseText}</p>
 				<p className={`${SMALL_CAPS_REF} mt-2 text-neutral-500 dark:text-neutral-400`}>{question.reference}</p>
 			</div>
 			<div className="mt-3 grid grid-cols-1 gap-x-3 sm:grid-cols-2">
@@ -970,16 +970,16 @@ function ReflectionCard({ quizTitle, reflection }: { quizTitle: string; reflecti
 
 	return (
 		<section aria-labelledby="quiz-carry-title" className={`${PANEL} p-6 lg:p-7`}>
-			<h2 id="quiz-carry-title" className={`${SCRIPTURE} text-[28px] font-semibold text-neutral-900 dark:text-neutral-100`}>
+			<h2 id="quiz-carry-title" className={`${SCRIPTURE} text-[1.75rem] font-semibold text-neutral-900 dark:text-neutral-100`}>
 				Carry it with you
 			</h2>
-			<p className="mt-2 text-[15px] leading-[1.55] text-neutral-500 dark:text-neutral-400">{reflection.prompt}</p>
+			<p className="mt-2 text-[0.9375rem] leading-[1.55] text-neutral-500 dark:text-neutral-400">{reflection.prompt}</p>
 			<div className="mt-4">
-				<p className={`${SCRIPTURE} text-[20px] leading-[1.45] text-neutral-900 dark:text-neutral-100`}>{reflection.verseText}</p>
+				<p className={`${SCRIPTURE} text-[1.25rem] leading-[1.45] text-neutral-900 dark:text-neutral-100`}>{reflection.verseText}</p>
 				<p className={`${SMALL_CAPS_REF} mt-2 text-amber-700 dark:text-amber-400`}>{reflection.reference}</p>
 			</div>
 			{savedId ? (
-				<p role="status" className="mt-5 flex flex-wrap items-center gap-x-3 text-[15px] text-neutral-700 dark:text-neutral-200">
+				<p role="status" className="mt-5 flex flex-wrap items-center gap-x-3 text-[0.9375rem] text-neutral-700 dark:text-neutral-200">
 					<span className="inline-flex items-center gap-2">
 						<Check className="h-4 w-4 text-amber-600 dark:text-amber-400" aria-hidden />
 						Saved to your notes
@@ -1002,7 +1002,7 @@ function ReflectionCard({ quizTitle, reflection }: { quizTitle: string; reflecti
 						rows={5}
 						aria-label="Your reflection"
 						placeholder="Write a few words..."
-						className="mt-5 w-full resize-y rounded-xl border border-black/[0.1] bg-black/[0.02] px-4 py-3 text-[15px] leading-6 text-neutral-900 placeholder:text-neutral-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/30 dark:border-white/[0.1] dark:bg-white/[0.02] dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-amber-400"
+						className="mt-5 w-full resize-y rounded-xl border border-black/[0.1] bg-black/[0.02] px-4 py-3 text-[0.9375rem] leading-6 text-neutral-900 placeholder:text-neutral-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/30 dark:border-white/[0.1] dark:bg-white/[0.02] dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-amber-400"
 					/>
 					<div className="mt-3 flex justify-end">
 						<button

@@ -75,12 +75,12 @@ struct VerseStudyPanel<Peek: View, Study: View, Footer: View>: View {
         HStack(spacing: Spacing.md) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 15, weight: .bold))
+                    .appFont(.system(size: 15, weight: .bold))
                     .foregroundStyle(theme.text)
                     .lineLimit(1)
                 if let subtitle {
                     Text(subtitle)
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textFaint)
                         .lineLimit(1)
                 }
@@ -93,7 +93,7 @@ struct VerseStudyPanel<Peek: View, Study: View, Footer: View>: View {
                 model.toggleTier()
             } label: {
                 Label(expanded ? "Less" : "Study", systemImage: expanded ? "chevron.down" : "chevron.up")
-                    .font(.system(size: 12, weight: .semibold))
+                    .appFont(.system(size: 12, weight: .semibold))
             }
             .buttonStyle(SubtleButtonStyle())
             .help(expanded ? "Collapse details" : "Expand details")
@@ -101,7 +101,7 @@ struct VerseStudyPanel<Peek: View, Study: View, Footer: View>: View {
 
             Button(action: onClose) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .semibold))
+                    .appFont(.system(size: 11, weight: .semibold))
                     .foregroundStyle(theme.textMuted)
                     .frame(width: 28, height: 28)
                     .background(theme.surface, in: .circle)

@@ -409,7 +409,7 @@ struct SendWordSheet: View {
         VStack(spacing: 0) {
             HStack {
                 Text("Send a word")
-                    .font(.system(size: 15, weight: .semibold))
+                    .appFont(.system(size: 15, weight: .semibold))
                     .foregroundStyle(theme.text)
                 Spacer()
                 Button("Done", action: onClose)
@@ -462,7 +462,7 @@ struct SendWordSheet: View {
                 draftControls(maxPreviewHeight: maxPreviewHeight, width: width)
             } else {
                 Text(model.intro)
-                    .font(.system(size: 14))
+                    .appFont(.system(size: 14))
                     .foregroundStyle(theme.textSecondary)
                     .padding(.bottom, Spacing.xs)
             }
@@ -516,7 +516,7 @@ struct SendWordSheet: View {
                     Task { await model.write() }
                 } label: {
                     Text(model.writeLabel)
-                        .font(.system(size: 14, weight: .semibold))
+                        .appFont(.system(size: 14, weight: .semibold))
                         .frame(maxWidth: .infinity, minHeight: 36)
                 }
                 .buttonStyle(AccentButtonStyle())
@@ -528,7 +528,7 @@ struct SendWordSheet: View {
 
             if let error = model.error {
                 Text(error)
-                    .font(.system(size: 13))
+                    .appFont(.system(size: 13))
                     .foregroundStyle(theme.danger)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
@@ -562,7 +562,7 @@ struct SendWordSheet: View {
                 Task { await model.shareImage() }
             } label: {
                 Text(model.busy == .image ? "Preparing\u{2026}" : "Share image")
-                    .font(.system(size: 14, weight: .semibold))
+                    .appFont(.system(size: 14, weight: .semibold))
                     .frame(maxWidth: .infinity, minHeight: 36)
             }
             .buttonStyle(AccentButtonStyle())
@@ -598,7 +598,7 @@ struct SendWordSheet: View {
 
     private func hint(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 12))
+            .appFont(.system(size: 12))
             .foregroundStyle(theme.textFaint)
             .frame(maxWidth: .infinity)
             .multilineTextAlignment(.center)
@@ -606,7 +606,7 @@ struct SendWordSheet: View {
 
     private func label(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 13, weight: .bold))
+            .appFont(.system(size: 13, weight: .bold))
             .foregroundStyle(theme.textSecondary)
             .padding(.top, Spacing.xs)
     }
@@ -622,7 +622,7 @@ struct SendWordSheet: View {
             }
         }
         .textFieldStyle(.plain)
-        .font(.system(size: 14))
+        .appFont(.system(size: 14))
         .foregroundStyle(theme.text)
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.sm)
@@ -673,21 +673,21 @@ struct SendWordHomeCard: View {
         } label: {
             HStack(spacing: Spacing.md) {
                 Image(systemName: "envelope")
-                    .font(.system(size: titleSize + 4))
+                    .appFont(.system(size: titleSize + 4))
                     .foregroundStyle(theme.textMuted)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Send a word to someone")
-                        .font(.system(size: titleSize, weight: .bold))
+                        .appFont(.system(size: titleSize, weight: .bold))
                         .foregroundStyle(theme.text)
                     Text("A verse and a few words for what they face")
-                        .font(.system(size: subtitleSize))
+                        .appFont(.system(size: subtitleSize))
                         .foregroundStyle(theme.textMuted)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
-                    .font(.system(size: titleSize - 1, weight: .semibold))
+                    .appFont(.system(size: titleSize - 1, weight: .semibold))
                     .foregroundStyle(theme.textMuted)
             }
             .frame(maxWidth: .infinity, alignment: .leading)

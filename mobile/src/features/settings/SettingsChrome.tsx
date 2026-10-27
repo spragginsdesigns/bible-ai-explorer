@@ -13,6 +13,7 @@ import { AppText as Text } from "@/components/AppText";
 import { GlassCard, Screen } from "@/components/ui";
 import { fonts, radius, spacing, typography, type Colors } from "@/theme";
 import { useTheme, useThemedStyles, type ThemeMode } from "@/features/settings/settingsStore";
+import { useTabBarSpace } from "@/features/chat/layout";
 import { SpotlightScrollView } from "@/features/onboarding/Spotlight";
 
 /**
@@ -67,7 +68,7 @@ export function SettingsTopBar({ title }: { title: string }) {
 			>
 				<Text style={styles.backGlyph}>‹</Text>
 			</Pressable>
-			<Text style={styles.title} numberOfLines={1}>
+			<Text style={styles.title}>
 				{title}
 			</Text>
 			<View style={styles.backButtonSpacer} />
@@ -89,11 +90,12 @@ export function SettingsSubScreen({
 	contentStyle?: StyleProp<ViewStyle>;
 }) {
 	const styles = useSettingsStyles();
+	const tabBarSpace = useTabBarSpace();
 	return (
 		<Screen>
 			<SettingsTopBar title={title} />
 			<SpotlightScrollView
-				contentContainerStyle={[styles.content, contentStyle]}
+				contentContainerStyle={[styles.content, { paddingBottom: tabBarSpace + spacing.xl }, contentStyle]}
 				showsVerticalScrollIndicator={false}
 				keyboardShouldPersistTaps="handled"
 				// A card above the viewport can still change height after a cold
@@ -245,11 +247,11 @@ export function SettingsRow({
 					</View>
 				) : null)}
 			<View style={styles.rowText}>
-				<Text style={styles.rowTitle} numberOfLines={1}>
+				<Text style={styles.rowTitle}>
 					{title}
 				</Text>
 				{subtitle ? (
-					<Text style={styles.rowSubtitle} numberOfLines={2}>
+					<Text style={styles.rowSubtitle}>
 						{subtitle}
 					</Text>
 				) : null}
@@ -295,17 +297,15 @@ const createStyles = (c: Colors) =>
 			alignItems: "center",
 			gap: spacing.md,
 			paddingHorizontal: spacing.lg,
-			// 8, not 12: this bar is built around a 38pt back button rather than
-			// the bare title the other screens use, so the wider padding pushed
-			// its title ~10px below every other screen's title baseline.
+			// Keep the header compact vertically while its title can wrap.
 			paddingVertical: spacing.sm,
 			// Content scrolls under this bar; without a rule it hard-clips.
 			borderBottomWidth: StyleSheet.hairlineWidth,
 			borderBottomColor: c.border,
 		},
 		backButton: {
-			width: 38,
-			height: 38,
+			width: 48,
+			height: 48,
 			borderRadius: radius.full,
 			alignItems: "center",
 			justifyContent: "center",
@@ -313,7 +313,7 @@ const createStyles = (c: Colors) =>
 			borderColor: c.border,
 			borderWidth: StyleSheet.hairlineWidth,
 		},
-		backButtonSpacer: { width: 38, height: 38 },
+		backButtonSpacer: { width: 48, height: 48 },
 		backButtonPressed: { backgroundColor: c.surfacePressed },
 		backGlyph: { color: c.textMuted, ...typography.screenTitle, marginTop: -2 },
 		title: {
@@ -344,14 +344,20 @@ const createStyles = (c: Colors) =>
 			backgroundColor: c.border,
 			marginLeft: spacing.lg + 36 + spacing.md,
 		},
-		chipRow: { flexDirection: "row", gap: spacing.sm },
+		chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
 		chip: {
-			flex: 1,
+			flexBasis: "auto",
+			flexGrow: 1,
+			flexShrink: 0,
+			minWidth: 80,
+			maxWidth: "100%",
 			flexDirection: "row",
 			alignItems: "center",
 			justifyContent: "center",
 			gap: 6,
-			minHeight: 44,
+			minHeight: 48,
+			paddingHorizontal: spacing.sm,
+			paddingVertical: spacing.sm,
 			borderRadius: radius.lg,
 			borderWidth: StyleSheet.hairlineWidth,
 			borderColor: c.borderStrong,
@@ -361,8 +367,8 @@ const createStyles = (c: Colors) =>
 			borderColor: c.accentBorder,
 			backgroundColor: c.accentSoft,
 		},
-		chipGlyph: { color: c.textMuted, ...typography.micro },
-		chipLabel: { color: c.textMuted, ...typography.meta, fontWeight: "700" },
+		chipGlyph: { color: c.textMuted, ...typography.micro, flexShrink: 0 },
+		chipLabel: { color: c.textMuted, ...typography.meta, fontWeight: "700", flexShrink: 1 },
 		hint: { color: c.textFaint, ...typography.support },
 		switchBlock: { gap: spacing.md },
 		settingRow: {
@@ -371,7 +377,7 @@ const createStyles = (c: Colors) =>
 			justifyContent: "space-between",
 			gap: spacing.md,
 		},
-		rowTitle: { color: c.text, ...typography.control, fontWeight: "600" },
+		rowTitle: { color: c.text, ...typography.control, fontWeight: "600", flexShrink: 1 },
 		rowSubtitle: { color: c.textFaint, ...typography.meta, marginTop: 1 },
 		row: {
 			flexDirection: "row",

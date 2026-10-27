@@ -62,11 +62,11 @@ export default function ReadingPlanScreen() {
 				<div className="flex items-center gap-4 py-3 lg:py-6">
 					<Link
 						href="/today"
-						className="text-[15px] font-semibold text-amber-600 dark:text-amber-400"
+						className="text-[0.9375rem] font-semibold text-amber-600 dark:text-amber-400"
 					>
 						‹ Today
 					</Link>
-					<h1 className="flex-1 truncate text-center text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+					<h1 className="flex-1 truncate text-center text-[0.9375rem] font-semibold text-neutral-900 dark:text-neutral-100">
 						Reading plan
 					</h1>
 					{plan ? (
@@ -99,14 +99,14 @@ export default function ReadingPlanScreen() {
 				)}
 
 				{loading && (
-					<p className="py-8 text-center text-[13px] text-neutral-400 dark:text-neutral-500">
+					<p className="py-8 text-center text-[0.8125rem] text-neutral-400 dark:text-neutral-500">
 						Loading your plan…
 					</p>
 				)}
 
 				{plan && confirmingArchive && (
 					<div className="glass-card mb-3 flex flex-col gap-3 rounded-2xl p-4">
-						<p className="text-[13.5px] leading-5 text-neutral-600 dark:text-neutral-300">
+						<p className="text-[0.84375rem] leading-5 text-neutral-600 dark:text-neutral-300">
 							Put &ldquo;{plan.title}&rdquo; away? Your progress is kept, and you can start another
 							plan.
 						</p>
@@ -118,14 +118,14 @@ export default function ReadingPlanScreen() {
 									setConfirmingArchive(false);
 									void archive();
 								}}
-								className="min-h-11 flex-1 rounded-lg border border-red-500/40 dark:border-red-400/30 text-[14px] font-bold text-red-500 dark:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+								className="min-h-11 flex-1 rounded-lg border border-red-500/40 dark:border-red-400/30 text-[0.875rem] font-bold text-red-500 dark:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
 							>
 								Archive plan
 							</button>
 							<button
 								type="button"
 								onClick={() => setConfirmingArchive(false)}
-								className="min-h-11 flex-1 rounded-lg border border-black/[0.08] dark:border-white/[0.08] text-[14px] font-semibold text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+								className="min-h-11 flex-1 rounded-lg border border-black/[0.08] dark:border-white/[0.08] text-[0.875rem] font-semibold text-neutral-600 dark:text-neutral-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
 							>
 								Keep it
 							</button>
@@ -139,7 +139,7 @@ export default function ReadingPlanScreen() {
 							<h2 className="font-[family-name:var(--font-pirata)] text-2xl text-neutral-900 dark:text-neutral-100">
 								{plan.title}
 							</h2>
-							<p className="text-[13.5px] leading-[19px] text-neutral-500 dark:text-neutral-400">
+							<p className="text-[0.84375rem] leading-[1.1875rem] text-neutral-500 dark:text-neutral-400">
 								{plan.description}
 							</p>
 							<div
@@ -156,18 +156,18 @@ export default function ReadingPlanScreen() {
 								/>
 							</div>
 							<div className="flex items-baseline gap-2">
-								<span className="text-[22px] font-bold tabular-nums text-amber-600 dark:text-amber-400">
+								<span className="text-[1.375rem] font-bold tabular-nums text-amber-600 dark:text-amber-400">
 									{plan.percent}%
 								</span>
-								<span className="flex-1 text-[12.5px] text-neutral-400 dark:text-neutral-500">
+								<span className="flex-1 text-[0.78125rem] text-neutral-400 dark:text-neutral-500">
 									{progressCaption(plan)}
 								</span>
 							</div>
-							<p className="text-[13px] font-semibold text-neutral-500 dark:text-neutral-400">
+							<p className="text-[0.8125rem] font-semibold text-neutral-500 dark:text-neutral-400">
 								🔥 {streakLabel(plan.streak)}
 							</p>
 							{daysBehind > 0 && (
-								<p className="text-[13px] font-semibold tabular-nums text-neutral-500 dark:text-neutral-400">
+								<p className="text-[0.8125rem] font-semibold tabular-nums text-neutral-500 dark:text-neutral-400">
 									{daysBehind} {daysBehind === 1 ? "day" : "days"} behind
 								</p>
 							)}
@@ -178,7 +178,7 @@ export default function ReadingPlanScreen() {
 								<p className="text-base font-bold text-amber-600 dark:text-amber-400">
 									You finished it.
 								</p>
-								<p className="mt-1 text-[13.5px] leading-5 text-neutral-600 dark:text-neutral-300">
+								<p className="mt-1 text-[0.84375rem] leading-5 text-neutral-600 dark:text-neutral-300">
 									Every day of {plan.title} is read. Archive it from ⋯ above to start another.
 								</p>
 							</div>
@@ -211,7 +211,7 @@ export default function ReadingPlanScreen() {
 										})}
 									</div>
 									{today.focus && (
-										<p className="text-sm leading-[21px] text-neutral-700 dark:text-neutral-300">
+										<p className="text-sm leading-[1.3125rem] text-neutral-700 dark:text-neutral-300">
 											{today.focus}
 										</p>
 									)}
@@ -221,7 +221,7 @@ export default function ReadingPlanScreen() {
 										aria-checked={today.done}
 										disabled={busy}
 										onClick={() => void setDayDone(today.day, !today.done)}
-										className={`min-h-11 rounded-lg border text-[14px] font-semibold transition-colors disabled:opacity-50 ${
+										className={`min-h-11 rounded-lg border text-[0.875rem] font-semibold transition-colors disabled:opacity-50 ${
 											today.done
 												? "border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-amber-600 dark:text-amber-400"
 												: "border-black/[0.08] dark:border-white/[0.08] text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
@@ -230,7 +230,7 @@ export default function ReadingPlanScreen() {
 										{today.done ? "✓ Read" : "Mark this day read"}
 									</button>
 									{!today.done && (
-										<p className="text-[11.5px] leading-4 text-neutral-400/80 dark:text-neutral-600">
+										<p className="text-[0.71875rem] leading-4 text-neutral-400/80 dark:text-neutral-600">
 											Reading these chapters in SureWord marks the day on its own.
 										</p>
 									)}
@@ -242,7 +242,7 @@ export default function ReadingPlanScreen() {
 
 				{!plan && !loading && (
 					<div className="flex flex-col gap-3">
-						<p className="text-sm leading-[21px] text-neutral-500 dark:text-neutral-400">
+						<p className="text-sm leading-[1.3125rem] text-neutral-500 dark:text-neutral-400">
 							Pick a plan and read straight through. Chapters you read in SureWord tick themselves
 							off - there is nothing to remember.
 						</p>
@@ -256,14 +256,14 @@ export default function ReadingPlanScreen() {
 								className="flex flex-col gap-1.5 rounded-xl border border-black/[0.08] dark:border-white/[0.06] bg-black/[0.03] dark:bg-white/[0.03] px-5 py-4 text-left hover:bg-black/[0.06] dark:hover:bg-white/[0.06] hover:border-amber-500/30 dark:hover:border-amber-400/20 transition-colors disabled:opacity-50"
 							>
 								<span className="flex items-center gap-2">
-									<span className="flex-1 text-[15px] font-bold text-neutral-900 dark:text-neutral-100">
+									<span className="flex-1 text-[0.9375rem] font-bold text-neutral-900 dark:text-neutral-100">
 										{preset.title}
 									</span>
-									<span className="text-[12.5px] tabular-nums text-amber-600 dark:text-amber-400">
+									<span className="text-[0.78125rem] tabular-nums text-amber-600 dark:text-amber-400">
 										{preset.dayCount} days
 									</span>
 								</span>
-								<span className="text-[13px] leading-[19px] text-neutral-500 dark:text-neutral-400">
+								<span className="text-[0.8125rem] leading-[1.1875rem] text-neutral-500 dark:text-neutral-400">
 									{preset.description}
 								</span>
 							</button>
@@ -280,7 +280,7 @@ export default function ReadingPlanScreen() {
 								rows={3}
 								placeholder="What should it walk you through? e.g. everything Jesus said about prayer"
 								aria-label="What the plan should walk you through"
-								className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white/60 dark:bg-black/30 px-3 py-2 text-[14px] text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:border-amber-500/50 focus:outline-none"
+								className="rounded-lg border border-black/[0.08] dark:border-white/[0.08] bg-white/60 dark:bg-black/30 px-3 py-2 text-[0.875rem] text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:border-amber-500/50 focus:outline-none"
 							/>
 							<div className="flex items-center gap-3">
 								<button
@@ -291,7 +291,7 @@ export default function ReadingPlanScreen() {
 								>
 									−
 								</button>
-								<span className="flex-1 text-center text-[15px] font-semibold tabular-nums text-neutral-900 dark:text-neutral-100">
+								<span className="flex-1 text-center text-[0.9375rem] font-semibold tabular-nums text-neutral-900 dark:text-neutral-100">
 									{goalDays} days
 								</span>
 								<button
@@ -309,7 +309,7 @@ export default function ReadingPlanScreen() {
 										key={choice}
 										type="button"
 										onClick={() => setGoalDays(choice)}
-										className={`min-h-9 flex-1 rounded-full border text-[13px] tabular-nums transition-colors ${
+										className={`min-h-9 flex-1 rounded-full border text-[0.8125rem] tabular-nums transition-colors ${
 											goalDays === choice
 												? "border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 font-bold text-amber-600 dark:text-amber-400"
 												: "border-black/[0.08] dark:border-white/[0.08] text-neutral-500 dark:text-neutral-400 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
@@ -323,7 +323,7 @@ export default function ReadingPlanScreen() {
 								type="button"
 								disabled={busy || !goal.trim()}
 								onClick={submitGoal}
-								className="flex min-h-12 items-center justify-center rounded-xl border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[15px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors disabled:opacity-50"
+								className="flex min-h-12 items-center justify-center rounded-xl border border-amber-500/40 dark:border-amber-400/30 bg-amber-500/10 dark:bg-amber-400/10 text-[0.9375rem] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 dark:hover:bg-amber-400/20 transition-colors disabled:opacity-50"
 							>
 								{busy ? "Writing your plan…" : "✦ Build my plan"}
 							</button>
@@ -346,14 +346,14 @@ export default function ReadingPlanScreen() {
 											: "border-black/[0.08] dark:border-white/[0.06] bg-black/[0.03] dark:bg-white/[0.03]"
 									} ${day.done ? "opacity-70" : ""}`}
 								>
-									<span className="w-8 text-[13px] font-bold tabular-nums text-neutral-400 dark:text-neutral-500">
+									<span className="w-8 text-[0.8125rem] font-bold tabular-nums text-neutral-400 dark:text-neutral-500">
 										{day.day}
 									</span>
 									<span className="flex-1">
 										<span className="block text-sm font-semibold text-neutral-700 dark:text-neutral-300">
 											{describeReadings(day.readings)}
 										</span>
-										<span className="block text-[11.5px] text-neutral-400/80 dark:text-neutral-600">
+										<span className="block text-[0.71875rem] text-neutral-400/80 dark:text-neutral-600">
 											{dayStateLabel(day.state)}
 											{day.doneSource === "read" ? " · read in SureWord" : ""}
 										</span>

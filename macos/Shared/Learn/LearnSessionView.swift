@@ -61,10 +61,10 @@ struct LearnSessionView: View {
         if let conflict = model.conflict {
             notice(tone: .accent) {
                 Text("Newer schedule found for \(conflict.reference)")
-                    .font(.system(size: 15, weight: .bold))
+                    .appFont(.system(size: 15, weight: .bold))
                     .foregroundStyle(theme.text)
                 Text("\(conflict.operationCount) local review\(conflict.operationCount == 1 ? "" : "s") cannot be applied to that newer stage.")
-                    .font(.system(size: 15))
+                    .appFont(.system(size: 15))
                     .foregroundStyle(theme.textMuted)
                 noticeButton("Use latest schedule") { Task { await model.useLatest() } }
                     .disabled(model.interactionBusy)
@@ -77,7 +77,7 @@ struct LearnSessionView: View {
                         ? "Syncing \(model.pendingLabel)..."
                         : "\(model.pendingLabel) on this device. \(snapshot.connection == .idle ? "Ready to sync." : "Waiting to sync.")"
                 )
-                .font(.system(size: 15))
+                .appFont(.system(size: 15))
                 .foregroundStyle(theme.textMuted)
                 if snapshot.connection != .syncing {
                     noticeButton("Retry sync") { model.runSync(reset: true) }
@@ -87,7 +87,7 @@ struct LearnSessionView: View {
         if snapshot.pendingCount == 0 && snapshot.connection == .offline {
             notice(tone: .plain) {
                 Text(snapshot.message ?? "")
-                    .font(.system(size: 15))
+                    .appFont(.system(size: 15))
                     .foregroundStyle(theme.textMuted)
                 noticeButton("Reconnect") { model.runSync(reset: true) }
             }
@@ -95,7 +95,7 @@ struct LearnSessionView: View {
         if let error = model.localError ?? (snapshot.connection == .error ? snapshot.message : nil) {
             notice(tone: .danger) {
                 Text(error)
-                    .font(.system(size: 15))
+                    .appFont(.system(size: 15))
                     .foregroundStyle(theme.danger)
                 if snapshot.hydrated {
                     noticeButton("Try again") { model.runSync(reset: true) }
@@ -126,7 +126,7 @@ struct LearnSessionView: View {
 
     private func noticeButton(_ title: String, action: @escaping () -> Void) -> some View {
         Button(title, action: action)
-            .font(.system(size: 15, weight: .bold))
+            .appFont(.system(size: 15, weight: .bold))
             .foregroundStyle(theme.accent)
             .frame(minHeight: 44)
             .buttonStyle(.plain)
@@ -156,10 +156,10 @@ struct LearnSessionView: View {
     private func emptyState(title: String, hint: String) -> some View {
         VStack(spacing: Spacing.xl) {
             Text(title)
-                .font(.custom(FontFamily.verse, size: 28, relativeTo: .title))
+                .appFont(.custom(FontFamily.verse, size: 28, relativeTo: .title))
                 .foregroundStyle(theme.text)
             Text(hint)
-                .font(.system(size: 14))
+                .appFont(.system(size: 14))
                 .foregroundStyle(theme.textMuted)
         }
         .multilineTextAlignment(.center)
@@ -173,17 +173,17 @@ struct LearnSessionView: View {
         let round = model.practiceRound
         return VStack(spacing: Spacing.xl) {
             Text("\(card.reference) · \(card.translation)")
-                .font(.system(size: 16, weight: .bold))
+                .appFont(.system(size: 16, weight: .bold))
                 .foregroundStyle(theme.accent)
                 .frame(maxWidth: .infinity)
 
             if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 notice(tone: .plain) {
                     Text("\(card.translation) text is temporarily unavailable.")
-                        .font(.system(size: 15, weight: .bold))
+                        .appFont(.system(size: 15, weight: .bold))
                         .foregroundStyle(theme.text)
                     Text("Reconnect and reload before practicing this verse. SureWord will keep the requested translation.")
-                        .font(.system(size: 15))
+                        .appFont(.system(size: 15))
                         .foregroundStyle(theme.textMuted)
                     noticeButton("Reload verse") { model.runSync(reset: true) }
                 }
@@ -204,7 +204,7 @@ struct LearnSessionView: View {
                         Task { await model.review(.again) }
                     } label: {
                         Text("Practice again")
-                            .font(.system(size: 15, weight: .bold))
+                            .appFont(.system(size: 15, weight: .bold))
                             .foregroundStyle(theme.text)
                             .frame(maxWidth: .infinity, minHeight: 48)
                             .overlay {
@@ -221,7 +221,7 @@ struct LearnSessionView: View {
                         Task { await model.review(.good) }
                     } label: {
                         Text(model.interactionBusy ? "Saving..." : card.stage == 3 ? "I remembered" : "Continue")
-                            .font(.system(size: 15, weight: .bold))
+                            .appFont(.system(size: 15, weight: .bold))
                             .foregroundStyle(Color(red: 0.07, green: 0.07, blue: 0.07))
                             .frame(maxWidth: .infinity, minHeight: 48)
                             .background(theme.accent, in: .rect(cornerRadius: Radius.lg))
@@ -260,24 +260,24 @@ private struct LearnSuggestionsSection: View {
             VStack(alignment: view.lead ? .center : .leading, spacing: Spacing.sm) {
                 if !view.lead { Divider().overlay(theme.border).padding(.bottom, Spacing.sm) }
                 Text(view.heading)
-                    .font(view.lead ? .custom(FontFamily.verse, size: 24, relativeTo: .title2) : .system(size: 14, weight: .bold))
+                    .appFont(view.lead ? .custom(FontFamily.verse, size: 24, relativeTo: .title2) : .system(size: 14, weight: .bold))
                     .foregroundStyle(view.lead ? theme.text : theme.textMuted)
                     .multilineTextAlignment(view.lead ? .center : .leading)
                 if let confirmation = model.confirmation {
                     Text(confirmation)
-                        .font(.system(size: 14))
+                        .appFont(.system(size: 14))
                         .foregroundStyle(theme.textMuted)
                 }
                 ForEach(view.rows) { suggestion in
                     VStack(alignment: .leading, spacing: Spacing.sm) {
                         Text(suggestion.reference)
-                            .font(.system(size: 14, weight: .bold))
+                            .appFont(.system(size: 14, weight: .bold))
                             .foregroundStyle(theme.accent)
                         Text(suggestion.text)
-                            .font(.custom(FontFamily.verse, size: 20, relativeTo: .body))
+                            .appFont(.custom(FontFamily.verse, size: 20, relativeTo: .body))
                             .foregroundStyle(theme.text)
                         Text(suggestion.reason)
-                            .font(.system(size: 14))
+                            .appFont(.system(size: 14))
                             .foregroundStyle(theme.textMuted)
                         LearnThisVerseButton(
                             book: suggestion.book,
@@ -289,7 +289,7 @@ private struct LearnSuggestionsSection: View {
                             onAdded: { model.suggestionAdded(suggestion) }
                         )
                         Button("Not now") { model.dismissSuggestion(suggestion) }
-                            .font(.system(size: 14))
+                            .appFont(.system(size: 14))
                             .foregroundStyle(theme.textMuted)
                             .frame(minHeight: 44)
                             .buttonStyle(.plain)

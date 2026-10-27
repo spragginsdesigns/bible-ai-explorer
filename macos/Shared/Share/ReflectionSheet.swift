@@ -174,7 +174,7 @@ struct ReflectionSheet: View {
     private var chrome: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("My reflection").font(.headline)
+                Text("My reflection").appFont(.headline)
                 Spacer()
                 Button("Done", action: onClose).frame(minHeight: 44)
             }.padding(Spacing.md)
@@ -194,18 +194,18 @@ struct ReflectionSheet: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("\(model.reference) · \(model.translation)").font(.subheadline.weight(.semibold)).foregroundStyle(theme.accent)
-            Text("Share how this verse speaks to your walk with God. Only the words you approve are shared.").font(.subheadline)
-            Text("My reflection").font(.subheadline.weight(.semibold))
+            Text("\(model.reference) · \(model.translation)").appFont(.subheadline.weight(.semibold)).foregroundStyle(theme.accent)
+            Text("Share how this verse speaks to your walk with God. Only the words you approve are shared.").appFont(.subheadline)
+            Text("My reflection").appFont(.subheadline.weight(.semibold))
             TextEditor(text: Binding(get: { model.text }, set: { model.setText($0) }))
                 .frame(minHeight: 110).padding(8).background(theme.bg)
                 .clipShape(.rect(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(theme.borderStrong))
                 .disabled(model.locked).accessibilityLabel("My reflection")
-            Text("\(model.text.count)/200").font(.caption).foregroundStyle(theme.textMuted)
+            Text("\(model.text.count)/200").appFont(.caption).foregroundStyle(theme.textMuted)
             Button(model.busy == "writing" ? "Considering your walk…" : "Draft from my walk") { Task { await model.suggest() } }
                 .buttonStyle(GhostShareButtonStyle()).disabled(!model.opened || model.locked)
             Text("Uses your study to suggest a reflection without private details. Review and edit every word before sharing.")
-                .font(.caption).foregroundStyle(theme.textMuted)
+                .appFont(.caption).foregroundStyle(theme.textMuted)
             TextField("Your name (optional)", text: Binding(get: { model.signature }, set: { model.setSignature($0) }))
                 .textFieldStyle(.roundedBorder).disabled(model.locked).accessibilityLabel("Name on reflection, optional")
             Picker("Reflection font", selection: Binding(get: { model.presentation.font }, set: { model.setFont($0) })) {
@@ -221,14 +221,14 @@ struct ReflectionSheet: View {
                     .accessibilityLabel("Your reflection: \(model.text)")
             }
             if model.publishedURL != nil {
-                Text("This shared version is fixed. Close and reopen to write a new reflection.").font(.caption).foregroundStyle(theme.textMuted)
+                Text("This shared version is fixed. Close and reopen to write a new reflection.").appFont(.caption).foregroundStyle(theme.textMuted)
             }
         }
     }
 
     private var footer: some View {
         VStack(spacing: Spacing.sm) {
-            if let error = model.error { Text(error).font(.subheadline).foregroundStyle(.red).accessibilityLabel(error) }
+            if let error = model.error { Text(error).appFont(.subheadline).foregroundStyle(.red).accessibilityLabel(error) }
             if model.ready {
                 HStack {
                     Button(model.busy == "image" ? "Preparing…" : "Share image") { Task { await model.share(image: true) } }

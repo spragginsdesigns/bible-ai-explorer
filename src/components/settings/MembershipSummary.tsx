@@ -75,13 +75,13 @@ const MembershipSummary: React.FC = () => {
 					<Sparkles className="w-5 h-5" />
 				</span>
 				<div className="min-w-0 flex-1">
-					<p className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">{title}</p>
+					<p className="text-[0.9375rem] font-semibold text-neutral-900 dark:text-neutral-100">{title}</p>
 					{data?.owner ? (
-						<p className="text-[13px] text-neutral-400 dark:text-neutral-500">
+						<p className="text-[0.8125rem] text-neutral-400 dark:text-neutral-500">
 							All paid benefits and configured models are available without a subscription.
 						</p>
 					) : data?.usage ? null : (
-						<p className="text-[13px] text-neutral-400 dark:text-neutral-500">
+						<p className="text-[0.8125rem] text-neutral-400 dark:text-neutral-500">
 							{data ? "Continue studying free. Pro memberships are coming soon." : "Loading membership…"}
 						</p>
 					)}
@@ -90,21 +90,21 @@ const MembershipSummary: React.FC = () => {
 
 			{!data?.owner && data?.usage ? (
 				<div className="flex flex-col gap-1">
-					<p className="text-[15px] font-bold text-amber-600 dark:text-amber-400">
+					<p className="text-[0.9375rem] font-bold text-amber-600 dark:text-amber-400">
 						{data.usage.dailyRemaining} messages left today
 					</p>
 					{data.usage.monthlyRemaining !== null ? (
-						<p className="text-[13px] text-neutral-500 dark:text-neutral-400">
+						<p className="text-[0.8125rem] text-neutral-500 dark:text-neutral-400">
 							{data.usage.monthlyRemaining} left this billing period
 						</p>
 					) : null}
-					<p className="text-[13px] text-neutral-500 dark:text-neutral-400">
+					<p className="text-[0.8125rem] text-neutral-500 dark:text-neutral-400">
 						Daily reset: {new Date(data.usage.day.end).toLocaleString()}
 					</p>
 				</div>
 			) : null}
 
-			<p className="text-[13px] text-neutral-500 dark:text-neutral-400">
+			<p className="text-[0.8125rem] text-neutral-500 dark:text-neutral-400">
 				Your Bible, notes, highlights and saved study remain available when your AI allowance runs out.
 			</p>
 			{error ? (

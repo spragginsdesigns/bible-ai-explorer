@@ -42,7 +42,7 @@ struct InsertWikilinkPopover: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text("Link a note")
-                .font(.system(size: 12, weight: .semibold))
+                .appFont(.system(size: 12, weight: .semibold))
 
             TextField("Search notes to link", text: $query)
                 .textFieldStyle(.roundedBorder)
@@ -72,7 +72,7 @@ struct InsertWikilinkPopover: View {
                                     .lineLimit(1)
                                 Spacer(minLength: 0)
                             }
-                            .font(.system(size: 13))
+                            .appFont(.system(size: 13))
                             .padding(.horizontal, Spacing.md)
                             .padding(.vertical, Spacing.sm)
                             .background(theme.accentSoft, in: .rect(cornerRadius: Radius.md))
@@ -91,7 +91,7 @@ struct InsertWikilinkPopover: View {
                                 ? "No other notes yet. Type a title above to link ahead of time."
                                 : "No notes match that search."
                         )
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textFaint)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
@@ -105,16 +105,16 @@ struct InsertWikilinkPopover: View {
                                 HStack(spacing: Spacing.md) {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(title)
-                                            .font(.system(size: 13, weight: .medium))
+                                            .appFont(.system(size: 13, weight: .medium))
                                             .foregroundStyle(theme.textSecondary)
                                             .lineLimit(1)
                                         Text(NoteUtils.relativeTime(note.updatedAt))
-                                            .font(.system(size: 11))
+                                            .appFont(.system(size: 11))
                                             .foregroundStyle(theme.textGhost)
                                     }
                                     Spacer(minLength: 0)
                                     Image(systemName: "link")
-                                        .font(.system(size: 11))
+                                        .appFont(.system(size: 11))
                                         .foregroundStyle(theme.textGhost)
                                 }
                                 .padding(.horizontal, Spacing.md)

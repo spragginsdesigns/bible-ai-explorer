@@ -51,7 +51,7 @@ export default function QuizEntryCard({ book, chapter, bookName, notKjv, parchme
 				{title}
 			</h2>
 			<p
-				className={`mx-auto mt-2 max-w-sm text-[15px] leading-6 ${
+				className={`mx-auto mt-2 max-w-sm text-[0.9375rem] leading-6 ${
 					parchment ? "opacity-75" : "text-neutral-500 dark:text-neutral-400"
 				}`}
 			>
@@ -59,14 +59,14 @@ export default function QuizEntryCard({ book, chapter, bookName, notKjv, parchme
 			</p>
 			{notKjv ? (
 				<p
-					className={`mt-1 text-[13px] ${parchment ? "opacity-60" : "text-neutral-400 dark:text-neutral-500"}`}
+					className={`mt-1 text-[0.8125rem] ${parchment ? "opacity-60" : "text-neutral-400 dark:text-neutral-500"}`}
 				>
 					Questions come from the King James text.
 				</p>
 			) : null}
 			<Link
 				href={href}
-				className="mt-5 flex min-h-12 w-full items-center justify-center rounded-xl bg-amber-500 text-[16px] font-bold text-neutral-950 transition-colors hover:bg-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 dark:bg-amber-400 dark:hover:bg-amber-300"
+				className="mt-5 flex min-h-12 w-full items-center justify-center rounded-xl bg-amber-500 text-[1rem] font-bold text-neutral-950 transition-colors hover:bg-amber-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 dark:bg-amber-400 dark:hover:bg-amber-300"
 			>
 				Start quiz
 			</Link>
@@ -76,7 +76,7 @@ export default function QuizEntryCard({ book, chapter, bookName, notKjv, parchme
 					dismissChapter(book, chapter);
 					setDismissed(true);
 				}}
-				className={`mt-2 min-h-11 rounded-lg px-4 text-[15px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${
+				className={`mt-2 min-h-11 rounded-lg px-4 text-[0.9375rem] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${
 					parchment ? "opacity-70 hover:opacity-100" : "text-neutral-500 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200"
 				}`}
 			>

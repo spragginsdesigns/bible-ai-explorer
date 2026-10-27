@@ -78,7 +78,7 @@ struct NoteEditorPane: View {
         .overlay(alignment: .top) {
             if isCopiedVisible {
                 Label("Copied as Markdown", systemImage: "checkmark")
-                    .font(.system(size: 12, weight: .semibold))
+                    .appFont(.system(size: 12, weight: .semibold))
                     .foregroundStyle(theme.accent)
                     .padding(.horizontal, Spacing.lg)
                     .padding(.vertical, Spacing.sm)
@@ -165,24 +165,24 @@ struct NoteEditorPane: View {
                     // at a glance without costing a button.
                     if model.note?.isPinned == true {
                         Image(systemName: "pin.fill")
-                            .font(.system(size: 10))
+                            .appFont(.system(size: 10))
                             .foregroundStyle(theme.accent)
                             .accessibilityLabel("Pinned")
                     }
                     TextField("Untitled Note", text: $draftTitle)
                         .textFieldStyle(.plain)
-                        .font(.system(size: 16, weight: .semibold))
+                        .appFont(.system(size: 16, weight: .semibold))
                         .onSubmit(commitTitle)
                         .onAppear { draftTitle = model.note?.title ?? "" }
                 }
 
                 if model.isSaving {
                     Text("Saving…")
-                        .font(.system(size: 10))
+                        .appFont(.system(size: 10))
                         .foregroundStyle(theme.textGhost)
                 } else if let error = model.error {
                     Text(error)
-                        .font(.system(size: 10))
+                        .appFont(.system(size: 10))
                         .foregroundStyle(theme.danger)
                         .lineLimit(1)
                 }
@@ -239,7 +239,7 @@ struct NoteEditorPane: View {
 
     private var linkPopover: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("Link").font(.system(size: 12, weight: .semibold))
+            Text("Link").appFont(.system(size: 12, weight: .semibold))
             TextField("https://…", text: $linkTarget)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 240)
@@ -337,12 +337,12 @@ struct NoteTagPopover: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Text("Tags")
-                .font(.system(size: 12, weight: .semibold))
+                .appFont(.system(size: 12, weight: .semibold))
                 .foregroundStyle(theme.textMuted)
 
             if tags.isEmpty, !isCreating {
                 Text("No tags yet.")
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.textGhost)
             }
 
@@ -359,12 +359,12 @@ struct NoteTagPopover: View {
                                 Circle().strokeBorder(Color(hexString: tag.color), lineWidth: 1.5)
                             }
                         Text(tag.name)
-                            .font(.system(size: 13))
+                            .appFont(.system(size: 13))
                             .foregroundStyle(isSelected ? theme.text : theme.textSecondary)
                         Spacer()
                         if isSelected {
                             Image(systemName: "checkmark")
-                                .font(.system(size: 10))
+                                .appFont(.system(size: 10))
                                 .foregroundStyle(theme.accent)
                         }
                     }
@@ -402,13 +402,13 @@ struct NoteTagPopover: View {
                         .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
                     Button("Cancel") { reset() }
                 }
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
             } else {
                 Button {
                     isCreating = true
                 } label: {
                     Label("New tag", systemImage: "plus")
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textFaint)
                 }
                 .buttonStyle(.plain)

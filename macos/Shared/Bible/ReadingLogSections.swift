@@ -13,7 +13,7 @@ struct ReadingWalkCard: View {
     var body: some View {
         if walk.state != .hidden {
             VStack(alignment: .leading, spacing: Spacing.md) {
-                Text("YOUR WALK").font(.caption2.weight(.bold)).tracking(1.2).foregroundStyle(theme.accent)
+                Text("YOUR WALK").appFont(.caption2.weight(.bold)).tracking(1.2).foregroundStyle(theme.accent)
                     .accessibilityAddTraits(.isHeader)
                 content
             }
@@ -54,7 +54,7 @@ struct ReadingWalkCard: View {
             .accessibilityAddTraits(.updatesFrequently)
         case .consent:
             Text("SureWord can write a short reflection on what you have been reading, connected to your questions, notes and memories, with a verse to carry and where to read next.")
-                .font(.body).foregroundStyle(theme.textSecondary).fixedSize(horizontal: false, vertical: true)
+                .appFont(.body).foregroundStyle(theme.textSecondary).fixedSize(horizontal: false, vertical: true)
             link("Write my reflection →") { Task { await walk.load(ask: true) } }
         case .error:
             muted(Self.errorLine).accessibilityAddTraits(.updatesFrequently)
@@ -66,9 +66,9 @@ struct ReadingWalkCard: View {
 
     @ViewBuilder
     private func ready(_ reflection: ReadingReflection, generatedAt: String) -> some View {
-        Text(reflection.title).font(.title3.bold()).foregroundStyle(theme.text)
+        Text(reflection.title).appFont(.title3.bold()).foregroundStyle(theme.text)
             .fixedSize(horizontal: false, vertical: true)
-        Text(reflection.reflection).font(.body).foregroundStyle(theme.textSecondary)
+        Text(reflection.reflection).appFont(.body).foregroundStyle(theme.textSecondary)
             .fixedSize(horizontal: false, vertical: true)
         if let verse = reflection.verse {
             Button {
@@ -76,10 +76,10 @@ struct ReadingWalkCard: View {
                 open(ReadingLogTarget(book: verse.book, chapter: verse.chapter, verse: verse.verse, translation: .kjv))
             } label: {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Text("“\(verse.text)”").font(.custom(FontFamily.verseItalic, size: 19, relativeTo: .body))
+                    Text("“\(verse.text)”").appFont(.custom(FontFamily.verseItalic, size: 19, relativeTo: .body))
                         .foregroundStyle(theme.text).fixedSize(horizontal: false, vertical: true)
                     Text("\(verse.bookName) \(verse.chapter):\(verse.verse)")
-                        .font(.caption.weight(.semibold)).foregroundStyle(theme.accent)
+                        .appFont(.caption.weight(.semibold)).foregroundStyle(theme.accent)
                     if let note = verse.note, !note.isEmpty { muted(note) }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -96,7 +96,7 @@ struct ReadingWalkCard: View {
             } label: {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text("Read next: \(next.bookName) \(next.chapter) →")
-                        .font(.subheadline.weight(.semibold)).foregroundStyle(theme.text)
+                        .appFont(.subheadline.weight(.semibold)).foregroundStyle(theme.text)
                     muted(next.reason)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -109,7 +109,7 @@ struct ReadingWalkCard: View {
         }
         HStack(spacing: Spacing.sm) {
             Text(ReadingLogRules.reflectionAge(generatedAt, now: Date()))
-                .font(.caption2).foregroundStyle(theme.textFaint)
+                .appFont(.caption2).foregroundStyle(theme.textFaint)
             Spacer(minLength: Spacing.sm)
             if let onTalk {
                 link("Talk it over →") { onTalk(ReadingLogRules.talkPrompt) }
@@ -118,12 +118,12 @@ struct ReadingWalkCard: View {
     }
 
     private func muted(_ text: String) -> some View {
-        Text(text).font(.subheadline).foregroundStyle(theme.textMuted).fixedSize(horizontal: false, vertical: true)
+        Text(text).appFont(.subheadline).foregroundStyle(theme.textMuted).fixedSize(horizontal: false, vertical: true)
     }
 
     private func link(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(theme.accent).padding(.vertical, Spacing.xs)
+            Text(title).appFont(.subheadline.weight(.semibold)).foregroundStyle(theme.accent).padding(.vertical, Spacing.xs)
         }
         .buttonStyle(.plain)
     }
@@ -155,7 +155,7 @@ struct ReadingBibleMap: View {
     var body: some View {
         let books = ReadingLogRules.testamentProgress(coverage: coverage, testament: shown)
         VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("Your Bible").font(.title3.bold()).foregroundStyle(theme.text)
+            Text("Your Bible").appFont(.title3.bold()).foregroundStyle(theme.text)
                 .accessibilityAddTraits(.isHeader)
             Picker("Testament", selection: Binding(get: { shown }, set: { testament = $0; selected = nil })) {
                 ForEach(Book.Testament.allCases) { Text($0.title).tag($0) }
@@ -183,9 +183,9 @@ struct ReadingBibleMap: View {
             } action: { columns = $0 }
             if !books.contains(where: { $0.order == selected }) {
                 #if os(macOS)
-                Text("Click a book to see its chapters.").font(.caption).foregroundStyle(theme.textFaint)
+                Text("Click a book to see its chapters.").appFont(.caption).foregroundStyle(theme.textFaint)
                 #else
-                Text("Tap a book to see its chapters.").font(.caption).foregroundStyle(theme.textFaint)
+                Text("Tap a book to see its chapters.").appFont(.caption).foregroundStyle(theme.textFaint)
                 #endif
             }
         }
@@ -196,9 +196,9 @@ struct ReadingBibleMap: View {
         let isSelected = book.order == selected
         return Button { selected = isSelected ? nil : book.order } label: {
             VStack(alignment: .leading, spacing: 2) {
-                Text(book.name).font(.caption.weight(.semibold)).lineLimit(1)
+                Text(book.name).appFont(.caption.weight(.semibold)).lineLimit(1)
                     .foregroundStyle(book.touched ? theme.text : theme.textMuted)
-                Text("\(book.complete.count)/\(book.chapters)").font(.caption2).foregroundStyle(theme.textFaint)
+                Text("\(book.complete.count)/\(book.chapters)").appFont(.caption2).foregroundStyle(theme.textFaint)
                 ReadingProgressBar(fraction: book.share, height: 3, fill: theme.accent).padding(.top, 2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -216,7 +216,7 @@ struct ReadingBibleMap: View {
 
     private func chapters(_ book: ReadingBookProgress) -> some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
-            Text(book.chapterTitle).font(.subheadline.weight(.semibold)).foregroundStyle(theme.text)
+            Text(book.chapterTitle).appFont(.subheadline.weight(.semibold)).foregroundStyle(theme.text)
             LazyVGrid(columns: [GridItem(.adaptive(minimum: Self.square, maximum: Self.square), spacing: 6)], alignment: .leading, spacing: 6) {
                 ForEach(1...max(1, book.chapters), id: \.self) { chapter in
                     square(book, chapter: chapter)
@@ -234,7 +234,7 @@ struct ReadingBibleMap: View {
         return Button {
             open(ReadingLogTarget(book: book.order, chapter: chapter, verse: nil, translation: nil))
         } label: {
-            Text("\(chapter)").font(.caption2.weight(.semibold))
+            Text("\(chapter)").appFont(.caption2.weight(.semibold))
                 .foregroundStyle(state == .read ? Self.onGold : theme.textMuted)
                 .frame(width: Self.square, height: Self.square)
                 .background(

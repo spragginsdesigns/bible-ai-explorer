@@ -121,7 +121,7 @@ struct NoteEditorView: View {
         .overlay(alignment: .top) {
             if isCopiedVisible {
                 Label("Copied as Markdown", systemImage: "checkmark")
-                    .font(.footnote.weight(.semibold))
+                    .appFont(.footnote.weight(.semibold))
                     .foregroundStyle(theme.accent)
                     .padding(.horizontal, Spacing.md)
                     .padding(.vertical, Spacing.sm)
@@ -192,12 +192,12 @@ struct NoteEditorView: View {
                 // state stays readable at a glance without costing a button.
                 if model.note?.isPinned == true {
                     Image(systemName: "pin.fill")
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.accent)
                         .accessibilityLabel("Pinned")
                 }
                 TextField("Untitled Note", text: $draftTitle)
-                    .font(.title3.weight(.semibold))
+                    .appFont(.title3.weight(.semibold))
                     .foregroundStyle(theme.text)
                     .focused($isTitleFocused)
                     .onSubmit(commitTitle)
@@ -206,11 +206,11 @@ struct NoteEditorView: View {
 
             if model.isSaving {
                 Text("Saving…")
-                    .font(.caption2)
+                    .appFont(.caption2)
                     .foregroundStyle(theme.textGhost)
             } else if let error = model.error {
                 Text(error)
-                    .font(.caption2)
+                    .appFont(.caption2)
                     .foregroundStyle(theme.danger)
                     .lineLimit(1)
             }
@@ -342,7 +342,7 @@ private struct NoteTagSheet: View {
             List {
                 if tags.isEmpty, !isCreating {
                     Text("No tags yet.")
-                        .font(.subheadline)
+                        .appFont(.subheadline)
                         .foregroundStyle(theme.textGhost)
                         .listRowBackground(Color.clear)
                 }
@@ -360,12 +360,12 @@ private struct NoteTagSheet: View {
                                     Circle().strokeBorder(TagColor.color(tag.color), lineWidth: 1.5)
                                 }
                             Text(tag.name)
-                                .font(.body)
+                                .appFont(.body)
                                 .foregroundStyle(isSelected ? theme.text : theme.textSecondary)
                             Spacer()
                             if isSelected {
                                 Image(systemName: "checkmark")
-                                    .font(.caption)
+                                    .appFont(.caption)
                                     .foregroundStyle(theme.accent)
                             }
                         }

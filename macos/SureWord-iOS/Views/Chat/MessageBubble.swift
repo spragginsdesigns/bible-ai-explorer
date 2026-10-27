@@ -108,7 +108,7 @@ struct ChatMessageBubble: View {
             copyAnswer()
         } label: {
             Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(didCopy ? theme.accent : theme.textFaint)
                 .frame(minWidth: 44, minHeight: 44)
                 .contentShape(.rect)
@@ -154,7 +154,7 @@ struct ChatMessageBubble: View {
             onShare(message)
         } label: {
             Image(systemName: "square.and.arrow.up")
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.textFaint)
                 .frame(minWidth: 44, minHeight: 44)
                 .contentShape(.rect)
@@ -172,7 +172,7 @@ struct ChatMessageBubble: View {
             }
             if !message.content.isEmpty {
                 Text(message.content)
-                    .font(.system(size: 15))
+                    .appFont(.system(size: 15))
                     .foregroundStyle(theme.text)
                     .textSelection(.enabled)
                     .padding(.horizontal, Spacing.lg)
@@ -212,7 +212,7 @@ struct ChatMessageBubble: View {
                     copyAnswer()
                 } label: {
                     Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(didCopy ? theme.accent : theme.textFaint)
                         .frame(minWidth: 44, minHeight: 44)
                         .contentShape(.rect)
@@ -223,7 +223,7 @@ struct ChatMessageBubble: View {
             if let onEdit {
                 Button(action: onEdit) {
                     Image(systemName: "pencil")
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textFaint)
                         .frame(minWidth: 44, minHeight: 44)
                         .contentShape(.rect)
@@ -238,7 +238,7 @@ struct ChatMessageBubble: View {
     private func retryControl(_ retry: @escaping () -> Void) -> some View {
         Button(action: retry) {
             Image(systemName: "arrow.clockwise")
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.textFaint)
                 .frame(minWidth: 44, minHeight: 44)
                 .contentShape(.rect)
@@ -267,7 +267,7 @@ struct ChatMessageBubble: View {
                     Text(activity).foregroundStyle(theme.textMuted)
                     TypingDots()
                 }
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
             }
 
             if !message.content.isEmpty {
@@ -319,7 +319,7 @@ struct ChatMessageBubble: View {
                             Image(systemName: "square.and.pencil")
                             Text("Add to notes")
                         }
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textFaint)
                     }
                     .buttonStyle(SubtleButtonStyle())

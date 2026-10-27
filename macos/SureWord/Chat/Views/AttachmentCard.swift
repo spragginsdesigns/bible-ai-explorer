@@ -60,17 +60,17 @@ struct AttachmentCard: View {
                 thumbnail
                 VStack(alignment: .leading, spacing: 2) {
                     Text(filename)
-                        .font(.system(size: 12.5, weight: .semibold))
+                        .appFont(.system(size: 12.5, weight: .semibold))
                         .foregroundStyle(theme.text)
                         .lineLimit(1)
                         .truncationMode(.middle)
                     if isAudio {
                         Text(voiceMessageLabel(durationSeconds: durationSeconds))
-                            .font(.system(size: 10))
+                            .appFont(.system(size: 10))
                             .foregroundStyle(theme.textFaint)
                     } else if size > 0 {
                         Text(formatAttachmentBytes(size))
-                            .font(.system(size: 10))
+                            .appFont(.system(size: 10))
                             .foregroundStyle(theme.textFaint)
                     }
                 }
@@ -85,7 +85,7 @@ struct AttachmentCard: View {
 
             if showsTranscript, let shownTranscript {
                 Text(shownTranscript)
-                    .font(.system(size: 12.5))
+                    .appFont(.system(size: 12.5))
                     .foregroundStyle(theme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -112,7 +112,7 @@ struct AttachmentCard: View {
     private var thumbnail: some View {
         if isAudio {
             Image(systemName: "mic.fill")
-                .font(.system(size: 16, weight: .semibold))
+                .appFont(.system(size: 16, weight: .semibold))
                 .foregroundStyle(theme.accent)
                 .frame(width: 42, height: 42)
                 .background(theme.accentSoft, in: .rect(cornerRadius: Radius.sm))
@@ -126,7 +126,7 @@ struct AttachmentCard: View {
             .clipShape(.rect(cornerRadius: Radius.sm))
         } else {
             Text(glyph)
-                .font(.system(size: 10, weight: .bold))
+                .appFont(.system(size: 10, weight: .bold))
                 .foregroundStyle(theme.accent)
                 .frame(width: 42, height: 42)
                 .background(theme.accentSoft, in: .rect(cornerRadius: Radius.sm))

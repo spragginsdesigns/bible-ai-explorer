@@ -28,15 +28,15 @@ struct RetrievedVersesCard: View {
                 } label: {
                     HStack(spacing: Spacing.sm) {
                         Image(systemName: "book.closed")
-                            .font(.system(size: 12, weight: .medium))
+                            .appFont(.system(size: 12, weight: .medium))
                             .foregroundStyle(theme.textMuted)
                         Text(grouped.summary)
-                            .font(.system(size: 13, weight: .semibold))
+                            .appFont(.system(size: 13, weight: .semibold))
                             .foregroundStyle(theme.textSecondary)
                             .lineLimit(1)
                         Spacer()
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 11, weight: .semibold))
+                            .appFont(.system(size: 11, weight: .semibold))
                             .foregroundStyle(theme.textFaint)
                     }
                     .contentShape(.rect)
@@ -62,7 +62,7 @@ struct RetrievedVersesCard: View {
             VStack(spacing: 0) {
                 HStack {
                     Text("Scripture in this answer")
-                        .font(.system(size: 15, weight: .semibold))
+                        .appFont(.system(size: 15, weight: .semibold))
                         .foregroundStyle(theme.text)
                     Spacer()
                     Button("Done") { self.focus = nil }
@@ -104,17 +104,17 @@ struct WebResultsCard: View {
         GlassCard {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 Label("From the web", systemImage: "globe")
-                    .font(.system(size: 12, weight: .medium))
+                    .appFont(.system(size: 12, weight: .medium))
                     .foregroundStyle(theme.textMuted)
 
                 ForEach(results) { result in
                     Link(destination: URL(string: result.url) ?? Config.apiURL) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(result.title)
-                                .font(.system(size: 12, weight: .medium))
+                                .appFont(.system(size: 12, weight: .medium))
                                 .foregroundStyle(theme.accent)
                             Text(result.content)
-                                .font(.system(size: 11))
+                                .appFont(.system(size: 11))
                                 .foregroundStyle(theme.textMuted)
                                 .lineLimit(3)
                         }
@@ -146,7 +146,7 @@ struct NoteActionCard: View {
                 Spacer()
                 Image(systemName: "chevron.right").foregroundStyle(theme.textGhost)
             }
-            .font(.system(size: 12))
+            .appFont(.system(size: 12))
             .padding(Spacing.md)
             .background(theme.surface, in: .rect(cornerRadius: Radius.md))
             .overlay {
@@ -170,11 +170,11 @@ struct CrossActionCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(action.reference)
-                .font(.system(size: 13, weight: .semibold))
+                .appFont(.system(size: 13, weight: .semibold))
                 .foregroundStyle(theme.text)
 
             Text(action.text)
-                .font(.custom(FontFamily.verse, size: 14))
+                .appFont(.custom(FontFamily.verse, size: 14))
                 .foregroundStyle(theme.textSecondary)
                 .lineLimit(3)
                 .multilineTextAlignment(.leading)

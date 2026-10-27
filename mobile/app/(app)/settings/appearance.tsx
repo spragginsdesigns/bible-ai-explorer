@@ -7,11 +7,10 @@ import {
 	setBibleTranslation,
 	setParchmentEnabled,
 	setQuizOffer,
-	setTextScale,
 	setThemeMode,
 	useSettings,
 } from "@/features/settings/settingsStore";
-import { TEXT_SCALES, TEXT_SCALE_LABELS } from "@/features/settings/textScale";
+import { TextSizeControl } from "@/features/settings/TextSizeControl";
 import { SpotlightAnchor } from "@/features/onboarding/Spotlight";
 import { TRANSLATIONS, translationPickerLabel, type TranslationId } from "@/features/bible/translations";
 import {
@@ -79,20 +78,7 @@ export default function AppearanceSettingsScreen() {
 			<SectionLabel label="TEXT SIZE" />
 			<SpotlightAnchor target="settings.textSize">
 				<GlassCard style={styles.card}>
-					<View style={styles.chipRow}>
-						{TEXT_SCALES.map((scale) => (
-							<OptionChip
-								key={scale}
-								label={TEXT_SCALE_LABELS[scale]}
-								selected={settings.textScale === scale}
-								onPress={() => setTextScale(scale)}
-							/>
-						))}
-					</View>
-					<Text style={styles.hint}>
-						Makes every word in SureWord bigger, on top of your phone&apos;s own text size. Saved to your
-						account.
-					</Text>
+					<TextSizeControl />
 				</GlassCard>
 			</SpotlightAnchor>
 

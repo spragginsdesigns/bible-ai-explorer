@@ -208,7 +208,7 @@ enum NoteAttributedText {
         var attributes: [NSAttributedString.Key: Any] = [
             blockKey: BlockBox(block),
             .foregroundColor: UIColor(theme.text),
-            .paragraphStyle: paragraphStyle(for: block),
+            .paragraphStyle: paragraphStyle(for: block, scale: scale),
         ]
 
         switch block.kind {
@@ -218,7 +218,7 @@ enum NoteAttributedText {
                 weight: .bold
             )
         case .codeLine:
-            attributes[.font] = UIFont.monospacedSystemFont(ofSize: body - 1, weight: .regular)
+            attributes[.font] = UIFont.monospacedSystemFont(ofSize: (Metrics.bodySize - 1) * scale, weight: .regular)
             attributes[.foregroundColor] = UIColor(theme.textSecondary)
         case .horizontalRule:
             attributes[.font] = UIFont.systemFont(ofSize: body)
@@ -227,8 +227,8 @@ enum NoteAttributedText {
             if block.isInBlockquote {
                 // Quoted Scripture is set in Cormorant Garamond on every client;
                 // fall back to the system serif if the font failed to load.
-                attributes[.font] = UIFont(name: FontFamily.verse, size: body + 2)
-                    ?? UIFont.systemFont(ofSize: body + 1)
+                attributes[.font] = UIFont(name: FontFamily.verse, size: (Metrics.bodySize + 2) * scale)
+                    ?? UIFont.systemFont(ofSize: (Metrics.bodySize + 1) * scale)
                 attributes[.foregroundColor] = UIColor(theme.textSecondary)
             } else {
                 attributes[.font] = UIFont.systemFont(ofSize: body)
@@ -237,14 +237,14 @@ enum NoteAttributedText {
         return attributes
     }
 
-    static func paragraphStyle(for block: NoteBlock) -> NSParagraphStyle {
+    static func paragraphStyle(for block: NoteBlock, scale: CGFloat = 1) -> NSParagraphStyle {
         let style = NSMutableParagraphStyle()
         let indent =
             CGFloat(block.listDepth) * Metrics.listIndent
             + CGFloat(block.containers.filter { $0.kind == .blockquote }.count) * Metrics.quoteIndent
-        style.firstLineHeadIndent = indent
-        style.headIndent = indent
-        style.paragraphSpacing = Metrics.paragraphSpacing
+        style.firstLineHeadIndent = indent * scale
+        style.headIndent = indent * scale
+        style.paragraphSpacing = Metrics.paragraphSpacing * scale
         style.lineHeightMultiple = Metrics.lineHeightMultiple
 
         switch block.alignment {
@@ -314,7 +314,7 @@ enum NoteAttributedText {
         let base = (attributes[.font] as? UIFont) ?? UIFont.systemFont(ofSize: Metrics.bodySize(scale))
         if isCode {
             attributes[.font] = UIFont.monospacedSystemFont(
-                ofSize: base.pointSize - 1,
+                ofSize: base.pointSize - scale,
                 weight: traits.contains(.traitBold) ? .semibold : .regular
             )
         } else if !traits.isEmpty {

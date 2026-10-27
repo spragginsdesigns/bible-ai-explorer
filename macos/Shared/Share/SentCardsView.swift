@@ -133,7 +133,7 @@ struct SentCardsSectionView: View {
         if let loadError = model.loadError, model.cards.isEmpty {
             HStack(spacing: Spacing.md) {
                 Text(loadError)
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.danger)
                 Spacer()
                 Button("Retry") { Task { await model.load() } }
@@ -143,7 +143,7 @@ struct SentCardsSectionView: View {
             HStack(spacing: Spacing.sm) {
                 ProgressView().controlSize(.small)
                 Text("Loading your cards\u{2026}")
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.textMuted)
                 Spacer()
             }
@@ -159,7 +159,7 @@ struct SentCardsSectionView: View {
     private func row(_ card: SentCardRow) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(card.title)
-                .font(.system(size: 13))
+                .appFont(.system(size: 13))
                 .foregroundStyle(card.isRevoked ? theme.textMuted : theme.text)
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -167,12 +167,12 @@ struct SentCardsSectionView: View {
             HStack(spacing: Spacing.sm) {
                 if let createdAt = card.createdAt, !MemoryFormat.relativeTime(createdAt).isEmpty {
                     Text(MemoryFormat.relativeTime(createdAt))
-                        .font(.system(size: 11))
+                        .appFont(.system(size: 11))
                         .foregroundStyle(theme.textGhost)
                 }
                 if card.isRevoked {
                     Text("Revoked")
-                        .font(.system(size: 10, weight: .bold))
+                        .appFont(.system(size: 10, weight: .bold))
                         .kerning(0.6)
                         .foregroundStyle(theme.textMuted)
                 }
@@ -184,13 +184,13 @@ struct SentCardsSectionView: View {
                         copy(card)
                     }
                     .buttonStyle(SubtleButtonStyle())
-                    .font(.system(size: 11))
+                    .appFont(.system(size: 11))
                     .foregroundStyle(theme.textMuted)
                     .accessibilityLabel("Copy this card's link")
 
                     Button("Revoke") { pendingRevoke = card }
                         .buttonStyle(SubtleButtonStyle())
-                        .font(.system(size: 11))
+                        .appFont(.system(size: 11))
                         .foregroundStyle(theme.danger)
                         .disabled(model.revokingID != nil)
                         .accessibilityLabel("Revoke this card")
@@ -212,7 +212,7 @@ struct SentCardsSectionView: View {
 
     private func hint(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 11))
+            .appFont(.system(size: 11))
             .foregroundStyle(theme.textGhost)
             .frame(maxWidth: .infinity, alignment: .leading)
     }

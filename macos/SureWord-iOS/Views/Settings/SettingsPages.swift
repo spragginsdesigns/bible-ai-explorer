@@ -111,6 +111,10 @@ struct AppearanceSettingsPage: View {
                 SettingsHint("Read the Bible on aged scroll paper. Off returns the plain reader.")
             }
 
+            Section("Text size") {
+                TextSizeControls().spotlightTarget(.settingsTextSize)
+            }
+
             Section("Bible translation") {
                 // A menu, not segments: the Spanish and German Bibles show
                 // their full name and language, which five segments cannot fit.
@@ -324,7 +328,7 @@ struct NotificationSettingsPage: View {
                     LabeledContent("Arrives at") {
                         Stepper(value: $settings.verseOfDayHour, in: 0...23, step: 1) {
                             Text(SettingsStore.formatHour(settings.verseOfDayHour))
-                                .font(.system(size: 13, weight: .semibold))
+                                .appFont(.system(size: 13, weight: .semibold))
                                 .monospacedDigit()
                         }
                         .accessibilityLabel("Reminder hour")
@@ -377,7 +381,7 @@ struct SettingsHint: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 11))
+            .appFont(.system(size: 11))
             .foregroundStyle(theme.textGhost)
             .frame(maxWidth: .infinity, alignment: .leading)
     }

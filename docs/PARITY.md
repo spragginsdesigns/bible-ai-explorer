@@ -13,6 +13,23 @@ Update this file whenever a feature changes on any client.
 > remains the historical evidence ledger; the TODO is the current work queue
 > for those three clients and does not certify macOS parity.
 
+**2026-10-27 bounded text sizing (verified source, delivery receipts pending):**
+The existing Standard / Large / Largest account preference stays at factors
+1 / 1.15 / 1.3. Labeled decrease and increase controls stop at the endpoints,
+Reset restores Standard, and a live Scripture preview shows the chosen size.
+This pass extends consistent sizing to text paths that bypassed the shared
+primitives and adapts navigation, composer and passage-preview layouts.
+Android 1.105.0 (122) is signed and installed on emulator-5554: endpoints,
+Reset, restart persistence, quick access and whole-label layouts were exercised,
+including 2x system text. Web passed its final build, 1,747 logic tests and
+320px layout/keyboard stress checks using shipping components. Apple 1.28.0
+(37) compiles; macOS native sizing tests pass 4/4 and iOS focused suites pass
+25/25, with real iOS debug captures at Largest, maximum system text and reader
+step 3. Signed Apple delivery is blocked by `errSecInternalComponent`; no
+installed Mac update or TestFlight delivery is claimed. Platform proof limits
+and release receipts are recorded separately in
+[the sizing evidence ledger](accessibility-text-size-2026-10-27.md).
+
 **2026-10-26 Spanish and German (Android and web released, Apple in progress):**
 answers in Spanish (quoting the Reina-Valera 1909) or German (quoting the
 Lutherbibel 1912), following the device language and changeable in Settings,

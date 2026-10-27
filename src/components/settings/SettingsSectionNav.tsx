@@ -44,7 +44,7 @@ export function AccountAvatar({ size = 32 }: { size?: number }) {
 	return (
 		<span
 			aria-hidden
-			style={{ width: size, height: size, fontSize: size * 0.42 }}
+			style={{ width: `${size / 16}rem`, height: `${size / 16}rem`, fontSize: `${size * 0.42 / 16}rem` }}
 			className="relative flex flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-amber-500/40 bg-amber-500/10 font-bold text-amber-600 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-400"
 		>
 			{initial}
@@ -94,7 +94,7 @@ const SettingsSectionNav: React.FC<SettingsSectionNavProps> = ({ onNavigate }) =
 					}}
 					placeholder="Search settings"
 					aria-label="Search settings"
-					className="min-w-0 flex-1 bg-transparent text-[13px] text-neutral-800 outline-none placeholder:text-neutral-400 dark:text-neutral-200 [&::-webkit-search-cancel-button]:hidden"
+					className="min-w-0 flex-1 bg-transparent text-[0.8125rem] text-neutral-800 outline-none placeholder:text-neutral-400 dark:text-neutral-200 [&::-webkit-search-cancel-button]:hidden"
 				/>
 				{query ? (
 					<button type="button" onClick={() => setQuery("")} aria-label="Clear search" className="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200">
@@ -112,7 +112,7 @@ const SettingsSectionNav: React.FC<SettingsSectionNavProps> = ({ onNavigate }) =
 				>
 					<AccountAvatar size={30} />
 					<span className="min-w-0 flex-1">
-						<span className="block truncate text-[13px] font-semibold text-neutral-900 dark:text-neutral-100">
+						<span className="block truncate text-[0.8125rem] font-semibold text-neutral-900 dark:text-neutral-100">
 							{name || email || "Signed in"}
 						</span>
 						<span className="block truncate text-metadata text-neutral-400 dark:text-neutral-500">
@@ -147,7 +147,7 @@ const SettingsSectionNav: React.FC<SettingsSectionNavProps> = ({ onNavigate }) =
 			})}
 
 			{visible.length === 0 ? (
-				<p className="px-2.5 py-2 text-[13px] text-neutral-400 dark:text-neutral-500">
+				<p className="px-2.5 py-2 text-[0.8125rem] text-neutral-400 dark:text-neutral-500">
 					No settings match &ldquo;{query.trim()}&rdquo;.
 				</p>
 			) : null}

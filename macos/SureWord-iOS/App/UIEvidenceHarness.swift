@@ -11,6 +11,7 @@ import SwiftUI
 ///     -evidence.select 16 -evidence.selectEnd 18 -evidence.scrollVerse 9
 ///     -evidence.tier peek|expanded -evidence.tab explain|words|seeAlso
 ///     -evidence.parchment 1 -evidence.appearance dark|light
+///     -evidence.fontStep 0|1|2|3
 ///     -evidence.query "living water"
 ///     -evidence.lastRead "Judges|7|BSB"
 ///     -evidence.screen shell   (the signed-in tab shell, so a share waiting
@@ -83,6 +84,12 @@ struct UIEvidenceHarness: View {
             AccountSettingsPage()
         case "settings-appearance":
             AppearanceSettingsPage()
+        case "text-size":
+            ScrollView {
+                TextSizeControls()
+                    .padding(Spacing.lg)
+            }
+            .navigationTitle("Text size")
         case "settings-highlights":
             HighlightLabelsPage()
         case "settings-church":
@@ -135,6 +142,10 @@ struct UIEvidenceHarness: View {
             }
         }
         app = AppModel(settings: settings, userID: nil)
+        if let step = Self.int("fontStep"), let model = app?.bible {
+            let bounded = min(max(step, 0), BibleModel.fontSteps.count - 1)
+            model.stepFont(bounded - model.fontStep)
+        }
         if Self.string("screen")?.hasPrefix("settings") == true { Self.seedSettingsData() }
     }
 

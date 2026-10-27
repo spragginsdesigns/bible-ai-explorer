@@ -83,14 +83,14 @@ struct AtlasExplorerPane: View {
         HStack(spacing: Spacing.md) {
             Button(action: onDismiss) {
                 Label("Bible", systemImage: "chevron.left")
-                    .font(.system(size: 12, weight: .semibold))
+                    .appFont(.system(size: 12, weight: .semibold))
                     .foregroundStyle(theme.accent)
             }
             .buttonStyle(SubtleButtonStyle())
             .help("Back to Bible")
 
             Text("Timeline, People & Places")
-                .font(.custom(FontFamily.brand, size: 24))
+                .appFont(.custom(FontFamily.brand, size: 24))
                 .foregroundStyle(theme.text)
 
             Spacer()
@@ -102,7 +102,7 @@ struct AtlasExplorerPane: View {
     private var searchField: some View {
         HStack(spacing: Spacing.sm) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.textGhost)
 
             TextField(
@@ -113,7 +113,7 @@ struct AtlasExplorerPane: View {
                 )
             )
             .textFieldStyle(.plain)
-            .font(.system(size: 13))
+            .appFont(.system(size: 13))
             .foregroundStyle(theme.text)
 
             if !model.searchQuery.isEmpty {
@@ -121,7 +121,7 @@ struct AtlasExplorerPane: View {
                     model.clearSearch()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textGhost)
                 }
                 .buttonStyle(.plain)
@@ -174,7 +174,7 @@ struct AtlasExplorerPane: View {
             }
         } label: {
             Text(title)
-                .font(.system(size: 11, weight: .semibold))
+                .appFont(.system(size: 11, weight: .semibold))
                 .foregroundStyle(active ? theme.accent : theme.textMuted)
                 .padding(.horizontal, Spacing.sm)
                 .padding(.vertical, 6)
@@ -238,7 +238,7 @@ struct AtlasExplorerPane: View {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     if scopedBook != nil, !scopedEntities.isEmpty {
                         Text("WHO'S IN THIS CHAPTER")
-                            .font(.system(size: 10, weight: .bold))
+                            .appFont(.system(size: 10, weight: .bold))
                             .kerning(1.1)
                             .foregroundStyle(theme.accent)
                             .padding(.bottom, Spacing.sm)
@@ -260,13 +260,13 @@ struct AtlasExplorerPane: View {
                     }
                     if let journey = model.journeyPersonID {
                         Text("Journey · \(journey)")
-                            .font(.system(size: 11, weight: .semibold))
+                            .appFont(.system(size: 11, weight: .semibold))
                             .foregroundStyle(theme.accent)
                             .padding(.bottom, Spacing.sm)
                     }
                     ForEach(model.timelineGroups) { group in
                         Text(group.era.rawValue)
-                            .font(.system(size: 10, weight: .bold))
+                            .appFont(.system(size: 10, weight: .bold))
                             .kerning(1.1)
                             .foregroundStyle(theme.textMuted)
                             .padding(.top, Spacing.md)
@@ -277,7 +277,7 @@ struct AtlasExplorerPane: View {
                         }
                     }
                     Text("Dates follow the traditional Ussher chronology carried in the margins of the King James Bible; they are not part of the inspired text.")
-                        .font(.system(size: 10))
+                        .appFont(.system(size: 10))
                         .foregroundStyle(theme.textGhost)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, Spacing.lg)
@@ -295,7 +295,7 @@ struct AtlasExplorerPane: View {
             HStack(alignment: .top, spacing: Spacing.md) {
                 VStack(spacing: 0) {
                     Text("✦")
-                        .font(.system(size: 15, weight: .bold))
+                        .appFont(.system(size: 15, weight: .bold))
                         .foregroundStyle(theme.accent)
                         .frame(width: 26, height: 26)
                         .background(theme.accentSoft, in: .circle)
@@ -309,14 +309,14 @@ struct AtlasExplorerPane: View {
 
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text(atlasDateLabel(event))
-                        .font(.system(size: 10, weight: .bold))
+                        .appFont(.system(size: 10, weight: .bold))
                         .foregroundStyle(theme.accent)
                     Text(event.title)
-                        .font(.system(size: 14, weight: .semibold))
+                        .appFont(.system(size: 14, weight: .semibold))
                         .foregroundStyle(theme.text)
                         .multilineTextAlignment(.leading)
                     Text(event.summary)
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textMuted)
                         .lineLimit(3)
                         .multilineTextAlignment(.leading)
@@ -324,7 +324,7 @@ struct AtlasExplorerPane: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .semibold))
+                    .appFont(.system(size: 11, weight: .semibold))
                     .foregroundStyle(theme.textGhost)
                     .padding(.top, Spacing.sm)
             }
@@ -358,17 +358,17 @@ struct AtlasExplorerPane: View {
                                     .foregroundStyle(theme.accent)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(entity.name)
-                                        .font(.system(size: 13, weight: .semibold))
+                                        .appFont(.system(size: 13, weight: .semibold))
                                         .foregroundStyle(theme.text)
                                     if let disambiguator = entity.disambiguator {
                                         Text(disambiguator)
-                                            .font(.system(size: 10))
+                                            .appFont(.system(size: 10))
                                             .foregroundStyle(theme.textMuted)
                                     }
                                 }
                                 Spacer()
                                 Image(systemName: "chevron.right")
-                                    .font(.system(size: 11, weight: .semibold))
+                                    .appFont(.system(size: 11, weight: .semibold))
                                     .foregroundStyle(theme.textGhost)
                             }
                             .padding(.horizontal, Spacing.md)
@@ -425,7 +425,7 @@ struct AtlasExplorerPane: View {
             if !hits.isEmpty {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     Text("\(title) · \(count)")
-                        .font(.system(size: 10, weight: .bold))
+                        .appFont(.system(size: 10, weight: .bold))
                         .kerning(1.1)
                         .foregroundStyle(theme.accent)
                     ForEach(hits) { hit in
@@ -437,20 +437,20 @@ struct AtlasExplorerPane: View {
                         } label: {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(hit.name)
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .appFont(.system(size: 13, weight: .semibold))
                                     .foregroundStyle(theme.text)
                                 if let disambiguator = hit.disambiguator {
                                     Text(disambiguator)
-                                        .font(.system(size: 10))
+                                        .appFont(.system(size: 10))
                                         .foregroundStyle(theme.textMuted)
                                 }
                                 Text(hit.description)
-                                    .font(.system(size: 11))
+                                    .appFont(.system(size: 11))
                                     .foregroundStyle(theme.textMuted)
                                     .lineLimit(2)
                                 if hit.kind == .event {
                                     Text(atlasSearchDateLabel(hit))
-                                        .font(.system(size: 10, weight: .semibold))
+                                        .appFont(.system(size: 10, weight: .semibold))
                                         .foregroundStyle(theme.accent)
                                 }
                             }
@@ -493,13 +493,13 @@ struct AtlasExplorerPane: View {
     private func eventDetail(_ event: AtlasEventView) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text(event.title)
-                .font(.custom(FontFamily.brand, size: 28))
+                .appFont(.custom(FontFamily.brand, size: 28))
                 .foregroundStyle(theme.text)
             Text("\(atlasDateLabel(event)) · \(event.era.rawValue)")
-                .font(.system(size: 11, weight: .semibold))
+                .appFont(.system(size: 11, weight: .semibold))
                 .foregroundStyle(theme.accent)
             Text(event.summary)
-                .font(.system(size: 14))
+                .appFont(.system(size: 14))
                 .foregroundStyle(theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -527,23 +527,23 @@ struct AtlasExplorerPane: View {
     private func entityDetail(_ entity: AtlasEntityView) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text(entity.name)
-                .font(.custom(FontFamily.brand, size: 30))
+                .appFont(.custom(FontFamily.brand, size: 30))
                 .foregroundStyle(theme.text)
             if let disambiguator = entity.disambiguator {
                 Text(disambiguator)
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.textMuted)
             }
             Text(entity.kind == .person ? "Person" : "Place")
-                .font(.system(size: 12, weight: .semibold))
+                .appFont(.system(size: 12, weight: .semibold))
                 .foregroundStyle(theme.accent)
             if !entity.alsoCalled.isEmpty {
                 Text("Also called \(entity.alsoCalled.joined(separator: ", "))")
-                    .font(.system(size: 12).italic())
+                    .appFont(.system(size: 12).italic())
                     .foregroundStyle(theme.textMuted)
             }
             Text(entity.description)
-                .font(.system(size: 14))
+                .appFont(.system(size: 14))
                 .foregroundStyle(theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -591,16 +591,16 @@ struct AtlasExplorerPane: View {
                     Button { model.loadEvent(event.id) } label: {
                         HStack(alignment: .top, spacing: Spacing.sm) {
                             Text(atlasEntityDateLabel(event.yearLabel))
-                                .font(.system(size: 10, weight: .bold))
+                                .appFont(.system(size: 10, weight: .bold))
                                 .foregroundStyle(theme.accent)
                                 .frame(width: 150, alignment: .leading)
                             Text(event.title)
-                                .font(.system(size: 12, weight: .semibold))
+                                .appFont(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(theme.textSecondary)
                                 .multilineTextAlignment(.leading)
                             Spacer()
                             Image(systemName: "chevron.right")
-                                .font(.system(size: 10, weight: .semibold))
+                                .appFont(.system(size: 10, weight: .semibold))
                                 .foregroundStyle(theme.textGhost)
                         }
                         .padding(.vertical, Spacing.xs)
@@ -638,20 +638,20 @@ struct AtlasExplorerPane: View {
                             .foregroundStyle(theme.accent)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(entry.entity.name)
-                                .font(.system(size: 12, weight: .semibold))
+                                .appFont(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(theme.text)
                             if let disambiguator = entry.entity.disambiguator {
                                 Text(disambiguator)
-                                    .font(.system(size: 10))
+                                    .appFont(.system(size: 10))
                                     .foregroundStyle(theme.textMuted)
                             }
                             Text("\(entry.label) · \(entry.relation.certainty.rawValue)")
-                                .font(.system(size: 10))
+                                .appFont(.system(size: 10))
                                 .foregroundStyle(theme.textMuted)
                         }
                         Spacer()
                         Image(systemName: expandedRelationID == entry.id ? "chevron.down" : "chevron.right")
-                            .font(.system(size: 10, weight: .semibold))
+                            .appFont(.system(size: 10, weight: .semibold))
                             .foregroundStyle(theme.textGhost)
                     }
                     .padding(Spacing.sm)
@@ -662,7 +662,7 @@ struct AtlasExplorerPane: View {
                 if expandedRelationID == entry.id {
                     VStack(alignment: .leading, spacing: Spacing.xs) {
                         Text("\(entry.label) · \(entry.relation.certainty.rawValue)")
-                            .font(.system(size: 11, weight: .semibold))
+                            .appFont(.system(size: 11, weight: .semibold))
                             .foregroundStyle(theme.accent)
                         referenceChips(entry.relation.refs)
                         Button("Open \(entry.entity.name)") { model.loadEntity(entry.entity.id) }
@@ -690,7 +690,7 @@ struct AtlasExplorerPane: View {
                     model.search($0)
                 }))
                 .textFieldStyle(.roundedBorder)
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
 
                 if traceTargetID == nil {
                     ForEach(model.searchResults.filter { $0.kind == .person && $0.id != entityID }) { hit in
@@ -700,9 +700,9 @@ struct AtlasExplorerPane: View {
                             model.traceConnection(from: entityID, to: hit.id)
                         } label: {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(hit.name).font(.system(size: 12, weight: .semibold))
+                                Text(hit.name).appFont(.system(size: 12, weight: .semibold))
                                 if let disambiguator = hit.disambiguator {
-                                    Text(disambiguator).font(.system(size: 10)).foregroundStyle(theme.textMuted)
+                                    Text(disambiguator).appFont(.system(size: 10)).foregroundStyle(theme.textMuted)
                                 }
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -720,15 +720,15 @@ struct AtlasExplorerPane: View {
                     ForEach(Array(path.entities.enumerated()), id: \.offset) { index, step in
                         VStack(alignment: .leading, spacing: 2) {
                             Text("\(index + 1). \(step.name)")
-                                .font(.system(size: 12, weight: .semibold))
+                                .appFont(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(theme.text)
                             if let disambiguator = step.disambiguator {
-                                Text(disambiguator).font(.system(size: 10)).foregroundStyle(theme.textMuted)
+                                Text(disambiguator).appFont(.system(size: 10)).foregroundStyle(theme.textMuted)
                             }
                             if index < path.relations.count {
                                 let relation = path.relations[index]
                                 Text("\(AtlasRelationLabels.label(for: relation, perspectiveID: step.id)) · \(relation.certainty.rawValue)")
-                                    .font(.system(size: 10))
+                                    .appFont(.system(size: 10))
                                     .foregroundStyle(theme.textMuted)
                                 referenceChips(relation.refs)
                             }
@@ -746,7 +746,7 @@ struct AtlasExplorerPane: View {
                 Button(reference) { onOpenReference(reference) }
                     .buttonStyle(SubtleButtonStyle())
                     .foregroundStyle(theme.accent)
-                    .font(.system(size: 11, weight: .semibold))
+                    .appFont(.system(size: 11, weight: .semibold))
                     .help("Open \(reference) in the Bible reader")
                     .accessibilityLabel("Open \(reference) in the Bible reader")
             }
@@ -756,11 +756,11 @@ struct AtlasExplorerPane: View {
     private func entityChip(_ entity: AtlasEntityRef) -> some View {
         HStack(spacing: Spacing.xs) {
             Image(systemName: entity.kind == .person ? "person" : "mappin.and.ellipse")
-                .font(.system(size: 10))
+                .appFont(.system(size: 10))
             VStack(alignment: .leading, spacing: 1) {
-                Text(entity.name).font(.system(size: 11, weight: .semibold))
+                Text(entity.name).appFont(.system(size: 11, weight: .semibold))
                 if let disambiguator = entity.disambiguator {
-                    Text(disambiguator).font(.system(size: 9)).foregroundStyle(theme.textMuted)
+                    Text(disambiguator).appFont(.system(size: 9)).foregroundStyle(theme.textMuted)
                 }
             }
         }
@@ -773,7 +773,7 @@ struct AtlasExplorerPane: View {
 
     private func detailLabel(_ title: String) -> some View {
         Text(title.uppercased())
-            .font(.system(size: 10, weight: .bold))
+            .appFont(.system(size: 10, weight: .bold))
             .kerning(1.1)
             .foregroundStyle(theme.textMuted)
             .padding(.top, Spacing.sm)
@@ -839,7 +839,7 @@ struct AtlasExplorerPane: View {
     private func atlasLoading(_ text: String) -> some View {
         VStack(spacing: Spacing.sm) {
             ProgressView().controlSize(.small)
-            Text(text).font(.system(size: 12)).foregroundStyle(theme.textFaint)
+            Text(text).appFont(.system(size: 12)).foregroundStyle(theme.textFaint)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Spacing.xxl)
@@ -848,7 +848,7 @@ struct AtlasExplorerPane: View {
     private func atlasEmpty(_ text: String) -> some View {
         GlassCard {
             Text(text)
-                .font(.system(size: 13))
+                .appFont(.system(size: 13))
                 .foregroundStyle(theme.textMuted)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
@@ -860,7 +860,7 @@ struct AtlasExplorerPane: View {
         GlassCard {
             VStack(spacing: Spacing.md) {
                 Text(message)
-                    .font(.system(size: 13))
+                    .appFont(.system(size: 13))
                     .foregroundStyle(theme.textSecondary)
                     .multilineTextAlignment(.center)
                 Button("Try again", action: retry)

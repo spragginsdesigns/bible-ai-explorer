@@ -4,7 +4,7 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { AppText as Text } from "@/components/AppText";
 import { SureWordGuideAvatar } from "@/components/SureWordGuideAvatar";
 import { radius, spacing, typography, type Colors } from "@/theme";
-import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
+import { useTextScaleFactor, useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { useSuggestedQuestions } from "./useSuggestedQuestions";
 import { chatColors } from "./chatAppearance";
 import { buildSuggestedQuestionItems, parseReferenceLabel, type SuggestedQuestionItem } from "./questionPresentation";
@@ -52,8 +52,9 @@ export function WelcomeContent({
 }) {
 	const styles = useThemedStyles(createStyles);
 	const { width, fontScale } = useWindowDimensions();
+	const appTextScale = useTextScaleFactor();
 	// Android transports its float setting as 1.299999952, so compare percent.
-	const fontScalePercent = Math.round(fontScale * 100);
+	const fontScalePercent = Math.round(fontScale * appTextScale * 100);
 	const singleColumn = width < 350 || fontScalePercent >= 130;
 	const [showAll, setShowAll] = useState(false);
 	const hiddenCount = Math.max(0, items.length - VISIBLE_QUESTION_COUNT);

@@ -32,7 +32,7 @@ Come hungry for the Word.
 
 "Heaven and earth shall pass away, but my words shall not pass away." Matthew 24:35
 
-SureWord is a KJV Bible app and personal Bible study companion with AI for Christians who believe the King James Bible is the inerrant, infallible Word of God. Read, listen, study and grow with a guide that learns your walk and points you back to Scripture.
+SureWord is a KJV Bible app and personal Bible study companion with AI for Christians who believe the King James Bible is God's inerrant, infallible Word. Study Scripture first.
 
 ASK THE BIBLE ANYTHING
 • Answers that search the Scriptures first and quote the King James Version word for word, every verse one tap from the reader
@@ -52,6 +52,7 @@ READ AND LISTEN TO THE KJV BIBLE
 • The whole King James Bible offline, plus the NKJV, BSB, Reina-Valera and Luther
 • Audio Bible: the whole KJV narrated, Genesis to Revelation, verse by verse
 • Words of Christ in red on a parchment page, in light or dark mode
+• Adjustable text size across chat, Scripture, notes and menus
 • Tap any verse for a clear explanation, word study and related passages
 • Highlight verses in eight colors and name what each color means
 • Share verse cards with AI or your own words, fonts and placement

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text as ScriptText, View } from "react-native";
-import { AppText as Text } from "@/components/AppText";
+import { Pressable, StyleSheet, View } from "react-native";
+import { AppText as Text, AppScriptText as ScriptText } from "@/components/AppText";
 import { AccentButton, GhostButton } from "@/components/ui";
 import { fonts, radius, spacing, typography, type Colors } from "@/theme";
 import { useThemedStyles } from "@/features/settings/settingsStore";

@@ -22,7 +22,7 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
 				}}
 			>
 				<div style={{ textAlign: "center", maxWidth: 360 }}>
-					<h1 style={{ fontSize: 24, marginBottom: 8 }}>SureWord hit a problem</h1>
+					<h1 style={{ fontSize: "1.5rem", marginBottom: 8 }}>SureWord hit a problem</h1>
 					<p style={{ color: "#a3a3a3", marginBottom: 24 }}>
 						Your conversations and notes are safe. Try loading the app again.
 					</p>

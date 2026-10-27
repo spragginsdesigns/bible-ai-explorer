@@ -26,7 +26,7 @@ struct SermonStudyView: View {
             VStack(alignment: .leading, spacing: Spacing.md) {
                 if let error {
                     VStack(alignment: .leading, spacing: Spacing.sm) {
-                        Text(error).font(.system(size: 15)).foregroundStyle(theme.textSecondary)
+                        Text(error).appFont(.system(size: 15)).foregroundStyle(theme.textSecondary)
                         Button("Try again") { Task { await load() } }
                             .foregroundStyle(theme.accent)
                             .frame(minHeight: 44)
@@ -76,14 +76,14 @@ struct SermonStudyView: View {
             SermonArtwork(url: url)
         }
         Text(study.title)
-            .font(.system(size: 26, weight: .semibold))
+            .appFont(.system(size: 26, weight: .semibold))
             .foregroundStyle(theme.text)
         Text(study.bigIdea)
-            .font(.system(size: 17).italic())
+            .appFont(.system(size: 17).italic())
             .foregroundStyle(theme.textSecondary)
         if !study.credits.isEmpty {
             Text(study.credits)
-                .font(.system(size: 13))
+                .appFont(.system(size: 13))
                 .foregroundStyle(theme.textMuted)
         }
         link("Watch the service →") { watch(study, at: study.sermonStartMs) }
@@ -92,7 +92,7 @@ struct SermonStudyView: View {
         ForEach(Array(study.sections.enumerated()), id: \.offset) { index, section in
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 Text("\(index + 1). \(section.heading)")
-                    .font(.system(size: 20, weight: .semibold))
+                    .appFont(.system(size: 20, weight: .semibold))
                     .foregroundStyle(theme.text)
                 link("Watch from \(SermonFormat.timestamp(section.startMs)) →") {
                     watch(study, at: section.startMs)
@@ -106,7 +106,7 @@ struct SermonStudyView: View {
                 if let quote = section.pastorQuote {
                     VStack(alignment: .leading, spacing: Spacing.xs) {
                         Text(quote)
-                            .font(.system(size: 17))
+                            .appFont(.system(size: 17))
                             .foregroundStyle(theme.text)
                         label("WHAT WAS PREACHED")
                     }
@@ -119,15 +119,15 @@ struct SermonStudyView: View {
                 if let passage = section.passage, let verses = section.passageText {
                     VStack(alignment: .leading, spacing: Spacing.xs) {
                         Text(passage)
-                            .font(.system(size: 13, weight: .bold))
+                            .appFont(.system(size: 13, weight: .bold))
                             .kerning(1)
                             .foregroundStyle(theme.accent)
                         ForEach(verses) { verse in
                             let number = Text("\(verse.verse) ")
-                                .font(.system(size: 11, weight: .bold))
+                                .appFont(.system(size: 11, weight: .bold))
                                 .foregroundStyle(theme.accent)
                             Text("\(number)\(verse.text)")
-                                .font(.custom(FontFamily.verse, size: 19, relativeTo: .body))
+                                .appFont(.custom(FontFamily.verse, size: 19, relativeTo: .body))
                                 .foregroundStyle(theme.textSecondary)
                         }
                     }
@@ -142,7 +142,7 @@ struct SermonStudyView: View {
 
                 Text("\(Text("Consider: ").bold().foregroundStyle(theme.text))\(section.reflection)")
                     .foregroundStyle(theme.textSecondary)
-                    .font(.system(size: 16))
+                    .appFont(.system(size: 16))
                     .padding(Spacing.lg)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(theme.surface, in: .rect(cornerRadius: Radius.lg))
@@ -174,14 +174,14 @@ struct SermonStudyView: View {
 
     private func paragraph(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 16))
+            .appFont(.system(size: 16))
             .foregroundStyle(theme.textSecondary)
             .fixedSize(horizontal: false, vertical: true)
     }
 
     private func label(_ text: String, accent: Bool = false) -> some View {
         Text(text)
-            .font(.system(size: 11, weight: .bold))
+            .appFont(.system(size: 11, weight: .bold))
             .kerning(1)
             .foregroundStyle(accent ? theme.accent : theme.textMuted)
     }
@@ -189,7 +189,7 @@ struct SermonStudyView: View {
     private func link(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 15))
+                .appFont(.system(size: 15))
                 .foregroundStyle(theme.accent)
                 .frame(minHeight: 32)
         }
@@ -203,7 +203,7 @@ struct SermonStudyView: View {
                 watch(study, at: study.sermonStartMs)
             } label: {
                 Label("Watch the service", systemImage: "play.circle")
-                    .font(.system(size: 16, weight: .bold))
+                    .appFont(.system(size: 16, weight: .bold))
                     .lineLimit(1)
                     .foregroundStyle(theme.text)
                     .frame(maxWidth: .infinity, minHeight: 52)
@@ -220,10 +220,10 @@ struct SermonStudyView: View {
             } label: {
                 VStack(spacing: 2) {
                     Image(systemName: "sparkles")
-                        .font(.system(size: 20))
+                        .appFont(.system(size: 20))
                         .foregroundStyle(theme.text)
                     Text("Ask AI")
-                        .font(.system(size: 11))
+                        .appFont(.system(size: 11))
                         .foregroundStyle(theme.textMuted)
                 }
                 .frame(minWidth: 52, minHeight: 52)

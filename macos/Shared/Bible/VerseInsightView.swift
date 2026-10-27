@@ -9,6 +9,8 @@ import SwiftUI
 /// iOS presents it in the verse bottom sheet (which passes narrower
 /// `skeletonWidths`).
 struct VerseInsightView: View {
+    @Environment(\.textScaleFactor) private var textScale
+    @ScaledMetric private var systemTextScale: CGFloat = 1
     @Environment(\.theme) private var theme
 
     let status: VerseInsightModel.Status
@@ -61,10 +63,10 @@ struct VerseInsightView: View {
     private var explanation: some View {
         (
             Text(text)
-                .font(.system(size: 13.5))
+                .appFont(.system(size: 13.5), scale: textScale * systemTextScale)
                 .foregroundStyle(theme.textSecondary)
                 + Text(status == .streaming ? " ▍" : "")
-                .font(.system(size: 13.5))
+                .appFont(.system(size: 13.5), scale: textScale * systemTextScale)
                 .foregroundStyle(theme.accent)
         )
         .lineSpacing(4)
@@ -76,12 +78,12 @@ struct VerseInsightView: View {
     private var errorState: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(error ?? "The explanation could not be generated. Try again.")
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.textMuted)
                 .fixedSize(horizontal: false, vertical: true)
             Button("Try again", action: onRetry)
                 .buttonStyle(.plain)
-                .font(.system(size: 12, weight: .semibold))
+                .appFont(.system(size: 12, weight: .semibold))
                 .foregroundStyle(theme.accent)
         }
         .padding(.vertical, Spacing.xs)

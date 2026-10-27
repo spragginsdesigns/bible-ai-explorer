@@ -56,10 +56,10 @@ export default function ChapterAudioBar({
       {player.stillListeningPrompt ? (
         <div className="flex flex-col gap-2.5 px-1 py-1" role="alertdialog" aria-labelledby="still-listening-title">
           <div>
-            <p id="still-listening-title" className="text-[15px] font-semibold text-neutral-900 dark:text-neutral-100">
+            <p id="still-listening-title" className="text-[0.9375rem] font-semibold text-neutral-900 dark:text-neutral-100">
               Still listening?
             </p>
-            <p className="text-[13px] leading-5 text-neutral-500 dark:text-neutral-400">
+            <p className="text-[0.8125rem] leading-5 text-neutral-500 dark:text-neutral-400">
               We paused {reference} after an hour without a tap.
             </p>
           </div>
@@ -85,7 +85,7 @@ export default function ChapterAudioBar({
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-1">
             <div className="min-w-0 flex-1 pl-1">
-              <p className="truncate text-[13.5px] font-semibold text-neutral-900 dark:text-neutral-100">
+              <p className="truncate text-[0.84375rem] font-semibold text-neutral-900 dark:text-neutral-100">
                 {reference}
                 {player.verse ? `:${player.verse}` : null}
                 {player.edition === "alive" ? (
@@ -111,7 +111,7 @@ export default function ChapterAudioBar({
               type="button"
               onClick={player.cycleRate}
               aria-label={`Playback speed ${formatListenRate(player.rate)}, tap to change`}
-              className={`${CHIP} h-8 w-12 text-[12.5px] font-bold tabular-nums`}
+              className={`${CHIP} h-8 w-12 text-[0.78125rem] font-bold tabular-nums`}
             >
               {formatListenRate(player.rate)}
             </button>

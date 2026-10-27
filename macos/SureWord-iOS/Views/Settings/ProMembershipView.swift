@@ -36,7 +36,7 @@ struct ProMembershipView: View {
             Section {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("SureWord Pro")
-                        .font(.title2.weight(.semibold))
+                        .appFont(.title2.weight(.semibold))
                     Text("More room to study, and Scripture read aloud.")
                         .foregroundStyle(.secondary)
                 }
@@ -75,7 +75,7 @@ struct ProMembershipView: View {
             if offer == .purchasable || offer == .activeHere {
                 Section {
                     Text(disclosure)
-                        .font(.footnote)
+                        .appFont(.footnote)
                         .foregroundStyle(.secondary)
                     Link("Privacy Policy", destination: AppStoreBilling.privacyURL)
                     Link("Terms of Use (EULA)", destination: AppStoreBilling.eulaURL)
@@ -129,7 +129,7 @@ struct ProMembershipView: View {
             }
             restoreButton
             if let message = store.state.message {
-                Text(message).font(.footnote).foregroundStyle(.secondary)
+                Text(message).appFont(.footnote).foregroundStyle(.secondary)
             }
         }
     }
@@ -146,7 +146,7 @@ struct ProMembershipView: View {
             Button("Manage subscription") { isManaging = true }
             restoreButton
             if let message = store.state.message {
-                Text(message).font(.footnote).foregroundStyle(.secondary)
+                Text(message).appFont(.footnote).foregroundStyle(.secondary)
             }
         }
     }

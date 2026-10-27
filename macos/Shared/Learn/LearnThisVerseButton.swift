@@ -30,7 +30,7 @@ struct LearnThisVerseButton: View {
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 if status == .saved {
                     Text("Added to Learn.")
-                        .font(.system(size: 14))
+                        .appFont(.system(size: 14))
                         .foregroundStyle(theme.textMuted)
                     if let onOpenLearn {
                         actionButton("Open Learn", action: onOpenLearn)
@@ -45,7 +45,7 @@ struct LearnThisVerseButton: View {
                 }
                 if status == .error {
                     Text("Could not add this verse. Check your connection and try again.")
-                        .font(.system(size: 13))
+                        .appFont(.system(size: 13))
                         .foregroundStyle(theme.danger)
                 }
             }
@@ -56,7 +56,7 @@ struct LearnThisVerseButton: View {
     private func actionButton(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 14, weight: .semibold))
+                .appFont(.system(size: 14, weight: .semibold))
                 .foregroundStyle(theme.accent)
                 .frame(maxWidth: .infinity, minHeight: 44)
                 .overlay {

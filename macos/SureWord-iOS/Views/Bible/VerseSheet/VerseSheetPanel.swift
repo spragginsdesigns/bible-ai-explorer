@@ -100,12 +100,12 @@ struct VerseSheetPanel<Peek: View, Study: View, Footer: View>: View {
             HStack(spacing: Spacing.md) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.system(size: 16, weight: .bold))
+                        .appFont(.system(size: 16, weight: .bold))
                         .foregroundStyle(theme.text)
                         .lineLimit(1)
                     if let subtitle {
                         Text(subtitle)
-                            .font(.system(size: 12))
+                            .appFont(.system(size: 12))
                             .foregroundStyle(theme.textFaint)
                             .lineLimit(1)
                     }
@@ -116,7 +116,7 @@ struct VerseSheetPanel<Peek: View, Study: View, Footer: View>: View {
 
                 Button(action: onClose) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 12, weight: .semibold))
+                        .appFont(.system(size: 12, weight: .semibold))
                         .foregroundStyle(theme.textMuted)
                         .frame(width: 32, height: 32)
                         .background(theme.surface, in: .circle)

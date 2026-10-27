@@ -254,7 +254,7 @@ export default function DailyCrossPage() {
 						)}
 						<TimelineStop glyph="✝" label="TODAY'S VERSE">
 							<div className="glass-card gradient-border flex flex-col gap-3 rounded-2xl p-5">
-								<p className="text-[15px] font-bold text-amber-600 dark:text-amber-400">
+								<p className="text-[0.9375rem] font-bold text-amber-600 dark:text-amber-400">
 									{entry.reference}
 								</p>
 								<p className="font-[family-name:var(--font-cormorant)] text-chat text-neutral-900 dark:text-neutral-100">
@@ -304,7 +304,7 @@ export default function DailyCrossPage() {
 											{step.book} {step.chapter} ›
 										</span>
 										{isTodaysPlanReading(plan, step.book, step.chapter) && (
-											<span className="rounded-full border border-black/[0.08] dark:border-white/[0.08] px-1.5 py-0.5 text-[9.5px] font-bold tracking-[0.08em] text-neutral-400 dark:text-neutral-500">
+											<span className="rounded-full border border-black/[0.08] dark:border-white/[0.08] px-1.5 py-0.5 text-[0.59375rem] font-bold tracking-[0.08em] text-neutral-400 dark:text-neutral-500">
 												FROM YOUR PLAN
 											</span>
 										)}

@@ -63,11 +63,11 @@ struct ChatAddToNoteSheet: View {
                     Section {
                         VStack(alignment: .leading, spacing: Spacing.sm) {
                             Text(saveError)
-                                .font(.system(size: 12))
+                                .appFont(.system(size: 12))
                                 .foregroundStyle(theme.danger)
                                 .fixedSize(horizontal: false, vertical: true)
                             Button("Retry") { retry() }
-                                .font(.system(size: 12, weight: .medium))
+                                .appFont(.system(size: 12, weight: .medium))
                                 .foregroundStyle(theme.danger)
                                 .disabled(saving)
                         }
@@ -84,11 +84,11 @@ struct ChatAddToNoteSheet: View {
                     } else if let listError {
                         VStack(spacing: Spacing.sm) {
                             Text(listError)
-                                .font(.system(size: 12))
+                                .appFont(.system(size: 12))
                                 .foregroundStyle(theme.textFaint)
                                 .multilineTextAlignment(.center)
                             Button("Retry") { Task { await loadNotes() } }
-                                .font(.system(size: 12))
+                                .appFont(.system(size: 12))
                                 .foregroundStyle(theme.accent)
                         }
                         .frame(maxWidth: .infinity)
@@ -98,7 +98,7 @@ struct ChatAddToNoteSheet: View {
                                 ? "No notes yet — start one with “New note” above."
                                 : "No notes match that search."
                         )
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textFaint)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
@@ -133,11 +133,11 @@ struct ChatAddToNoteSheet: View {
             HStack(spacing: Spacing.md) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(note.displayTitle)
-                        .font(.system(size: 13, weight: .medium))
+                        .appFont(.system(size: 13, weight: .medium))
                         .foregroundStyle(theme.textSecondary)
                         .lineLimit(1)
                     Text(note.preview)
-                        .font(.system(size: 11.5))
+                        .appFont(.system(size: 11.5))
                         .foregroundStyle(theme.textFaint)
                         .lineLimit(1)
                 }
@@ -146,7 +146,7 @@ struct ChatAddToNoteSheet: View {
                     ProgressView().controlSize(.small)
                 } else {
                     Text(AddToNote.relativeTime(note.updatedAt))
-                        .font(.system(size: 11))
+                        .appFont(.system(size: 11))
                         .foregroundStyle(theme.textGhost)
                 }
             }

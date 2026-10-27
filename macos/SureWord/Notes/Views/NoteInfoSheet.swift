@@ -32,7 +32,7 @@ struct NoteInfoSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Note info")
-                .font(.system(size: 15, weight: .semibold))
+                .appFont(.system(size: 15, weight: .semibold))
                 .foregroundStyle(theme.text)
                 .padding([.horizontal, .top], Spacing.xl)
                 .padding(.bottom, Spacing.md)
@@ -93,7 +93,7 @@ struct NoteInfoSheet: View {
                 .foregroundStyle(theme.textSecondary)
                 .lineLimit(1)
         }
-        .font(.system(size: 13))
+        .appFont(.system(size: 13))
     }
 
     // MARK: Aliases
@@ -107,7 +107,7 @@ struct NoteInfoSheet: View {
                 ForEach(note.aliases, id: \.self) { alias in
                     HStack {
                         Text(alias)
-                            .font(.system(size: 13))
+                            .appFont(.system(size: 13))
                             .foregroundStyle(theme.textSecondary)
                             .lineLimit(1)
                         Spacer()
@@ -169,7 +169,7 @@ struct NoteInfoSheet: View {
                     draft = PropertyDraft(originalKey: nil, key: "", type: .text, value: "")
                 } label: {
                     Label("Add property", systemImage: "plus")
-                        .font(.system(size: 13))
+                        .appFont(.system(size: 13))
                         .foregroundStyle(theme.accent)
                 }
                 .buttonStyle(.plain)
@@ -181,11 +181,11 @@ struct NoteInfoSheet: View {
         HStack(spacing: Spacing.md) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(key)
-                    .font(.system(size: 11, weight: .semibold))
+                    .appFont(.system(size: 11, weight: .semibold))
                     .foregroundStyle(theme.textFaint)
                     .lineLimit(1)
                 Text(NotePropertyEditing.format(value))
-                    .font(.system(size: 13))
+                    .appFont(.system(size: 13))
                     .foregroundStyle(theme.textSecondary)
                     .lineLimit(2)
             }
@@ -310,7 +310,7 @@ struct NoteInfoSheet: View {
                             .fontWeight(.semibold)
                             .foregroundStyle(theme.danger)
                     }
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .padding(.horizontal, Spacing.md)
                     .padding(.vertical, Spacing.sm)
                     .background(theme.dangerSoft, in: .rect(cornerRadius: Radius.md))
@@ -338,10 +338,10 @@ struct NoteInfoSheet: View {
             } label: {
                 HStack(spacing: Spacing.md) {
                     Image(systemName: "arrow.right")
-                        .font(.system(size: 11))
+                        .appFont(.system(size: 11))
                         .foregroundStyle(theme.textMuted)
                     Text(label)
-                        .font(.system(size: 13))
+                        .appFont(.system(size: 13))
                         .foregroundStyle(theme.textSecondary)
                         .lineLimit(1)
                     Spacer(minLength: 0)
@@ -356,10 +356,10 @@ struct NoteInfoSheet: View {
             // create that the server resolves the moment the note exists.
             HStack(spacing: Spacing.md) {
                 Image(systemName: "questionmark.circle")
-                    .font(.system(size: 11))
+                    .appFont(.system(size: 11))
                     .foregroundStyle(theme.textGhost)
                 Text(label)
-                    .font(.system(size: 13))
+                    .appFont(.system(size: 13))
                     .italic()
                     .foregroundStyle(theme.textGhost)
                     .lineLimit(1)
@@ -368,7 +368,7 @@ struct NoteInfoSheet: View {
                     ProgressView().controlSize(.small)
                 } else {
                     Button("Create") { createAndOpen(link.targetTitle) }
-                        .font(.system(size: 12, weight: .semibold))
+                        .appFont(.system(size: 12, weight: .semibold))
                         .foregroundStyle(theme.accent)
                         .buttonStyle(.plain)
                         .accessibilityLabel("Create the note \(label)")
@@ -393,15 +393,15 @@ struct NoteInfoSheet: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(title)
-                                .font(.system(size: 13))
+                                .appFont(.system(size: 13))
                                 .foregroundStyle(theme.textSecondary)
                                 .lineLimit(1)
                             Text(backlink.snippet)
-                                .font(.system(size: 12))
+                                .appFont(.system(size: 12))
                                 .foregroundStyle(theme.textFaint)
                                 .lineLimit(2)
                             Text(NoteUtils.relativeTime(backlink.updatedAt))
-                                .font(.system(size: 11))
+                                .appFont(.system(size: 11))
                                 .foregroundStyle(theme.textGhost)
                         }
                         .padding(.vertical, Spacing.xs)
@@ -419,7 +419,7 @@ struct NoteInfoSheet: View {
 
     private func sectionTitle(_ text: String) -> some View {
         Text(text.uppercased())
-            .font(.system(size: 11, weight: .bold))
+            .appFont(.system(size: 11, weight: .bold))
             .tracking(0.4)
             .foregroundStyle(theme.text)
             .padding(.top, Spacing.md)
@@ -427,7 +427,7 @@ struct NoteInfoSheet: View {
 
     private func fieldLabel(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 11, weight: .semibold))
+            .appFont(.system(size: 11, weight: .semibold))
             .foregroundStyle(theme.textFaint)
             .padding(.top, Spacing.md)
     }
@@ -436,7 +436,7 @@ struct NoteInfoSheet: View {
     /// never read as Markdown.
     private func hint(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 12))
+            .appFont(.system(size: 12))
             .foregroundStyle(theme.textGhost)
     }
 

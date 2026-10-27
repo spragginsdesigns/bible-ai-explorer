@@ -189,7 +189,7 @@ struct FeedbackView: View {
                     Text(
                         "Tell us what is broken, what is missing, or what you would want SureWord to do. A person reads every one of these."
                     )
-                    .font(.footnote)
+                    .appFont(.footnote)
                     .foregroundStyle(theme.textMuted)
 
                     Picker("Kind of feedback", selection: $model.category) {
@@ -237,7 +237,7 @@ struct FeedbackView: View {
                         Spacer()
                         Text(model.counter).monospacedDigit()
                     }
-                    .font(.caption)
+                    .appFont(.caption)
                     .foregroundStyle(theme.textGhost)
                 }
 

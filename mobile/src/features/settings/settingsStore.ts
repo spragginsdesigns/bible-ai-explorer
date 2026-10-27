@@ -282,8 +282,9 @@ export function setListenRate(listenRate: number) {
 
 export function setTextScale(textScale: TextScale) {
 	const previous = snapshot.textScale;
-	setSnapshot({ ...snapshot, textScale });
-	writeThrough({ textScale }, revertIfUnchanged("textScale", textScale, previous));
+	const next = normalizeTextScale(textScale);
+	setSnapshot({ ...snapshot, textScale: next });
+	writeThrough({ textScale: next }, revertIfUnchanged("textScale", next, previous));
 }
 
 export function setAnswerLanguage(answerLanguage: AnswerLanguage) {

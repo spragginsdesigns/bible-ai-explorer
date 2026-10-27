@@ -188,7 +188,7 @@ struct ReceiptLineView: View {
 
             if !fragment.isLast {
                 Text(ReceiptFragment.separator)
-                    .font(.system(size: 12))
+                    .appFont(.system(size: 12))
                     .foregroundStyle(theme.accentDim)
                     .accessibilityHidden(true)
             }
@@ -197,7 +197,7 @@ struct ReceiptLineView: View {
 
     private func label(_ text: String, color: Color) -> some View {
         Text(text)
-            .font(.system(size: 12))
+            .appFont(.system(size: 12))
             .foregroundStyle(color)
             #if os(iOS)
             // Android's 44pt minimum touch height for each fragment.

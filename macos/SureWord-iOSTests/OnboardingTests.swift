@@ -315,11 +315,11 @@ struct OnboardingTests {
         #expect(TextScale.normalize(nil) == .standard)
     }
 
-    @Test("A size steps Dynamic Type up from the system's and stops at the top")
+    @Test("App size preserves the independent system Dynamic Type setting")
     func textScaleDynamicType() {
         #expect(TextScale.standard.dynamicTypeSize(over: .large) == .large)
-        #expect(TextScale.large.dynamicTypeSize(over: .large) == .xxLarge)
-        #expect(TextScale.largest.dynamicTypeSize(over: .large) == .accessibility1)
-        #expect(TextScale.largest.dynamicTypeSize(over: .accessibility4) == .accessibility5)
+        #expect(TextScale.large.dynamicTypeSize(over: .large) == .large)
+        #expect(TextScale.largest.dynamicTypeSize(over: .large) == .large)
+        #expect(TextScale.largest.dynamicTypeSize(over: .accessibility4) == .accessibility4)
     }
 }

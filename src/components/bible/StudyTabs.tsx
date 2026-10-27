@@ -49,7 +49,7 @@ export default function StudyTabs<Key extends string>({
             aria-selected={selected}
             aria-controls={STUDY_PANEL_ID}
             onClick={() => onChange(tab.key)}
-            className={`min-h-9 flex-1 rounded-lg px-2 text-[13px] font-bold transition-colors ${
+            className={`min-h-9 flex-1 rounded-lg px-2 text-[0.8125rem] font-bold transition-colors ${
               selected
                 ? "bg-amber-500/15 text-amber-600 dark:bg-amber-400/15 dark:text-amber-400"
                 : "text-neutral-500 hover:bg-black/[0.05] dark:text-neutral-400 dark:hover:bg-white/[0.06]"

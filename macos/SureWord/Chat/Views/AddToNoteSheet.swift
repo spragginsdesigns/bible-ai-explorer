@@ -57,14 +57,14 @@ struct AddToNoteSheet: View {
     private var header: some View {
         HStack {
             Label("Add to notes", systemImage: "square.and.pencil")
-                .font(.system(size: 13, weight: .semibold))
+                .appFont(.system(size: 13, weight: .semibold))
                 .foregroundStyle(theme.accent)
             Spacer()
             Button {
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .semibold))
+                    .appFont(.system(size: 11, weight: .semibold))
                     .foregroundStyle(theme.textFaint)
             }
             .buttonStyle(SubtleButtonStyle())
@@ -94,11 +94,11 @@ struct AddToNoteSheet: View {
     private var searchField: some View {
         HStack(spacing: Spacing.sm) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 11))
+                .appFont(.system(size: 11))
                 .foregroundStyle(theme.textGhost)
             TextField("Search your notes", text: $query)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13))
+                .appFont(.system(size: 13))
                 .foregroundStyle(theme.text)
         }
         .padding(.horizontal, Spacing.md)
@@ -112,14 +112,14 @@ struct AddToNoteSheet: View {
     private func errorBar(_ message: String) -> some View {
         HStack(spacing: Spacing.md) {
             Text(message)
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.danger)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer()
             Button("Retry") { retry() }
                 .buttonStyle(SubtleButtonStyle())
                 .foregroundStyle(theme.danger)
-                .font(.system(size: 12, weight: .medium))
+                .appFont(.system(size: 12, weight: .medium))
                 .disabled(saving)
         }
         .padding(.horizontal, Spacing.md)
@@ -138,12 +138,12 @@ struct AddToNoteSheet: View {
             centered {
                 VStack(spacing: Spacing.sm) {
                     Text(listError)
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.textFaint)
                         .multilineTextAlignment(.center)
                     Button("Retry") { Task { await loadNotes() } }
                         .buttonStyle(SubtleButtonStyle())
-                        .font(.system(size: 12))
+                        .appFont(.system(size: 12))
                         .foregroundStyle(theme.accent)
                 }
             }
@@ -154,7 +154,7 @@ struct AddToNoteSheet: View {
                         ? "No notes yet — start one with “New note” above."
                         : "No notes match that search."
                 )
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.textFaint)
                 .multilineTextAlignment(.center)
             }
@@ -176,11 +176,11 @@ struct AddToNoteSheet: View {
             HStack(spacing: Spacing.md) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(note.displayTitle)
-                        .font(.system(size: 13, weight: .medium))
+                        .appFont(.system(size: 13, weight: .medium))
                         .foregroundStyle(theme.textSecondary)
                         .lineLimit(1)
                     Text(note.preview)
-                        .font(.system(size: 11.5))
+                        .appFont(.system(size: 11.5))
                         .foregroundStyle(theme.textFaint)
                         .lineLimit(1)
                 }
@@ -189,7 +189,7 @@ struct AddToNoteSheet: View {
                     ProgressView().controlSize(.small)
                 } else {
                     Text(AddToNote.relativeTime(note.updatedAt))
-                        .font(.system(size: 11))
+                        .appFont(.system(size: 11))
                         .foregroundStyle(theme.textGhost)
                 }
             }

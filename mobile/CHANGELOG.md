@@ -2,6 +2,16 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.105.0 (versionCode 122) - 2026-10-27 - internal and closed testing
+
+**What's new (Play):**
+
+IMPROVED
+- Adjust text with clear smaller, larger and reset buttons in Appearance & reading. Standard, Large and Largest keep text within a comfortable range.
+- Text size now reaches more of the app, including Scripture, notes and the message box. Navigation and controls make room for larger text.
+
+**Dev notes:** Accessibility sizing uses the existing account preference and its bounded 1 / 1.15 / 1.3 factors. Reader-specific sizing is preserved and the app factor applies once to native text runs, Markdown, the paste-enabled composer and the rich notes editor. The text controls disable at their limits and reset to Standard. Cross-client implementation and actual verification receipts are recorded in docs/accessibility-text-size-2026-10-27.md and docs/PARITY.md. App package versions are synchronized for this release.
+
 ## 1.104.0 (versionCode 121) - 2026-10-26 - internal and closed testing
 
 **What's new (Play):**

@@ -121,7 +121,7 @@ export default function ChatFileAttachments({ attachments, onRemove }: ChatFileA
 				})}
 			</div>
 			{openTranscript ? (
-				<p className="max-w-prose whitespace-pre-wrap rounded-xl border border-black/[0.09] bg-white/70 p-3 text-[13px] leading-6 text-neutral-700 dark:border-white/[0.09] dark:bg-white/[0.04] dark:text-neutral-300">
+				<p className="max-w-prose whitespace-pre-wrap rounded-xl border border-black/[0.09] bg-white/70 p-3 text-[0.8125rem] leading-6 text-neutral-700 dark:border-white/[0.09] dark:bg-white/[0.04] dark:text-neutral-300">
 					{openTranscript}
 				</p>
 			) : null}

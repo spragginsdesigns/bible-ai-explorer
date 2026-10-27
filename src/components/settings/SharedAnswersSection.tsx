@@ -137,7 +137,7 @@ export default function SharedAnswersSection() {
 				ANSWER LINKS
 			</h2>
 			<div className="glass-card gradient-border rounded-2xl p-4 flex flex-col gap-3">
-				<p className="text-[13px] leading-5 text-neutral-500 dark:text-neutral-400">
+				<p className="text-[0.8125rem] leading-5 text-neutral-500 dark:text-neutral-400">
 					Anyone with a link can read that one answer, signed out. Links stay unlisted unless
 					you turn on Show in search. Revoking takes the page down; the rest of your
 					conversation was never part of it.
@@ -145,7 +145,7 @@ export default function SharedAnswersSection() {
 
 				{shares === null ? (
 					<div className="flex min-h-24 items-center justify-between gap-3 rounded-xl border border-black/[0.08] dark:border-white/[0.08] px-3">
-						<p className="text-[13px] text-neutral-400 dark:text-neutral-500">
+						<p className="text-[0.8125rem] text-neutral-400 dark:text-neutral-500">
 							{loadError ?? "Loading shared answers…"}
 						</p>
 						{loadError ? (
@@ -159,7 +159,7 @@ export default function SharedAnswersSection() {
 						) : null}
 					</div>
 				) : shares.length === 0 ? (
-					<p className="text-[13px] text-neutral-400 dark:text-neutral-500">
+					<p className="text-[0.8125rem] text-neutral-400 dark:text-neutral-500">
 						Answers you share appear here.
 					</p>
 				) : (
@@ -173,7 +173,7 @@ export default function SharedAnswersSection() {
 									className="flex flex-col gap-2 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.02] p-3"
 								>
 									<div className="flex items-start gap-2">
-										<p className="min-w-0 flex-1 line-clamp-2 text-[14px] font-semibold text-neutral-900 dark:text-neutral-100">
+										<p className="min-w-0 flex-1 line-clamp-2 text-[0.875rem] font-semibold text-neutral-900 dark:text-neutral-100">
 											{share.question || "Shared answer"}
 										</p>
 										{revoked && (

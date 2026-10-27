@@ -43,6 +43,12 @@ export function normalizeTextScale(value: unknown): TextScale {
 	return isTextScale(value) ? value : DEFAULT_TEXT_SCALE;
 }
 
+/** Buttons move between the supported account values and stop at either end. */
+export function stepTextScale(value: unknown, direction: -1 | 1): TextScale {
+	const index = TEXT_SCALES.indexOf(normalizeTextScale(value));
+	return TEXT_SCALES[Math.max(0, Math.min(TEXT_SCALES.length - 1, index + direction))];
+}
+
 /** The scale a text size chip ("Large") stands for, or null for anything else. */
 export function textScaleForLabel(label: string): TextScale | null {
 	const match = TEXT_SCALES.find((scale) => TEXT_SCALE_LABELS[scale] === label);
@@ -52,6 +58,7 @@ export function textScaleForLabel(label: string): TextScale | null {
 /** Point <html> at a size. A no-op outside the browser. */
 export function applyTextScaleToDocument(scale: TextScale): void {
 	if (typeof document === "undefined") return;
+	scale = normalizeTextScale(scale);
 	const root = document.documentElement;
 	if (scale === DEFAULT_TEXT_SCALE) root.style.removeProperty(TEXT_SCALE_CSS_VAR);
 	else root.style.setProperty(TEXT_SCALE_CSS_VAR, String(TEXT_SCALE_FACTORS[scale]));
@@ -63,4 +70,4 @@ export function applyTextScaleToDocument(scale: TextScale): void {
  * never sees the page draw at the standard size and then jump. Built from the
  * same constants as everything else, so it cannot drift from them.
  */
-export const TEXT_SCALE_BOOT_SCRIPT = `try{var s=localStorage.getItem(${JSON.stringify(TEXT_SCALE_PREF_KEY)});var f=${JSON.stringify(TEXT_SCALE_FACTORS)}[s];if(f&&f!==1){document.documentElement.style.setProperty(${JSON.stringify(TEXT_SCALE_CSS_VAR)},String(f));document.documentElement.dataset.textScale=s}}catch(e){}`;
+export const TEXT_SCALE_BOOT_SCRIPT = `try{var s=localStorage.getItem(${JSON.stringify(TEXT_SCALE_PREF_KEY)});var factors=${JSON.stringify(TEXT_SCALE_FACTORS)};var f=Object.prototype.hasOwnProperty.call(factors,s)?factors[s]:1;if(f!==1){document.documentElement.style.setProperty(${JSON.stringify(TEXT_SCALE_CSS_VAR)},String(f));document.documentElement.dataset.textScale=s}}catch(e){}`;

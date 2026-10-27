@@ -701,7 +701,7 @@ struct ModelPickerPopover: View {
         HStack {
             ProgressView().controlSize(.small)
             Text("Loading models…")
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.textFaint)
             Spacer()
         }
@@ -713,10 +713,10 @@ struct ModelPickerPopover: View {
     private var header: some View {
         HStack(spacing: Spacing.sm) {
             Image(systemName: "sparkles")
-                .font(.system(size: 12, weight: .semibold))
+                .appFont(.system(size: 12, weight: .semibold))
                 .foregroundStyle(theme.accent)
             Text(headerTitle)
-                .font(.system(size: 12, weight: .bold))
+                .appFont(.system(size: 12, weight: .bold))
                 .foregroundStyle(theme.textSecondary)
                 .lineLimit(1)
                 .truncationMode(.tail)
@@ -750,18 +750,18 @@ struct ModelPickerPopover: View {
     private var searchField: some View {
         HStack(spacing: Spacing.sm) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 11))
+                .appFont(.system(size: 11))
                 .foregroundStyle(theme.textGhost)
             TextField("Search models", text: $query)
                 .textFieldStyle(.plain)
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.textSecondary)
             if !query.isEmpty {
                 Button {
                     query = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 11))
+                        .appFont(.system(size: 11))
                         .foregroundStyle(theme.textGhost)
                 }
                 .buttonStyle(.plain)
@@ -804,17 +804,17 @@ struct ModelPickerPopover: View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             HStack(spacing: Spacing.sm) {
                 Text(house.label)
-                    .font(.system(size: 13, weight: .bold))
+                    .appFont(.system(size: 13, weight: .bold))
                     .foregroundStyle(theme.accent)
                     .lineLimit(1)
                 if house.isPremium { PremiumMark() }
                 Spacer(minLength: Spacing.xs)
                 Image(systemName: "checkmark")
-                    .font(.system(size: 10, weight: .bold))
+                    .appFont(.system(size: 10, weight: .bold))
                     .foregroundStyle(theme.accent)
             }
             Text(ModelPickerRules.houseNote(house))
-                .font(.system(size: 11))
+                .appFont(.system(size: 11))
                 .foregroundStyle(theme.textFaint)
                 .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
@@ -844,7 +844,7 @@ struct ModelPickerPopover: View {
             VStack(alignment: .leading, spacing: 0) {
                 if results.isEmpty {
                     Text("No models match.")
-                        .font(.system(size: 11))
+                        .appFont(.system(size: 11))
                         .foregroundStyle(theme.textFaint)
                         .padding(.horizontal, Spacing.md)
                         .padding(.vertical, Spacing.sm)
@@ -896,15 +896,15 @@ struct ModelPickerPopover: View {
         } label: {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
-                    .font(.system(size: 10, weight: .semibold))
+                    .appFont(.system(size: 10, weight: .semibold))
                     .foregroundStyle(theme.textGhost)
                     .frame(width: 12)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(provider.label)
-                        .font(.system(size: 13, weight: .semibold))
+                        .appFont(.system(size: 13, weight: .semibold))
                         .foregroundStyle(theme.textSecondary)
                     Text(ModelPickerRules.providerSubtitle(modelCount: count))
-                        .font(.system(size: 11))
+                        .appFont(.system(size: 11))
                         .foregroundStyle(theme.textGhost)
                 }
                 Spacer()
@@ -935,18 +935,18 @@ struct ModelPickerPopover: View {
                     HStack(spacing: Spacing.xs) {
                         if showsProvider {
                             Text(ModelPickerRules.providerLabel(for: model))
-                                .font(.system(size: 10, weight: .semibold))
+                                .appFont(.system(size: 10, weight: .semibold))
                                 .foregroundStyle(theme.textGhost)
                         }
                         Text(model.label)
-                            .font(.system(size: 12.5, weight: active ? .bold : .regular))
+                            .appFont(.system(size: 12.5, weight: active ? .bold : .regular))
                             .foregroundStyle(active ? theme.accent : theme.textSecondary)
                             .lineLimit(1)
                             .truncationMode(.middle)
                         if model.premium { PremiumMark() }
                         ForEach(pills, id: \.self) { pill in
                             Text(pill)
-                                .font(.system(size: 9, weight: .semibold))
+                                .appFont(.system(size: 9, weight: .semibold))
                                 .foregroundStyle(theme.textGhost)
                                 .padding(.horizontal, 4)
                                 .padding(.vertical, 1)
@@ -955,7 +955,7 @@ struct ModelPickerPopover: View {
                     }
                     if let meta {
                         Text(meta)
-                            .font(.system(size: 10))
+                            .appFont(.system(size: 10))
                             .foregroundStyle(theme.textGhost)
                             .lineLimit(1)
                     }
@@ -963,7 +963,7 @@ struct ModelPickerPopover: View {
                 Spacer(minLength: Spacing.xs)
                 if active {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 10, weight: .bold))
+                        .appFont(.system(size: 10, weight: .bold))
                         .foregroundStyle(theme.accent)
                 }
             }
@@ -1057,13 +1057,13 @@ struct ModelPickerPopover: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Text(title)
-                .font(.system(size: 10, weight: .bold))
+                .appFont(.system(size: 10, weight: .bold))
                 .tracking(1.2)
                 .foregroundStyle(theme.textGhost)
             chips()
             if let note, !note.isEmpty {
                 Text(note)
-                    .font(.system(size: 10))
+                    .appFont(.system(size: 10))
                     .foregroundStyle(theme.textGhost)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
@@ -1113,7 +1113,7 @@ struct ModelPickerPopover: View {
     private var failure: some View {
         HStack(spacing: Spacing.sm) {
             Text("Couldn't load the model list.")
-                .font(.system(size: 12))
+                .appFont(.system(size: 12))
                 .foregroundStyle(theme.textMuted)
             Spacer()
             Button("Retry") { Task { await models.load() } }
@@ -1152,7 +1152,7 @@ private struct EffortChipStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 11, weight: .bold))
+            .appFont(.system(size: 11, weight: .bold))
             .foregroundStyle(active ? theme.accent : theme.textMuted)
             .frame(maxWidth: .infinity, minHeight: 24)
             .background(

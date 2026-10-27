@@ -64,7 +64,7 @@ struct PassageReferenceChip: View {
     var body: some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: 12, weight: .semibold))
+                .appFont(.system(size: 12, weight: .semibold))
                 .foregroundStyle(isMore ? theme.textMuted : theme.accent)
                 .lineLimit(1)
                 .padding(.horizontal, Spacing.md)
@@ -109,14 +109,14 @@ struct VersesSheetContent: View {
                     if !grouped.searchHits.isEmpty {
                         HStack(spacing: Spacing.sm) {
                             Text("FOUND BY SEARCH")
-                                .font(.system(size: 11, weight: .bold))
+                                .appFont(.system(size: 11, weight: .bold))
                                 .kerning(0.4)
                                 .foregroundStyle(theme.textMuted)
                             // Only search hits carry a real score: a getPassage
                             // lookup is exact, so it gets no badge.
                             if let strength {
                                 Text(strength.label.uppercased())
-                                    .font(.system(size: 10, weight: .bold))
+                                    .appFont(.system(size: 10, weight: .bold))
                                     .kerning(0.4)
                                     .foregroundStyle(badgeColor)
                                     .padding(.horizontal, Spacing.sm)
@@ -159,6 +159,8 @@ struct VersesSheetContent: View {
 /// One passage: reference, translation (or a search hit's score), the text with
 /// small verse numbers when it spans several verses, and its actions.
 struct PassageBlock: View {
+    @Environment(\.textScaleFactor) private var appScale
+    @ScaledMetric private var systemScale: CGFloat = 1
     @Environment(\.theme) private var theme
 
     let passage: VersePassage
@@ -182,7 +184,7 @@ struct PassageBlock: View {
         var result = AttributedString()
         for (index, entry) in passage.verses.enumerated() {
             var number = AttributedString("\(index > 0 ? " " : "")\(entry.verse) ")
-            number.font = .system(size: 12, weight: .bold)
+            number.font = .system(size: 12 * appScale * systemScale, weight: .bold)
             number.foregroundColor = theme.accentDim
             result += number
             result += AttributedString(entry.text ?? "")
@@ -194,17 +196,17 @@ struct PassageBlock: View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             HStack(spacing: Spacing.sm) {
                 Text(passage.reference)
-                    .font(.system(size: 15, weight: .bold))
+                    .appFont(.system(size: 15, weight: .bold))
                     .foregroundStyle(theme.accent)
                 Spacer(minLength: Spacing.sm)
                 Text(meta)
-                    .font(.system(size: 11, weight: .medium))
+                    .appFont(.system(size: 11, weight: .medium))
                     .monospacedDigit()
                     .foregroundStyle(theme.textGhost)
             }
 
             Text(verseText)
-                .font(.custom(FontFamily.verse, size: 17))
+                .appFont(.custom(FontFamily.verse, size: 17))
                 .foregroundStyle(theme.textSecondary)
                 .textSelection(.enabled)
                 .multilineTextAlignment(.leading)
@@ -266,7 +268,7 @@ private struct PassageActionChipStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 12, weight: .semibold))
+            .appFont(.system(size: 12, weight: .semibold))
             .foregroundStyle(accent ? theme.accent : theme.textMuted)
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, 6)

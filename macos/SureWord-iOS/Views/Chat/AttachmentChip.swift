@@ -61,24 +61,24 @@ struct AttachmentChip: View {
                 thumbnail
                 VStack(alignment: .leading, spacing: 2) {
                     Text(filename)
-                        .font(.system(size: 12.5, weight: .semibold))
+                        .appFont(.system(size: 12.5, weight: .semibold))
                         .foregroundStyle(theme.text)
                         .lineLimit(1)
                         .truncationMode(.middle)
                     if isAudio {
                         Text(voiceMessageLabel(durationSeconds: durationSeconds))
-                            .font(.system(size: 10))
+                            .appFont(.system(size: 10))
                             .foregroundStyle(theme.textFaint)
                     } else if size > 0 {
                         Text(formatAttachmentBytes(size))
-                            .font(.system(size: 10))
+                            .appFont(.system(size: 10))
                             .foregroundStyle(theme.textFaint)
                     }
                 }
                 if let onRemove {
                     Button(action: onRemove) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 10, weight: .semibold))
+                            .appFont(.system(size: 10, weight: .semibold))
                             .foregroundStyle(theme.textFaint)
                             .frame(width: 28, height: 28)
                             .contentShape(.rect)
@@ -90,7 +90,7 @@ struct AttachmentChip: View {
 
             if showsTranscript, let shownTranscript {
                 Text(shownTranscript)
-                    .font(.system(size: 13))
+                    .appFont(.system(size: 13))
                     .foregroundStyle(theme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -130,7 +130,7 @@ struct AttachmentChip: View {
     private var thumbnail: some View {
         if isAudio {
             Image(systemName: "mic.fill")
-                .font(.system(size: 16, weight: .semibold))
+                .appFont(.system(size: 16, weight: .semibold))
                 .foregroundStyle(theme.accent)
                 .frame(width: 42, height: 42)
                 .background(theme.accentSoft, in: .rect(cornerRadius: Radius.sm))
@@ -144,7 +144,7 @@ struct AttachmentChip: View {
             .clipShape(.rect(cornerRadius: Radius.sm))
         } else {
             Text(glyph)
-                .font(.system(size: 10, weight: .bold))
+                .appFont(.system(size: 10, weight: .bold))
                 .foregroundStyle(theme.accent)
                 .frame(width: 42, height: 42)
                 .background(theme.accentSoft, in: .rect(cornerRadius: Radius.sm))

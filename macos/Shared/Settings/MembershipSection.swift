@@ -52,22 +52,22 @@ struct MembershipSection: View {
             if let membership {
                 if membership.owner {
                     Text("All paid benefits and configured models are available without a subscription.")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .appFont(.caption).foregroundStyle(.secondary)
                 } else if let usage = membership.usage {
                     LabeledContent("Messages left today", value: "\(usage.dailyRemaining)")
                     if let monthly = usage.monthlyRemaining {
                         LabeledContent("Left this billing period", value: "\(monthly)")
                     }
                     Text("Daily reset: \(localReset(usage.day.end))")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .appFont(.caption).foregroundStyle(.secondary)
                 }
             } else if isPending {
                 ProgressView("Loading membership")
             }
             Text("Your Bible, notes, highlights and saved study remain available when your AI allowance runs out.")
-                .font(.caption).foregroundStyle(.secondary)
+                .appFont(.caption).foregroundStyle(.secondary)
             if let errorMessage {
-                Text(errorMessage).font(.caption).foregroundStyle(.secondary)
+                Text(errorMessage).appFont(.caption).foregroundStyle(.secondary)
                 Button("Reload membership") { Task { await load() } }.disabled(isPending)
             }
         }

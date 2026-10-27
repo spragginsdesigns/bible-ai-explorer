@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { AppText as Text } from "@/components/AppText";
 import { Redirect, Tabs } from "expo-router";
 import { useAuth } from "@clerk/expo";
@@ -7,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { radius, spacing, typography, type Colors } from "@/theme";
-import { TAB_BAR_ITEM_HEIGHT } from "@/features/chat/layout";
+import { TAB_BAR_ITEM_HEIGHT, recordTabBarHeight } from "@/features/chat/layout";
 import { chatColors } from "@/features/chat/chatAppearance";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { usePreferencesSync } from "@/features/settings/preferencesSync";
@@ -62,7 +62,6 @@ const TAB_ICONS: Record<
 export function SolidTabBar({ state, navigation }: BottomTabBarProps) {
 	const departing = useRef(false);
 	const insets = useSafeAreaInsets();
-	const { fontScale } = useWindowDimensions();
 	const { colors: themeColors } = useTheme();
 	const colors = chatColors(themeColors);
 	const styles = useThemedStyles(createStyles);
@@ -72,6 +71,7 @@ export function SolidTabBar({ state, navigation }: BottomTabBarProps) {
 
 	return (
 		<View
+			onLayout={event => recordTabBarHeight(event.nativeEvent.layout.height)}
 			style={[
 				styles.tabBarWrap,
 				{ backgroundColor: colors.bgElevated, borderTopColor: colors.borderStrong },
@@ -88,7 +88,7 @@ export function SolidTabBar({ state, navigation }: BottomTabBarProps) {
 						<SpotlightAnchor
 							key={route.key}
 							target={TAB_TARGETS[routeName]}
-							style={[styles.tabSlot, routeName === "connections" && { flex: 1.4 }]}
+							style={styles.tabSlot}
 						>
 						<Pressable
 							accessibilityRole="tab"
@@ -120,8 +120,6 @@ export function SolidTabBar({ state, navigation }: BottomTabBarProps) {
 							/>
 							<Text
 								numberOfLines={1}
-								adjustsFontSizeToFit
-								minimumFontScale={1 / Math.max(1, fontScale)}
 								style={[styles.tabLabel, { color: focused ? colors.accent : colors.textMuted }]}
 							>
 								{label}
@@ -202,22 +200,27 @@ const createStyles = (c: Colors) =>
 		},
 		tabBar: {
 			flexDirection: "row",
+			flexWrap: "wrap",
 			paddingVertical: spacing.xs,
 			paddingHorizontal: spacing.sm,
 			gap: spacing.xs,
 		},
-		tabSlot: { flex: 1 },
+		// Yoga measures each label's intrinsic width before wrapping whole targets.
+		// A zero flex basis would split the row equally and truncate Connections.
+		tabSlot: { flexBasis: "auto", flexGrow: 1, flexShrink: 0, minWidth: 48, maxWidth: "100%" },
 		tabItem: {
 			flex: 1,
 			alignItems: "center",
 			justifyContent: "center",
 			gap: 3,
 			minHeight: TAB_BAR_ITEM_HEIGHT,
+			minWidth: 48,
+			paddingHorizontal: spacing.xs,
 			borderRadius: radius.lg,
 		},
 		chatIndicator: { position: "absolute", bottom: 0, left: "26%", right: "26%", height: 2, borderRadius: 2 },
 		tabItemActive: {
 			backgroundColor: c.accentSoft,
 		},
-		tabLabel: { width: "100%", color: c.textFaint, ...typography.micro, fontWeight: "400", textAlign: "center" },
+		tabLabel: { color: c.textFaint, ...typography.micro, fontWeight: "400", textAlign: "center", flexShrink: 0 },
 	});

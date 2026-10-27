@@ -106,7 +106,7 @@ final class NoteTextView: UITextView {
 
             if let depth = decorations.quoteDepth[offset], depth > 0 {
                 for level in 0..<depth {
-                    let x = left + CGFloat(level) * NoteAttributedText.Metrics.quoteIndent + 3
+                    let x = left + CGFloat(level) * NoteAttributedText.Metrics.quoteIndent * textScale + 3
                     UIColor(theme.accent).withAlphaComponent(0.55).setFill()
                     UIRectFill(CGRect(x: x, y: top + 2, width: 2, height: max(height - 4, 4)))
                 }
@@ -125,9 +125,9 @@ final class NoteTextView: UITextView {
             }
 
             if let marker = decorations.markers[offset] {
-                let indent = decorations.listIndent[offset] ?? NoteAttributedText.Metrics.listIndent
+                let indent = decorations.listIndent[offset] ?? (NoteAttributedText.Metrics.listIndent * textScale)
                 let attributes: [NSAttributedString.Key: Any] = [
-                    .font: UIFont.systemFont(ofSize: NoteAttributedText.Metrics.bodySize(textScale) - 1),
+                    .font: UIFont.systemFont(ofSize: (NoteAttributedText.Metrics.bodySize - 1) * textScale),
                     .foregroundColor: UIColor(marker == "☑" ? theme.accent : theme.textFaint),
                 ]
                 let string = NSAttributedString(string: marker, attributes: attributes)
@@ -179,12 +179,12 @@ final class NoteTextView: UITextView {
         enumerateParagraphFrames { offset, frame in
             guard hit == nil else { return }
             guard let marker = decorations.markers[offset], marker == "☐" || marker == "☑" else { return }
-            let indent = decorations.listIndent[offset] ?? NoteAttributedText.Metrics.listIndent
+            let indent = decorations.listIndent[offset] ?? (NoteAttributedText.Metrics.listIndent * textScale)
             let rect = CGRect(
                 x: frame.minX + origin.x,
                 y: frame.minY + origin.y,
                 width: indent,
-                height: min(frame.height, 30)
+                height: min(frame.height, 30 * textScale)
             )
             if rect.contains(point) { hit = offset }
         }
