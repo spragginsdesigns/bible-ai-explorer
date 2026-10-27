@@ -72,6 +72,7 @@ workshop" list and each module's placeholder page all read it.
 | Learn | Learning Paths (`paths`), with the personal theology curriculum | P1 |
 | Learn | Scripture Memory (`memory`) | P1 |
 | Learn | Habits & Reflection (`growth`) | P2 |
+| Learn | Prayer & Testimony (`prayer`) | P2 |
 | Together | SureWord Family (`family`) | P1 |
 | Together | SureWord Groups (`groups`) | P1 |
 | Together | SureWord Kids (`kids`) | P2 |

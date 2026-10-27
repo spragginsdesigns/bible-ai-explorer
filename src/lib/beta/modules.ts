@@ -332,6 +332,26 @@ export const BETA_MODULES: readonly BetaModule[] = [
 		],
 		builtOn: ["Your walk and reading log", "Learn a verse", "SureWord Beta's study store", "Ask SureWord (Talk it over)"],
 	},
+	{
+		slug: "prayer",
+		destination: "learn",
+		title: "Prayer & Testimony",
+		tagline: "What you prayed, what happened, and what you learned",
+		inspiredBy: "Prayer journals and a lifelong testimony",
+		priority: "P2",
+		status: "live",
+		issue: "LC-17723",
+		summary:
+			"Your own prayer requests as living entries: dated updates, the passages you stand on, a day to come back to them, and what happened, recorded only when you confirm it in your own words. Over the years they become a testimony timeline, month by month. Private by default, shared into a group only on purpose, and never a score.",
+		capabilities: [
+			"Add dated updates to any prayer request on your prayer list, and link the passages you are standing on",
+			"Choose a day to revisit a prayer; it comes back to the top of the page that day",
+			"Record what happened only when you confirm it, in your own words, with an optional reflection; pray on at any time",
+			"Look back over a testimony timeline, oldest first by month: what you prayed, what happened and what you learned",
+			"Share one request into a group's prayer circle on purpose; everything else stays private",
+		],
+		builtOn: ["Your prayer list (prayer requests in memory)", "SureWord Beta's study store", "Groups' prayer circle"],
+	},
 	// The six SureWord products from LC-17639 (docs/beta/expansion.md): one app
 	// with many experiences, each built by its own run on the modules above.
 	{
