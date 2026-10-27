@@ -59,7 +59,7 @@ IPA all live on GitHub Releases.
 
 - **Remote:** `bible-ai-explorer` → `https://github.com/spragginsdesigns/bible-ai-explorer.git`
 - **Production branch:** `main` — auto-deploys to Vercel on every push
-- **Legacy branch:** `master` - unused, do not push here
+- **Legacy branch:** `master` — unused, do not push here
 - **SureWord Beta lives ONLY on the `founders-beta` branch, never on `main`** (Austin, 2026-10-27). The founders beta (`/beta`, `/api/beta`, `src/lib/beta`, LC-176xx module runs) was moved off `main` after it OOM-killed the production build and started changing doctrine (contested themes shown as competing readings). Every beta commit goes to `founders-beta`; never merge, cherry-pick or rebuild beta code onto `main`. Its `Beta*`/`VaultEmbedding` tables stay in `prisma/schema.prisma` on `main` only because the migrations are already applied to production. Only Jay's account is on its allowlist.
 - **Doctrine is Austin's.** `doctrinalFoundation` in `src/utils/systemPrompt.ts` was written with four pastors. No agent changes it, or adds prompts that present the KJV's teaching as one view among several, without Austin's explicit approval in that conversation.
 - **Other branches:** `imgbot`, `snyk-upgrade-*`, `whitesource/configure` — automated PRs, ignore
