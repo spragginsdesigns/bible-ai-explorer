@@ -106,14 +106,17 @@ fi
 
 # ---------------------------------------------------------------------------
 step "Installing to $installed_app"
-if pgrep -x SureWord >/dev/null 2>&1; then
+# Simulator apps have the same executable name. Quit only the installed Mac
+# binary so another agent's iOS test session survives a desktop release.
+installed_process='^/Applications/SureWord[.]app/Contents/MacOS/SureWord([[:space:]]|$)'
+if pgrep -f "$installed_process" >/dev/null 2>&1; then
 	printf '  quitting running SureWord\n'
 	osascript -e 'tell application id "com.spragginsdesigns.sureword" to quit' >/dev/null 2>&1 || true
 	for _ in 1 2 3 4 5 6 7 8 9 10; do
-		pgrep -x SureWord >/dev/null 2>&1 || break
+		pgrep -f "$installed_process" >/dev/null 2>&1 || break
 		sleep 0.5
 	done
-	pkill -x SureWord >/dev/null 2>&1 || true
+	pkill -f "$installed_process" >/dev/null 2>&1 || true
 fi
 rm -rf "$installed_app"
 ditto "$built_app" "$installed_app"
