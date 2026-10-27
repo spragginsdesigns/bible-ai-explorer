@@ -4224,6 +4224,7 @@ if Clerk fails after the commit).
 | SharedCard (sent words and their drafts) | userId | cascade (the `/c/{id}` link and its card image stop resolving) |
 | BetaItem, BetaLink (SureWord Beta's study store, `docs/beta/README.md`) | userId | cascade |
 | VaultEmbedding (SureWord Beta Knowledge Vault's meaning-search vectors, `docs/beta/vault.md`) | userId | cascade |
+| BetaRoom, BetaRoomMember, BetaRoomPost (SureWord Beta's Study Rooms, `docs/beta/rooms.md`) | ownerId / userId / authorId | cascade (rooms they own go with everything in them; in other rooms their membership, posts and the replies under their posts go) |
 | GuestTurn | plain `claimedByUserId`, no FK | deleted explicitly |
 | LegacyClerkAccount | email, `legacyUserId`, `claimedByUserId`, no FK | deleted explicitly (by those three keys) |
 | BillingEvent, VerseEmbedding, KjvVerse, OriginalVerse, VerseInsight, VerseWordStudy, SermonStudy | none (shared or reference data) | not user data, kept |

@@ -145,6 +145,10 @@ model User {
   betaLinks              BetaLink[]
   // Beta module: vault (docs/beta/vault.md).
   vaultEmbeddings        VaultEmbedding[]
+  // Beta module: rooms (docs/beta/rooms.md).
+  betaRoomsOwned         BetaRoom[]
+  betaRoomMemberships    BetaRoomMember[]
+  betaRoomPosts          BetaRoomPost[]
 }
 
 /// Private, resumable study work. Separate from personal memories and chat history.
@@ -1378,4 +1382,90 @@ model VaultEmbedding {
   createdAt  DateTime                     @default(now())
 
   @@id([userId, kind, sourceId, chunk])
+}
+
+// Beta module: rooms (LC-17647, docs/beta/rooms.md)
+
+/// A Study Room: a family, small group or class studying together. Everything
+/// in it is shared with its members; nothing private (notes, prayers, chats)
+/// is ever read into it except a note a member explicitly shares, which is
+/// copied in as a snapshot. Rules in src/lib/beta/rooms/rooms-rules.ts; reads
+/// and writes only through src/lib/beta/rooms/rooms.ts, always by membership.
+model BetaRoom {
+  id            String           @id @default(cuid())
+  ownerId       String
+  owner         User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  /// What the room is for: "study" (Study Rooms) | "family" | "group" | "church".
+  /// Together's products (docs/beta/expansion.md) open and list their own
+  /// rooms through these same tables by purpose.
+  purpose       String           @default("study")
+  name          String           @db.VarChar(80)
+  description   String?          @db.VarChar(300)
+  /// The capability: a random 16-character slug, like SharedAnswer's id.
+  /// Anyone on BETA_USER_IDS holding it can join. Null while the link is off;
+  /// revoking sets it null and a new link is a new slug.
+  inviteToken   String?          @unique
+  /// The group reading plan: a reading-plan preset key, read together from
+  /// planStartDate. Members who follow it get it as their own ReadingPlan.
+  planPresetKey String?
+  planStartDate DateTime?
+  /// Set when the owner archives the room: readable, but closed to new posts,
+  /// joins and invites.
+  archivedAt    DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  members       BetaRoomMember[]
+  posts         BetaRoomPost[]
+
+  @@index([ownerId])
+}
+
+/// One person in a room, with the name they chose to be known by there.
+model BetaRoomMember {
+  id          String   @id @default(cuid())
+  roomId      String
+  room        BetaRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// "owner" | "member"
+  role        String   @default("member")
+  displayName String   @db.VarChar(40)
+  /// The member's own ReadingPlan while they follow the room's plan. Not a
+  /// relation: the plan is theirs, and the room only ever reads its day count
+  /// back while it is still their active plan.
+  planId      String?
+  joinedAt    DateTime @default(now())
+
+  @@unique([roomId, userId])
+  @@index([userId])
+}
+
+/// A shared passage, a discussion question, a shared note, or a reply under
+/// one of those. Leaving a room, being removed from it, or deleting the
+/// account deletes a member's posts, and replies go with the post they answer.
+model BetaRoomPost {
+  id        String         @id @default(cuid())
+  roomId    String
+  room      BetaRoom       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  /// The registry slug of the module that wrote it: "rooms" for Study Rooms'
+  /// own kinds, so another module (a family prayer list) can keep its shared
+  /// objects in a room with its own kinds.
+  module    String         @default("rooms")
+  /// Study Rooms: "passage" | "question" | "note" | "reply"
+  kind      String
+  parentId  String?
+  parent    BetaRoomPost?  @relation("BetaRoomThread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   BetaRoomPost[] @relation("BetaRoomThread")
+  title     String?        @db.VarChar(120)
+  body      String         @db.Text
+  /// { passage?: { book, chapter, verseStart?, verseEnd? }, sharedNote?: true }.
+  /// Verse text is never stored: it is read from the bundled KJV when shown.
+  data      Json           @default("{}")
+  createdAt DateTime       @default(now())
+
+  @@index([roomId, createdAt])
+  @@index([authorId])
+  @@index([parentId])
 }

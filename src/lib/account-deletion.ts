@@ -58,6 +58,10 @@ export const ACCOUNT_DATA_MODELS: readonly AccountDataModel[] = [
 	{ model: "BetaLink", via: "cascade" },
 	// Beta module: vault (docs/beta/vault.md), its meaning-search vectors.
 	{ model: "VaultEmbedding", via: "cascade" },
+	// SureWord Beta, Study Rooms (docs/beta/rooms.md): rooms owned, memberships, posts.
+	{ model: "BetaRoom", via: "cascade" },
+	{ model: "BetaRoomMember", via: "cascade" },
+	{ model: "BetaRoomPost", via: "cascade" },
 	{ model: "User", via: "explicit" },
 	{ model: "AiPreference", via: "cascade" },
 	{ model: "BillingSubscription", via: "cascade" },

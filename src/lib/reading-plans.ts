@@ -204,9 +204,10 @@ async function requireOwnPlan(userId: string, planId: string): Promise<PlanRow> 
 /**
  * Start a plan, archiving whatever the user was on. One plan at a time is a
  * product decision, not a schema one - it is enforced here, in the one place
- * plans are created.
+ * plans are created. `startDate` backdates day 1 for a plan read together (a
+ * Study Room's plan, docs/beta/rooms.md), so the whole room is on the same day.
  */
-export async function startPlan(userId: string, request: StartPlanRequest, options: { expectedActiveId?: string | null } = {}): Promise<PlanWithProgress> {
+export async function startPlan(userId: string, request: StartPlanRequest, options: { expectedActiveId?: string | null; startDate?: Date } = {}): Promise<PlanWithProgress> {
 	const built =
 		"presetKey" in request
 			? buildPreset(request.presetKey)
@@ -232,7 +233,7 @@ export async function startPlan(userId: string, request: StartPlanRequest, optio
 			description: built.description,
 			source: built.source,
 			presetKey: built.presetKey,
-			startDate: new Date(),
+			startDate: options.startDate ?? new Date(),
 			days: JSON.stringify(built.days),
 			status: "active",
 		},
