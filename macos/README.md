@@ -2,8 +2,9 @@
 
 Native SwiftUI clients for macOS 15+ and iOS 26+. The third and fourth
 first-class clients alongside the Android app (`mobile/`) and the web app
-(`src/`), talking to the **same** Next.js backend at `https://sureword.app` —
-there is no Apple-specific server code, and nothing here needs deploying.
+(`src/`), talking to the **same** Next.js backend at `https://sureword.app`.
+Shared API work, including direct APNs delivery in `src/lib/apns.ts`, must be
+deployed before the corresponding native clients can use it.
 
 Per the parity rule in `CLAUDE.md`, Android leads and every client follows.
 Layout adapts to the form factor (sidebar and menu bar on macOS instead of a
@@ -93,26 +94,31 @@ xcodebuild -scheme SureWord-iOS \
   -derivedDataPath build-ios.noindex test
 ```
 
-The iOS target shares the bundle id `com.spragginsdesigns.sureword` and the
-signing settings above. iOS signing for devices will need the usual provisioning
-work; simulator builds need none. The target is source- and simulator-ready,
-but there is currently no IPA archive/export, TestFlight, or App Store release
-workflow. Device provisioning, archive/export, App Store metadata, and a live
-device pass are separate gates; the macOS release script only carries forward an
-existing `SureWord.ipa` once iOS distribution begins.
+The iOS target shares the bundle id `com.spragginsdesigns.sureword`.
+`release-ios.sh` provides the signed archive/export and TestFlight upload path.
+Current installation, deployment, TestFlight and App Store readbacks are
+recorded in `../docs/PARITY.md`; source version alone is not publication proof.
+Hosted simulator
+tests that use Clerk require the signed test path; an unsigned compile is not
+proof that a hosted app can launch. The macOS release script preserves the
+other platform's fixed-name release assets independently.
 
 ## Signing, the sandbox, and the keychain
 
 These three are entangled, and getting any one wrong makes the app launch with
 **no window and no error** — it just sits in `ps` doing nothing. The working
-combination is:
+Release configuration used by `install-mac.sh` uses Developer ID Application
+and the matching production-push profile. Debug retains Apple Development
+signing and local notifications. See `../docs/ios/push-design.md`.
 
 | Setting | Value |
 |---|---|
 | `CODE_SIGN_STYLE` | `Manual` |
-| `CODE_SIGN_IDENTITY` | `Apple Development` |
+| `CODE_SIGN_IDENTITY` | Release: `Developer ID Application`; Debug: `Apple Development` |
 | `DEVELOPMENT_TEAM` | `389LLKGY3Y` |
-| App Sandbox | **off** |
+| Hardened Runtime | **on** for the host and Share extension |
+| Release debug entitlement injection | **off**, with secure timestamps enabled |
+| App Sandbox | Host **off**; Share extension **on** |
 | `keychain-access-groups` | **absent** |
 
 Why each, since every one of them was arrived at by breaking it first:
@@ -198,10 +204,11 @@ approves its prompt. Deny those prompts, and prefer signed test runs. The
 lasting fix would be the data-protection keychain, which needs the
 `keychain-access-groups` entitlement and a provisioning profile (see above).
 
-To notarize and distribute later, enrol in the Apple Developer Program, set
-`CODE_SIGN_STYLE: Automatic`, and re-add the sandbox entitlements
-(`app-sandbox`, `network.client`, `files.user-selected.read-only`) via a
-provisioning profile.
+Notarization keeps manual Developer ID signing and the host's current
+entitlements. It does not require enabling the host sandbox or switching to
+automatic signing. Run the separate notarization command below after building;
+a Developer ID signature and production-push profile alone are not a
+notarization receipt.
 
 ## Clerk setup
 
@@ -247,11 +254,11 @@ Shared/         Compiled into BOTH the macOS and iOS targets (same-module
 └── DesignSystem/ Theme tokens and shared views
 
 ShareInbox/     "Share into SureWord" inbox (manifest, store, capped copy),
-                compiled into both apps and the iOS share extension
+                compiled into both apps and both share extensions
 
 SureWord/       macOS-only shell:
 ├── App/          SureWordApp (@main), MainWindow shell, menu commands,
-│                MacShareInbox (Services menu, window and Dock drops)
+│                MacShareInbox (Share extension inbox, Services, window and Dock drops)
 ├── Bible/Views/  Reader panes
 ├── Chat/Views/   Cards, bubbles, input bar
 ├── Notes/        AppKit editor (NoteRichTextController, NoteTextView,
@@ -263,6 +270,8 @@ SureWord-iOS/   iOS-only shell: SureWordIOSApp (@main), RootView, TabShell, and
                 native Bible, Chat, Notes, Cross, and Settings views.
 SureWord-iOS-Share/  iOS Share Extension: copies a share into the App Group
                      inbox for the app to open.
+SureWord-macOS-Share/  macOS Share Extension: same collector/caps, using the
+                       Team-ID-prefixed Mac App Group container.
 SureWord-iOSTests/  iOS test host (shell, protocol, Bible, deep-link, and notes
                     coverage).
 ```
@@ -318,18 +327,39 @@ About. Android's Check for updates is a Play Store row and has no iOS page.
 
 ## Releasing a DMG
 
-Distribution is a DMG attached to a GitHub release. The release path is
-`bash macos/install-mac.sh --release`, which builds Release, installs the
-same build to `/Applications`, then runs `scripts/build-dmg.sh` (styled
-installer at `macos/SureWord.dmg`) and `macos/release-dmg.sh`. A plain
-`xcodebuild` by hand can no longer be packaged for release: before building,
+Distribution is a signed, notarized DMG attached to a GitHub release. Run the
+three steps separately so notarization finishes before publication:
+
+```bash
+bash macos/install-mac.sh --no-launch
+bash macos/notarize-mac.sh
+bash macos/release-dmg.sh
+```
+
+The first command builds Release and installs the same build to `/Applications`.
+The second notarizes/staples the recorded app, packages it headlessly, then
+signs/notarizes/staples `macos/SureWord.dmg`; it never publishes. It reuses
+`ASC_KEY_ID`, `ASC_ISSUER_ID` and `ASC_KEY_PATH`, defaulting to the existing
+key metadata in `macos/scripts/asc.py`. Private key contents stay outside the
+repo and are passed to `notarytool` by file path. Submission responses and
+logs stay under ignored `build-release.noindex/notarization/`. A timeout does
+not cancel Apple's processing; inspect the saved submission ID before retrying.
+`SUREWORD_NOTARY_TIMEOUT` defaults to `30m`.
+
+The `install-mac.sh --release` shortcut runs all three stages in order and
+stops if any signing, notarization or publication gate fails. The separate
+commands above also let each stage be inspected before continuing. A plain
+`xcodebuild` by hand cannot be packaged for release: before building,
 `install-mac.sh` snapshots a content digest of `macos/` (tests, `scripts/`,
 Markdown and the publish-only release scripts excluded) and, after the build,
 writes it next to the app with the app's code-signature CDHash
 (`SureWord.app.build` / `SureWord.app.sources` in `build-release.noindex`).
 `build-dmg.sh` refuses an app with no record, an app whose CDHash no longer
 matches it (rebuilt or replaced), or one whose recorded source no longer
-matches `macos/`, so a stale build can never be packaged later. To retry only
+matches `macos/`, so a stale build can never be packaged later. Notarization
+preserves that app/source identity and records the final DMG hash only after
+container signing and stapling. Changing source that participates in the
+digest requires rebuilding before notarizing. To retry only
 the publish after an interrupted upload, `bash macos/release-dmg.sh` can be
 run on its own.
 
@@ -341,7 +371,12 @@ digest of `macos/` no longer matches the tree (the changed files are listed).
 It mounts the DMG read-only, verifies the bundled app reports that exact
 version, passes `codesign --verify --deep --strict`, is signed as
 `com.spragginsdesigns.sureword` by team `389LLKGY3Y`, and is the exact app
-(same CDHash) the build recorded, then requires authenticated `gh`, creates
+(same CDHash) the build recorded. It also requires Developer ID signatures,
+secure timestamps and Hardened Runtime on both app architectures and the
+Share extension, production push/App Group/calendar entitlements on the host,
+the extension's sandbox/App Group, and no `get-task-allow`. Both app and DMG
+must have valid stapled tickets and pass Gatekeeper assessment before the
+script requires authenticated `gh`, creates
 the `macos-v<version>` tag/release, and uploads the fixed asset name
 `SureWord.dmg`. It also carries the current `SureWord.apk` (and `SureWord.ipa`
 once iOS distribution exists) forward, so persistent
@@ -350,7 +385,7 @@ becomes latest. Re-running it updates that tag and replaces the assets, so an
 interrupted upload can be retried safely. The script performs no build; running
 it is the explicit action that creates or updates the GitHub release.
 
-`build-dmg.sh` (requires `brew install create-dmg`) lays out the branded
+`build-dmg.sh` lays out the branded
 installer window: the committed art lives in `macos/dmg/` — a HiDPI
 `background.tiff` composed by `scripts/make-dmg-background.py` from the
 AI-generated dawn plate (`backdrop-raw.png`) plus the crisp brand layer
@@ -359,29 +394,88 @@ volume icon `SureWord.icns` built from the appiconset. Two invariants:
 Finder draws icon labels in *black* whenever a background picture is set,
 so the art pools light under both label zones — keep that if you re-art it;
 and the icon coordinates in `build-dmg.sh` must match the arrow/pools in
-`make-dmg-background.py`.
+`make-dmg-background.py`. Interactive packaging uses `create-dmg`; the
+notarization command selects `SUREWORD_DMG_BACKEND=headless`, using pinned
+`dmgbuild` through `uv` without Finder automation.
 
 Set `MARKETING_VERSION` in `project.yml` before building. The site resolves
 the newest `macos-v*` GitHub release that contains `SureWord.dmg`, so no
 manual website version constant bump or manual cross-platform asset
-re-attachment is needed. The build is signed with the local Development certificate but **not
-notarized** (needs the paid Apple Developer Program). macOS 15 removed the
-right-click→Open bypass for unnotarized apps, so a downloaded copy's first
-launch is: open (blocked) → Done → System Settings → Privacy & Security →
-**Open Anyway** — or `xattr -dr com.apple.quarantine
-/Applications/SureWord.app`. The release script includes this first-launch
-note, and the DMG background bakes the same hint in.
+re-attachment is needed. Release builds use Developer ID Application; they
+become notarized only after Apple accepts the submissions and the tickets
+validate. Published release notes describe the signed/notarized artifact only
+after those checks pass. The existing DMG background's first-launch hint is
+historical fallback copy; do not use quarantine removal to establish release
+acceptance. Confirm the final downloaded installer and copied app launch
+through the normal Gatekeeper path.
 
 ## Status
 
-macOS 1.24.0 (31) is the current native Mac build, installed at
+### Current integration checkpoint, 2026-10-28
+
+Apple source is **1.30.0 (39)**, aligned to Android **1.109.0 (128)** and
+What's New catch-up code **128**. The user-approved reconciliation preserves
+the upstream creator/ASV changes and all six parity lanes. A 112-entry byte
+audit found no omitted source; 20 deltas already existed in newer main.
+Capabilities include chat references/composer/errors/attachments, reader note
+selection and audio controls, bundled ASV, Atlas/Connections/Study navigation,
+Settings receipts/membership, Mac Share and direct APNs on both Apple clients.
+This source inventory does not certify full runtime or release parity.
+
+Captured native Mac QA covers a live answer and reference/reader handoff,
+Study/People/trace navigation, and reader-to-note intake. The corrected note
+writer persisted a title entered without Return plus a body edit across
+immediate navigation, refresh and reopen. Finder sharing accepted a 96-byte TXT
+as an attachment; a 1 MiB + 1-byte file was rejected locally without adding an
+attachment, and all three URL-share actions were exercised. These observations
+do not imply complete coverage of every sharing or editor path.
+
+Production-push signing uses the Developer ID Application identity and
+`SureWord com.spragginsdesigns.sureword Developer ID Push` (`MAC_APP_DIRECT`).
+The host's production APS/calendar/App Group union is separate from the Share
+extension's sandbox/App Group entitlements. The Mac group is
+`389LLKGY3Y.group.com.spragginsdesigns.sureword`; iOS retains its `group.` form.
+Signature readback established Hardened Runtime, secure timestamps and no
+`get-task-allow` on both host and extension.
+
+Approved SureWord-topic Sandbox/Production APNs keys and six hidden
+Production-scope server variables support raw-token registration with an
+explicit environment; legacy iOS Expo rows remain compatible. Native Mac
+authenticated registration/proof binding returned 200, unauthenticated
+registration returned 401, and matching remote identity was acknowledged.
+A production APNs send produced a closed-app OS delivered-notification record;
+that receipt alone does not prove a visible banner, taps or the full server
+answer-ready lifecycle. See `../docs/ios/push-design.md` for the protocol.
+
+Validation logs under `/tmp/sureword-parity-takeover/` record backend
+typecheck/lint exit 0, 1,823 passing logic tests with 17 skips, and a successful
+233-page build. This includes the response-cancellation correction; deployment
+and closed-client replay remain separate acceptance gates. The earlier clean
+backend candidate passed its gates with matching APNs source bytes. Mobile
+typecheck and 1,197 tests pass. Signed iOS unit coverage totals **941**:
+565 XCTest executions (1 skip, 0 failures) plus 376 Swift Testing tests across
+43 suites. All three final narration and initial-ASV-reader UI cases pass.
+Authenticated translation-picker persistence has its own record in the parity
+ledger.
+
+`../docs/PARITY.md` is the live ledger for the installed build's source/API
+target, deployment readiness, UI follow-ups, physical-device availability,
+notarization, TestFlight and public release readback. Check that ledger before
+calling a build current, fully accepted or published. Older release notes
+below remain historical; `../docs/PARITY-TODO.md` retains the outstanding work.
+
+### Historical release checkpoint, 2026-10-23
+
+At that checkpoint, macOS 1.24.0 (31) was installed at
 `/Applications/SureWord.app` and published as `macos-v1.24.0` on GitHub
 Releases. It carries the 2026-10-23 bug hunt Apple fixes (`ecf4721`,
 LC-17262, LC-17264, LC-17265, LC-17278 under LC-17258); the same build number
 goes to TestFlight under iOS 1.24.0. The 1.21.0 notes below describe the
 parity release those builds grew from.
 
-macOS 1.21.0 is the current native Mac version, installed at
+### Historical parity baseline, 2026-10-19
+
+At that checkpoint, macOS 1.21.0 was installed at
 `/Applications/SureWord.app` and published as `macos-v1.21.0` on GitHub
 Releases. It carries the eleven Apple parity issues (LC-16611 to LC-16621):
 sermon studies and Coming up at church with Google and Apple Calendar, chat

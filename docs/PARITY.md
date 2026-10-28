@@ -7,6 +7,136 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
+## Apple integration checkpoint, 2026-10-28
+
+This checkpoint supersedes older active absence/rejection statements below;
+older creator, ASV and release entries remain historical evidence. The user
+approved keeping both upstream and parity work. The latest ASV/creator changes
+were merged at `13a864e1`; metadata `97c6ee3e` and APNs `8cd11e1e` were pushed
+to main. A byte audit of all six original worktrees checked 112 entries:
+20 deltas were already represented by newer main changes, with no source
+omitted. Android source is **1.109.0 (128)**; Apple source is **1.30.0 (39)**,
+with `WhatsNewRules.appleParityVersionCode = 128`. **Implementation, unit/build
+proof, runtime observations and publication remain separate. Full current
+client parity is not certified.**
+
+Apple parity source is committed locally as `f420fe9c`; release infrastructure
+is committed as `d30c9937`, and the server disconnect correction as `80c168b2`.
+Those commits await the main merge/push and are
+not represented as already published source. The final installed Mac build
+was made from `d30c9937`.
+
+| Area | Current source evidence | Proof boundary |
+| --- | --- | --- |
+| Chat | `macos/Shared/Chat/VerseLinks.swift`, `ChatErrorCard.swift`, `AttachmentPreviewRefresh.swift`, `VerseActions.swift`; iOS `ChatInputBar.swift` composer chip; both chat shells route receipts and verse actions | Reference links, picker affordance, error/retry presentation, attachment refresh, image sizing, note handoff and the upstream creator credit are integrated. Native production 1.30 completed Psalm 23:1 then 23:2 correctly in the same conversation in about 5 and 9 seconds respectively. Tapping the assistant's actual underlined Psalm 23:1 opened the retrieved Psalms 23:1-4 sheet with correct KJV text. Final sidebar footer/profile/gear runtime checks pass. This is bounded flow proof, not complete chat coverage. |
+| Reader and audio | `macos/Shared/Bible/VerseNoteMarkdown.swift`, `ChapterAudio.swift`, `ChapterAudioBar.swift`; bundled ASV and both native reader consumers | Note selection/markers, chapter navigation, localized search, ASV and audio retry/ten-second controls are integrated. All three final narration/initial-ASV reader UI cases pass. In authenticated native Mac 1.30, the actual picker loaded ASV Genesis 1 ("heavens") and retained ASV after Cmd-1/Today then Cmd-2/Bible. An ASV Genesis 1:1 Dawn story card rendered the correct ASV text with Share image enabled; KJV was restored afterward. Authenticated iOS picker persistence remains open because the public harness has no signed-in user. |
+| Study, Today and Settings | `macos/Shared/Bible/ConnectionsMapView.swift`, `Shared/Atlas/AtlasPresentation.swift`, `Shared/WhatsNew/WhatsNew.swift`, `Shared/Plan/PlanView.swift`, `Shared/Billing/MembershipView.swift`; native Study/Settings consumers | Atlas modes/trace navigation, Connections actions, What's New destinations, Today links, plan lateness, receipt routing and membership presentation are implemented. Native Mac Connections showed 10 John 3:16 results, 3 with the Pauline filter, reset to all 10 after Explore Romans 5:8, and 207 for whole Romans 5. Study/People/trace navigation also passed; remaining flow coverage is not implied. |
+| Share and notifications | `macos/SureWord-macOS-Share/`, `macos/ShareInbox/`, both Apple push registration files, `src/lib/apns.ts`, `/api/push-tokens` | Native Mac QA accepted a 96-byte Finder TXT as an attachment after the file-URI defect was fixed, rejected a 1 MiB + 1-byte file locally without an attachment, and exercised all three URL-share actions. Authenticated registration/proof binding returned 200 and unauthenticated registration 401. Mac sign-out returned DELETE 200, cleared local remote identity and retained the device proof; restoring the existing Google session returned registration/proof-binding 200 and restored local identity. A direct production APNs send reached the OS with the app closed, but the full server answer-ready attempt persisted its answer without a new OS push. Tap routing and the corrected full lifecycle remain open. See `ios/push-design.md`. |
+| Notes persistence | `macos/Shared/Notes/NoteEditorModel.swift` and native editor/navigation guards | Canonical comparison, AI reload and a single title/body writer are corrected, with 15 focused persistence cases passing. Actual native Mac QA persisted a title without Return plus a body edit across immediate navigation, refresh and reopen. Appending Genesis 1:1 from the reader to an existing QA note preserved its title, prior Psalm quote and both prior body markers. This supersedes the earlier normalization failure; broader iOS editor acceptance remains separate. |
+
+Evidence captured in `/tmp/sureword-parity-takeover/` on the development Mac:
+
+- `backend-postmerge-check-errors.log`, `backend-postmerge-logic-final.log`
+  and `backend-postmerge-build-final.log`: typecheck/lint exit 0; 1,812 logic
+  tests passed, 17 skipped, 0 failed (1,829 total); build exit 0 with 233/233
+  static pages. The final generated 1.109.0 HTML contains "Meet the creator".
+  The clean backend-only candidate passed the same gates. Its APNs sender,
+  push dispatcher and registration route byte-match the staged source
+  (`backend-candidate-deployed-source-match.json`). Sitemap fallback without
+  local `DATABASE_URL` is not live database proof.
+- `backend-disconnect-final-check-errors.log` and
+  `backend-disconnect-final-logic.log`: the new response-cancellation/latch
+  correction passes typecheck/lint and **1,823 logic tests**, with 17 skips,
+  0 failures (1,840 total). This includes 11 added disconnect cases.
+  `backend-disconnect-final-build.log` also finished exit 0 with 233/233
+  pages, and independent peer review passed. The correction is committed as
+  `80c168b2` locally, not pushed or deployed. The earlier build/title receipt
+  above remains a separate prior-revision checkpoint.
+- `mobile-postmerge-npm-ci.log`, `mobile-postmerge-typecheck-retry.log` and
+  `mobile-postmerge-test.log`: normal locked npm install/patches and
+  typecheck exit 0; 1,197 tests passed across 91 files. The initial missing
+  local dependencies were repaired by `npm ci`, without manifest/lock edits.
+- `ios-130-final-unit.log`: signed simulator run succeeded with **941 total**:
+  565 XCTest executions (1 skipped, 0 failures) plus 376 Swift Testing tests
+  across 43 suites. Earlier 540/374 counts and normalization failures below
+  are historical checkpoints, not the latest result.
+- `ios-130-final-ui-verified-summary.json`: all three final cases passed,
+  including real KJV narration controls and initially selected ASV Genesis
+  text. The earlier selector/unauthenticated-preference failures are preserved
+  in `ios-130-final-review.md`; they are superseded by this accurately scoped
+  reader proof, which does not claim authenticated picker persistence.
+- `ios-note-normalization-fixed-final.log` and
+  `ios-note-ai-reload-final.log` record the focused persistence corrections;
+  native title/body immediate-navigation persistence was then exercised.
+- `mac-apns-os-receipt.json` records closed-app production APNs delivery;
+  it does not establish visible-banner or notification-tap acceptance. The
+  pending local morning request was removed after remote registration.
+- `install-mac-130-committed-final.log`: exit 0 installed Developer ID-signed
+  **1.30.0 (39)** at `/Applications/SureWord.app` with strict signature
+  verification from committed source `d30c9937`. The binary uses the production
+  API, contains no QA loopback target, and the temporary gateway proxy is
+  stopped. `mac-130-installed-notarization.json` confirms the installed app
+  is stapled, its ticket validates and Gatekeeper accepts Notarized Developer ID.
+- `mac-130-sidebar-runtime.json`: the footer remained usable with the long
+  list scrolled to its bottom, a short window at the top, restoration and
+  hide/show. The real Clerk profile and Settings gear opened correctly.
+  Native production QA also proved authenticated ASV selection/persistence,
+  an ASV Dawn story card, two completed same-conversation KJV replies and the
+  assistant's actual inline-reference sheet described above.
+- `mac-130-final-runtime.json`: Connections filtering/reset/chapter counts,
+  append-to-existing-note preservation and native sign-out/session restoration
+  passed. Sign-out DELETE returned 200 at 20:02:45 UTC; restored-session
+  registration/proof binding returned 200 at 20:03:20 UTC, with local identity
+  cleared/restored and the device proof retained.
+
+Release/configuration state is separate. A fresh App Store Connect GET on
+2026-10-28 returned SureWord iOS **1.26.0 `READY_FOR_SALE`**; the older 2.1(b)
+rejection is no longer an active submission blocker. It does not release the
+local 1.30.0 (39) integration. With Austin's approval, separate SureWord-only
+Sandbox and Production APNs keys were created and read back as one topic,
+`com.spragginsdesigns.sureword`, each in its own environment. All six APNs
+variables were read back as Hidden Secret entries in the SureWord Vercel
+project's Production scope. The active, production `MAC_APP_DIRECT` profile
+`SureWord com.spragginsdesigns.sureword Developer ID Push` was created and
+installed. These configuration receipts are distinct from the native/APNs
+observations above. Production deployment
+`dpl_DCE8t4qtT4hKFULwnZnMtfjs7Etd` for main `3dd0f8a5` became **READY** at
+19:50:11 UTC; direct alias readback confirms `sureword.app` and the legacy
+host are assigned to it (`vercel-queue-resolution.json`). The earlier
+`8cd11e1e` deployment `dpl_FQo5NHfHiKnNopPyERbLJAvbZbbH` was canceled because
+a newer deployment superseded it; no old staged deployment was promoted.
+The new disconnect correction is not claimed deployed by that READY receipt.
+
+App notarization `fa70a842-8add-482e-aca7-9e50fa6063bf` and DMG notarization
+`459b4129-df55-4157-8847-e86c0983924a` are both **Accepted with zero issues**.
+Both artifacts are stapled and Gatekeeper-accepted. The DMG is prepared but
+**UNPUBLISHED**, SHA-256
+`2a38aaccb572f1c779b8edc2ecbe175aa2059014cefa5ea78b80981137ecb132`;
+the latest public Mac release remains 1.28.0.
+
+`ios-130-asc-readback.json` confirms **1.30.0 (1) VALID** at 20:03:16 UTC,
+build `2964de40-5739-419e-95d1-fa11afa9eca6`, internal
+`READY_FOR_BETA_TESTING`, external `READY_FOR_BETA_SUBMISSION`. Host and Share
+archive bundles are Apple Distribution-signed 1.30.0 (1); the host's signed
+APS entitlement and matching metadata are production. App Store remains
+**1.26.0 READY_FOR_SALE**; upload/processing is not new App Store approval or
+physical-device acceptance.
+
+An end-to-end closed-app answer-ready attempt at 19:54 UTC persisted the
+complete answer, but produced no new OS notification record. Production
+registration returned 200 and both native notification preferences were on.
+The prepared correction in `src/lib/chat-client-connection.ts` and the chat
+route adds response cancellation tracking and a connection latch; its 11 new
+tests, full checks, final build and independent peer review pass. Local commit
+`80c168b2` still needs the approved merge/push, deployment and full production
+replay. This is not a passing lifecycle receipt. Remaining gates
+include notification taps, existing-iOS migration/sign-out, authenticated iOS
+picker persistence, device APNs and the complete server answer-ready lifecycle.
+Physical iPhone 13 is unavailable; live StoreKit/device-dependent iOS proof
+remains open. External beta progression, next App Store release and public
+Mac publication remain separate gates. Adjacent upstream creator-history
+reconciliation has not been resolved by this checkpoint edit.
+
 **2026-10-28 creator credit:** Web, Android and both Apple composer sources
 now say "Created by Austin Spraggins, a follower of Jesus Christ." The name
 links to `https://www.spragginsdesigns.xyz/#faith`. The existing web AI
@@ -36,7 +166,8 @@ was claimed by another session. The lifecycle gate remains open in
 > requested web/Android/iOS inventory of remaining capability gaps, release
 > blockers, runtime proof, and deliberate platform differences. This file
 > remains the historical evidence ledger; the TODO is the current work queue
-> for those three clients and does not certify macOS parity.
+> from the original three-client audit, with the dated Apple reconciliation
+> above; neither ledger certifies macOS parity without its runtime/release proof.
 
 **2026-10-27 bounded text sizing (web, Android and signed Apple builds):**
 The existing Standard / Large / Largest account preference stays at factors

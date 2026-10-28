@@ -4,7 +4,7 @@
 - **Source baseline:** `origin/main` at `5581bd0c`
 - **Requested scope:** web (`src/`), Android (`mobile/`), and iOS (`macos/SureWord-iOS/` plus shared Apple code)
 
-This is the three-client inventory requested in the parity audit. **macOS is not audited or certified by this document.** `CLAUDE.md` also requires macOS parity, so shared Apple changes must still be built, installed, and exercised on macOS before the broader Apple/release parity gate is called complete. Where shared Apple source causes an iOS finding, macOS must be checked for the same behavior; macOS-specific remaining work needs its own reconciliation in `PARITY.md`.
+This began as the three-client inventory requested in the parity audit. The dated 2026-10-28 reconciliation also includes reviewed macOS source, but **does not certify macOS runtime or release parity**. `CLAUDE.md` requires shared Apple changes to be built, installed and exercised on macOS before the broader Apple/release gate closes. Mac-specific evidence and remaining work are recorded in `PARITY.md`.
 
 This is the actionable counterpart to [`PARITY.md`](PARITY.md). The older file is a release ledger and mixes current status with historical evidence. This checklist separates:
 
@@ -14,15 +14,90 @@ This is the actionable counterpart to [`PARITY.md`](PARITY.md). The older file i
 
 The audit used current source, release tags, the parity/feature documents, and existing release receipts. It did not include a new device, simulator, browser, or build run. Do not turn a source finding into a verified fix without exercising the real client path.
 
+## 2026-10-28 Apple reconciliation
+
+The user approved retaining both upstream ASV/creator work and the six Apple
+lanes. Their reconciliation and 112-entry worktree byte audit found no missed
+source; 20 deltas already existed in newer main. Current source is Android
+**1.109.0 (128)** and Apple **1.30.0 (39)**, with Apple catch-up code **128**.
+This dated update supersedes the original audit's earlier 1.29 release targets
+and open normalization diagnosis below. It records partial runtime proof,
+not full parity or closed release checkboxes; unrelated Android/web rows remain.
+Apple parity `f420fe9c`, release infrastructure `d30c9937` and server disconnect
+correction `80c168b2` are local commits awaiting the main merge/push; the final
+Mac installation is from `d30c9937`.
+
+Direct APNs, Mac Share, chat/reader/Study/Settings parity, notes persistence
+corrections and upstream ASV/creator changes are integrated. Backend
+typecheck/lint and 1,823 logic tests (17 skips, 0 failures; 1,840 total) pass
+after 11 new disconnect tests. Final build exit 0 generated 233/233 pages and
+independent peer review passed. That correction is not pushed/deployed; the
+earlier creator-title artifact and clean candidate receipts belong to the
+prior revision. Mobile
+locked install/typecheck and 1,197 tests are green. Signed iOS units total
+**941**: 565 XCTest executions (1 skip, 0 failures) plus 376 Swift Testing
+tests across 43 suites. All three final narration/initial-ASV-reader UI cases
+pass. The public harness does not prove authenticated iOS picker persistence.
+
+Native Mac QA proved title-without-Return plus body persistence after immediate
+navigation/refresh/reopen, a 96-byte Finder TXT attachment, local rejection of
+a 1 MiB + 1-byte file without an attachment, and all three URL-share actions.
+Authenticated native token/proof registration returned 200; an unauthenticated
+request returned 401. A production APNs send reached the OS with the app closed,
+and the pending local morning request was removed. These observations do not
+prove notification taps or the full server answer-ready lifecycle. Native Mac
+sign-out DELETE returned 200, clearing local remote identity while retaining
+the proof; existing Google-session restoration returned registration/proof
+binding 200 and restored that identity. Connections counts were 10 all/3
+Pauline, reset to 10 via Explore Romans 5:8, and 207 for whole Romans 5.
+Reader append to an existing QA note preserved its title, prior Psalm quote
+and both previous body markers.
+
+Final Developer ID **1.30.0 (39)** is installed with strict signature
+verification and the production API target; the earlier QA proxy is stopped.
+Footer long-list/short-window/restoration/hide-show, real Clerk profile and
+Settings gear checks pass. Authenticated native Mac selection loaded ASV
+Genesis 1 and retained it after switching Today/Bible; the ASV Genesis 1:1 Dawn
+story card rendered correctly with Share image enabled, then KJV was restored.
+Two production replies for Psalm 23:1 and 23:2 completed in the same
+conversation, and the assistant's underlined reference opened the correct
+retrieved KJV sheet. Production main `3dd0f8a5` is READY and owns `sureword.app`;
+the queued 8cd deployment was superseded, not promoted from the old stage.
+
+App and DMG notarizations are Accepted with zero issues; both are stapled and
+Gatekeeper-accepted, including the installed app. The matching DMG is ready
+but unpublished. TestFlight 1.30.0 (1) is VALID/internal ready for beta testing,
+external ready for submission, as read back at 20:03:16 UTC.
+
+Remaining work: approved merge/push, deployment and production replay of the
+new disconnect correction; notification taps, iOS sign-out and
+migration, authenticated iOS picker/device APNs/IAP acceptance, external beta
+progression and public Mac publication. The
+closed-app answer-ready attempt at 19:54 UTC saved a complete server answer
+but produced no new OS notification record. Production registration returned
+200 and both native preferences were on. Response cancellation/latch source
+and 11 passing tests are prepared; the production replay is still required.
+This is not a passing lifecycle receipt. Physical iPhone 13 is unavailable, leaving
+live StoreKit and device-dependent iOS proof open.
+
+SureWord-only Sandbox/Production keys, six Production-scope secrets and the
+matching Developer ID profile are configured with approval. Latest release
+readback remains public Mac 1.28.0 and Store 1.26.0 `READY_FOR_SALE`; the new
+1.30.0 (1) TestFlight upload is processed but does not prove device testing or
+App Store approval.
+The older rejection is historical. See `PARITY.md` for receipts and live
+release/deployment updates. Public Mac publication and adjacent upstream
+creator-history reconciliation are not claimed by this checkpoint edit.
+
 ## Completion rule
 
 A row is done for this checklist only when the behavior is correct on web, Android, and iOS as applicable and the evidence is recorded in `docs/PARITY.md`. Android remains the primary acceptance client. Web follows on the deployed browser path. iOS needs the appropriate running-app proof, with a physical iPhone for StoreKit, push, and other device-dependent behavior. Compilation and unit tests alone never close an Apple runtime row. Shared Apple work also needs the macOS build/install/acceptance required by `CLAUDE.md` before the overall release can claim parity, even though macOS-specific work is outside this inventory.
 
 ## Priority order
 
-1. Finish the two native purchase paths and the iOS App Review blocker.
+1. Finish the Android purchase lifecycle and the newest Apple release/device acceptance; the old iOS rejection is superseded by 1.26.0 READY_FOR_SALE.
 2. Close notification behavior gaps and prove delivery and tap routing.
-3. Implement the confirmed iOS composer, inline-reference, and note-picker gaps.
+3. Prove the implemented Apple composer, inline-reference, note-picker and navigation paths on the final signed build.
 4. Close the web offline and direct file share-in gaps, then re-confirm the genuinely approved platform exceptions.
 5. Clear the running-app verification backlog.
 6. Clean up misleading copy, labels, and stale parity records.
@@ -40,11 +115,11 @@ A row is done for this checklist only when the behavior is correct on web, Andro
   - Evidence: `mobile/src/features/settings/MembershipSection.tsx`, `src/lib/billing/google-play.ts`, `docs/PARITY.md` subscription rows.
   - Done when: a real Play test purchase becomes Pro, survives restore/reinstall, renews and cancels correctly, and the server remains authoritative.
 
-- [ ] **iOS: record a successful physical-device sandbox purchase and resubmit for App Review.**
-  - Current state: StoreKit 2 purchase, restore, transaction verification, and subscription management are implemented. Apple rejected the submission under 2.1(b) because it could not find the IAP in the reviewed binary and requested a physical-device recording. This is not a missing StoreKit implementation.
-  - Remaining work: using the free review account, record from the Home Screen through sign-in and a successful sandbox SureWord Pro purchase. Ensure the subscription and group are submitted with the app version, then resubmit the prepared 1.26.0 build and complete any follow-up review requests.
-  - Evidence: `macos/Shared/Billing/ProPurchaseStore.swift`, `macos/SureWord-iOS/Views/Settings/ProMembershipView.swift`, `docs/ios/review-notes.md`.
-  - Done when: the physical purchase is recorded, the server verifies it as Pro, restore/manage work, and Apple accepts the submission or gives a new concrete blocker that is resolved.
+- [ ] **iOS: verify the current release's physical-device purchase lifecycle and submit the newest Apple build.**
+  - Current state: StoreKit 2 purchase, restore, transaction verification and subscription management are implemented. App Store Connect returned iOS 1.26.0 `READY_FOR_SALE` on 2026-10-28. The older 2.1(b) rejection and recording request are historical and must not be presented as an active rejection.
+  - Remaining work: exercise sandbox purchase/restore/manage and authoritative Pro verification on a physical iPhone for the final 1.29.0 source. Prepare any recording/review evidence needed for that new submission, attach the correct subscription/group, upload/read back the newest TestFlight build, and complete the new review cycle.
+  - Evidence: `macos/Shared/Billing/ProPurchaseStore.swift`, `macos/SureWord-iOS/Views/Settings/ProMembershipView.swift`, dated `PARITY.md` checkpoint. Older `docs/ios/review-notes.md` requirements need checking against the new submission.
+  - Done when: the latest physical purchase lifecycle and required review evidence are recorded and that exact release is accepted; 1.26.0's existing sale state does not prove 1.29.0.
 
 ### 1.2 Notifications
 
@@ -58,31 +133,32 @@ A row is done for this checklist only when the behavior is correct on web, Andro
   - Evidence: `mobile/src/features/notifications/usePushNotifications.ts`, `docs/PARITY.md` notification rows.
   - Done when: cold and warm taps open the Daily Cross or the intended conversation exactly once on the supported Android release path, with no duplicate navigation.
 
-- [ ] **iOS: enable remote morning-verse and answer-ready delivery.**
-  - Current state: `PushRegistration.isServerDeliveryConfigured` is `false`, so registration stops before Expo-token exchange and server registration. The app has only the generic local daily reminder. The APNs entitlement exists; the old “missing entitlement” diagnosis is stale.
-  - Remaining work: create/upload the SureWord APNs key to the EAS project, enable the client gate, and prove registration and delivery. Preserve the local fallback and stopped-answer suppression.
-  - Evidence: `macos/SureWord-iOS/App/PushRegistration.swift`, `docs/ios/push-design.md`, `macos/project.yml`.
-  - Done when: a physical device registers an Expo token, receives the personalized morning verse and answer-ready notifications, taps route correctly, local/remote reminders do not double-fire, and notification sound is acceptable on iOS without regressing Android.
+- [ ] **Both Apple apps: prove direct-APNs morning-verse and answer-ready delivery.**
+  - Current source: both clients register raw hex tokens plus an APNs environment. The server stores `apns:<environment>:<hex>`, routes directly to Apple, and retains legacy iOS Expo rows. The former `isServerDeliveryConfigured = false`/Expo-upload plan is superseded. iOS reads signed build metadata; macOS reads its actual APS entitlement.
+  - Configuration: separate SureWord-only Sandbox/Production keys, six Production-scope Vercel secrets, and the active installed `MAC_APP_DIRECT` production profile are prepared. Configuration is not a deployed sender or delivery receipt.
+  - Remaining work: re-review and prove the newly implemented disable-legacy-before-enable migration and its failure sequences, deploy the current server, rebuild/install the Developer ID Mac app, then verify raw-token registration, real personalized morning and answer-ready pushes, cold/warm taps, deliberate-Stop handling, local/remote dedup and sign-out cleanup on the supported devices.
+  - Evidence: `macos/SureWord-iOS/App/PushRegistration.swift`, `macos/SureWord/App/MacPushRegistration.swift`, `macos/Shared/App/APNsRegistration.swift`, `src/lib/apns.ts`, `docs/ios/push-design.md`.
+  - Done when: the final signed Apple builds receive and route both notifications without duplicate or previous-account banners, including the Mac with the app closed and a physical iPhone. Android/legacy Expo behavior must remain intact.
 
-### 1.3 iOS chat and reader behavior
+### 1.3 iOS chat and reader implementation: remaining acceptance
 
-- [ ] **iOS: add the SureWord AI composer chip.**
-  - Current state: Android and web expose the current SureWord AI plan beside the composer, including the Pro premium mark. iOS has the picker in the Chat options menu but no corresponding composer affordance.
+- [ ] **iOS: prove the implemented SureWord AI composer chip.**
+  - Current source, 2026-10-28: iOS `ChatInputBar` now renders the current SureWord AI composer chip, premium mark and accessible picker action. Keep this row open for the final signed running-app proof; it is no longer a missing implementation.
   - Evidence: `mobile/src/features/chat/ChatInputBar.tsx`, `macos/SureWord-iOS/Views/Chat/ChatInputBar.swift`, `macos/SureWord-iOS/Views/Chat/ChatTabView.swift`.
   - Done when: iOS shows the current plan and Pro mark, tapping opens the existing picker, switching plans updates the chip, and VoiceOver announces the same information.
 
-- [ ] **iOS: make inline Bible references actionable in assistant and user messages.**
-  - Current state: Android detects references and opens a matching retrieved passage in the Scripture sheet, falling back to the reader otherwise. iOS assistant Markdown has no verse-reference callback and user messages are plain text. The separate “Scripture in this answer” card works, but inline references open neither the sheet nor the reader.
+- [ ] **iOS: verify actionable inline Bible references in assistant and user messages.**
+  - Current source, 2026-10-28: both Apple chat shells use shared `VerseLinks` routing for assistant/user references, retrieved-passage matching and reader fallback, including localized book parsing. A bounded Mac user-reference handoff was exercised; assistant passage-sheet, ranges, ordinary URLs and final iOS behavior still need acceptance.
   - Evidence: `mobile/src/features/chat/MarkdownBody.tsx`, `mobile/src/features/chat/MessageBubble.tsx`, `macos/SureWord-iOS/Views/Chat/MarkdownBody.swift`, `macos/SureWord-iOS/Views/Chat/MessageBubble.swift`.
   - Done when: supported references in both message roles open the matching passage sheet when available and the reader otherwise, ranges and ordinary URLs still work, and streaming does not regress reader performance.
 
-- [ ] **iOS: let the reader’s Note action create or append to an existing note.**
-  - Current state: Android opens `AddToNoteSheet` with `compose: false`. iOS always creates a new note titled with the reference and PATCHes its content; it never offers the existing-note picker from the reader.
+- [ ] **iOS: prove the reader’s new/existing-note picker and persistence.**
+  - Current source, 2026-10-28: both readers open the generalized `AddToNoteSheet` with `compose: false` through `POST /api/notes/append`, offering new/existing notes and an Open note handoff. A bounded Mac new-note handoff was exercised. Existing-note preservation, failure cleanup and final iOS acceptance remain open; the separate untouched-note normalization regression is also unresolved.
   - Evidence: `mobile/app/(app)/bible/chapter.tsx`, `macos/Shared/Bible/VerseSheetModel.swift`, `macos/Shared/Chat/VerseActions.swift`.
   - Done when: the reader offers new-note and existing-note choices, appends through the shared contract without changing the selected Scripture, preserves the existing note, handles ranges, and leaves no empty orphan after a failed write.
 
-- [ ] **iOS: route What’s New `sermons` and `timeline` targets directly.**
-  - Current state: Android opens both destinations. Apple returns no direct target, so these cards offer Read more instead of Try it. The features themselves remain reachable through Study.
+- [ ] **iOS: verify What’s New `sermons` and `timeline` direct routes.**
+  - Current source, 2026-10-28: `WhatsNewRules` maps sermons/timeline to native Study destinations, with pending-destination consumers on both Apple shells. Final Try it/back/seen-persistence acceptance and catch-up-version reconciliation remain open.
   - Evidence: `mobile/src/features/whatsNew/whatsNew.ts`, `macos/Shared/WhatsNew/WhatsNew.swift`.
   - Done when: Try it closes/presents the correct surrounding UI and opens the intended sermon studies or timeline destination without breaking Back behavior.
 
@@ -137,7 +213,7 @@ These rows are not assertions that a feature is absent. They are the proof still
 
 Ordinary UI behavior may be proved in the simulator where that is the project’s accepted path. StoreKit, APNs/push, share extensions with device-only behavior, and final TestFlight acceptance need a physical iPhone.
 
-- [ ] **Current TestFlight build:** run the prepared 1.26.0 build on a physical iPhone and cover the new SureWord AI picker/no-BYOK UI, Quiz, and a complete signed-in Walk with me run after the final rebase. TestFlight upload alone is not App Review submission or device proof.
+- [ ] **Current TestFlight build:** after final source freeze, upload/read back the new 1.29.0 build and exercise it on a physical iPhone, including the SureWord AI composer, Quiz, complete Walk with me, sharing and direct APNs. Existing iOS 1.26.0 is READY_FOR_SALE; neither that state nor a new upload substitutes for latest-build device proof.
 - [ ] **What’s New and Connections:** exercise catch-up presentation/seen persistence, release search/filter/detail, Try it or Read more, Connections filtering, streamed explanation, and Chat/reader handoffs in a running app.
 - [ ] **Reading Plans:** complete preset and custom-plan creation, reader-driven progress, manual Mark done, archive/replace, streaks, and reopening in a signed-in workflow. The screen and shared model already exist.
 - [ ] **Atlas:** exercise Timeline, People, Places, search, journeys, relationships, trace steps, and chapter/reader handoffs in the native flow.
@@ -168,7 +244,7 @@ These are not accidental implementation gaps. Do not silently convert them into 
 The following should not be used as evidence of current capability gaps. Update older rows when their related feature is next touched, but keep this checklist focused on real remaining work.
 
 - **Reading Plans:** native iOS UI and the shared plan model exist; remaining work is the full workflow proof in section 2.4.
-- **iOS StoreKit:** implemented for iPhone/iPad. The open item here is physical purchase/App Review proof, not building the iOS StoreKit flow from scratch. This says nothing about macOS purchase capability, which is outside this inventory and must be assessed separately.
+- **iOS StoreKit:** implemented for iPhone/iPad, with 1.26.0 READY_FOR_SALE as of 2026-10-28. The open item is the latest-build physical lifecycle and next release proof, not the old rejection or a missing StoreKit implementation. macOS purchase capability remains a separate product/release question.
 - **iOS editor deferrals:** toolbar undo/redo, hardware-Tab list indentation, and live Dynamic Type rescaling are documented as completed in `macos/README.md`.
 - **Support page:** `https://sureword.app/support` exists and is publicly reachable. Its outdated auth/subscription copy is separately listed in section 1.5.
 - **Web notifications infrastructure:** registration, server fan-out, service-worker display, and tap handlers exist. The current gaps are deliberate-Stop suppression and real delivery proof, not a total absence of Web Push code.
@@ -176,8 +252,8 @@ The following should not be used as evidence of current capability gaps. Update 
 - **Android Study Bible notes loop:** already present in tagged Android source releases from `android-v1.90.0`; do not repeat the old “ships in the next Android build” claim.
 - **Android Alive/LC Greek:** already present in tagged Android source releases from `android-v1.88.0` onward, with John from `android-v1.89.1`; do not repeat the old “next build” claim.
 - **Older Apple environment blockers:** superseded Xcode-license/CoreSimulator statements and old iOS sermon-studies “not built” cells are not current capability evidence. Record the actual current build/test blocker instead.
-- **iOS APNs entitlement:** present for Debug and Release in `macos/project.yml`. Remote push is blocked by credentials, the source gate, and delivery proof.
-- **iOS inline-reference ✅ row:** contradictory to current source and must not be used to close section 1.3’s inline-reference gap.
+- **Apple remote push:** entitlements, direct APNs source and environment-specific credentials are prepared. The old disabled Expo source gate is superseded. Remaining gates are final migration/normalization corrections, backend deployment, signed rebuild and actual delivery/device proof.
+- **iOS inline references:** the 2026-10-28 implementation supersedes the original missing-source finding. Older checkmarks still do not close the final running-app acceptance row in section 1.3.
 - **Planned-feature notes:** Quiz me and Walk with me now have implementations on web, Android, and iOS; older planned-only labels are stale. The old Pro/BYOK product-design note also predates the no-BYOK decision.
 
 ---
