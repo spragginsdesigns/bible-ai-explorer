@@ -10,6 +10,7 @@ struct DailyWalkHome: View {
     let onPlan: () -> Void
     let onLearn: () -> Void
     let onHistory: () -> Void
+    let onServe: () -> Void
     @State private var reading: ContinueReadingModel?
     @State private var preview: DailyWalkPreview?
 
@@ -48,6 +49,7 @@ struct DailyWalkHome: View {
                     .spotlightTarget(.todayLearn)
                     .id(AppTarget.todayLearn)
                 DailyWalkRow(symbol: "clock.arrow.circlepath", title: "Your walk", detail: "Your reading log and reflections", action: onHistory)
+                ServeTodayCard(onOpen: onServe)
                 SendWordHomeCard(titleSize: 16, subtitleSize: 13)
             }
             .padding(Spacing.lg)
@@ -66,8 +68,10 @@ struct DailyWalkHome: View {
         // Here rather than on the card: an empty card has no view to hang a
         // task on, so it would never load in the first place.
         .task { await app.onboarding.loadProgress() }
+        // Same reason: the Ways to Serve card is empty until this loads.
+        .task { await app.serve.refresh() }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await reading?.refresh(); await refreshPreview() } }
+            if phase == .active { Task { await reading?.refresh(); await refreshPreview(); await app.serve.refresh() } }
         }
     }
 

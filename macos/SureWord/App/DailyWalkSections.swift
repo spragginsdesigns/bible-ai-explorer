@@ -26,9 +26,13 @@ struct TodaySection: View {
                     app.section = .chat
                 }, onClose: { destination = nil })
                 .toolbar { Button("Back to Today", systemImage: "chevron.left") { destination = nil } }
+            case .serve:
+                WaysToServeView(model: app.serve)
+                    .toolbar { Button("Back to Today", systemImage: "chevron.left") { destination = nil } }
             case nil:
                 DailyWalkHome(onCross: { app.section = .cross }, onPlan: { destination = .plan },
-                              onLearn: { destination = .learn }, onHistory: { destination = .history })
+                              onLearn: { destination = .learn }, onHistory: { destination = .history },
+                              onServe: { destination = .serve })
             }
         }
         .onChange(of: app.pendingDailyDestination, initial: true) { _, pending in

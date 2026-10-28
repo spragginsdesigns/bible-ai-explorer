@@ -42,7 +42,7 @@ enum AppSection: String, CaseIterable, Identifiable {
     }
 }
 
-enum DailyWalkDestination: String, Hashable { case plan, learn, history }
+enum DailyWalkDestination: String, Hashable { case plan, learn, history, serve }
 
 /// Root state for a signed-in session: the API client, the shared settings, and
 /// the chat and Bible models. Created once the user is signed in so the API
@@ -85,6 +85,9 @@ final class AppModel {
     /// Walk with me, the guided first run: its start, cards, spotlight,
     /// Getting started card and voice mode, for this account.
     let onboarding: OnboardingModel
+    /// Ways to Serve: one instance so the Today card, the page and the
+    /// Settings row agree the moment the mode changes.
+    let serve: ServeModel
 
     var section: AppSection = .today
     var connectionPlace = ConnectionsPlace(order: 43, chapter: 3, verse: 16)
@@ -146,6 +149,7 @@ final class AppModel {
         aiConsent = AIConsentStore(account: userID, transport: api, askOnLaunch: true)
         chapterAudio = ChapterAudioModel(api: api, settings: settings)
         onboarding = OnboardingModel(api: api, account: userID)
+        serve = ServeModel(api: api)
         preferences.aiConsent = aiConsent
         AIConsentGate.install(aiConsent)
         // Account-guarded like the reading journal's client: a queued review

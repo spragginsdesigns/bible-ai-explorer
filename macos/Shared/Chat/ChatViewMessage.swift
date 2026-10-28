@@ -231,6 +231,9 @@ extension ChatViewMessage {
         "tool-learnVerse": "Adding that verse to Learn",
         "tool-getLearnVerses": "Opening your Learn verses",
         "tool-resolvePrayerRequest": "Updating that prayer request",
+        "tool-getWaysToServe": "Looking at ways to serve",
+        "tool-saveServeEntry": "Writing it in your journal",
+        "tool-listServeEntries": "Reading your journal",
     ]
 
     /// Strip the trailing `[FOLLOWUP]` block the model appends — it drives the

@@ -9,7 +9,8 @@ struct TodayTabView: View {
                 onCross: { NotificationCenter.default.post(name: .openDailyCross, object: nil) },
                 onPlan: { path.append(.plan) },
                 onLearn: { path.append(.learn) },
-                onHistory: { path.append(.history) }
+                onHistory: { path.append(.history) },
+                onServe: { path.append(.serve) }
             )
             .spotlightTarget(.tabToday)
             .spotlightHost()
@@ -27,6 +28,7 @@ struct TodayTabView: View {
                         if let prompt { app.chat.input = prompt }
                         app.section = .chat
                     }).analyticsScreen(AnalyticsScreen.history)
+                case .serve: WaysToServeView(model: app.serve)
                 }
             }
         }

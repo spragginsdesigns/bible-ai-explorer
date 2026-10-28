@@ -72,6 +72,9 @@ struct SettingsView: View {
                     }
                     .spotlightTarget(.settingsChurch)
                 }
+                row("Ways to Serve", symbol: "hands.sparkles", subtitle: serveSubtitle) {
+                    ServeSettingsPage()
+                }
             }
 
             Section("Assistant") {
@@ -119,6 +122,8 @@ struct SettingsView: View {
         .navigationTitle("Settings")
         .analyticsScreen(AnalyticsScreen.settings)
         .onAppear(perform: revalidate)
+        // Usually already loaded by Today; only a cold open of Settings fetches.
+        .task { if app.serve.view == nil { await app.serve.refresh() } }
     }
 
     // MARK: - Walk with me
@@ -198,6 +203,11 @@ struct SettingsView: View {
 
     private var churchSubtitle: String {
         SettingsHubSubtitles.church(data.church.data)
+    }
+
+    /// The mode only; nothing about what the reader has done is summarised.
+    private var serveSubtitle: String {
+        app.serve.view.map { $0.settings.mode.label } ?? "…"
     }
 
     private var memorySubtitle: String {

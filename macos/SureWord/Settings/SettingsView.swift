@@ -379,6 +379,19 @@ struct SettingsView: View {
         case .church:
             churchSection
 
+        case .serve:
+            ServeSettingsSection {
+                LabeledContent("Today's way, nearby search and your journal") {
+                    Button("Open Ways to Serve") {
+                        // Settings is a sheet on the Mac; close it so the
+                        // page opens in the main window behind it.
+                        app.isSettingsPresented = false
+                        app.pendingDailyDestination = .serve
+                        app.section = .today
+                    }
+                }
+            }
+
         case .memory:
             memorySection
             AboutMeSection(settings: app.settings, preferences: app.preferences)
@@ -580,7 +593,7 @@ struct SettingsView: View {
 
 /// One page of Settings. Grouped, named and ordered like Android's hub rows.
 enum SettingsPane: String, CaseIterable, Identifiable {
-    case account, appearance, language, highlights, church, memory, ai, shared, notifications, feedback, about
+    case account, appearance, language, highlights, church, serve, memory, ai, shared, notifications, feedback, about
 
     enum Group: CaseIterable {
         case study, assistant, app
@@ -600,7 +613,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
     var group: Group? {
         switch self {
         case .account: nil
-        case .appearance, .language, .highlights, .church: .study
+        case .appearance, .language, .highlights, .church, .serve: .study
         case .memory, .ai, .shared: .assistant
         case .notifications, .feedback, .about: .app
         }
@@ -613,6 +626,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .language: "Language"
         case .highlights: "Highlight labels"
         case .church: "My church"
+        case .serve: "Ways to Serve"
         case .memory: "Memory"
         case .ai: "AI"
         case .shared: "Shared answers"
@@ -630,6 +644,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .language: "The language SureWord answers in, and its Bible."
         case .highlights: "Names and meanings for your highlight colours."
         case .church: "The congregation you belong to."
+        case .serve: "Optional ways to put faith into action, online, nearby or both."
         case .memory: "What SureWord remembers about you, and what you've told it."
         case .ai: "SureWord Pro, web search and data sharing."
         case .shared: "Public links to answers and verse cards you've sent."
@@ -646,6 +661,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .language: "globe"
         case .highlights: "highlighter"
         case .church: "building.columns.fill"
+        case .serve: "hands.sparkles.fill"
         case .memory: "sparkles"
         case .ai: "cpu.fill"
         case .shared: "square.and.arrow.up.fill"
@@ -664,6 +680,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .language: .cyan
         case .highlights: .orange
         case .church: .brown
+        case .serve: .pink
         case .memory: .purple
         case .ai: .teal
         case .shared: .blue
@@ -681,6 +698,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .language: ["spanish", "german", "espa\u{00F1}ol", "espanol", "deutsch", "reina-valera", "luther", "answers"]
         case .highlights: ["colour", "color", "highlight", "labels", "yellow", "meaning"]
         case .church: ["church", "congregation", "mission"]
+        case .serve: ["serve", "volunteer", "give", "giving", "food bank", "journal", "nearby"]
         case .memory: ["memories", "about me", "testimony", "personal", "remember"]
         case .ai: ["model", "pro", "membership", "subscription", "web search", "tavily", "consent", "privacy"]
         case .shared: ["links", "share", "cards", "revoke", "privacy"]
