@@ -14,6 +14,9 @@
 		]
 	},
 	"releases": {
+		"1.110.0": {
+			"title": "Linked notes"
+		},
 		"1.109.0": {
 			"title": "Meet the creator",
 			"headline": "A faith story behind the name.",
