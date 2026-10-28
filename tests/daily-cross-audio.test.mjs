@@ -182,26 +182,16 @@ test("the allowlist env is parsed the same way as SERVER_CREDENTIAL_USER_IDS", (
 	assert.deepEqual(parseUserIdAllowlist("a,,b,"), ["a", "b"]);
 });
 
-test("Listen: no key hides it, Free is locked, and a subscriber waits for the audio switch", () => {
-	const billing = { SUREWORD_USAGE_ENABLED: "true", PRO_USER_IDS: "user_comp", SERVER_CREDENTIAL_USER_IDS: "user_owner" };
-	const access = (plan, userId, env, speechConfigured = true) => listenAccess({ speechConfigured, plan, userId, env });
+test("Listen: no key hides it, Free is locked, and every Pro account narrates", () => {
+	const access = (plan, speechConfigured = true) => listenAccess({ speechConfigured, plan });
 
 	// No ElevenLabs key: hidden for everyone, Pro included.
-	assert.equal(access("pro", "user_comp", billing, false), "unavailable");
-	// Free is refused on every configuration, owner allowlist or not.
-	assert.equal(access("free", "user_x", {}), "locked");
-	assert.equal(access("free", "user_x", billing), "locked");
-	// Before billing, any Pro account narrates.
-	assert.equal(access("pro", "user_paid", {}), "allowed");
-	// With billing on, comps and the owner keep the access they always had...
-	assert.equal(access("pro", "user_comp", billing), "allowed");
-	assert.equal(access("pro", "user_owner", billing), "allowed");
-	// ...a paying subscriber is held until subscription audio is opened...
-	assert.equal(access("pro", "user_paid", billing), "held");
-	// ...and then narrates.
-	assert.equal(access("pro", "user_paid", { ...billing, SUREWORD_PRO_AUDIO_ENABLED: "true" }), "allowed");
-	// Only the exact string "true" opens it.
-	assert.equal(access("pro", "user_paid", { ...billing, SUREWORD_PRO_AUDIO_ENABLED: "1" }), "held");
+	assert.equal(access("pro", false), "unavailable");
+	assert.equal(access("free", false), "unavailable");
+	// Free is refused.
+	assert.equal(access("free"), "locked");
+	// Pro narrates, however it became Pro (subscription, comp or owner).
+	assert.equal(access("pro"), "allowed");
 });
 
 test("the speed chip cycles every rate, wraps, and never leaves the set", () => {

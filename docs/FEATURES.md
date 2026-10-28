@@ -673,7 +673,8 @@ head at that plan's effort (`houseEffortFor`), on the server key and
 unmetered; the default is Pro. The ids sit outside every provider namespace,
 so `resolveDefinition` and the BYOK catalogs never return them, and
 `PATCH /api/preferences` accepts them as a stored `chat.modelId`. Owner
-utility work stays on the keys path. `houseEffortsFor()` is now `[]` for both
+utility work stays on the keys path (OpenAI's `UTILITY_MODELS` entry is GPT-5.6
+Luna since 2026-10-28, the same model as everyone else's background work). `houseEffortsFor()` is now `[]` for both
 plans, so no client draws Reasoning chips, and `houseEffortFor(requested,
 plan)` is low for Free and high for Pro, except that a call site pinning low
 for latency (tap-a-verse, word study, connections) keeps low. A Pro pick
@@ -683,6 +684,15 @@ bills it to `OPENAI_API_KEY` (the owner key); GPT-5.6 Luna on the free-tier
 key still runs utility work, status lines and signed-out guests. No
 client change: every client renders the label and chips from
 `GET /api/ai/models`.
+
+**Only Austin is the owner (2026-10-28).** `SERVER_CREDENTIAL_USER_IDS` in
+production holds exactly one id, Austin's (`user_3Hk7fPXucIYEZzeWsSpvpUwgoJx`).
+It used to also hold Pastor Nick and the Play reviewer account, which gave them
+the owner picker, GPT-6.1 Sol and unmetered use of the server key. Austin:
+"only me gets that, everywhere else gets SureWord Free if they're free,
+SureWord AI Pro if they're pro". The owner sees three rows: Free, Pro and
+GPT-6.1 Sol. Never add anyone else to that variable; comp a person with
+`UPDATE "User" SET plan = 'pro'` or `PRO_USER_IDS` instead.
 
 **Keeping the model list current (2026-10-25).** `pnpm models:check`
 (`scripts/check-new-models.mjs`) asks OpenAI, Anthropic and Moonshot (each
@@ -1334,13 +1344,10 @@ directly (the stream route answers 404). The plan is read fresh on every
 request (no memo, no shared cache), so an upgrade or a lapse applies on the
 next call.
 
-**Paid subscribers are held for now.** With billing on, a subscriber's Listen
-is `"unavailable"` (no card, `plan: "pro"`) until `SUREWORD_PRO_AUDIO_ENABLED=true`,
-because subscription narration has not been priced; comps (`PRO_USER_IDS`) and
-the owner (`SERVER_CREDENTIAL_USER_IDS`) keep it. The rule is `listenAccess`
-in `src/lib/entitlements-rules.ts`, tested in `tests/daily-cross-audio.test.mjs`.
-Note that the iOS Pro screen lists Listen as a Pro benefit, so a buyer there
-does not get it while this switch is off.
+**Every Pro account gets Listen** (Austin, 2026-10-28): a subscriber, a comp
+and the owner alike. There is no separate audio switch; the rule is
+`listenAccess` in `src/lib/entitlements-rules.ts`, tested in
+`tests/daily-cross-audio.test.mjs`.
 
 **Flagging a user as Pro**, either way works:
 
@@ -1433,7 +1440,6 @@ are what keep playback going on each platform.
 | `ELEVENLABS_API_KEY` | yes | Without it the routes answer `status: "unavailable"` and every client hides the feature entirely. `synthesizeSpeech` still throws `ELEVENLABS_API_KEY is not set` if it is ever reached, so the failure is never a silent no-op |
 | `ELEVENLABS_VOICE_ID` | no | Overrides the default voice per environment. Default `UgBBYS2sOqTuMpoF3BR0` ("Mark - Natural Conversations") - casual, natural American conversational delivery |
 | `PRO_USER_IDS` | no | Comma-separated Clerk ids granted SureWord Pro without a `User.plan` write. Wins over the column. With neither set, every account is free and Listen renders the locked panel for everyone |
-| `SUREWORD_PRO_AUDIO_ENABLED` | no | Only matters when `SUREWORD_USAGE_ENABLED=true`. Unless it is exactly `true`, an account that is Pro through a paid subscription (Stripe, Google Play, App Store) gets `status: "unavailable"` with `plan: "pro"`, so no Listen card at all. Only `PRO_USER_IDS` and `SERVER_CREDENTIAL_USER_IDS` keep it; a hand-written `User.plan = 'pro'` is held the same way once billing is on. Rule: `listenAccess` in `src/lib/entitlements-rules.ts`. Unset in production as of 2026-10-27 |
 
 ### Surfaces
 
@@ -4093,6 +4099,26 @@ history load; `/share` at 390 px.
 | Web | `src/components/ChatFileAttachments.tsx`, `src/app/share/page.tsx`, `src/lib/share-target.ts`, `public/site.webmanifest` |
 | Apple | `macos/ShareInbox/`, `macos/Shared/Chat/ShareIntake.swift`, `macos/Shared/Chat/ShareInboxIntake.swift`, `macos/Shared/Chat/ShareActionsRow.swift`, `macos/SureWord-iOS-Share/`, `macos/SureWord/App/MacShareInbox.swift` |
 | Tests | `tests/voice-messages.test.mjs`, `tests/share-target.test.mjs`, `macos/SureWord-iOSTests/ShareIntoSureWordTests.swift`, `macos/SureWordTests/ShareIntoSureWordMacTests.swift` |
+
+## Google Play real-time developer notifications
+
+*Set up 2026-10-28.* Google tells SureWord about Play subscription changes
+(renewal, cancel, hold, revoke, refund) through Pub/Sub, so a change lands in
+seconds instead of on the next five-minute stale refresh.
+
+| Piece | Value |
+|---|---|
+| GCP project | `versemind-auth` (same project as the Play publisher service account) |
+| Topic | `projects/versemind-auth/topics/sureword-play-rtdn`; `google-play-developer-notifications@system.gserviceaccount.com` has Pub/Sub Publisher on it |
+| Push subscription | `sureword-play-rtdn-push` -> `https://sureword.app/api/webhooks/google-play`, OIDC token minted as `sureword-rtdn-push@versemind-auth.iam.gserviceaccount.com`, audience = the endpoint URL, 60s ack, 7 day retention |
+| Vercel (production) | `SUREWORD_PLAY_RTDN_AUDIENCE` = the endpoint URL, `SUREWORD_PLAY_RTDN_SERVICE_ACCOUNT_EMAIL` = the push service account |
+| Play Console | Monetize with Play -> Monetization setup -> Real-time developer notifications -> topic name above |
+
+The route (`src/app/api/webhooks/google-play/route.ts`) verifies the
+Google-signed OIDC token against those two variables and answers 401 to
+anything else; with either unset it answered 401 to every notification, which
+is how it ran until this setup. A notification for another package is
+acknowledged and ignored; a processing failure answers 503 so Pub/Sub retries.
 
 ## App Store subscription
 

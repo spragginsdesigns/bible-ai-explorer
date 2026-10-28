@@ -591,9 +591,13 @@ export const ATTACHMENT_CAPABLE_MODEL_IDS: readonly string[] = [
  * Cheap sibling used for background work (memory extraction, summaries) so
  * those bills follow the same credentials as the user's chat model. Anthropic's
  * utility model takes no effort option: Haiku 4.5 rejects it.
+ *
+ * Since BYOK was removed only the owner reaches these, and OpenAI's is Luna,
+ * the same model everyone else's background work runs on (Austin, 2026-10-28:
+ * Luna is about as good for far less).
  */
 export const UTILITY_MODELS: Record<ProviderId, { providerModelId: string; effort: ReasoningEffort | null }> = {
-	openai: { providerModelId: "gpt-5.6-terra", effort: "low" },
+	openai: { providerModelId: "gpt-5.6-luna", effort: "low" },
 	anthropic: { providerModelId: "claude-haiku-4-5", effort: null },
 	moonshot: { providerModelId: "kimi-k3", effort: "low" },
 	openrouter: { providerModelId: "z-ai/glm-5.3-flash", effort: "low" },

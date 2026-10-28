@@ -411,16 +411,8 @@ function speechAvailable(): boolean {
 async function refuseAudio(userId: string): Promise<DailyCrossAudio | null> {
 	// The key check needs no query, so it runs before the plan lookup.
 	if (!speechAvailable()) return UNAVAILABLE_AUDIO;
-	const access = listenAccess({
-		speechConfigured: true,
-		plan: await getUserPlan(userId),
-		userId,
-		env: process.env,
-	});
+	const access = listenAccess({ speechConfigured: true, plan: await getUserPlan(userId) });
 	if (access === "locked") return LOCKED_AUDIO;
-	// A subscriber whose audio is held (see `listenAccess`) still sees no card,
-	// but is reported as Pro so the listen_requested event counts them honestly.
-	if (access === "held") return { ...UNAVAILABLE_AUDIO, plan: "pro" };
 	return null;
 }
 
