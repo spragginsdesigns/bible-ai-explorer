@@ -60,7 +60,7 @@ that APK automatically, so no site version constant is updated by hand.
 
 | Thing | Where |
 |---|---|
-| Service account | `sureword-play-publisher@versemind-auth.iam.gserviceaccount.com` (Play Console → Users and permissions: Release apps to testing tracks + Manage testing tracks, app-level on SureWord) |
+| Service account | `sureword-play-publisher@versemind-auth.iam.gserviceaccount.com` (Play Console → Users and permissions: Release apps to testing tracks + Manage testing tracks, app-level on SureWord). Play Billing (`SUREWORD_PLAY_BILLING_ENABLED`) also needs **View financial data** and **Manage orders and subscriptions** on the same app: without them `purchases.subscriptionsv2.get`, acknowledge and cancel answer 401 permissionDenied, so no real purchase can be verified. Both were added 2026-10-28; new permissions can take a while to propagate before the 401 clears. |
 | API key | `~/.sureword-signing/play-publisher.json` (env override `SUREWORD_PLAY_KEY`) - back it up with the keystore |
 | Uploader | `mobile/scripts/play-upload.mjs` (no npm deps; `--track` defaults to `internal`) |
 | App id in console | `4976411638093672168` |
