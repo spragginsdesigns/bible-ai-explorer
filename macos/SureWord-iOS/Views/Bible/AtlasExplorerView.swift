@@ -879,6 +879,7 @@ private struct AtlasRelationRow: View {
                     Image(systemName: "chevron.right").foregroundStyle(theme.textFaint)
                 }
                 .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(
@@ -954,6 +955,7 @@ private struct AtlasTraceView: View {
     @State private var query = ""
     @State private var targetID: String?
     @State private var started = false
+    @FocusState private var searchFocused: Bool
 
     /// Only a path from this person to the chosen target is ever shown.
     private var path: AtlasPersonConnectionPath? {
@@ -982,6 +984,7 @@ private struct AtlasTraceView: View {
                         TextField("Search a person", text: Binding(
                             get: { query },
                             set: { next in
+                                guard next != query else { return }
                                 query = next
                                 targetID = nil
                                 model.searchTracePeople(next, excluding: entity.id)
@@ -989,6 +992,7 @@ private struct AtlasTraceView: View {
                         ))
                         .textInputAutocapitalization(.words)
                         .autocorrectionDisabled()
+                        .focused($searchFocused)
                         .padding(.horizontal, Spacing.md)
                         .frame(minHeight: 48)
                         .background(theme.surface, in: .capsule)
@@ -1021,6 +1025,7 @@ private struct AtlasTraceView: View {
         case .empty, .loaded:
             ForEach(model.traceResults) { hit in
                 Button {
+                    searchFocused = false
                     targetID = hit.id
                     model.traceConnection(from: entity.id, to: hit.id)
                 } label: {
