@@ -146,16 +146,23 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        // A clicked "Your answer is ready" opens its conversation, through the
-        // same `NotificationTapTarget` iOS reads and the buffer that survives a
-        // click launching the app (`PendingDeepLinks`). Anything else is the
-        // morning reminder, which opens the Daily Cross as it always has.
-        let userInfo = response.notification.request.content.userInfo
-        if case .chat(let conversationID) = NotificationTapTarget(userInfo: userInfo) {
-            Task { @MainActor in PendingDeepLinks.shared.post(.chat(conversationID)) }
-        } else {
-            NotificationCenter.default.post(name: .openDailyCross, object: nil)
+        // Every destination must enter the cold-start buffer. The window's
+        // live observers also drain that buffer, so a bare wake-up event has
+        // no destination to open. Match iOS's remote/legacy-local semantics.
+        let request = response.notification.request
+        let link: DeepLink
+        switch NotificationTapTarget(userInfo: request.content.userInfo) {
+        case .chat(let conversationID): link = .chat(conversationID)
+        case .reference(let reference): link = .verse(reference)
+        case .cross: link = .cross
+        case nil:
+            guard request.trigger is UNCalendarNotificationTrigger else {
+                completionHandler()
+                return
+            }
+            link = .cross
         }
+        Task { @MainActor in PendingDeepLinks.shared.post(link) }
         completionHandler()
     }
 
@@ -216,6 +223,18 @@ struct RootView: View {
             Analytics.shared.sessionChanged(userID: userID)
         }
         .task { await Analytics.shared.observeSignIns() }
+        // SDK profile sign-out/account switching can bypass ClerkAuth.signOut.
+        // Clerk's actual session transition is the authoritative local fence;
+        // remote dispatch independently checks that same server-side session.
+        .onChange(of: clerk.session?.id) { previousID, sessionID in
+            guard previousID != nil, previousID != sessionID else { return }
+            AnswerReadyNotifier.invalidateForAccountChange()
+            MacPushRegistration.clearLocalDeliveryForAccountChange()
+            _ = PendingDeepLinks.shared.drain()
+            if let app = root.app, app.userID == clerk.user?.id, sessionID != nil {
+                Task { await MacPushRegistration.syncAll(api: app.api, settings: settings, accountID: app.userID) }
+            }
+        }
         // The account's text size, on top of the system's (Walk with me).
         .textScaled(settings.textScale)
         .sureWordTheme(for: scheme)

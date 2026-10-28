@@ -10,6 +10,20 @@ import XCTest
 final class APNsRegistrationTests: XCTestCase {
     private let hex = String(repeating: "a1b2c3d4", count: 8)
 
+    func testFailedSignOutCanOnlyResumeItsStillCurrentFencedOwner() {
+        let owner = APNsRegistration.AuthSession(accountID: "account-a", sessionID: "session-a")
+        let otherAccount = APNsRegistration.AuthSession(accountID: "account-b", sessionID: "session-a")
+        let otherSession = APNsRegistration.AuthSession(accountID: "account-a", sessionID: "session-b")
+        XCTAssertTrue(APNsRegistration.canResumeAfterFailedSignOut(current: owner, signingOut: owner, expected: owner))
+        for current in [nil, otherAccount, otherSession] as [APNsRegistration.AuthSession?] {
+            XCTAssertFalse(APNsRegistration.canResumeAfterFailedSignOut(current: current, signingOut: owner, expected: owner))
+        }
+        for fenced in [nil, otherAccount, otherSession] as [APNsRegistration.AuthSession?] {
+            XCTAssertFalse(APNsRegistration.canResumeAfterFailedSignOut(current: owner, signingOut: fenced, expected: owner))
+        }
+        XCTAssertFalse(APNsRegistration.canResumeAfterFailedSignOut(current: owner, signingOut: owner, expected: otherSession))
+    }
+
     private func json(_ value: some Encodable) throws -> [String: Any] {
         let data = try JSONEncoder().encode(value)
         return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])

@@ -21,10 +21,7 @@ enum PushRegistration {
     /// An old bool cannot establish who registered. Only a complete matching
     /// identity can suppress the local fallback after an offline launch.
     private static let remoteIdentityKey = "push.ios.remoteIdentity"
-    private struct SessionIdentity: Equatable, Sendable {
-        let accountID: String
-        let sessionID: String
-    }
+    private typealias SessionIdentity = APNsRegistration.AuthSession
     private static var operation: Task<Void, Never>?
     private static var revision = 0
     private static var activeAPI: ObjectIdentifier?
@@ -184,6 +181,36 @@ enum PushRegistration {
         }
         operation = work
         await work.value
+    }
+
+    /// Clear only this app's local delivery state after an account/session
+    /// transition. Server authorization retires the old session's audience;
+    /// no DELETE is sent using a replacement account's bearer.
+    static func clearLocalDeliveryForAccountChange() {
+        revision += 1
+        activeAPI = nil
+        signingOutSession = nil
+        operation?.cancel()
+        // Preserve ordering against an old POST that was already in flight.
+        UIApplication.shared.unregisterForRemoteNotifications()
+        let center = UNUserNotificationCenter.current()
+        center.removeAllPendingNotificationRequests()
+        center.removeAllDeliveredNotifications()
+        saveIdentity(nil)
+        // Preserve raw/legacy tokens and device proofs for cleanup/rebinding.
+    }
+
+    /// Called after an awaited SDK sign-out failure, never on a timer or
+    /// while the transition is still in flight.
+    static func resumeAfterFailedSignOut(accountID: String, sessionID: String) {
+        let expected = SessionIdentity(accountID: accountID, sessionID: sessionID)
+        guard APNsRegistration.canResumeAfterFailedSignOut(
+            current: currentSession, signingOut: signingOutSession, expected: expected
+        ) else { return }
+        signingOutSession = nil
+        activeAPI = nil
+        revision += 1
+        NotificationCenter.default.post(name: .pushTokenDidChange, object: nil)
     }
 
     /// Call before Clerk invalidates the current session. Remote registration

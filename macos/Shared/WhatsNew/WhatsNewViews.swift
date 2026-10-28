@@ -453,7 +453,11 @@ enum WhatsNewNavigation {
         case .section(let section):
             app.section = section
         case .cross:
+            #if os(macOS)
+            PendingDeepLinks.shared.post(.cross)
+            #else
             NotificationCenter.default.post(name: .openDailyCross, object: nil)
+            #endif
         case .daily(let daily):
             app.pendingDailyDestination = daily
             app.section = .today

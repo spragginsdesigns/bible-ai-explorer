@@ -1,6 +1,7 @@
 import AppKit
 import ClerkKit
 import Foundation
+import UserNotifications
 import Security
 
 extension Notification.Name {
@@ -50,10 +51,7 @@ enum MacPushRegistration {
     /// An old bool cannot establish who registered. Only a complete matching
     /// identity can suppress the local fallback after an offline launch.
     private static let remoteIdentityKey = "push.mac.remoteIdentity"
-    private struct SessionIdentity: Equatable, Sendable {
-        let accountID: String
-        let sessionID: String
-    }
+    private typealias SessionIdentity = APNsRegistration.AuthSession
     private static var operation: Task<Void, Never>?
     private static var revision = 0
     private static var activeAPI: ObjectIdentifier?
@@ -203,6 +201,37 @@ enum MacPushRegistration {
         }
         operation = work
         await work.value
+    }
+
+    /// Called after an actual account/session transition. Clerk's server-side
+    /// session binding blocks old-account pushes; this only clears local OS/UI
+    /// delivery state, without borrowing the replacement account's bearer.
+    static func clearLocalDeliveryForAccountChange() {
+        revision += 1
+        activeAPI = nil
+        signingOutSession = nil
+        operation?.cancel()
+        // Keep the operation chain: a new owner's POST must follow any old
+        // request already in flight. Its result is fenced by the revision.
+        NSApplication.shared.unregisterForRemoteNotifications()
+        let center = UNUserNotificationCenter.current()
+        center.removeAllPendingNotificationRequests()
+        center.removeAllDeliveredNotifications()
+        saveIdentity(nil)
+        // Device tokens and their ownership proofs survive for the next bind.
+    }
+
+    /// Only the caller that observed the SDK's terminal failure may release
+    /// this fence. The live shell then registers with its current settings.
+    static func resumeAfterFailedSignOut(accountID: String, sessionID: String) {
+        let expected = SessionIdentity(accountID: accountID, sessionID: sessionID)
+        guard APNsRegistration.canResumeAfterFailedSignOut(
+            current: currentSession, signingOut: signingOutSession, expected: expected
+        ) else { return }
+        signingOutSession = nil
+        activeAPI = nil
+        revision += 1
+        NotificationCenter.default.post(name: .macPushTokenDidChange, object: nil)
     }
 
     /// Call before Clerk invalidates the current session. Remote registration

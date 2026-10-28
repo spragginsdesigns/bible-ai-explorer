@@ -199,6 +199,14 @@ struct RootView: View {
             Analytics.shared.phaseChanged(to: AnalyticsScenePhase.name(phase))
         }
         .task { await Analytics.shared.observeSignIns() }
+        .onChange(of: clerk.session?.id) { previousID, sessionID in
+            guard previousID != nil, previousID != sessionID else { return }
+            PushRegistration.clearLocalDeliveryForAccountChange()
+            _ = PendingDeepLinks.shared.drain()
+            if let app, app.userID == clerk.user?.id, sessionID != nil {
+                Task { await PushRegistration.syncAll(api: app.api, settings: settings, accountID: app.userID) }
+            }
+        }
         .onChange(of: clerk.user?.id, initial: true) { previousID, userID in
             app?.bible.reading.teardown()
             guard let userID else {

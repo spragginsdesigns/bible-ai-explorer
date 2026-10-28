@@ -28,6 +28,8 @@ enum ClerkAuth {
     }
 
     static func signOut() async {
+        let ownerID = Clerk.shared.user?.id
+        let sessionID = Clerk.shared.session?.id
         #if os(macOS)
         if Clerk.shared.user != nil {
             // Remove the device while its owning session can authenticate.
@@ -41,7 +43,22 @@ enum ClerkAuth {
             _ = await PushRegistration.unregister(api: api)
         }
         #endif
-        try? await Clerk.shared.auth.signOut()
+        // Cleanup awaited the network. It must never sign out an account or
+        // replacement session that became active while that work was pending.
+        guard Clerk.shared.user?.id == ownerID, Clerk.shared.session?.id == sessionID else { return }
+        do {
+            try await Clerk.shared.auth.signOut()
+        } catch {
+            // Unlike an SDK-owned profile action, this wrapper owns the full
+            // request lifetime, so a terminal failure is safe to recover.
+            guard let ownerID, let sessionID,
+                  Clerk.shared.user?.id == ownerID, Clerk.shared.session?.id == sessionID else { return }
+            #if os(macOS)
+            MacPushRegistration.resumeAfterFailedSignOut(accountID: ownerID, sessionID: sessionID)
+            #elseif os(iOS)
+            PushRegistration.resumeAfterFailedSignOut(accountID: ownerID, sessionID: sessionID)
+            #endif
+        }
     }
 
     /// An old request must not sign out a different account that signed in

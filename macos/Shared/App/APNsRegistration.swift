@@ -13,6 +13,15 @@ import Foundation
 /// server sends to Apple itself (`src/lib/apns.ts`), storing the row as
 /// `apns:<environment>:<hex>`.
 enum APNsRegistration {
+    struct AuthSession: Equatable, Sendable {
+        let accountID: String
+        let sessionID: String
+    }
+
+    static func canResumeAfterFailedSignOut(current: AuthSession?, signingOut: AuthSession?, expected: AuthSession) -> Bool {
+        current == expected && signingOut == expected
+    }
+
     /// The server's `platform` for a raw APNs token.
     static let platform = "macos"
 

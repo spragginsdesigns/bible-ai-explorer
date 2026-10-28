@@ -94,12 +94,14 @@ struct MainWindow: View {
         // because only the Mac posts it; iOS's notice is the server's push.
         .task {
             let settings = app.settings
+            let accountID = app.userID
             app.chat.onAnswerReady = { conversationID, title, recovered in
                 AnswerReadyNotifier.answerLanded(
                     conversationID: conversationID,
                     title: title,
                     chatReplies: settings.notifyChatReplies,
-                    recovered: recovered
+                    recovered: recovered,
+                    accountID: accountID
                 )
             }
         }
