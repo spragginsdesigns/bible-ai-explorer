@@ -413,8 +413,10 @@ through the normal Gatekeeper path.
 
 ### Current integration checkpoint, 2026-10-28
 
-Apple source is **1.30.0 (39)**, aligned to Android **1.109.0 (128)** and
-What's New catch-up code **128**. The user-approved reconciliation preserves
+Apple source is **1.30.0 (39)**, aligned to the Android **1.109.0 (128)**
+capability cohort and curated What's New catch-up code **128**. Android source
+is now **1.110.0 (129)** after a separate Android notes-editor repair.
+The user-approved reconciliation preserves
 the upstream creator/ASV changes and all six parity lanes. A 112-entry byte
 audit found no omitted source; 20 deltas already existed in newer main.
 Capabilities include chat references/composer/errors/attachments, reader note
@@ -448,11 +450,13 @@ that receipt alone does not prove a visible banner, taps or the full server
 answer-ready lifecycle. See `../docs/ios/push-design.md` for the protocol.
 
 Validation logs under `/tmp/sureword-parity-takeover/` record backend
-typecheck/lint exit 0, 1,823 passing logic tests with 17 skips, and a successful
-233-page build. This includes the response-cancellation correction; deployment
-and closed-client replay remain separate acceptance gates. The earlier clean
+typecheck/lint exit 0, 1,825 passing logic tests with 17 skips, and a successful
+234-page post-upstream build. This includes 13 regressions for the final client-response
+tracker outside usage metering, plus the per-route Vercel cancellation opt-in.
+The correction is pushed; deployment and closed-client replay remain separate acceptance gates. The earlier clean
 backend candidate passed its gates with matching APNs source bytes. Mobile
-typecheck and 1,197 tests pass. Signed iOS unit coverage totals **941**:
+typecheck and 1,197 tests passed before the separate Android 1.110.0 work.
+Signed iOS unit coverage totals **941**:
 565 XCTest executions (1 skip, 0 failures) plus 376 Swift Testing tests across
 43 suites. All three final narration and initial-ASV-reader UI cases pass.
 Authenticated translation-picker persistence has its own record in the parity

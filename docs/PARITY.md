@@ -15,16 +15,18 @@ approved keeping both upstream and parity work. The latest ASV/creator changes
 were merged at `13a864e1`; metadata `97c6ee3e` and APNs `8cd11e1e` were pushed
 to main. A byte audit of all six original worktrees checked 112 entries:
 20 deltas were already represented by newer main changes, with no source
-omitted. Android source is **1.109.0 (128)**; Apple source is **1.30.0 (39)**,
-with `WhatsNewRules.appleParityVersionCode = 128`. **Implementation, unit/build
-proof, runtime observations and publication remain separate. Full current
+omitted. Android source is now **1.110.0 (129)** after the separate Android
+notes-editor change; Apple source is **1.30.0 (39)**, with the deliberately
+curated `WhatsNewRules.appleParityVersionCode = 128`. The Android-only editor
+repair was handled by another chat and adds no new Apple capability gap.
+**Implementation, unit/build proof, runtime observations and publication remain separate. Full current
 client parity is not certified.**
 
-Apple parity source is committed locally as `f420fe9c`; release infrastructure
-is committed as `d30c9937`, and the server disconnect correction as `80c168b2`.
-Those commits await the main merge/push and are
-not represented as already published source. The final installed Mac build
-was made from `d30c9937`.
+Apple parity source `f420fe9c`, release infrastructure `d30c9937`, and server
+corrections `80c168b2` and `aa9d3b73` are pushed on main. Upstream Android
+commits through `e562046d` were incorporated by a fast-forward; their only
+server-build change is the shared release JSON. The final installed Mac build
+was made from `d30c9937`; subsequent changes do not alter Apple product source.
 
 | Area | Current source evidence | Proof boundary |
 | --- | --- | --- |
@@ -44,18 +46,28 @@ Evidence captured in `/tmp/sureword-parity-takeover/` on the development Mac:
   push dispatcher and registration route byte-match the staged source
   (`backend-candidate-deployed-source-match.json`). Sitemap fallback without
   local `DATABASE_URL` is not live database proof.
-- `backend-disconnect-final-check-errors.log` and
-  `backend-disconnect-final-logic.log`: the new response-cancellation/latch
-  correction passes typecheck/lint and **1,823 logic tests**, with 17 skips,
-  0 failures (1,840 total). This includes 11 added disconnect cases.
-  `backend-disconnect-final-build.log` also finished exit 0 with 233/233
-  pages, and independent peer review passed. The correction is committed as
-  `80c168b2` locally, not pushed or deployed. The earlier build/title receipt
-  above remains a separate prior-revision checkpoint.
+- `backend-cancellation-final-check-errors.log`,
+  `backend-cancellation-final-logic.log` and
+  `backend-cancellation-final-build.log`: typecheck/lint and build exit 0;
+  **1,825 logic tests passed**, 17 skipped, 0 failed (1,842 total), 233 pages.
+  The 13 connection regressions include the real SDK and production usage
+  monitor, late cancellation after persistence, normal EOF and once-only
+  delivery. Independent review passed. `aa9d3b73` tracks the final client
+  response outside the usage-metering tee and opts the exact chat route into
+  Vercel cancellation; source configuration is not deployed runtime proof.
+- After the `e562046d` fast-forward, `upstream-129-logic.log` again passed
+  1,825 tests with 17 skips; `upstream-129-build.log` completed exit 0 with
+  **234/234 pages**. The missing 1.110.0 editorial title was reproduced by
+  the existing release-inventory test and repaired as "Linked notes".
+  `upstream-129-check-errors-final.log` passed typecheck/lint after the build;
+  the initial overlapping typecheck encountered Next's regenerating types
+  and is not a passing receipt.
 - `mobile-postmerge-npm-ci.log`, `mobile-postmerge-typecheck-retry.log` and
   `mobile-postmerge-test.log`: normal locked npm install/patches and
   typecheck exit 0; 1,197 tests passed across 91 files. The initial missing
   local dependencies were repaired by `npm ci`, without manifest/lock edits.
+  This receipt predates the separate 1.110.0 Android editor changes and does
+  not claim to retest or release that chat's work.
 - `ios-130-final-unit.log`: signed simulator run succeeded with **941 total**:
   565 XCTest executions (1 skipped, 0 failures) plus 376 Swift Testing tests
   across 43 suites. Earlier 540/374 counts and normalization failures below
@@ -122,20 +134,29 @@ APS entitlement and matching metadata are production. App Store remains
 **1.26.0 READY_FOR_SALE**; upload/processing is not new App Store approval or
 physical-device acceptance.
 
-An end-to-end closed-app answer-ready attempt at 19:54 UTC persisted the
-complete answer, but produced no new OS notification record. Production
-registration returned 200 and both native notification preferences were on.
-The prepared correction in `src/lib/chat-client-connection.ts` and the chat
-route adds response cancellation tracking and a connection latch; its 11 new
-tests, full checks, final build and independent peer review pass. Local commit
-`80c168b2` still needs the approved merge/push, deployment and full production
-replay. This is not a passing lifecycle receipt. Remaining gates
-include notification taps, existing-iOS migration/sign-out, authenticated iOS
-picker persistence, device APNs and the complete server answer-ready lifecycle.
-Physical iPhone 13 is unavailable; live StoreKit/device-dependent iOS proof
-remains open. External beta progression, next App Store release and public
-Mac publication remain separate gates. Adjacent upstream creator-history
-reconciliation has not been resolved by this checkpoint edit.
+Closed-app answer-ready attempts at 19:54 and 20:22 UTC persisted complete
+answers without a new answer-ready OS record. The subsequent direct APNs
+control send was accepted by Apple and eventually appeared in the OS database
+at 20:26:10 UTC; immediate readback had been too early. The own-device row is
+enabled, production-scoped, proof-bound and matches the current signed-in
+account. Both native preferences and SureWord's OS permission are on. Global
+notifications while sharing the display are off and were left unchanged;
+visible banners and taps are not established by delivered-record proof.
+
+The final server correction is pushed as `aa9d3b73`: the exact chat function
+opts into Vercel cancellation, and tracking wraps the final response after
+usage metering. The accepted descendant `e562046d` retains those exact server
+paths. Production remains on `fa4d0eea` while Vercel's shared team build queue
+holds the newer deployments. READY plus both actual domain assignments,
+function configuration readback and the complete closed-client replay are
+still required. This is not a passing lifecycle receipt.
+
+Remaining gates include notification taps, existing-iOS migration/sign-out,
+authenticated iOS picker persistence and device APNs. Physical iPhone 13 is
+unavailable; live StoreKit/device-dependent iOS proof remains open. External
+beta progression, next App Store approval and public Mac publication remain
+separate gates. The user-approved documentation reconciliation kept both this
+checkpoint and the upstream creator history below.
 
 **2026-10-28 creator credit (web deployed, native release blocked):** Source
 `368fc2b2` adds "Created by Austin Spraggins, a follower of Jesus Christ."

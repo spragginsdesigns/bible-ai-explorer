@@ -19,22 +19,26 @@ The audit used current source, release tags, the parity/feature documents, and e
 The user approved retaining both upstream ASV/creator work and the six Apple
 lanes. Their reconciliation and 112-entry worktree byte audit found no missed
 source; 20 deltas already existed in newer main. Current source is Android
-**1.109.0 (128)** and Apple **1.30.0 (39)**, with Apple catch-up code **128**.
+**1.110.0 (129)** and Apple **1.30.0 (39)**, with curated Apple catch-up
+code **128**. The Android-only editor repair is owned by another chat.
 This dated update supersedes the original audit's earlier 1.29 release targets
 and open normalization diagnosis below. It records partial runtime proof,
 not full parity or closed release checkboxes; unrelated Android/web rows remain.
-Apple parity `f420fe9c`, release infrastructure `d30c9937` and server disconnect
-correction `80c168b2` are local commits awaiting the main merge/push; the final
-Mac installation is from `d30c9937`.
+Apple parity `f420fe9c`, release infrastructure `d30c9937` and server
+corrections `80c168b2`/`aa9d3b73` are pushed on main. The final Mac installation
+is from `d30c9937`; later server/Android/docs changes do not change Apple
+product source. The approved documentation reconciliation is complete.
 
 Direct APNs, Mac Share, chat/reader/Study/Settings parity, notes persistence
 corrections and upstream ASV/creator changes are integrated. Backend
-typecheck/lint and 1,823 logic tests (17 skips, 0 failures; 1,840 total) pass
-after 11 new disconnect tests. Final build exit 0 generated 233/233 pages and
-independent peer review passed. That correction is not pushed/deployed; the
-earlier creator-title artifact and clean candidate receipts belong to the
-prior revision. Mobile
-locked install/typecheck and 1,197 tests are green. Signed iOS units total
+typecheck/lint and 1,825 logic tests (17 skips, 0 failures; 1,842 total) pass
+after 13 connection regressions, including the real SDK and production usage
+monitor. Final post-upstream build exit 0 generated 234/234 pages and independent peer
+review passed. The final client-response tracker and Vercel cancellation
+opt-in are pushed; deployment and replay remain open. Mobile locked
+install/typecheck and 1,197 tests passed before the separate Android 1.110.0
+work; that receipt does not retest the later Android changes.
+Signed iOS units total
 **941**: 565 XCTest executions (1 skip, 0 failures) plus 376 Swift Testing
 tests across 43 suites. All three final narration/initial-ASV-reader UI cases
 pass. The public harness does not prove authenticated iOS picker persistence.
@@ -61,22 +65,24 @@ Genesis 1 and retained it after switching Today/Bible; the ASV Genesis 1:1 Dawn
 story card rendered correctly with Share image enabled, then KJV was restored.
 Two production replies for Psalm 23:1 and 23:2 completed in the same
 conversation, and the assistant's underlined reference opened the correct
-retrieved KJV sheet. Production main `3dd0f8a5` is READY and owns `sureword.app`;
-the queued 8cd deployment was superseded, not promoted from the old stage.
+retrieved KJV sheet. Production `fa4d0eea` is READY on both actual domains;
+newer cancellation-enabled deployments remain queued by shared team build
+concurrency. Earlier superseded deployments were not manually promoted.
 
 App and DMG notarizations are Accepted with zero issues; both are stapled and
 Gatekeeper-accepted, including the installed app. The matching DMG is ready
 but unpublished. TestFlight 1.30.0 (1) is VALID/internal ready for beta testing,
 external ready for submission, as read back at 20:03:16 UTC.
 
-Remaining work: approved merge/push, deployment and production replay of the
-new disconnect correction; notification taps, iOS sign-out and
+Remaining work: deployment and production replay of the
+final disconnect correction; notification taps, iOS sign-out and
 migration, authenticated iOS picker/device APNs/IAP acceptance, external beta
 progression and public Mac publication. The
 closed-app answer-ready attempt at 19:54 UTC saved a complete server answer
 but produced no new OS notification record. Production registration returned
-200 and both native preferences were on. Response cancellation/latch source
-and 11 passing tests are prepared; the production replay is still required.
+200 and both native preferences were on. The final response tracker,
+per-route cancellation opt-in
+and 13 passing regressions are pushed; the production replay is still required.
 This is not a passing lifecycle receipt. Physical iPhone 13 is unavailable, leaving
 live StoreKit and device-dependent iOS proof open.
 
@@ -86,8 +92,9 @@ readback remains public Mac 1.28.0 and Store 1.26.0 `READY_FOR_SALE`; the new
 1.30.0 (1) TestFlight upload is processed but does not prove device testing or
 App Store approval.
 The older rejection is historical. See `PARITY.md` for receipts and live
-release/deployment updates. Public Mac publication and adjacent upstream
-creator-history reconciliation are not claimed by this checkpoint edit.
+release/deployment updates. Public Mac publication remains open. Both approved
+creator and Apple
+verification histories are preserved in the reconciled ledger.
 
 ## Completion rule
 
@@ -117,9 +124,9 @@ A row is done for this checklist only when the behavior is correct on web, Andro
 
 - [ ] **iOS: verify the current release's physical-device purchase lifecycle and submit the newest Apple build.**
   - Current state: StoreKit 2 purchase, restore, transaction verification and subscription management are implemented. App Store Connect returned iOS 1.26.0 `READY_FOR_SALE` on 2026-10-28. The older 2.1(b) rejection and recording request are historical and must not be presented as an active rejection.
-  - Remaining work: exercise sandbox purchase/restore/manage and authoritative Pro verification on a physical iPhone for the final 1.29.0 source. Prepare any recording/review evidence needed for that new submission, attach the correct subscription/group, upload/read back the newest TestFlight build, and complete the new review cycle.
+  - Remaining work: exercise sandbox purchase/restore/manage and authoritative Pro verification on a physical iPhone for the final 1.30.0 source. Prepare any recording/review evidence needed for that new submission, attach the correct subscription/group, upload/read back the newest TestFlight build, and complete the new review cycle.
   - Evidence: `macos/Shared/Billing/ProPurchaseStore.swift`, `macos/SureWord-iOS/Views/Settings/ProMembershipView.swift`, dated `PARITY.md` checkpoint. Older `docs/ios/review-notes.md` requirements need checking against the new submission.
-  - Done when: the latest physical purchase lifecycle and required review evidence are recorded and that exact release is accepted; 1.26.0's existing sale state does not prove 1.29.0.
+  - Done when: the latest physical purchase lifecycle and required review evidence are recorded and that exact release is accepted; 1.26.0's existing sale state does not prove 1.30.0.
 
 ### 1.2 Notifications
 
