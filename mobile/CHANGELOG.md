@@ -2,6 +2,15 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.110.0 (versionCode 129) - 2026-10-28 - internal and closed testing
+
+**What's new (Play):**
+
+IMPROVED
+- Links between your notes now look like links. A [[Note Title]] shows as a gold note chip without the brackets, and tapping it opens that note. Put the cursor inside to edit the raw link, and a link to a note that does not exist yet stays dimmed.
+
+**Dev notes:** Austin's report (2026-10-28): wikilinks in an Android note read as raw `[[Putting Away Corrupt Speech]]` text while web and Apple draw them as links; he wanted them "beautifully done like Notion". TenTap's stock WebView bundle only knows TenTapStartKit, so the note editor now loads a custom bundle (TenTap's documented advanced setup): `mobile/editor-web`, built by `node scripts/build-editor-web.mjs` into the committed `editor-web/build/editorHtml.js` and passed as `customSource`. Its `WikilinkWebBridge` adds a ProseMirror decoration plugin: away from the caret the brackets collapse and the label renders as a note chip (Lucide file-text glyph, accent on accentSoft); with the caret inside or touching the link the raw text returns so it stays editable; unresolved targets draw dimmed with an outline. Native pushes the resolvable title/alias keys over the bridge (`wikilinkTargetKeys`), and a tap on a resolved chip posts `wikilink-open` back; the screen resolves it with the server's rule (`resolveWikilinkTarget`: title or alias, case-insensitive, newest wins), flushes the open note, then opens the target. Decorations only: saved HTML, plainText and the server's link graph are unchanged. No native dependency change.
+
 ## 1.109.0 (versionCode 128) - 2026-10-28 - internal and closed testing
 
 **What's new (Play):**

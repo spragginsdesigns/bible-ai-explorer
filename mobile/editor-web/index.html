@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    />
+    <title>RichTextEditor</title>
+  </head>
+  <!-- Copied from TenTap's simpleWebEditor/index.html so the custom bundle lays out identically. -->
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+    }
+    #root > div:nth-of-type(1) {
+      position: absolute;
+      height: 100%;
+      overflow: auto;
+      width: 100%;
+      top: 0;
+      bottom: 0;
+    }
+    #root > div.dynamic-height {
+      height: unset;
+    }
+
+    #root div .ProseMirror {
+      min-height: 100%;
+      overflow: visible;
+    }
+    #root div.dynamic-height .ProseMirror {
+      height: unset;
+    }
+    .ProseMirror:focus {
+      outline: none;
+    }
+    .highlight-background {
+      background-color: #e6e6ff;
+    }
+  </style>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./index.tsx"></script>
+  </body>
+</html>

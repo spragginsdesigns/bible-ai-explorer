@@ -5,7 +5,10 @@ import {
 	formatWikilink,
 	hasExactTarget,
 	outgoingLinkLabel,
+	findWikilinks,
+	resolveWikilinkTarget,
 	sanitizeWikilinkTarget,
+	wikilinkTargetKeys,
 } from "./wikilinks";
 
 function makeNote(id: string, title: string, aliases: string[] = []): Note {
@@ -93,5 +96,47 @@ describe("outgoingLinkLabel", () => {
 
 	it("falls back to what was typed when unresolved", () => {
 		expect(outgoingLinkLabel({ targetTitle: "Ephesians", title: null })).toBe("Ephesians");
+	});
+});
+
+describe("findWikilinks", () => {
+	it("finds a plain link and labels the whole inside", () => {
+		const text = "Related: [[Putting Away Corrupt Speech]]";
+		const [span] = findWikilinks(text);
+		expect(span.target).toBe("Putting Away Corrupt Speech");
+		expect(text.slice(span.from, span.to)).toBe("[[Putting Away Corrupt Speech]]");
+		expect(text.slice(span.labelFrom, span.labelTo)).toBe("Putting Away Corrupt Speech");
+	});
+
+	it("labels only the display text of an aliased link", () => {
+		const text = "see [[Romans study|Paul's letter]] here";
+		const [span] = findWikilinks(text, 10);
+		expect(span.target).toBe("Romans study");
+		expect(text.slice(span.labelFrom - 10, span.labelTo - 10)).toBe("Paul's letter");
+		expect(span.from).toBe(14);
+	});
+
+	it("resolves a heading link to its note", () => {
+		expect(findWikilinks("[[Grace alone#Faith]]")[0].target).toBe("Grace alone");
+	});
+
+	it("skips empty targets and keeps scanning", () => {
+		expect(findWikilinks("[[ ]] and [[|x]] and [[Real]]").map((s) => s.target)).toEqual(["Real"]);
+	});
+});
+
+describe("resolveWikilinkTarget", () => {
+	it("matches title or alias case-insensitively, newest wins", () => {
+		const older = { ...makeNote("old", "Grace"), updatedAt: "2026-01-01T00:00:00.000Z" };
+		const newer = { ...makeNote("new", "Unmerited", ["grace"]), updatedAt: "2026-02-01T00:00:00.000Z" };
+		expect(resolveWikilinkTarget([older, newer], " GRACE ")?.id).toBe("new");
+		expect(resolveWikilinkTarget([older], "missing")).toBeNull();
+	});
+});
+
+describe("wikilinkTargetKeys", () => {
+	it("collects lowercased titles and aliases once each", () => {
+		expect(wikilinkTargetKeys(notes)).toContain("paul to rome");
+		expect(new Set(wikilinkTargetKeys(notes)).size).toBe(wikilinkTargetKeys(notes).length);
 	});
 });

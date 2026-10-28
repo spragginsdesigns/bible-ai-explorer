@@ -31,7 +31,8 @@ import { NoteTagSheet } from "@/features/notes/components/NoteTagSheet";
 import type { NoteAppendEvent } from "@/features/notes/useNoteAI";
 import { useNoteEditorData } from "@/features/notes/useNoteEditorData";
 import { initialHtmlFor } from "@/features/notes/utils";
-import { formatWikilink } from "@/features/notes/wikilinks";
+import { useNotesSnapshot } from "@/features/notes/notesStore";
+import { formatWikilink, resolveWikilinkTarget, wikilinkTargetKeys } from "@/features/notes/wikilinks";
 
 /** Height of the parent layout's floating glass tab bar, which overlays this screen. */
 
@@ -151,6 +152,23 @@ function NoteEditorSession({ noteId }: { noteId: string }) {
 		editorRef.current?.insertText(formatWikilink(title));
 	}, []);
 
+	// Read through a ref so a tap resolves against the freshest cached library.
+	const { notes: library } = useNotesSnapshot();
+	const libraryRef = useRef(library);
+	libraryRef.current = library;
+	const linkTargets = useMemo(() => wikilinkTargetKeys(library), [library]);
+
+	const openWikilink = useCallback(
+		async (target: string) => {
+			const linked = resolveWikilinkTarget(libraryRef.current, target);
+			if (!linked || linked.id === noteId) return;
+			// Save this note before leaving it, like every other exit from the editor.
+			if ((await editorRef.current?.flush()) === false) return;
+			router.push(`/study/notes/${linked.id}`);
+		},
+		[noteId, router]
+	);
+
 	const handleNoteAppended = useCallback(
 		async (event: NoteAppendEvent) => {
 			if (event.noteId !== noteId) return;
@@ -200,6 +218,8 @@ function NoteEditorSession({ noteId }: { noteId: string }) {
 						onCaptureError={data.reportSaveError}
 						bottomInset={bottomInset}
 						onRequestWikilink={() => setWikilinkOpen(true)}
+						linkTargets={linkTargets}
+						onOpenWikilink={(target) => void openWikilink(target)}
 					/>
 				) : (
 					<View style={styles.center}>

@@ -26,6 +26,8 @@ import { createNoteSaveController, type NoteSaveController } from "../noteSaveCo
 import { noteDocumentToMarkdown } from "../noteMarkdownExport";
 import Link from "lucide-react-native/icons/link";
 import { GlyphButton } from "./primitives";
+import { createWikilinkBridge, type WikilinkEditorInstance } from "./wikilinkBridge";
+import { editorHtml } from "../../../../editor-web/build/editorHtml";
 
 const AUTOSAVE_DELAY = 1500;
 const BRIDGE_TIMEOUT = 1200;
@@ -45,6 +47,11 @@ const fontUri = (source: number) => {
 };
 
 const cssUri = (uri: string) => uri.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+
+/** Lucide "file-text", drawn through a mask so the chip icon takes the link colour. */
+const NOTE_ICON = encodeURIComponent(
+	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>'
+);
 
 const editorCss = (c: Colors) => `
 \t@font-face { font-family: "Hack"; src: url('${cssUri(fontUri(hackRegular))}') format('truetype'); font-style: normal; font-weight: 400; }
@@ -116,6 +123,37 @@ const editorCss = (c: Colors) => `
 		color: #ffffff;
 	}
 	.ProseMirror ::selection { background-color: rgba(251, 191, 36, 0.3); }
+	/* [[Wikilinks]]: decorations from editor-web/WikilinkWebBridge.ts. Away from
+	   the caret the brackets collapse and the title reads as a note chip; the
+	   saved text is untouched. */
+	.ProseMirror .wikilink-hidden { font-size: 0; letter-spacing: 0; }
+	.ProseMirror .wikilink-chip {
+		color: ${c.accent};
+		background-color: ${c.accentSoft};
+		border-radius: 6px;
+		padding: 1px 6px 1px 5px;
+		font-weight: 700;
+		-webkit-box-decoration-break: clone;
+		box-decoration-break: clone;
+	}
+	.ProseMirror .wikilink-chip::before {
+		content: "";
+		display: inline-block;
+		width: 0.85em;
+		height: 0.85em;
+		margin-right: 0.3em;
+		vertical-align: -0.08em;
+		background-color: currentColor;
+		-webkit-mask: url("data:image/svg+xml,${NOTE_ICON}") center / contain no-repeat;
+		mask: url("data:image/svg+xml,${NOTE_ICON}") center / contain no-repeat;
+	}
+	.ProseMirror .wikilink-unresolved {
+		color: ${c.textMuted};
+		background-color: transparent;
+		box-shadow: inset 0 0 0 1px ${c.borderStrong};
+		font-weight: 400;
+	}
+	.ProseMirror .wikilink-source { color: ${c.accent}; }
 	.ProseMirror p.is-editor-empty:first-child::before {
 		color: ${c.textGhost};
 		content: attr(data-placeholder);
@@ -125,8 +163,9 @@ const editorCss = (c: Colors) => `
 	}
 `;
 
-const bridgeExtensions = (c: Colors) => [
+const bridgeExtensions = (c: Colors, wikilinks: ReturnType<typeof createWikilinkBridge>) => [
 	...TenTapStartKit,
+	wikilinks,
 	CoreBridge.configureCSS(editorCss(c)),
 	PlaceholderBridge.configureExtension({
 		placeholder: "Start writing your Bible study notes…",
@@ -245,17 +284,30 @@ interface NoteRichEditorProps {
 	bottomInset: number;
 	/** Opens the note picker; the screen inserts the chosen link through the ref. */
 	onRequestWikilink: () => void;
+	/** Lowercased titles/aliases that resolve; other links draw dimmed. */
+	linkTargets: string[];
+	/** A resolved in-body [[wikilink]] was tapped. */
+	onOpenWikilink: (target: string) => void;
 }
 
 export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorProps>(
-	function NoteRichEditor({ initialHtml, onSave, onCaptureError, bottomInset, onRequestWikilink }, ref) {
+	function NoteRichEditor(
+		{ initialHtml, onSave, onCaptureError, bottomInset, onRequestWikilink, linkTargets, onOpenWikilink },
+		ref
+	) {
 		const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 		const { colors } = useTheme();
 		const textScaleFactor = useTextScaleFactor();
 		const { fontScale } = useWindowDimensions();
 		const styles = useThemedStyles(createStyles);
-		const extensions = useMemo(() => bridgeExtensions(colors), [colors]);
+		const onOpenWikilinkRef = useRef(onOpenWikilink);
+		onOpenWikilinkRef.current = onOpenWikilink;
+		const wikilinkBridge = useMemo(
+			() => createWikilinkBridge((target) => onOpenWikilinkRef.current(target)),
+			[]
+		);
+		const extensions = useMemo(() => bridgeExtensions(colors, wikilinkBridge), [colors, wikilinkBridge]);
 		const theme = useMemo(() => editorTheme(colors, textScaleFactor), [colors, textScaleFactor]);
 
 		const onSaveRef = useRef(onSave);
@@ -265,6 +317,8 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 
 		const editor = useEditorBridge({
 			initialContent: initialHtml,
+			// TenTap's stock editor plus the wikilink plugin (mobile/editor-web).
+			customSource: editorHtml,
 			avoidIosKeyboard: true,
 			bridgeExtensions: extensions,
 			theme,
@@ -284,6 +338,11 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 			// Replace one stylesheet without reloading the document or touching saved HTML.
 			editorRef.current.injectCSS(`.ProseMirror { font-size: ${16 * textScaleFactor}px; overflow-wrap: anywhere; } .ProseMirror pre { white-space: pre-wrap; overflow-wrap: anywhere; }`, "sureword-text-size");
 		}, [textScaleFactor, editorState.isReady]);
+		const linkTargetsKey = linkTargets.join("\n");
+		useEffect(() => {
+			if (!editorState.isReady) return;
+			(editorRef.current as unknown as WikilinkEditorInstance).setWikilinkTargets(linkTargets);
+		}, [linkTargetsKey, editorState.isReady]); // eslint-disable-line react-hooks/exhaustive-deps
 		const { isKeyboardUp } = useKeyboard();
 		const toolbarHidden = !isKeyboardUp || !editorState.isFocused;
 

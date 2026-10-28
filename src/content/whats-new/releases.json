@@ -1,6 +1,19 @@
 {
 	"releases": [
 		{
+			"version": "1.110.0",
+			"versionCode": 129,
+			"date": "2026-10-28",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Links between your notes now look like links. A [[Note Title]] shows as a gold note chip without the brackets, and tapping it opens that note. Put the cursor inside to edit the raw link, and a link to a note that does not exist yet stays dimmed."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.109.0",
 			"versionCode": 128,
 			"date": "2026-10-28",

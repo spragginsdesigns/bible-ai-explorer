@@ -1,0 +1,17 @@
+{
+	"compilerOptions": {
+		"target": "ES2020",
+		"module": "ESNext",
+		"moduleResolution": "Bundler",
+		"jsx": "react-jsx",
+		"lib": ["DOM", "ES2022"],
+		"strict": true,
+		"noEmit": true,
+		"skipLibCheck": true,
+		"types": [],
+		"paths": {
+			"@10play/tentap-editor": ["../node_modules/@10play/tentap-editor/lib-web/typescript/webEditorUtils/index.d.ts"]
+		}
+	},
+	"include": ["*.ts", "*.tsx", "../src/features/notes/wikilinks.ts", "../src/features/notes/wikilinkBridgeProtocol.ts"]
+}

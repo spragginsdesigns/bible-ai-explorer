@@ -2590,10 +2590,26 @@ How it works, and the decisions that shaped it:
   client writes identically, which is why parsing does not touch the Tiptap
   JSON or HTML. Clients never compute backlinks - list rows do not even carry
   bodies.
-- **Links are plain text in the body (v1).** No Tiptap/ProseMirror wikilink
-  node on either client; the editor inserts the literal `[[Title]]` text and
-  the graph lives in the info panel/sheet. This kept the feature out of the
-  tentap webview's custom-build territory.
+- **Links are plain text in the body.** No Tiptap/ProseMirror wikilink node
+  on any client; the editor inserts the literal `[[Title]]` text and the
+  graph lives in the info panel/sheet. Every client only *decorates* that
+  text: web's `WikilinkDecoration`, Apple's attributed-text drawing, and
+  (since Android 1.110.0) Android's `WikilinkWebBridge`.
+- **Android draws links as note chips (1.110.0).** TenTap's stock WebView
+  bundle cannot take extra ProseMirror plugins, so the note editor loads a
+  custom bundle (TenTap's advanced setup): sources in `mobile/editor-web/`,
+  built with `cd mobile && node scripts/build-editor-web.mjs` into the
+  committed `editor-web/build/editorHtml.js` and passed to `useEditorBridge`
+  as `customSource`. **Rebuild and commit that file after changing anything
+  in `editor-web/`, `wikilinks.ts` or `wikilinkBridgeProtocol.ts`** - Metro
+  bundles the generated file, not the sources. Away from the caret the
+  brackets collapse (font-size 0) and the label reads as a gold chip with a
+  note glyph; with the caret inside or touching the link the raw text comes
+  back so it can be edited (Obsidian's live preview). Unresolved targets draw
+  muted with an outline and a tap just places the caret. Native sends the
+  resolvable title/alias keys over the bridge; a tap on a resolved chip posts
+  `wikilink-open`, and the screen resolves it with the server's rule,
+  flushes the open note, then pushes the target.
 - **Unresolved links are first-class.** A link to a title that no note holds
   is stored with `targetNoteId = NULL` and rendered dimmed with a one-tap
   create affordance. Creating or renaming a note claims every pending link

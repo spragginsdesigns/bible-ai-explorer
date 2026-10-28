@@ -8,7 +8,8 @@
     "android": "expo run:android",
     "prebuild": "expo prebuild",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p editor-web",
+    "editor:build": "node scripts/build-editor-web.mjs"
   },
   "private": true,
   "dependencies": {
