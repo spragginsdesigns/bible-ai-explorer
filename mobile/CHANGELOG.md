@@ -11,6 +11,8 @@ IMPROVED
 
 **Dev notes:** Added the approved creator credit, "Created by Austin Spraggins, a follower of Jesus Christ.", beneath the chat composer. Only the creator's name links to the portfolio's faith section. Web, Android, macOS and iOS use the same wording and destination, with native text wrapping and accessible links. No native dependency or doctrine changes.
 
+**Release status:** Prepared, not published. The clean all-ABI build hit host allocation limits; the final single-job native run was stopped to preserve capacity for other sessions. Play internal, closed testing and GitHub remain on 1.108.1 (127). Resume instructions and proof boundaries are in `docs/creator-credit-2026-10-28.md`.
+
 ## 1.108.1 (versionCode 127) - 2026-10-28 - internal and closed testing
 
 **What's new (Play):**
