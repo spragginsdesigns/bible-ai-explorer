@@ -60,12 +60,39 @@ that APK automatically, so no site version constant is updated by hand.
 
 | Thing | Where |
 |---|---|
-| Service account | `sureword-play-publisher@versemind-auth.iam.gserviceaccount.com` (Play Console → Users and permissions: Release apps to testing tracks + Manage testing tracks, app-level on SureWord) |
+| Service account | `sureword-play-publisher@versemind-auth.iam.gserviceaccount.com` (Play Console → Users and permissions: Release apps to testing tracks + Manage testing tracks, app-level on SureWord). Play Billing (`SUREWORD_PLAY_BILLING_ENABLED`) also needs **View financial data** and **Manage orders and subscriptions** on the same app: without them `purchases.subscriptionsv2.get`, acknowledge and cancel answer 401 permissionDenied, so no real purchase can be verified. Both were added 2026-10-28; new permissions can take a while to propagate before the 401 clears. |
 | API key | `~/.sureword-signing/play-publisher.json` (env override `SUREWORD_PLAY_KEY`) - back it up with the keystore |
 | Uploader | `mobile/scripts/play-upload.mjs` (no npm deps; `--track` defaults to `internal`) |
 | App id in console | `4976411638093672168` |
 | Internal testers | Email list "SureWord Internal" (both of Austin's gmails) |
 | Tester opt-in link | https://play.google.com/apps/internaltest/4701353603485430223 (open once per tester account, tap Join, then install from the Play Store) |
+
+## SureWord Pro on Google Play (2026-10-28)
+
+Austin's ruling: "stripe or google play whatever they want to use it should
+be available and work properly." Android Free readers can now buy Pro through
+Play, alongside Stripe on the web and the App Store on iOS.
+
+| Piece | State |
+|---|---|
+| Product | `sureword_pro`, base plan `monthly`: auto-renewing, US only, USD 15.00, 7-day grace period, automatic account hold. **ACTIVE** (Publisher API read-back). Add countries under Manage country / region availability. |
+| Server switch | Vercel production `SUREWORD_PLAY_BILLING_ENABLED=true` (env id `MnF3GojFI0MZwLBU`, a write-only Sensitive value), with `SUREWORD_USAGE_ENABLED=true` and `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` set. Live from deployment `dpl_5ibUztDkm76FD5pe9cighVJ8pEvt`. `GET /api/billing/status` reports `playCheckoutAvailable=true` for a Free account. |
+| Purchase verification | The service account's financial permissions (row above) were added and took effect about 4 minutes later: a fake-token `subscriptionsv2.get` went from 401 permissionDenied to 400 Invalid Value. |
+| Lifecycle notices | Real-time developer notifications reach `/api/webhooks/google-play` (see `docs/FEATURES.md`, "Google Play real-time developer notifications"). Play Console's topic entry still needs a human. |
+
+**Still open:** no real purchase has been made. The next step is a
+license-test purchase on Austin's phone with a Free account on Play Console's
+License testing list (owner and Pro accounts never see the button), then
+restore, renewal, cancellation and account-deletion cancellation. Tracked in
+`docs/PARITY-TODO.md` section 1.1 and TickTick task `6ae2157e8f089b81ed18c7e0`.
+
+To turn Play checkout off without a code change, set
+`SUREWORD_PLAY_BILLING_ENABLED` to anything but `true` and redeploy. Careful:
+in the code deployed today, `accountSubscription` (`src/lib/billing/subscription.ts`)
+skips Play rows whenever the switch is off, so paying Play subscribers would
+drop to Free. Another session has an undeployed fix that keeps existing
+entitlements when checkout is off. Once real people subscribe, don't flip the
+switch off until that fix ships.
 
 ## Current source status (2026-08-31)
 
