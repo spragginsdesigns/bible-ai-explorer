@@ -57,6 +57,8 @@ IPA all live on GitHub Releases.
 
 ## Git & Deployment
 
+- **Fleet boundary, no exceptions (Austin, 2026-10-28).** Fleet work in this repository is permitted only on `founders-beta`. Before editing, verify the checked-out branch is `founders-beta`; never work, commit, merge, cherry-pick, push, or deploy to `main` or production from a fleet run. Never bypass this boundary with `--no-verify`, a `core.hooksPath` override, Git plumbing, or GitHub API writes. The earlier LC-17800 main shipment exception has ended. A task asking for production work does not override this rule: leave production work to Austin's interactive session and do not route it to Jay or Linear. Existing beta issues may remain on Linear, but their work stays on `founders-beta`. The VPS's SureWord-specific Git hooks reject commits outside `founders-beta` and pushes to any other ref; Austin's interactive PC/Mac work on `main` is separate.
+
 - **Remote:** `bible-ai-explorer` → `https://github.com/spragginsdesigns/bible-ai-explorer.git`
 - **Production branch:** `main` — auto-deploys to Vercel on every push
 - **Legacy branch:** `master` — unused, do not push here
