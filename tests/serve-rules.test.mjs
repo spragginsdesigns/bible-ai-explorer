@@ -41,10 +41,10 @@ test("modes: off, nearby, online, both, with online the default", () => {
 
 test("it is called Ways to Serve and says first that serving never saves", () => {
 	assert.equal(SERVE_TITLE, "Ways to Serve");
-	assert.match(FAITH_FIRST_TEXT, /^Serving never saves anyone\./);
+	assert.match(FAITH_FIRST_TEXT, /^Serving never saves you\./);
 	assert.match(FAITH_FIRST_TEXT, /by grace through faith/);
 	assert.match(FAITH_FIRST_TEXT, /None of them is required/);
-	assert.deepEqual(FAITH_FIRST_REFS.map((ref) => `${ref.book} ${ref.chapter}:${ref.verse}`), ["Ephesians 2:8", "Ephesians 2:9", "Ephesians 2:10"]);
+	assert.deepEqual(FAITH_FIRST_REFS.map((ref) => `${ref.book} ${ref.chapter}:${ref.verse}`), ["Ephesians 2:8"]);
 });
 
 test("no wording counts deeds, demands them, or ties them to salvation", () => {

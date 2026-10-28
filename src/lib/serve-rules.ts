@@ -45,12 +45,9 @@ export function formatRef(ref: VerseRef): string {
 /** Shown at the top of Ways to Serve on every client, before any way. */
 export const SERVE_TITLE = "Ways to Serve";
 export const FAITH_FIRST_TEXT =
-	"Serving never saves anyone. We are saved by grace through faith in Jesus Christ, not by works. Then, because He saved us, we get to walk in the good works He prepared for us. These are simply ways to let His love reach someone, whenever you're able. None of them is required.";
-export const FAITH_FIRST_REFS: readonly VerseRef[] = [
-	{ book: "Ephesians", chapter: 2, verse: 8 },
-	{ book: "Ephesians", chapter: 2, verse: 9 },
-	{ book: "Ephesians", chapter: 2, verse: 10 },
-];
+	"Serving never saves you. Jesus does, by grace through faith alone. But faith loves people, so if you're feeling thankful, restless, or ready to give back, here are a few simple ways to serve. None of them is required.";
+/** One verse, kept short on purpose (Austin, 2026-10-27: "shorter"). */
+export const FAITH_FIRST_REFS: readonly VerseRef[] = [{ book: "Ephesians", chapter: 2, verse: 8 }];
 
 export type WayKind = "online" | "nearby";
 /** What a client's button does with the way. */

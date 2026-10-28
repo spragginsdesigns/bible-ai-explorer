@@ -4400,7 +4400,7 @@ with the account.
 ### API
 
 - `GET /api/serve` returns the whole view (title, faith-first intro with
-  Ephesians 2:8-10, settings, today, ways, church, nearby availability,
+  Ephesians 2:8, settings, today, ways, church, nearby availability,
   journal heading); `PATCH /api/serve` `{mode?, givesToChurch?}`.
 - `GET /api/serve/nearby?location=&kind=food|shelter|care`: Google Places
   text search near a city or ZIP the reader typed. Never device location,
