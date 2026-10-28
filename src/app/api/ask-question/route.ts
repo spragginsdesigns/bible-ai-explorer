@@ -28,6 +28,7 @@ import { createAttachmentPreviewUrl } from "@/lib/chat-attachments.server";
 import { audioTranscriptText } from "@/lib/audio-transcription-rules";
 import { prisma } from "@/lib/prisma";
 import { notifyChatAnswerReady } from "@/lib/push";
+import { createChatClientConnection } from "@/lib/chat-client-connection";
 import { buildSureWordTools, type SureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
 import { linksInText } from "@/lib/chat/user-links";
 import { resolveModel, aiAccessFor } from "@/lib/ai/provider";
@@ -852,6 +853,7 @@ async function handlePost(req: Request): Promise<Response> {
 			if (welcomeTurn) meterAsOnboarding();
 			await reserveIncludedRequest(userId);
 		}
+		const clientConnection = createChatClientConnection(req.signal);
 		const stream = createUIMessageStream<SureWordUIMessage>({
 			originalMessages: validatedMessages,
 			generateId: () => responseMessageId,
@@ -901,11 +903,6 @@ async function handlePost(req: Request): Promise<Response> {
 					emitOutcome("aborted");
 					return;
 				}
-				// `req.signal` aborts when the client's connection drops - the app
-				// being backgrounded, the screen locking, the network changing.
-				// The answer still finished here (see consumeSseStream below), so
-				// the user needs telling that it is waiting for them.
-				const clientLeft = req.signal.aborted;
 				waitUntil(
 					persistAssistantResponse({
 						userId,
@@ -918,12 +915,14 @@ async function handlePost(req: Request): Promise<Response> {
 						prayers: duePrayers,
 					}).then((exit) => {
 						emitOutcome(exit);
-						if (!clientLeft) return;
-						return notifyChatAnswerReady({
+						if (exit !== "persisted") return;
+						// Keep this waitUntil alive if saving wins the race against
+						// departure. A normal client EOF/error resolves without a push.
+						return clientConnection.afterPersistence(() => notifyChatAnswerReady({
 							userId,
 							conversationId,
 							answerText: stripFollowUps(extractAssistantText(responseMessage)).cleanText,
-						});
+						}));
 					})
 				);
 			},
@@ -1282,7 +1281,7 @@ async function handlePost(req: Request): Promise<Response> {
 			},
 		});
 
-		return createUIMessageStreamResponse({
+		const response = createUIMessageStreamResponse({
 			stream,
 			// Tee the SSE stream and drain the copy server-side. Without this a
 			// client disconnect cancels the response stream, which cancels the
@@ -1308,6 +1307,7 @@ async function handlePost(req: Request): Promise<Response> {
 				);
 			},
 		});
+		return clientConnection.trackResponse(response);
 	} catch (error) {
 		if (error instanceof Response) return error;
 		console.error("Error in ask-question route:", error);
