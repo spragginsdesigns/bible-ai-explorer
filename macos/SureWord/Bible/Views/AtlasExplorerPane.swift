@@ -249,7 +249,9 @@ struct AtlasExplorerPane: View {
     }
 
     private var timelineContent: some View {
-        LazyVStack(alignment: .leading, spacing: 0) {
+        // The bundled timeline is bounded to 220 entries. Eager traversal
+        // avoids the same macOS lazy accessibility jump crash as directories.
+        VStack(alignment: .leading, spacing: 0) {
             if let scope = chapterScope {
                 chapterHeader(scope)
             }
@@ -446,7 +448,10 @@ struct AtlasExplorerPane: View {
             case .empty:
                 atlasEmpty(AtlasPresentation.emptyDirectoryMessage(kind))
             case .loaded:
-                LazyVStack(spacing: Spacing.xs) {
+                // This directory is bounded by the bundled atlas (186 people,
+                // 93 places). Eager rows keep macOS accessibility's jump-to-end
+                // traversal out of SwiftUI's crashing lazy ForEach path.
+                VStack(spacing: Spacing.xs) {
                     ForEach(entities) { entity in
                         Button { openDetail(.entity(entity.id), fromDetail: false) } label: {
                             HStack(spacing: Spacing.md) {
@@ -521,7 +526,7 @@ struct AtlasExplorerPane: View {
                 case .empty:
                     atlasEmpty("Nothing in the atlas matches that search.")
                 default:
-                    LazyVStack(alignment: .leading, spacing: Spacing.lg) {
+                    VStack(alignment: .leading, spacing: Spacing.lg) {
                         Text(AtlasPresentation.searchSummary(shown: model.searchResults.count, counts: model.searchCounts))
                             .appFont(.system(size: 11))
                             .foregroundStyle(theme.textFaint)
