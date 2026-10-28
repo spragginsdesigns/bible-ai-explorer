@@ -8,7 +8,7 @@ import { parseUserIdAllowlist } from "@/lib/entitlements-rules";
 import { prisma } from "@/lib/prisma";
 import { houseKeyFor } from "./house-key";
 import { meterIncludedModel, resolveRequestAccess, reserveIncludedRequest, requestUserPlan } from "@/lib/billing/usage";
-import { decideAccess, houseEffortFor, type AiAccess } from "./access";
+import { decideAccess, includedEffortFor, type AiAccess } from "./access";
 import { listProviderModels } from "./modelCatalog";
 import {
 	ATTACHMENT_CAPABLE_MODEL_IDS,
@@ -394,7 +394,13 @@ export async function resolveModel(options: {
 		if (!options.deferReservation) await reserveIncludedRequest(options.userId);
 		// The plan sets the effort; a pick stored while Pro still had Reasoning
 		// chips is ignored, or an old "low" would hold Pro answers below high.
-		const preferredHouseEffort = houseEffortFor(options.effort, plan);
+		// Chat (the only caller that passes `run`) sends that stored pick in its
+		// body, so only a server call site's pin may lower it.
+		const preferredHouseEffort = includedEffortFor({
+			requested: options.effort,
+			plan,
+			fromChat: options.run !== undefined,
+		});
 		const houseEffort = houseDefinition.efforts.includes(preferredHouseEffort)
 			? preferredHouseEffort
 			: null;
@@ -449,7 +455,13 @@ export async function resolveModel(options: {
 		const head = resolveDefinition(headId);
 		if (!head) throw new Error(`The owner chat model ${headId} is not registered.`);
 		const apiKey = await apiKeyFor(options.userId, head.provider);
-		const effort = pick === "sol" ? "high" : houseEffortFor(options.effort, pick);
+		// Sol answers chat at high, like Pro; a server call site's latency pin
+		// (tap-a-verse, word study) still lowers it, as it does for Pro.
+		const effort = includedEffortFor({
+			requested: options.effort,
+			plan: pick === "sol" ? "pro" : pick,
+			fromChat: options.run !== undefined,
+		});
 		return {
 			model: buildModel(head.provider, head.providerModelId, apiKey, structuredCall),
 			providerOptions: buildProviderOptions(
@@ -616,21 +628,4 @@ export async function resolveModel(options: {
 		structuredFallbackFrom: null,
 		structuredOutputUnsupported: false,
 	};
-}
-
-/** Which providers this user can currently use, and through which credential. */
-export async function availableProviders(
-	userId: string,
-): Promise<Record<ProviderId, { available: boolean; source: "user-key" | "server" | null }>> {
-	const allowlisted = isServerCredentialUser(userId);
-
-	const result = {} as Record<ProviderId, { available: boolean; source: "user-key" | "server" | null }>;
-	for (const provider of Object.keys(DB_PROVIDER) as ProviderId[]) {
-		if (allowlisted && serverKeyFor(provider)) {
-			result[provider] = { available: true, source: "server" };
-		} else {
-			result[provider] = { available: false, source: null };
-		}
-	}
-	return result;
 }

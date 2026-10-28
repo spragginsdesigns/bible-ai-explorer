@@ -42,6 +42,25 @@ export function houseEffortFor(
 	return "high";
 }
 
+/**
+ * The effort for one included call, given who supplied `requested`.
+ *
+ * Only a server call site's pin (tap-a-verse, word study, connections pass
+ * "low" for latency) may lower Pro. Chat's effort comes from the client's
+ * stored picker state, which every client still sends and GET /api/preferences
+ * still syncs from User.defaultEffort. No plan has Reasoning chips any more, so
+ * a "low" left there from the BYOK or chip era would otherwise hold a Pro
+ * account at low with no way to change it from any client.
+ */
+export function includedEffortFor(options: {
+	requested: string | null | undefined;
+	plan: "pro" | "free";
+	/** The effort came from a chat request body, not a server call site. */
+	fromChat: boolean;
+}): HouseEffort {
+	return houseEffortFor(options.fromChat ? null : options.requested, options.plan);
+}
+
 export function decideAccess(options: {
 	/** On SERVER_CREDENTIAL_USER_IDS: may spend the server's keys freely. */
 	allowlisted: boolean;

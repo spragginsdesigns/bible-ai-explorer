@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { decideAccess, houseEffortFor, houseEffortsFor } from "../src/lib/ai/access.ts";
+import { decideAccess, houseEffortFor, houseEffortsFor, includedEffortFor } from "../src/lib/ai/access.ts";
 import {
 	HOUSE_CHAT_MODEL_ID,
 	HOUSE_CHAT_MODEL_IDS,
@@ -103,6 +103,21 @@ test("Pro answers on high, and a call site's low pin is kept", () => {
 	assert.equal(houseEffortFor("max", "pro"), "high");
 	// Tap-a-verse, word study and connections pin low for latency.
 	assert.equal(houseEffortFor("low", "pro"), "low");
+});
+
+test("a chat body's stale stored effort never holds Pro below high", () => {
+	// Every client still sends its stored picker effort with each chat request,
+	// and GET /api/preferences syncs it from User.defaultEffort. The owner's row
+	// held "low" from the chip era, which ran his "SureWord Pro" pick on low.
+	for (const requested of ["low", "minimal", "none", "medium", "max", null, undefined]) {
+		assert.equal(includedEffortFor({ requested, plan: "pro", fromChat: true }), "high");
+		assert.equal(includedEffortFor({ requested, plan: "free", fromChat: true }), "low");
+	}
+	// A server call site's latency pin still lowers Pro.
+	assert.equal(includedEffortFor({ requested: "low", plan: "pro", fromChat: false }), "low");
+	assert.equal(includedEffortFor({ requested: undefined, plan: "pro", fromChat: false }), "high");
+	// And nothing a request sends can raise Free.
+	assert.equal(includedEffortFor({ requested: "high", plan: "free", fromChat: false }), "low");
 });
 
 test("neither plan gets Reasoning chips on included AI", () => {
