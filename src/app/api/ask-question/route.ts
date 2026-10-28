@@ -922,7 +922,11 @@ async function handlePost(req: Request): Promise<Response> {
 							userId,
 							conversationId,
 							answerText: stripFollowUps(extractAssistantText(responseMessage)).cleanText,
-						}));
+						})).then(() => {
+							console.info("[chat-reply-push] connection", JSON.stringify({
+								disconnected: clientConnection.disconnected,
+							}));
+						});
 					})
 				);
 			},

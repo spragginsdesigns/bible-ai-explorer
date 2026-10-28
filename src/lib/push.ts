@@ -99,7 +99,17 @@ export async function sendPushMessages(messages: PendingPush[], label: string): 
  */
 async function sendViaApns(jobs: ApnsJob[], label: string): Promise<number> {
 	if (jobs.length === 0) return 0;
-	const { retiredTokenIds } = await sendApnsJobs(jobs, label);
+	const { sent, failed, retiredTokenIds } = await sendApnsJobs(jobs, label);
+	if (label === "chat-reply-push") {
+		const recipients = jobs.reduce((count, job) => count + job.recipients.length, 0);
+		console.info("[chat-reply-push] apns", JSON.stringify({
+			recipients,
+			sent,
+			failed,
+			skipped: recipients - sent - failed - retiredTokenIds.length,
+			retired: retiredTokenIds.length,
+		}));
+	}
 	for (const tokenId of retiredTokenIds) {
 		await prisma.pushToken.delete({ where: { id: tokenId } }).catch(() => {});
 	}
@@ -246,6 +256,7 @@ export async function notifyChatAnswerReady(options: {
 			where: chatReplyRecipientWhere(options.userId),
 			select: PUSH_RECIPIENT_SELECT,
 		});
+		console.info("[chat-reply-push] audience", JSON.stringify({ recipients: tokens.length }));
 		if (tokens.length === 0) return;
 
 		await sendPushMessages(
