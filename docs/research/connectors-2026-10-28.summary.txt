@@ -1,0 +1,10 @@
+Start with Calendar, Notion, and selected Drive files
+
+Connect Bible study to daily routines and existing notes; prioritize useful workflows, narrow access, and a shared backend across every SureWord client.
+
+Next steps:
+1. Validate Calendar, Notion, and Drive with current users
+2. Build scheduling and selected-note access through shared provider adapters
+3. Resolve written AI approval before promising highlights integration
+
+Start with curated connections. Treat Gmail as later work and YouVersion as dependent on permission.
