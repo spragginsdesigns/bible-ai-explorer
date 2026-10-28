@@ -413,60 +413,118 @@ through the normal Gatekeeper path.
 
 ### Current integration checkpoint, 2026-10-28
 
-Apple source is **1.30.0 (39)**, aligned to the Android **1.109.0 (128)**
-capability cohort and curated What's New catch-up code **128**. Android source
-is now **1.110.0 (129)** after a separate Android notes-editor repair.
-The user-approved reconciliation preserves
-the upstream creator/ASV changes and all six parity lanes. A 112-entry byte
-audit found no omitted source; 20 deltas already existed in newer main.
-Capabilities include chat references/composer/errors/attachments, reader note
-selection and audio controls, bundled ASV, Atlas/Connections/Study navigation,
-Settings receipts/membership, Mac Share and direct APNs on both Apple clients.
-This source inventory does not certify full runtime or release parity.
+Reconciled through **23:29 UTC**. Mac metadata is **1.30.0 (39)**; uploaded iOS
+**1.30.0 (2)** uses native `1643de78`. Temporary layout/auth tracing has been
+removed from the working tree, with its patch/logs retained outside product
+source. The installed diagnostic app still awaits a real Google sign-in and
+final clean layout acceptance.
+Android source is **1.110.0 (129)**; curated Apple What's New catch-up remains
+**128**. The 112-entry reconciliation retains the upstream creator/ASV work
+and six parity lanes. Source, installation, runtime and publication remain
+separate states; full parity is not certified.
 
-Captured native Mac QA covers a live answer and reference/reader handoff,
-Study/People/trace navigation, and reader-to-note intake. The corrected note
-writer persisted a title entered without Return plus a body edit across
-immediate navigation, refresh and reopen. Finder sharing accepted a 96-byte TXT
-as an attachment; a 1 MiB + 1-byte file was rejected locally without adding an
-attachment, and all three URL-share actions were exercised. These observations
-do not imply complete coverage of every sharing or editor path.
+The approved **offline Atlas** runs the canonical TypeScript core and reviewed
+JSON/books through serialized JavaScriptCore in `Shared/Atlas/BundledAtlas.swift`.
+All seven queries are local with native Codable responses, resource-integrity
+checks and no online fallback. Generate/check with
+`node scripts/build-apple-atlas.mjs` or `--check`; 28 Node tests cover 31 golden
+cases and seven signed native cases pass. Three public-harness iOS UI cases pass
+for relationships/journeys/trace and Places/Timeline reader navigation. The
+harness is unauthenticated and does not prove network-disabled cold start.
 
-Production-push signing uses the Developer ID Application identity and
-`SureWord com.spragginsdesigns.sureword Developer ID Push` (`MAC_APP_DIRECT`).
-The host's production APS/calendar/App Group union is separate from the Share
-extension's sandbox/App Group entitlements. The Mac group is
-`389LLKGY3Y.group.com.spragginsdesigns.sureword`; iOS retains its `group.` form.
-Signature readback established Hardened Runtime, secure timestamps and no
-`get-task-allow` on both host and extension.
+`mac-atlas-final-runtime-baseline.json` records actual long scrolling to People
+→ Zipporah and Timeline → “The Revelation given on Patmos,” then Revelation
+22:20 in the KJV reader at **23:07–23:08 UTC**. The same process stayed alive
+with no new crash report. Atlas source matches `1643de78`, but the installed
+build also contains temporary geometry diagnostics and an inline-credit trial
+since reverted on disk. **Mac Chat-transition layout still fails acceptance.**
+Final clean installation/runtime recheck remains required before notarization.
 
-Approved SureWord-topic Sandbox/Production APNs keys and six hidden
-Production-scope server variables support raw-token registration with an
-explicit environment; legacy iOS Expo rows remain compatible. Native Mac
-authenticated registration/proof binding returned 200, unauthenticated
-registration returned 401, and matching remote identity was acknowledged.
-A production APNs send produced a closed-app OS delivered-notification record;
-that receipt alone does not prove a visible banner, taps or the full server
-answer-ready lifecycle. See `../docs/ios/push-design.md` for the protocol.
+Notification source includes buffered Mac Cross/What's New destinations,
+Clerk-session-bound server delivery, account-change cleanup/delayed-local-notice
+fencing, exact-account/session recovery after failed canonical sign-out and
+per-attempt Stop acknowledgement before transport cancellation. Failed Stop
+leaves the hidden response draining; generation, persistence and billing continue.
+The current `sureword.app` alias is READY at docs-only `002370b6`, whose backend
+code is identical to `b2b40b5e`. Earlier both-alias/cancellation-enabled/300-second
+receipts remain historical; the current alias is not `b2b40b5e`. Production receipts prove session-bound closed-app answer
+delivery and bounded deliberate Stop; they do not prove manual taps or every
+account transition. See `../docs/PARITY.md` for times and receipt scope.
 
-Validation logs under `/tmp/sureword-parity-takeover/` record backend
-typecheck/lint exit 0, 1,825 passing logic tests with 17 skips, and a successful
-234-page post-upstream build. This includes 13 regressions for the final client-response
-tracker outside usage metering, plus the per-route Vercel cancellation opt-in.
-The correction is pushed; deployment and closed-client replay remain separate acceptance gates. The earlier clean
-backend candidate passed its gates with matching APNs source bytes. Mobile
-typecheck and 1,197 tests passed before the separate Android 1.110.0 work.
-Signed iOS unit coverage totals **941**:
-565 XCTest executions (1 skip, 0 failures) plus 376 Swift Testing tests across
-43 suites. All three final narration and initial-ASV-reader UI cases pass.
-Authenticated translation-picker persistence has its own record in the parity
-ledger.
+The earlier deployed `f5e03c16` cancellation baseline remains proved: a Psalm
+103 run showed server activity, quit with the process absent at **21:20:03 UTC**,
+and produced an OS chat answer-ready record at **21:20:30 UTC** while still
+closed. Use `mac-130-cancellation-closed-live.json` and its OS receipt. The first
+AX-read attempt reopened the app and is not closed proof. Delivered records do
+not establish visible banners or manual taps.
 
-`../docs/PARITY.md` is the live ledger for the installed build's source/API
-target, deployment readiness, UI follow-ups, physical-device availability,
-notarization, TestFlight and public release readback. Check that ledger before
-calling a build current, fully accepted or published. Older release notes
-below remain historical; `../docs/PARITY-TODO.md` retains the outstanding work.
+Actual SDK sign-out at **23:11:09 UTC** cleared local remote identity by the
+final **23:11:50 UTC** read, retaining the production token, device proof and
+proof owner. The initial disk read preceded preference-file flush. The old
+server row is retained. The assistant persisted at **23:11:57.906 UTC**, but
+`disconnected=false` prevented recipient selection; zero audience/session-guard/
+APNs metrics means the guard was not exercised. Zero exact-target OS records
+through **23:14:16 UTC** is bounded absence, not guard proof. See
+`mac-sdk-signout-server-readback.json` and `mac-sdk-signout-os-readback.json`.
+A repeat SDK sign-out plus quit/forced disconnect remains open, awaiting
+restoration of the existing Google session. This is separate from the review
+account password handoff below.
+
+Production-push signing uses Developer ID Application and the
+`SureWord com.spragginsdesigns.sureword Developer ID Push` profile
+(`MAC_APP_DIRECT`). Host APS/calendar/App Group entitlements remain separate
+from the Share extension's sandbox/App Group entitlements. The earlier
+`install-mac-offline-notifications-final.log` exits 0 for Developer ID
+**1.30.0 (39)** from committed `67f3ced6`, the only Spotlight copy at that time.
+The initial missing-framework-import failure was corrected in that commit and
+remains a failed attempt. That install does not certify the later diagnostic
+build or final layout.
+
+Both additive production notification migrations have verified checksums and
+no data-count change. Logs under `/tmp/sureword-parity-takeover/` record
+`notification-offline-check-errors.log` exit 0, final logic **1,891 total /
+1,874 passed / 17 skipped / 0 failed**, and `notification-offline-build.log`
+exit 0 with **234 pages**. Signed SW-C1 units report **Passed: 962 total,
+961 passed, one skipped, zero failed**: 581 XCTest executions including the skip
+plus 381 Swift Testing tests across 44 suites. New cases include seven Atlas,
+eight account-delivery, five Stop and one APNs fence. The passing summary is
+`ios-offline-notification-unit-final-summary.json`; the corrected earlier
+compile failure is not test evidence.
+
+The dedicated review account's saved password was rejected by real web and
+iOS login. Read-only Production Clerk dashboard readback at **23:02:37 UTC**
+confirms the documented account, password sign-in enabled, no lock/ban and MFA
+off. The password-change timestamp is **2026-10-08 00:18:41 UTC**, while the
+1Password note says October 26. That discrepancy does not identify the active
+password. The user-only password-dialog handoff remains pending; no credential
+mutation or successful authenticated acceptance is claimed. Credentials and
+private account identifiers stay out of this document.
+
+Earlier `d30c9937` native proofs for note title/body persistence, file/URL shares,
+ASV, Connections and inline references remain historical. Its notarized DMG,
+SHA-256 `2a38aaccb572f1c779b8edc2ecbe175aa2059014cefa5ea78b80981137ecb132`,
+is stale for this cohort. Final clean Mac acceptance, new app/DMG notarization,
+stapling, Gatekeeper and publication are required. Existing **1.30.0 (1)
+VALID/internal-ready** TestFlight is also the earlier cohort. Its complete
+archive work directory was preserved by atomic rename at **23:09:28 UTC** to
+`/tmp/sureword-parity-takeover/ios-130-build1-preserved.noindex`; receipt
+`ios-build1-preservation.json` lists the archive, export/signing metadata and
+logs. Release session **80571** (`ios-130-build2-release.log`) exited **0**,
+uploading **1.30.0 (2)** at **23:13:47 UTC**. ASC readback at **23:20:01 UTC**
+confirms exactly one matching build, **VALID**, not expired
+(`ios-130-build2-asc-readback.json`). A further **23:24:06 UTC** read confirms internal
+`READY_FOR_BETA_TESTING` and external `READY_FOR_BETA_SUBMISSION`. Physical-device
+acceptance and beta review remain open.
+Public Mac **1.28.0** and Store **1.26.0 READY_FOR_SALE** remain unchanged.
+
+Latest published Android APK is from `android-v1.110.0`, **169,878,412 bytes**,
+SHA-256 `138bfa438131dc21d2a0bcde00ddde88dfdf5899740ca01106f559e2417538a2`.
+Preserve those fixed-name bytes when publishing Mac. Physical iPhone 13 remains
+unavailable; StoreKit, iOS provider authentication, device APNs/migration,
+manual OS taps and broad native flows stay open. `../docs/PARITY.md` records
+exact cohort receipts and subsequent deployment/runtime/artifact/store updates;
+`../docs/PARITY-TODO.md` retains the open gates. Unit counts or installation
+alone never certify full parity/publication.
 
 ### Historical release checkpoint, 2026-10-23
 

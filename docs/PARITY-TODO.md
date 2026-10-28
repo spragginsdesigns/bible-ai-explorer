@@ -16,85 +16,77 @@ The audit used current source, release tags, the parity/feature documents, and e
 
 ## 2026-10-28 Apple reconciliation
 
-The user approved retaining both upstream ASV/creator work and the six Apple
-lanes. Their reconciliation and 112-entry worktree byte audit found no missed
-source; 20 deltas already existed in newer main. Current source is Android
-**1.110.0 (129)** and Apple **1.30.0 (39)**, with curated Apple catch-up
-code **128**. The Android-only editor repair is owned by another chat.
-This dated update supersedes the original audit's earlier 1.29 release targets
-and open normalization diagnosis below. It records partial runtime proof,
-not full parity or closed release checkboxes; unrelated Android/web rows remain.
-Apple parity `f420fe9c`, release infrastructure `d30c9937` and server
-corrections `80c168b2`/`aa9d3b73` are pushed on main. The final Mac installation
-is from `d30c9937`; later server/Android/docs changes do not change Apple
-product source. The approved documentation reconciliation is complete.
+Reconciled through **23:29 UTC**. The six Apple lanes and upstream ASV/creator
+histories are retained; the 112-entry worktree audit found no omitted source.
+Mac metadata is **1.30.0 (39)**, with native `1643de78` used by uploaded iOS
+**1.30.0 (2)**. Android source is **1.110.0 (129)**; its separate editor work is outside
+this task. Apple catch-up remains **128**. Source, unit/build proof, runtime
+acceptance and distribution remain separate gates; full parity is not certified.
 
-Direct APNs, Mac Share, chat/reader/Study/Settings parity, notes persistence
-corrections and upstream ASV/creator changes are integrated. Backend
-typecheck/lint and 1,825 logic tests (17 skips, 0 failures; 1,842 total) pass
-after 13 connection regressions, including the real SDK and production usage
-monitor. Final post-upstream build exit 0 generated 234/234 pages and independent peer
-review passed. The final client-response tracker and Vercel cancellation
-opt-in are pushed; deployment and replay remain open. Mobile locked
-install/typecheck and 1,197 tests passed before the separate Android 1.110.0
-work; that receipt does not retest the later Android changes.
-Signed iOS units total
-**941**: 565 XCTest executions (1 skip, 0 failures) plus 376 Swift Testing
-tests across 43 suites. All three final narration/initial-ASV-reader UI cases
-pass. The public harness does not prove authenticated iOS picker persistence.
+The approved offline Atlas implementation runs all seven canonical queries
+locally through serialized JavaScriptCore, without online fallback. Resource/hash
+checks, 28 Node tests/31 golden cases and seven signed native cases pass. Three
+public-harness iOS Atlas UI cases pass for relationships/journeys/trace and
+Places/Timeline reader navigation. Mac long-scroll acceptance reached People →
+Zipporah, the final Patmos event and Revelation 22:20 in the reader, with the same
+process and no new crash report. That installed build contains temporary
+diagnostics and an inline-credit trial since reverted on disk; final clean Mac
+recheck and real offline cold-start proof remain open. See
+`mac-atlas-final-runtime-baseline.json`.
 
-Native Mac QA proved title-without-Return plus body persistence after immediate
-navigation/refresh/reopen, a 96-byte Finder TXT attachment, local rejection of
-a 1 MiB + 1-byte file without an attachment, and all three URL-share actions.
-Authenticated native token/proof registration returned 200; an unauthenticated
-request returned 401. A production APNs send reached the OS with the app closed,
-and the pending local morning request was removed. These observations do not
-prove notification taps or the full server answer-ready lifecycle. Native Mac
-sign-out DELETE returned 200, clearing local remote identity while retaining
-the proof; existing Google-session restoration returned registration/proof
-binding 200 and restored that identity. Connections counts were 10 all/3
-Pauline, reset to 10 via Explore Romans 5:8, and 207 for whole Romans 5.
-Reader append to an existing QA note preserved its title, prior Psalm quote
-and both previous body markers.
+The current `sureword.app` alias is READY at docs-only `002370b6`, with backend
+code identical to `b2b40b5e`. The earlier both-alias/cancellation-enabled/300-second
+receipts remain historical; the current alias is not `b2b40b5e`. Both additive notification migrations have verified
+checksums and no data-count change. Gates pass: **1,891 total, 1,874 passed,
+17 skipped, zero failed**, typecheck/lint exit 0 and a 234-page build exit 0.
+Session-bound closed-app answer delivery and a bounded deliberate-Stop run have
+production receipts. Actual SDK sign-out clears local remote identity while
+retaining token/proof and the old server row. The assistant persisted after
+sign-out at **23:11:57.906 UTC**, but `disconnected=false` prevented recipient
+selection: no audience/guard/APNs metrics means that attempt did not exercise the
+guard. Zero exact-target OS records through **23:14:16 UTC** does not prove it.
+The repeat SDK sign-out plus quit/forced-disconnect case awaits restoration of
+the existing Google session. Manual taps, migration/failure and physical iOS
+delivery remain open.
 
-Final Developer ID **1.30.0 (39)** is installed with strict signature
-verification and the production API target; the earlier QA proxy is stopped.
-Footer long-list/short-window/restoration/hide-show, real Clerk profile and
-Settings gear checks pass. Authenticated native Mac selection loaded ASV
-Genesis 1 and retained it after switching Today/Bible; the ASV Genesis 1:1 Dawn
-story card rendered correctly with Share image enabled, then KJV was restored.
-Two production replies for Psalm 23:1 and 23:2 completed in the same
-conversation, and the assistant's underlined reference opened the correct
-retrieved KJV sheet. Production `fa4d0eea` is READY on both actual domains;
-newer cancellation-enabled deployments remain queued by shared team build
-concurrency. Earlier superseded deployments were not manually promoted.
+Signed SW-C1 units report **Passed: 962 total, 961 passed, one skipped, zero
+failed**: 581 XCTest executions including the skip, plus 381 Swift Testing
+tests across 44 suites. New coverage includes seven Atlas, eight account-delivery,
+five Stop and one APNs-fence cases. No broad running-app/device/store checkbox
+is closed by these counts.
 
-App and DMG notarizations are Accepted with zero issues; both are stapled and
-Gatekeeper-accepted, including the installed app. The matching DMG is ready
-but unpublished. TestFlight 1.30.0 (1) is VALID/internal ready for beta testing,
-external ready for submission, as read back at 20:03:16 UTC.
+**Mac Chat-transition layout still fails acceptance.** Temporary layout/auth
+tracing has been removed from product source with its patch/logs retained. The
+installed diagnostic build still awaits a real Google sign-in; it is not the
+final shipping artifact. Final clean build/runtime acceptance,
+new notarization/stapling/Gatekeeper and publication remain open; the old
+`d30c9937` DMG is stale. iOS release session **80571** exited **0**, uploading
+**1.30.0 (2)** at **23:13:47 UTC**; ASC readback at **23:20:01 UTC** confirms
+**VALID**, not expired (`ios-130-build2-asc-readback.json`). A further read at **23:24:06 UTC** confirms internal
+`READY_FOR_BETA_TESTING` and external `READY_FOR_BETA_SUBMISSION`. Physical-device
+acceptance and beta review remain open. The earlier build-1 archive and all work-directory records
+were preserved by atomic rename at **23:09:28 UTC** to
+`/tmp/sureword-parity-takeover/ios-130-build1-preserved.noindex`;
+`ios-build1-preservation.json` records it. Earlier **1.30.0 (1)
+VALID/internal-ready** remains valid for its older cohort. Public Mac **1.28.0**
+and Store **1.26.0 READY_FOR_SALE** remain unchanged. Preserve the latest published
+Android 1.110.0 fixed-name APK bytes when publishing Mac.
 
-Remaining work: deployment and production replay of the
-final disconnect correction; notification taps, iOS sign-out and
-migration, authenticated iOS picker/device APNs/IAP acceptance, external beta
-progression and public Mac publication. The
-closed-app answer-ready attempt at 19:54 UTC saved a complete server answer
-but produced no new OS notification record. Production registration returned
-200 and both native preferences were on. The final response tracker,
-per-route cancellation opt-in
-and 13 passing regressions are pushed; the production replay is still required.
-This is not a passing lifecycle receipt. Physical iPhone 13 is unavailable, leaving
-live StoreKit and device-dependent iOS proof open.
+The dedicated review account's saved password was rejected on actual web and
+iOS login. Read-only Production Clerk readback confirms the documented account,
+password sign-in enabled, no lock/ban and MFA off. Its password-change timestamp
+is **2026-10-08 00:18:41 UTC**, while the 1Password note says October 26; this does
+not identify the active password. A user-only password-dialog handoff is pending,
+with no credential mutation or successful authenticated acceptance claimed.
+Receipt: `sureword-review-clerk-dashboard-readback.json`, checked **23:02:37 UTC**.
 
-SureWord-only Sandbox/Production keys, six Production-scope secrets and the
-matching Developer ID profile are configured with approval. Latest release
-readback remains public Mac 1.28.0 and Store 1.26.0 `READY_FOR_SALE`; the new
-1.30.0 (1) TestFlight upload is processed but does not prove device testing or
-App Store approval.
-The older rejection is historical. See `PARITY.md` for receipts and live
-release/deployment updates. Public Mac publication remains open. Both approved
-creator and Apple
-verification histories are preserved in the reconciled ledger.
+Earlier Mac notes/title, file/URL-share, ASV, Connections and inline-reference
+proofs remain in `PARITY.md`. The earlier three narration/initial-ASV UI cases
+passed; the public harness does not prove authenticated iOS picker writes.
+Physical iPhone 13 remains unavailable. StoreKit/device APNs, provider login,
+iOS migration/sign-out, manual OS taps, new TestFlight/external beta acceptance,
+App Store approval and Mac publication stay open. See `PARITY.md` for exact
+cohort receipts; the earlier AX-read replay is not closed-app proof.
 
 ## Completion rule
 
@@ -143,7 +135,8 @@ A row is done for this checklist only when the behavior is correct on web, Andro
 - [ ] **Both Apple apps: prove direct-APNs morning-verse and answer-ready delivery.**
   - Current source: both clients register raw hex tokens plus an APNs environment. The server stores `apns:<environment>:<hex>`, routes directly to Apple, and retains legacy iOS Expo rows. The former `isServerDeliveryConfigured = false`/Expo-upload plan is superseded. iOS reads signed build metadata; macOS reads its actual APS entitlement.
   - Configuration: separate SureWord-only Sandbox/Production keys, six Production-scope Vercel secrets, and the active installed `MAC_APP_DIRECT` production profile are prepared. Configuration is not a deployed sender or delivery receipt.
-  - Remaining work: re-review and prove the newly implemented disable-legacy-before-enable migration and its failure sequences, deploy the current server, rebuild/install the Developer ID Mac app, then verify raw-token registration, real personalized morning and answer-ready pushes, cold/warm taps, deliberate-Stop handling, local/remote dedup and sign-out cleanup on the supported devices.
+  - Current runtime: `sureword.app` is READY at docs-only `002370b6` with the same backend code as `b2b40b5e`. Earlier `b2b40b5e` receipts prove closed-app delivery and a separate durable-Stop completion with no push work or exact-target OS record during the bounded observation. Actual SDK sign-out cleared local identity while retaining token/proof and the old server row, but its post-sign-out completion had `disconnected=false` and no recipient/guard/APNs work. Zero OS records is bounded absence; the guard was not exercised.
+  - Remaining work: repeat SDK sign-out with quit/forced disconnect after restoring the existing Google session, then finish migration/sign-out failure sequences and delayed-notice cleanup; verify both personalized notifications, cold/warm taps and local/remote dedup on final clean signed builds. Mac layout acceptance and fresh notarization remain open. No physical iOS delivery or universal Stop absence guarantee is claimed.
   - Evidence: `macos/SureWord-iOS/App/PushRegistration.swift`, `macos/SureWord/App/MacPushRegistration.swift`, `macos/Shared/App/APNsRegistration.swift`, `src/lib/apns.ts`, `docs/ios/push-design.md`.
   - Done when: the final signed Apple builds receive and route both notifications without duplicate or previous-account banners, including the Mac with the app closed and a physical iPhone. Android/legacy Expo behavior must remain intact.
 
@@ -160,7 +153,7 @@ A row is done for this checklist only when the behavior is correct on web, Andro
   - Done when: supported references in both message roles open the matching passage sheet when available and the reader otherwise, ranges and ordinary URLs still work, and streaming does not regress reader performance.
 
 - [ ] **iOS: prove the reader’s new/existing-note picker and persistence.**
-  - Current source, 2026-10-28: both readers open the generalized `AddToNoteSheet` with `compose: false` through `POST /api/notes/append`, offering new/existing notes and an Open note handoff. A bounded Mac new-note handoff was exercised. Existing-note preservation, failure cleanup and final iOS acceptance remain open; the separate untouched-note normalization regression is also unresolved.
+  - Current source, 2026-10-28: both readers open the generalized `AddToNoteSheet` with `compose: false` through `POST /api/notes/append`, offering new/existing notes and an Open note handoff. A bounded Mac new-note handoff was exercised. The canonical untouched-note/AI-reload baseline and single title/body writer are corrected, with focused regressions passing; earlier Mac existing-note preservation and immediate-departure title/body persistence were exercised. Final iOS range/picker/failure acceptance remains open.
   - Evidence: `mobile/app/(app)/bible/chapter.tsx`, `macos/Shared/Bible/VerseSheetModel.swift`, `macos/Shared/Chat/VerseActions.swift`.
   - Done when: the reader offers new-note and existing-note choices, appends through the shared contract without changing the selected Scripture, preserves the existing note, handles ranges, and leaves no empty orphan after a failed write.
 
@@ -180,7 +173,7 @@ A row is done for this checklist only when the behavior is correct on web, Andro
 ### 1.5 Smaller correctness and copy gaps
 
 - [ ] **Web: accept image, PDF, audio, and supported text files through the installed PWA share target.** The current GET target accepts only title/text/URL; picker, drag/drop, and paste do not provide the same direct share-in capability as Android. Implement the file-capable share contract with authentication return, per-type and per-message limits, and the existing Verify/Check/Help actions. Done when supported files arrive intact, oversize shares fail without partial residue, and the flow works after a cold start and sign-in. Evidence: `public/site.webmanifest`, `src/app/share/page.tsx`, `mobile/app.json`.
-- [ ] **Android and iOS: add the `organizeNote` activity label.** Mirror web’s “Filing your note” instead of falling back to the generic working label. Evidence: `src/lib/tool-activity-labels.ts`, `mobile/src/lib/chatView.ts`, `macos/Shared/Chat/ChatViewMessage.swift`.
+- [ ] **Android: add the `organizeNote` activity label.** Mirror web’s “Filing your note” instead of falling back to the generic working label. The Apple source gap is closed: `macos/Shared/Chat/ChatViewMessage.swift` already has that exact label. Android acceptance is unchanged. Evidence: `src/lib/tool-activity-labels.ts`, `mobile/src/lib/chatView.ts`.
 - [ ] **Web: remove the obsolete personal-provider-key FAQ answer.** Included AI is now Free or Pro; users are no longer told to add a key. Evidence: `src/lib/marketing/faq.ts`.
 - [ ] **Web: update support for current authentication.** Password-based sign-up now exists, so “There is no separate SureWord password to create” is no longer accurate. Evidence: `src/lib/marketing/legal-content.ts`.
 - [ ] **Web: update support for subscription deletion.** Android’s current account-deletion path cancels Google Play renewal before deletion and warns separately when an App Store subscription needs user cancellation; the older support text still tells every Play subscriber to cancel manually. Evidence: `mobile/CHANGELOG.md` 1.99.1, `src/lib/account-deletion.ts`, `src/lib/marketing/legal-content.ts`.
@@ -196,7 +189,7 @@ These rows are not assertions that a feature is absent. They are the proof still
 - [ ] **Account deletion:** exercise a real disposable account on web, Android, and iOS, including success, retry/failure behavior, cache/sign-out cleanup, and the applicable Stripe, Play, or App Store subscription warning/cancellation path.
 - [ ] **Current SureWord AI plans:** verify Free, Pro, and owner-plan presentation and request behavior after BYOK removal. Confirm there are no add-key controls, no stale reasoning options, the Pro mark is correct, and included usage remains server-enforced.
 - [ ] **Native usage enforcement:** exercise Free exhaustion, Pro limits, utility/background work, and recovery on Android and iOS rather than relying only on shared API tests.
-- [ ] **Authentication:** complete real provider round trips where still open: Google on Android and iOS, Apple on iOS, and the password-bearing review/demo account on iOS. Confirm unknown-email sign-up and existing-email sign-in crossover remains intact.
+- [ ] **Authentication:** complete real provider round trips where still open: Google on Android and iOS, Apple on iOS, and the dedicated review account on iOS. Its saved password was rejected on web and actual iOS; the Production dashboard shows no lock/ban or MFA and an October 8 UTC password-change timestamp versus an October 26 vault note. The user-only password-dialog handoff is pending; do not retry or reset on the user’s behalf. Confirm unknown-email sign-up and existing-email sign-in crossover remains intact.
 
 ### 2.2 Android proof
 
@@ -220,11 +213,11 @@ These rows are not assertions that a feature is absent. They are the proof still
 
 Ordinary UI behavior may be proved in the simulator where that is the project’s accepted path. StoreKit, APNs/push, share extensions with device-only behavior, and final TestFlight acceptance need a physical iPhone.
 
-- [ ] **Current TestFlight build:** after final source freeze, upload/read back the new 1.29.0 build and exercise it on a physical iPhone, including the SureWord AI composer, Quiz, complete Walk with me, sharing and direct APNs. Existing iOS 1.26.0 is READY_FOR_SALE; neither that state nor a new upload substitutes for latest-build device proof.
+- [ ] **Current TestFlight build:** release session 80571 exited 0 and uploaded 1.30.0 (2) at 23:13:47 UTC; ASC readback at 23:20:01 UTC confirms VALID and not expired. A 23:24:06 UTC read confirms internal READY_FOR_BETA_TESTING and external READY_FOR_BETA_SUBMISSION; beta review remains open. Build 1 and its full work directory are preserved, but that earlier cohort does not cover this source. Exercise the new build on a physical iPhone, including composer, Quiz, Walk with me, sharing, Atlas and APNs. Existing iOS 1.26.0 is READY_FOR_SALE; neither that state nor upload/processing substitutes for latest-build device proof.
 - [ ] **What’s New and Connections:** exercise catch-up presentation/seen persistence, release search/filter/detail, Try it or Read more, Connections filtering, streamed explanation, and Chat/reader handoffs in a running app.
 - [ ] **Reading Plans:** complete preset and custom-plan creation, reader-driven progress, manual Mark done, archive/replace, streaks, and reopening in a signed-in workflow. The screen and shared model already exist.
-- [ ] **Atlas:** exercise Timeline, People, Places, search, journeys, relationships, trace steps, and chapter/reader handoffs in the native flow.
-- [ ] **Study Bible notes loop and Alive/LC Greek:** exercise the Notes tab/indicators plus the append-picker fix when it lands; verify all four Alive books, edition carry/fallback, LC Greek display, and verse actions.
+- [ ] **Atlas:** canonical offline queries and signed native tests pass, as do three public-harness iOS navigation cases and bounded Mac People/Timeline/reader long-scroll flows. Recheck the final clean Mac build after diagnostics/trials are removed, then prove a real offline cold start plus remaining ranked search/chapter and full navigation acceptance on both Apple apps. Neither UI receipt claims network-disabled operation. Missing-bundle errors must stay explicit, without silent online fallback.
+- [ ] **Study Bible notes loop and Alive/LC Greek:** exercise the Notes tab/indicators plus the implemented append picker; verify all four Alive books, edition carry/fallback, LC Greek display, and verse actions.
 - [ ] **Listen and reading history:** verify spoken-devotional Pro lock, playback speed, background playback/Control Center, and the reading log, map, stats, and reflection.
 - [ ] **Reader study:** verify AI consent presentation and persistence, parchment, Continue reading, Words/Strong’s study, Learn grading and queue advancement, and Learn chat receipts.
 - [ ] **Personalization and church:** verify synced preferences, About me, testimony, highlight labels, My church search/save/remove, sermon studies, church events, prayer states/receipts, and Daily Cross direction controls.
@@ -239,7 +232,7 @@ Ordinary UI behavior may be proved in the simulator where that is the project’
 These are not accidental implementation gaps. Do not silently convert them into defects; changing them needs a product decision and an updated parity contract.
 
 - **YouTube `/verify` on web:** ordinary links work through `readLink`, and pasted transcripts work, but a bare YouTube link cannot fetch captions in the browser and the server is blocked by YouTube. Android/native clients fetch on-device. This was explicitly approved on 2026-10-07. Evidence: `docs/FEATURES.md`, `src/lib/ai-tools.ts`.
-- **Atlas offline scope:** Android intentionally bundles Timeline/People/Places data for offline use. Web and iOS use the API for the same online atlas. If full offline atlas is required elsewhere, specify a separate versioned offline-data contract rather than assuming it exists. Evidence: `mobile/src/features/atlas/atlas.ts`, `src/components/atlas/useAtlas.ts`, `docs/PARITY.md`.
+- **Atlas offline scope, revised 2026-10-28:** the former Apple online-only exception is superseded by the user’s explicit “Include offline Atlas” approval. Android and both Apple apps now bundle the same reviewed data and canonical core; Apple runtime/distribution proof remains in section 2.4. Web remains API-backed; unrelated web scope is unchanged. Evidence: `macos/Shared/Atlas/BundledAtlas.swift`, `scripts/build-apple-atlas.mjs`, `mobile/src/features/atlas/atlas.ts`.
 - **Permitted web supersets:** guest “Try before you sign up,” browser keyboard shortcuts, the Android APK install link, and other web-only landing/editor affordances are allowed. They are not Android or iOS defects.
 - **Platform-native behavior:** sheets versus sidebar/navigation, App Store versus Play billing, Apple Calendar versus another-calendar handoff, and store-specific update rows are valid form-factor/platform adaptations when the underlying capability remains available.
 - **Roadmap items absent from every client:** features planned for a later cross-client release are not parity regressions. Do not list them here until at least one supported client ships them.
@@ -251,7 +244,7 @@ These are not accidental implementation gaps. Do not silently convert them into 
 The following should not be used as evidence of current capability gaps. Update older rows when their related feature is next touched, but keep this checklist focused on real remaining work.
 
 - **Reading Plans:** native iOS UI and the shared plan model exist; remaining work is the full workflow proof in section 2.4.
-- **iOS StoreKit:** implemented for iPhone/iPad, with 1.26.0 READY_FOR_SALE as of 2026-10-28. The open item is the latest-build physical lifecycle and next release proof, not the old rejection or a missing StoreKit implementation. macOS purchase capability remains a separate product/release question.
+- **iOS StoreKit:** implemented for iPhone/iPad, with 1.26.0 READY_FOR_SALE as of 2026-10-28. The open item is the latest-build physical lifecycle and next release proof, not the old rejection or a missing StoreKit implementation. macOS now offers website Subscribe/Manage and Pro-wall routes through `MacBilling`; final checkout/management runtime proof remains separate.
 - **iOS editor deferrals:** toolbar undo/redo, hardware-Tab list indentation, and live Dynamic Type rescaling are documented as completed in `macos/README.md`.
 - **Support page:** `https://sureword.app/support` exists and is publicly reachable. Its outdated auth/subscription copy is separately listed in section 1.5.
 - **Web notifications infrastructure:** registration, server fan-out, service-worker display, and tap handlers exist. The current gaps are deliberate-Stop suppression and real delivery proof, not a total absence of Web Push code.
@@ -259,7 +252,7 @@ The following should not be used as evidence of current capability gaps. Update 
 - **Android Study Bible notes loop:** already present in tagged Android source releases from `android-v1.90.0`; do not repeat the old “ships in the next Android build” claim.
 - **Android Alive/LC Greek:** already present in tagged Android source releases from `android-v1.88.0` onward, with John from `android-v1.89.1`; do not repeat the old “next build” claim.
 - **Older Apple environment blockers:** superseded Xcode-license/CoreSimulator statements and old iOS sermon-studies “not built” cells are not current capability evidence. Record the actual current build/test blocker instead.
-- **Apple remote push:** entitlements, direct APNs source and environment-specific credentials are prepared. The old disabled Expo source gate is superseded. Remaining gates are final migration/normalization corrections, backend deployment, signed rebuild and actual delivery/device proof.
+- **Apple remote push:** entitlements, direct APNs source and environment-specific credentials are prepared; both additive migrations are applied and the session-bound server is READY. Closed-app guarded delivery and bounded Stop receipts supersede the blanket runtime-pending claim. Actual SDK sign-out local cleanup is proved, but `disconnected=false` made the first server completion inapplicable to guard verification; a forced-disconnect repeat is pending. Final clean Mac acceptance/notarization, morning delivery, manual taps, migration/failure cases and physical iOS acceptance remain open.
 - **iOS inline references:** the 2026-10-28 implementation supersedes the original missing-source finding. Older checkmarks still do not close the final running-app acceptance row in section 1.3.
 - **Planned-feature notes:** Quiz me and Walk with me now have implementations on web, Android, and iOS; older planned-only labels are stale. The old Pro/BYOK product-design note also predates the no-BYOK decision.
 

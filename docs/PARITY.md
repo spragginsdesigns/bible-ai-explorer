@@ -7,7 +7,114 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
-## Apple integration checkpoint, 2026-10-28
+## Offline Atlas and notification checkpoint, 2026-10-28
+
+This checkpoint is reconciled through **23:29 UTC**; the earlier Apple and
+creator histories below are retained. Mac metadata is **1.30.0 (39)**. The
+uploaded iOS build uses native `1643de78`. Temporary layout/auth tracing has
+been removed from the working tree, with its patch and logs preserved outside
+product source. The installed app is still the diagnostic build; final clean Mac
+layout acceptance remains open. Android source is **1.110.0 (129)**; its separate editor work is outside
+this Apple task. Curated Apple What's New catch-up remains **128**. Full current
+parity is not certified.
+
+The user explicitly approved **offline Atlas**, superseding the former Apple
+online-only exception. Both Apple apps bundle the reviewed JSON, canonical
+books and TypeScript-transpiled pure `atlas-core.ts`. `BundledAtlas.swift`
+serializes JavaScriptCore access and preserves native Codable responses.
+All seven operations are local: filtered timeline/journeys, entity pagination,
+ranked search/counts/aliases, chapter context, entity/relationship detail,
+event detail and shortest trace paths. Missing/corrupt resources fail explicitly
+without online fallback. Resource/hash checks, 28 Node tests covering 31 golden
+cases and seven signed native cases pass. Three public-harness iOS Atlas UI
+cases also pass: relationships/journeys/trace, Places/reader, and Timeline/reader
+navigation. That harness is unauthenticated and does not prove network-disabled
+cold start or authenticated preferences.
+
+Mac Atlas runtime at **23:07–23:08 UTC** reached People → Zipporah and the last
+Timeline event, “The Revelation given on Patmos,” then opened **Revelation
+22:20** in the KJV reader. The same process remained alive with no new SureWord
+crash report. `mac-atlas-final-runtime-baseline.json` limits this proof to Atlas
+sources matching `1643de78`: the installed build contains temporary geometry
+diagnostics and an inline-credit trial since reverted on disk. **Chat-transition
+layout still fails acceptance.** A final clean build and runtime recheck remain
+required before notarization or publication.
+
+Notification source includes buffered Mac Cross/What's New routing,
+Clerk-session-bound server delivery, local account-change cleanup and delayed
+local-notice fencing, exact-account/session recovery after failed canonical
+sign-out, and durable per-attempt Stop before transport cancellation. Failed
+Stop acknowledgement keeps the hidden response draining; generation, persistence
+and billing continue.
+
+| Gate | Current evidence and limit |
+| --- | --- |
+| Backend | Current `sureword.app` alias is READY at `002370b6`, a docs-only descendant with backend code identical to `b2b40b5e`; it is not the earlier `b2b40b5e` alias assignment. The earlier both-alias/cancellation-enabled/maxDuration-300 receipts remain historical proof. `notification-offline-check-errors.log` exits 0; final logic **1,891 total, 1,874 passed, 17 skipped, 0 failed**; `notification-offline-build.log` exits 0 with **234 pages**. |
+| Production schema | Both additive notification migrations are applied with verified checksums and no data-count change. Receipt: `/tmp/sureword-parity-takeover/notification-migration-production-readback.json`. Schema application alone is not runtime proof. |
+| Signed iOS units | `ios-offline-notification-unit-final.xcresult`/summary: **Passed, 962 total, 961 passed, one skipped, zero failed** on SW-C1. This is 581 XCTest executions including the skip plus 381 Swift Testing tests across 44 suites; new cases include seven Atlas, eight account-delivery, five Stop and one APNs fence. The initial private-access compile failure is preserved; only the corrected run passes. |
+| Mac install/runtime | The earlier `67f3ced6` Developer ID install succeeded. Current installed Atlas runtime uses `1643de78` plus temporary diagnostics/reverted trial code; final clean layout acceptance is open. The earlier install is not proof of the final source. |
+| SDK sign-out | Actual native SDK sign-out was pressed at **23:11:09 UTC**. `mac-sdk-signout-local-readback.json` confirms local remote identity cleared by the final **23:11:50 UTC** read, while the production token, device proof and proof owner were retained. The first disk read preceded the preference flush. The old server row is retained. The assistant persisted at **23:11:57.906 UTC**, but `disconnected=false` prevented recipient selection: zero audience/session-guard/APNs metrics means this run did not exercise the guard. Zero exact-target OS records through **23:14:16 UTC** is bounded absence, not guard proof. See `mac-sdk-signout-server-readback.json` and `mac-sdk-signout-os-readback.json`. A repeat with SDK sign-out plus quit/forced disconnect remains open, awaiting restoration of the existing Google session. |
+| iOS archive/upload | Session **80571** (`ios-130-build2-release.log`) exited **0** and uploaded **1.30.0 (2)** at **23:13:47 UTC**. App Store Connect readback at **23:20:01 UTC** confirms exactly one matching build, **VALID**, not expired (`ios-130-build2-asc-readback.json`). A further read at **23:24:06 UTC** confirms internal `READY_FOR_BETA_TESTING` and external `READY_FOR_BETA_SUBMISSION`; physical-device acceptance and beta review remain open. Before release-script cleanup, the complete earlier build-1 work directory was preserved by atomic rename at **23:09:28 UTC** to `/tmp/sureword-parity-takeover/ios-130-build1-preserved.noindex`; `ios-build1-preservation.json` records the archive and signing/export logs. |
+| Artifacts and stores | The old `d30c9937` DMG, SHA-256 `2a38aaccb572f1c779b8edc2ecbe175aa2059014cefa5ea78b80981137ecb132`, is stale for this cohort. Final clean Mac acceptance, new app/DMG notarization, stapling, Gatekeeper readback and publication remain open. Existing **1.30.0 (1) VALID/internal-ready** TestFlight is the earlier cohort. Public Mac remains **1.28.0**; Store remains **1.26.0 READY_FOR_SALE**. |
+
+The **earlier cancellation baseline is proved** at deployed `f5e03c16`,
+`dpl_CGHRrH3uBp9b6ZMqvsZRUrev67Ef`: both aliases READY, cancellation enabled,
+maxDuration 300. The correct Psalm
+103 run showed server activity for five seconds, then quit with the process
+absent at **21:20:03 UTC**. The OS recorded “Your answer is ready” with a chat
+destination at **21:20:30 UTC**, while the app stayed closed. Use
+`mac-130-cancellation-closed-live.json` and
+`mac-130-cancellation-closed-os-receipt.json` under
+`/tmp/sureword-parity-takeover/`. The earlier AX-read attempt reopened the
+app and is **not** closed-app proof.
+
+The newer session-bound closed-app run persisted at **21:59:05 UTC** and
+recorded one guarded APNs send and its matching OS delivery at **21:59:06 UTC**.
+The separate deliberate-Stop run durably recorded Stop at **22:01:17 UTC**,
+quit before assistant persistence at **22:01:54 UTC**, and recorded no audience
+or APNs work and no Stop-lookup warning for that completion. Its exact-target OS
+count stayed zero through **22:06:58 UTC**. These are bounded receipts, not a
+universal absence guarantee or a captured Stop HTTP response body. See
+`mac-session-bound-closed-*`, `mac-deliberate-stop-closed-*` and the independent
+Stop review in the same scratch directory. Visible banners/manual taps and the
+SDK sign-out negative case remain separate gates.
+
+The dedicated existing review account is blocked on credentials: actual web
+and iOS password sign-in rejected the saved credential. The read-only SureWord
+Production dashboard receipt at **23:02:37 UTC** confirms the documented account
+matches, password sign-in is enabled, the account is neither locked nor banned,
+and MFA is off. Its password-change timestamp is **2026-10-08 00:18:41 UTC**,
+whereas the 1Password note says October 26. This timestamp discrepancy does not
+establish the active password. A user-only password-dialog handoff is pending;
+no credential change or successful authenticated acceptance is claimed. Evidence:
+`sureword-review-clerk-dashboard-readback.json` and the current `state.json`.
+No credentials or private account identifiers are recorded here.
+
+Mac Google-session restoration is separately pending. The diagnostic attempt
+completed Clerk sign-in creation and preparation with HTTP 200 responses, then
+kept waiting without an authorization window available to the computer-use
+tools. This does not establish a provider failure or an app-source cause. A
+normal user sign-in handoff remains pending; the SDK sign-out/quit repeat and
+final Mac layout acceptance depend on that real session.
+
+Latest published `android-v1.110.0` carries `SureWord.apk`,
+**169,878,412 bytes**, SHA-256
+`138bfa438131dc21d2a0bcde00ddde88dfdf5899740ca01106f559e2417538a2`.
+Preserve its fixed-name bytes when publishing Mac. Android bug work remains
+outside this task.
+
+Keep manual OS taps, migration/sign-out failure sequences, authenticated iOS
+picker/provider flows, physical APNs/StoreKit and broad native acceptance open.
+Physical iPhone 13 remains unavailable; the unanswered device request is not
+proof. New TestFlight/external beta progression, App Store approval and Mac
+publication are separate gates. No unit count closes them.
+
+## Earlier Apple integration checkpoint, 2026-10-28 (pre-offline cohort)
+
+The following source, queue and artifact statements describe the earlier
+`d30c9937` native cohort at that time. They are historical; the checkpoint above
+defines the current installed-source and release state.
+
 
 This checkpoint supersedes older active absence/rejection statements below;
 older creator, ASV and release entries remain historical evidence. The user
@@ -429,7 +536,7 @@ Pro is $15/month, with 600 included AI actions per billing period and up to 50/d
 | Membership balance and included/personal-key choice | 1.61.0 (63), Play alpha/internal completed and signed APK launch verified; authenticated native interaction unverified. 1.102.0 (119): the Included AI / My API key choice is removed and Membership shows only the plan. Next build (source + unit tests, 2026-10-27 plan audit): the card now shows the billing period end, "Paid access ends" after a cancel, "Paid access ended" after a lapse and the failed-payment line, as web does (`membershipView.ts`), and tells an App Store or web subscriber in plain text where to manage it (no link, live subscriptions only); not yet on a device | Production owner membership and local Free/BYOK API verified. 2026-10-27: an App Store subscriber's "Manage billing" opened the Stripe portal, which answers "No billing account exists yet."; it is now "Manage in the App Store" (source + typecheck) | Source and unsigned macOS build passed | Source and simulator build passed | `docs/FEATURES.md` |
 | Allowance-used message (2026-10-27): the 429 used to read "Slow down a moment" / "Too many requests" with a raw UTC timestamp ("available at 2026-10-28T00:00:00.000Z"); it is now titled "You've used today's messages" with the reset in local time. No upgrade button on either client yet | 🟡 `mobile/src/features/chat/chatErrors.ts`, unit tests; next build, not on a device | 🟡 `src/lib/chat/chatErrors.ts`, `tests/chat-errors.test.mjs`; ships with the next deploy | ⚠️ not checked | ⚠️ not checked | Server text unchanged (`src/lib/billing/usage.ts`) |
 | Shared usage enforcement | Shared production API; full native runtime scenario unverified | Production metering enabled; compiled app tenth Free answer 200, eleventh 429, BYOK after exhaustion 200 without debit | Shared API; native runtime pending | Shared API; native runtime pending | 10 database cases; 928 web logic tests, 16 skipped |
-| Subscription purchase | Native Play purchase/restore compiled, 798 mobile tests; disabled pending Google merchant setup and real store purchase | Live $15/month Stripe checkout enabled; account, price, default portal and live signed webhook verified | 🚫 no purchase UI by design (the Mac App Store is not a distribution channel); Membership shows the plan only, and neither the locked Listen panel nor a used-up allowance error has a button | 🟡 StoreKit 2 in source (`ProPurchaseStore`, `ProMembershipView`): Subscribe with `appAccountToken`, `POST /api/billing/app-store/verify`, finish only on 200/403, `Transaction.updates` listener, Restore Purchases, Manage subscription, "See SureWord Pro" from the locked Listen panel; no Subscribe when `appStoreCheckoutAvailable` is false. Pure rules covered by `StoreKitBillingTests` on the simulator; a real sandbox purchase on a physical device is still unverified (App Review 2.1(b), 2026-10-22). 2026-10-27: the Listen card re-reads status when the Pro sheet closes, and a refund delivered while the screen is open drops the active badge | 13 Stripe fixture cases, real test-mode checkout/renewal/cancellation/refund, live webhook HTTP 200, and 21 Play backend tests; App Store server cases in `tests/app-store-billing.test.mjs`; native purchase unverified on every store |
+| Subscription purchase | Native Play purchase/restore compiled, 798 mobile tests; disabled pending Google merchant setup and real store purchase | Live $15/month Stripe checkout enabled; account, price, default portal and live signed webhook verified | 🟡 website purchase/management paths implemented: Membership offers Subscribe when `MacBilling.canOfferWebUpgrade` allows it, and eligible locked Listen/allowance cards open Membership through `ProUpgradeOffer`; final checkout/management runtime proof remains open | 🟡 StoreKit 2 in source (`ProPurchaseStore`, `ProMembershipView`): Subscribe with `appAccountToken`, `POST /api/billing/app-store/verify`, finish only on 200/403, `Transaction.updates` listener, Restore Purchases, Manage subscription, "See SureWord Pro" from the locked Listen panel; no Subscribe when `appStoreCheckoutAvailable` is false. Pure rules covered by `StoreKitBillingTests` on the simulator; a real sandbox purchase on a physical device remains unverified for 1.30.0 (2), now VALID/internal-ready. The October 22 App Review 2.1(b) rejection is historical; Store 1.26.0 is READY_FOR_SALE. 2026-10-27: the Listen card re-reads status when the Pro sheet closes, and a refund delivered while the screen is open drops the active badge | 13 Stripe fixture cases, real test-mode checkout/renewal/cancellation/refund, live webhook HTTP 200, and 21 Play backend tests; App Store server cases in `tests/app-store-billing.test.mjs`; native purchase unverified on every store |
 | Signed-out landing page | Not applicable | Production landing and signup verified | Not applicable | Not applicable | Public root, active $15 Pro entry, no-card Free entry, personalization copy and device-specific installation |
 
 The existing complimentary/owner audio grants are preserved. Audio for new subscriptions has a separate activation flag until its cost is measured. PR #21 merged to main as `f4612b4`. Application commit `576d4f9` includes portal cancellation reconciliation; Vercel Production `dpl_BVK1nATb1Tquz48CSr5BQowU1tk6` reached Ready with sureword.app assigned and web billing enabled. The dedicated live key was read from the authorized 1Password item and saved as a Vercel Production secret. Live Stripe event `evt_1UFdHEDwdkV6uaAOjsyFmizQ` returned HTTP 200 with received=true; the endpoint listens to the original 11 billing events. Five billing migrations were applied after snapshot branch `br-delicate-star-ak14gozu`, preserving all 44 users. Android tag `android-v1.61.0` targets `c90576e`; published APK SHA-256 `439835906b049408029a19227bfa3c9e3bb53f1e44c58c5568f57018c8003433`. Google public production access remains unavailable: Console showed one tester against the twelve-testers/fourteen-days requirement. Apple release binaries were not rebuilt.
@@ -670,13 +777,13 @@ honestly turn those cells green.
 | Person journeys and clickable entity-event rows | ✅ | ✅ | 🟡 source implemented | 🟡 source implemented | Shows five anchor events, then filters the rail with `personId` for the full journey. Web renders the journey action for every person since 2026-09-14 (previously only when events > 5) |
 | Immediate family and Trace connection | ✅ offline routes | ✅ cited detail controls | 🟡 source implemented | 🟡 source implemented | Family is a linear immediate neighborhood; trace uses the shortest reviewed path and shows certainty plus KJV refs. Web `EntityDetail` gained an All relationships / Immediate family toggle (parent/spouse/sibling, the same set as Android's family screen) and certainty wording "Scripture states / Inferred / Disputed" (`relationCertaintyLabel` ported to `src/components/atlas/atlasView.ts`) on 2026-09-14 |
 | "Ask about this" opens chat with a prefilled prompt | ✅ 1.30.0 | ✅ | 🟡 source implemented | 🟡 source implemented | Each native shell switches to Chat with a prompt filled in; it never sends for the user |
-| Search people, places and events by name or alias | ✅ 1.30.0 local, instant | ✅ debounced `GET /api/bible/atlas?q=` | 🟡 shared API model | 🟡 shared API model | Ranking is one shared function: "saul of tarsus" finds Paul, "Elias" finds Elijah, "Calvary" finds Golgotha |
+| Search people, places and events by name or alias | ✅ 1.30.0 local, instant | ✅ debounced `GET /api/bible/atlas?q=` | 🟡 bundled canonical core; signed tests pass, runtime pending | 🟡 bundled canonical core; signed tests pass, runtime pending | Ranking is one shared function: "saul of tarsus" finds Paul, "Elias" finds Elijah, "Calvary" finds Golgotha |
 | "Who’s in this chapter" from the chapter reader | ✅ 1.30.0 people icon in the header | ✅ people icon in the header | 🟡 reader button | 🟡 reader toolbar | Opens the atlas with a validated book/chapter scope and deduplicates people and places from its events. Since Android 1.60.0 the button lives inside the reader's Reading-settings sheet; web keeps a header icon |
 | "Timeline, People & Places" card on the Bible screen | ✅ 1.30.0 | ✅ | 🟡 Bible sidebar | 🟡 Bible tab | Native Apple entry points use their platform's existing Bible navigation |
 | Ussher dating, labelled as tradition and not Scripture | ✅ inline provenance + footnote | ✅ inline provenance + footnote | 🟡 source implemented | 🟡 source implemented | Structured dates preserve `yearLabel`; undated events are not mislabeled as traditional dates |
 | Assistant knows the atlas (`lookupBibleEntity` / `getBibleTimeline`) | ✅ 1.30.0 | ✅ | ✅ shared backend | ✅ shared backend | Read-only, no permission gate. Activity labels mirrored in `src/lib/tool-activity-labels.ts` and `mobile/src/lib/chatView.ts`; older clients render the tools silently. `lookupBibleEntity` also reports how many KJV verses name the person (`findOccurrences`, an exact word scan of the bundled text) |
 | `/who` slash command | ✅ 1.30.0 | ✅ | ✅ 1.5.0 | ✅ shared | Added to both `slashCommands.ts` copies and to `slashCommandGuidance` |
-| Works offline | ✅ bundled JSON on the device | 🟡 needs the API | 🟡 needs the API | 🟡 needs the API | Deliberate for v2: Android is the primary offline client; the other clients use the authenticated shared API |
+| Works offline | ✅ bundled JSON on the device | 🟡 needs the API | 🟡 bundled core/data; bounded navigation passes, final clean/offline cold-start proof pending | 🟡 seven signed native cases and three public-harness UI cases pass; offline cold-start/distribution pending | The Apple online-only exception was superseded by explicit approval on 2026-10-28. Both Apple apps run all seven local operations through serialized JavaScriptCore, with resource-byte checks and 28 Node tests/31 golden cases. Neither current UI receipt claims a network-disabled cold start. Web remains API-backed. |
 
 ## Verse of the Day
 
@@ -692,9 +799,9 @@ honestly turn those cells green.
 | Listen (spoken devotional): play/pause, elapsed/total, scrubber, "Read along" transcript | ✅ 1.28.0 (`expo-audio`) | ✅ `<audio>` + custom controls on `/cross` | ✅ 1.5.0 `AVPlayer` over the authenticated stream, LISTEN timeline stop (installed/live path exercised) | 🟡 shared card in source/simulator path; device/runtime/distribution unverified | `GET`/`POST /api/verse-of-day/audio`; script written by built-in GPT-5.6 Sol high from the stored day plus its locked selection evidence (not a second sweep over every recent message/note), narrated by ElevenLabs (`eleven_multilingual_v2`), MP3 in private Vercel Blob against the `VerseOfDay` row. Generated **once per day, WITH the day** (`scheduleDailyCrossAudio` at every point a cross is stored - on-demand GET, chat `getDailyCross`, `replaceDailyCross`, and the cron), never on a tap; POST survives only as the manual retry. Playback goes through `GET|HEAD /api/verse-of-day/audio/stream` on our own origin with `Range` forwarded both ways. With no `ELEVENLABS_API_KEY` the routes answer `status: "unavailable"`; free accounts get the Pro panel. |
 | Listen playback speed (0.75x / 1x / 1.25x / 1.5x / 2x, remembered) | ✅ 1.30.0 | ✅ | ✅ 1.5.0 `SettingsStore.listenRate` | 🟡 shared source/simulator path; device/runtime/distribution unverified | Cycling chip beside play. Persisted **on the account** since 2026-09-04 (`User.listenRate`, synced through `GET/PATCH /api/preferences`); each client's store keeps the last known rate only as a first-paint cache. Web `audio.playbackRate`; Android `player.setPlaybackRate(rate, "high")` with `shouldCorrectPitch`. Elapsed/total stay in real seconds at every speed. Cycle + normalization rules are pure and tested across the React pair |
 | Listen: background playback + media notification | ✅ 1.32.0 | ✅ OS media card via `navigator.mediaSession` | ✅ 1.5.0 `MPNowPlayingInfoCenter` + remote commands (installed/live path exercised) | 🟡 Control Center + background mode compiled; device/runtime/distribution unverified | Android: `expo-audio`'s own media3 `MediaSessionService` - the config plugin's `enableBackgroundPlayback: true` adds `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_MEDIA_PLAYBACK` and declares `expo.modules.audio.service.AudioControlsService`, and the card calls `setAudioModeAsync({ shouldPlayInBackground: true, interruptionMode: "doNotMix" })` plus `player.setActiveForLockScreen(true, metadata, { showSeekBackward: true, showSeekForward: true })`. Both are required: without the audio mode the native module pauses every player the instant the activity backgrounds (a screen timeout), and without the lock-screen registration Android kills background audio after ~3 minutes. Notification carries title, `Pick Up Your Cross · <reference>`, the square SureWord mark, play/pause, ±10s (fixed by the library) and the system scrubber; Bluetooth/headset keys come free with the media session. **Needs `expo prebuild` + a new build** - the manifest changed. Web needs no service: browsers hand an `<audio>` element to the OS themselves, so the card only supplies `MediaMetadata` and `seekbackward`/`seekforward`/`seekto` handlers. Android/web cards release playback when unmounted; the macOS model outlives its sidebar pane. |
-| Listen is a SureWord Pro benefit (locked panel for free accounts) | ✅ 1.30.0 | ✅ | ✅ 1.5.0 (code + test proved; account is Pro) | 🟡 shared source/simulator path; device/runtime/distribution unverified | `User.plan` column OR the `PRO_USER_IDS` env allowlist (`src/lib/entitlements.ts`; pure `resolvePlan` in `entitlements-rules.ts`). Server answers `status: "locked"` **before** any DB write, model call or ElevenLabs request, and the stream route refuses too - a free account costs nothing and cannot reach a narration directly. Each implemented client renders an identical lock panel. Since 2026-10-28 (branch `fix/upgrade-buttons`, source and unit tests only, no device or browser run yet) it carries "See SureWord Pro" where that client can sell Pro: web links to `/membership`; Android opens Settings > AI (the Membership card) only when `/api/billing/status` says `playCheckoutAvailable` and the account is neither Pro nor the owner (`canOfferPlayUpgrade` in `membershipView.ts`, fetched by `usePlayUpgrade`), otherwise no button; iOS opens `ProMembershipView` (unchanged); macOS keeps no button by design. Body copy since 2026-10-07 on all four clients: "A spoken devotional for today's word, made when you choose. Listen is included with SureWord Pro." (no price in the panel). `GET /api/preferences` also returns `plan` |
-| "See SureWord Pro" on a used-up daily AI allowance (Free only) | 🟡 source + unit tests 2026-10-28: the chat ErrorCard adds "See SureWord Pro" (opens Settings > AI) when the error carries `upgrade` and `usePlayUpgrade` confirms Play checkout is on; no button otherwise; not run on a device | 🟡 source + unit tests 2026-10-28: the composer's error card links "See SureWord Pro" to `/membership`; no browser run | 🚫 by design: no purchase UI on macOS, and the card is unchanged | 🟡 source only 2026-10-28: `ChatErrorCard` adds "See SureWord Pro" opening `ProMembershipView` (as the locked Listen panel does; that screen itself says when Pro isn't for sale); not compiled or run | Server: the allowance refusal now carries `plan: "free" | "pro"` beside the unchanged message (`includedLimitBody` in `src/lib/billing/usage-errors.ts`); burst limits, the daily attempt cap and older servers send no plan, so no client offers the button there. Clients set `upgrade` only for `rate_limited` with `plan: "free"` (`tests/chat-errors.test.mjs`, `mobile/src/features/chat/chatErrors.test.ts`) |
-| Morning push notification carrying the verse text | ✅ 1.14.0, verse-text body + heads-up channel 1.17.0 | 🟡 2026-10-04 the verse-of-day cron now also sends to `platform: "web"` PushToken rows (endpoint + `webP256dh`/`webAuth`, migration `20261004120000_web_push_subscriptions` applied to production); tap opens `/cross`; real delivery untested | 🟡 local reminder only | 🟡 local reminder only | Expo push; body is the KJV text itself and a tap while the app is running opens the Pick Up Your Cross screen. KNOWN GAP: a tap that cold-starts the app loses its deep link (upstream expo-notifications bug, see `usePushNotifications.ts`). macOS shows a local daily reminder that carries no verse and opens the Daily Cross; carrying the verse needs an APNs key from the paid Apple Developer Program. iOS is the same story: the app registers for remote notifications, but the target ships no `aps-environment` entitlement, so APNs never delivers a token and the local reminder (tap → Daily Cross sheet) is the delivery path |
+| Listen is a SureWord Pro benefit (locked panel for free accounts) | ✅ 1.30.0 | ✅ | ✅ 1.5.0 (code + test proved; account is Pro) | 🟡 shared source/simulator path; device/runtime/distribution unverified | `User.plan` column OR the `PRO_USER_IDS` env allowlist (`src/lib/entitlements.ts`; pure `resolvePlan` in `entitlements-rules.ts`). Server answers `status: "locked"` **before** any DB write, model call or ElevenLabs request, and the stream route refuses too - a free account costs nothing and cannot reach a narration directly. Each implemented client renders an identical lock panel. Since 2026-10-28 (branch `fix/upgrade-buttons`, source and unit tests only, no device or browser run yet) it carries "See SureWord Pro" where that client can sell Pro: web links to `/membership`; Android opens Settings > AI (the Membership card) only when `/api/billing/status` says `playCheckoutAvailable` and the account is neither Pro nor the owner (`canOfferPlayUpgrade` in `membershipView.ts`, fetched by `usePlayUpgrade`), otherwise no button; iOS opens `ProMembershipView` (unchanged); macOS now opens website Membership when shared status permits an upgrade; final checkout/management runtime proof remains open. Body copy since 2026-10-07 on all four clients: "A spoken devotional for today's word, made when you choose. Listen is included with SureWord Pro." (no price in the panel). `GET /api/preferences` also returns `plan` |
+| "See SureWord Pro" on a used-up daily AI allowance (Free only) | 🟡 source + unit tests 2026-10-28: the chat ErrorCard adds "See SureWord Pro" (opens Settings > AI) when the error carries `upgrade` and `usePlayUpgrade` confirms Play checkout is on; no button otherwise; not run on a device | 🟡 source + unit tests 2026-10-28: the composer's error card links "See SureWord Pro" to `/membership`; no browser run | 🟡 website Membership upgrade path implemented and installed in 1.30.0; final runtime proof pending | 🟡 `ChatErrorCard` opens `ProMembershipView`; signed units pass, final iOS runtime/distribution proof pending | Server: the allowance refusal now carries `plan: "free" \| "pro"` beside the unchanged message (`includedLimitBody` in `src/lib/billing/usage-errors.ts`); burst limits, the daily attempt cap and older servers send no plan, so no client offers the button there. Clients set `upgrade` only for `rate_limited` with `plan: "free"` (`tests/chat-errors.test.mjs`, `mobile/src/features/chat/chatErrors.test.ts`) |
+| Morning push notification carrying the verse text | ✅ 1.14.0, verse-text body + heads-up channel 1.17.0 | 🟡 2026-10-04 the verse-of-day cron now also sends to `platform: "web"` PushToken rows (endpoint + `webP256dh`/`webAuth`, migration `20261004120000_web_push_subscriptions` applied to production); tap opens `/cross`; real delivery untested | 🟡 session-bound closed-app answer delivery and bounded Stop proved; SDK sign-out guard/manual taps pending | 🟡 direct APNs implemented and signed-unit tested; physical delivery/migration/tap proof pending | Apple raw tokens, signed APNs environments and sender are implemented; local-reminder-only/absent-entitlement claims are superseded. Matching remote registration cancels the local daily fallback. New account/session guards, buffered Mac Cross routing and per-attempt Stop have separate runtime gates in the dated checkpoint. Android cold-start tap debt and web delivery acceptance remain open. |
 
 ## Notes
 
