@@ -18,7 +18,8 @@ import {
 	pushTokenProof,
 	pushTokenProofSecret,
 } from "../src/lib/push-token-proof.ts";
-import { isAllowedWebPushEndpoint, mayRegisterExistingPushToken } from "../src/lib/push-routing.ts";
+import { isAllowedWebPushEndpoint, isExpoPushToken, mayRegisterExistingPushToken } from "../src/lib/push-routing.ts";
+import { APNS_ENVIRONMENTS, apnsConfig, apnsStoredToken, isApnsDeviceToken, isApnsStoredToken } from "../src/lib/apns.ts";
 
 const SECRET = "test-proof-secret";
 const TOKEN = "ExponentPushToken[device-1]";
@@ -81,11 +82,17 @@ function loadRoute({ row = null, userId = "user_new", afterRead } = {}) {
 		prisma,
 		webPushConfig: () => null,
 		isAllowedWebPushEndpoint,
+		isExpoPushToken,
 		mayRegisterExistingPushToken,
 		createPushTokenNonce,
 		isValidPushTokenProof,
 		pushTokenProof,
 		pushTokenProofSecret,
+		APNS_ENVIRONMENTS,
+		apnsConfig,
+		apnsStoredToken,
+		isApnsDeviceToken,
+		isApnsStoredToken,
 	};
 	const source = read("../src/app/api/push-tokens/route.ts")
 		.replace(/^import\s[^;]*?;\s*$/gm, "")

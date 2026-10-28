@@ -3,10 +3,11 @@ import { Prisma } from "@prisma/client";
 import { ANALYTICS_EVENTS, platformFromHeaders } from "@/lib/analytics/events";
 import { captureServerEvent } from "@/lib/analytics/server";
 import { z } from "zod";
+import { APNS_ENVIRONMENTS, apnsConfig, apnsStoredToken, isApnsDeviceToken, isApnsStoredToken } from "@/lib/apns";
 import { getAuthUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { webPushConfig } from "@/lib/push";
-import { isAllowedWebPushEndpoint, mayRegisterExistingPushToken } from "@/lib/push-routing";
+import { isAllowedWebPushEndpoint, isExpoPushToken, mayRegisterExistingPushToken } from "@/lib/push-routing";
 import {
 	createPushTokenNonce,
 	isValidPushTokenProof,
@@ -18,9 +19,15 @@ import {
 const MAX_TOKEN_LENGTH = 2048;
 
 const registerSchema = z.object({
-	/** Expo push token, or the Web Push subscription endpoint for "web". */
+	/**
+	 * Expo push token, the Web Push subscription endpoint for "web", or the raw
+	 * hex APNs device token for "ios"/"macos" (stored as `apns:<environment>:<hex>`,
+	 * see apns.ts).
+	 */
 	token: z.string().min(1).max(MAX_TOKEN_LENGTH),
-	platform: z.enum(["ios", "android", "web"]),
+	platform: z.enum(["ios", "android", "web", "macos"]),
+	/** Required for a raw Apple token; legacy iOS Expo tokens ignore this field. */
+	apnsEnvironment: z.enum(["production", "development"]).optional(),
 	/** Web Push subscription keys; required for "web", ignored otherwise. */
 	keys: z
 		.object({
@@ -94,14 +101,30 @@ export async function POST(req: Request) {
 				{ status: 400 }
 			);
 		}
-		const { token, platform, keys, timezone, notifyHour, enabled, chatReplies, proof } = parsed.data;
+		const { platform, keys, timezone, notifyHour, enabled, chatReplies, proof } = parsed.data;
 		const invalidSubscription = () =>
 			NextResponse.json(
 				{ error: "Invalid input: a web subscription needs a push service endpoint and its keys." },
 				{ status: 400 }
 			);
-		if (platform === "web" && (!keys || !isAllowedWebPushEndpoint(token))) {
+		if (platform === "web" && (!keys || !isAllowedWebPushEndpoint(parsed.data.token))) {
 			return invalidSubscription();
+		}
+		// Stored prefixes are server-owned. Native callers send raw hex, and
+		// only the Apple apps may register it for direct APNs delivery.
+		if (isApnsStoredToken(parsed.data.token)) return invalidSubscription();
+		if (isApnsDeviceToken(parsed.data.token) && platform !== "ios" && platform !== "macos") return invalidSubscription();
+		let token = parsed.data.token;
+		if (platform === "macos" || (platform === "ios" && !isExpoPushToken(token))) {
+			const stored = apnsStoredToken(token, parsed.data.apnsEnvironment);
+			if (!stored) return invalidSubscription();
+			// Without this environment's APNs key a row would take a device slot and,
+			// as the newest device, decide the morning hour while delivering
+			// nothing. Refused, so the app keeps its local notifications.
+			if (!apnsConfig(undefined, parsed.data.apnsEnvironment)) {
+				return NextResponse.json({ status: "unavailable", error: "Apple push is not configured for this environment." }, { status: 503 });
+			}
+			token = stored;
 		}
 		// A browser proves itself with its keys; the device proof is for native
 		// tokens only. Null means the feature is off: no proof, no binding, and
@@ -247,6 +270,8 @@ export async function POST(req: Request) {
 
 const unregisterSchema = z.object({
 	token: z.string().min(1).max(MAX_TOKEN_LENGTH),
+	/** For an Apple raw token, remove its row under either environment. Expo stays unchanged. */
+	platform: z.string().max(20).optional(),
 });
 
 /** Unregister a token. deleteMany so a token owned by someone else is a no-op. */
@@ -259,7 +284,14 @@ export async function DELETE(req: Request) {
 			return NextResponse.json({ error: "Invalid input: 'token' is required." }, { status: 400 });
 		}
 
-		await prisma.pushToken.deleteMany({ where: { token: parsed.data.token, userId } });
+		const { token, platform } = parsed.data;
+		const tokens =
+			platform === "macos" || (platform === "ios" && isApnsDeviceToken(token))
+				? APNS_ENVIRONMENTS.flatMap((environment) => apnsStoredToken(token, environment) ?? [])
+				: [token];
+		await prisma.pushToken.deleteMany({
+			where: tokens.length === 1 ? { token: tokens[0], userId } : { token: { in: tokens }, userId },
+		});
 
 		captureServerEvent({
 			userId,

@@ -1,4 +1,5 @@
 import webpush, { WebPushError } from "web-push";
+import { apnsRecipientsOf, sendApnsJobs, type ApnsJob } from "@/lib/apns";
 import { prisma } from "@/lib/prisma";
 import {
 	chatReplyRecipientWhere,
@@ -63,9 +64,10 @@ export interface PendingPush {
 
 /**
  * Deliver queued messages to every recipient's transport: Expo tokens through
- * the Expo push API, browser subscriptions through Web Push. Dead Expo tokens
- * (DeviceNotRegistered) and gone browser subscriptions (404/410) are deleted.
- * Returns how many were deleted.
+ * the Expo push API, browser subscriptions through Web Push, and Macs' APNs
+ * tokens straight to Apple (apns.ts). Dead Expo tokens (DeviceNotRegistered),
+ * gone browser subscriptions (404/410) and dead APNs tokens (410,
+ * BadDeviceToken) are deleted. Returns how many were deleted.
  *
  * `label` only tags log lines, so a failing send is traceable to the caller
  * (the verse-of-day cron vs. a chat answer) without reading a stack trace.
@@ -73,16 +75,35 @@ export interface PendingPush {
 export async function sendPushMessages(messages: PendingPush[], label: string): Promise<number> {
 	const expoMessages: PendingPush[] = [];
 	const webJobs: Array<{ message: PendingPush; recipients: WebRecipient[] }> = [];
+	const apnsJobs: ApnsJob[] = [];
 	for (const message of messages) {
+		// APNs tokens are neither Expo tokens nor browser subscriptions, so the
+		// split drops them; the Macs are picked out of the same list separately.
 		const { expo, web } = splitRecipients(message.recipients);
 		if (expo.length > 0) expoMessages.push({ ...message, recipients: expo });
 		if (web.length > 0) webJobs.push({ message, recipients: web });
+		const apns = apnsRecipientsOf(message.recipients);
+		if (apns.length > 0) apnsJobs.push({ message, recipients: apns });
 	}
-	const [expoRetired, webRetired] = await Promise.all([
+	const [expoRetired, webRetired, apnsRetired] = await Promise.all([
 		sendViaExpo(expoMessages, label),
 		sendViaWebPush(webJobs, label),
+		sendViaApns(apnsJobs, label),
 	]);
-	return expoRetired + webRetired;
+	return expoRetired + webRetired + apnsRetired;
+}
+
+/**
+ * The Macs. sendApnsJobs never throws and skips quietly (one log line) when
+ * no APNs key is configured; only the dead tokens it reports are deleted here.
+ */
+async function sendViaApns(jobs: ApnsJob[], label: string): Promise<number> {
+	if (jobs.length === 0) return 0;
+	const { retiredTokenIds } = await sendApnsJobs(jobs, label);
+	for (const tokenId of retiredTokenIds) {
+		await prisma.pushToken.delete({ where: { id: tokenId } }).catch(() => {});
+	}
+	return retiredTokenIds.length;
 }
 
 /**
