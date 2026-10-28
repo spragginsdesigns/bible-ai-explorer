@@ -60,6 +60,9 @@ Frontend-Codebase-ContextPro.md
 # (scripts/sermon/ingest.mjs keeps artifacts/sermons/ as its record of finished studies)
 /artifacts/
 
+# Private owner notes with personal details (comped accounts and why); the repo is public
+/.private/
+
 # Agent scratch: design-review captures, alternate Next builds, Codex local config
 /.impeccable/
 /.next-*/
