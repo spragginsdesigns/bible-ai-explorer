@@ -4138,7 +4138,8 @@ or `revoked`; only `active` with `expiresAt` in the future is Pro.
 Notifications: SUBSCRIBED and DID_RENEW take the new period;
 DID_FAIL_TO_RENEW keeps access through GRACE_PERIOD and loses it otherwise;
 EXPIRED and GRACE_PERIOD_EXPIRED end it; REFUND and REVOKE revoke it;
-DID_CHANGE_RENEWAL_STATUS only flips `cancelAtPeriodEnd`; every other type is
+REFUND_REVERSED reinstates the row's latest transaction (an older one is
+ignored, so a reversal never rolls the period back); DID_CHANGE_RENEWAL_STATUS only flips `cancelAtPeriodEnd`; every other type is
 a 200 no-op. Idempotent by `notificationUUID` (`BillingEvent` id
 `app-store:<uuid>`, written in the same transaction as the row change), and an
 older `signedDate` than the last applied notification is ignored. A device

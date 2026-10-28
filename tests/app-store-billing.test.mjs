@@ -237,6 +237,24 @@ test("REFUND and REVOKE revoke even inside the paid period", () => {
 	assert.equal(notify("REFUND", undefined, tx()).data.status, "revoked", "the notification type alone revokes");
 });
 
+test("REFUND_REVERSED reinstates the refunded transaction, and only that one", () => {
+	const refunded = row({ status: "revoked" });
+	const reversal = (transaction, signedDate = NOW.getTime()) =>
+		rules.applyNotification(refunded, { notificationType: "REFUND_REVERSED", signedDate, transaction }, NOW);
+	const back = reversal(tx());
+	assert.equal(back.kind, "update");
+	assert.equal(back.data.status, "active", "a reversed refund inside the paid period is Pro again");
+	assert.equal(back.data.expiresAt.getTime(), NOW.getTime() + 29 * DAY);
+	const lapsed = reversal(tx({ purchaseDate: NOW.getTime() - 31 * DAY, expiresDate: NOW.getTime() - DAY }));
+	assert.equal(lapsed.data.status, "expired", "a reversal never extends a period that already ended");
+	assert.deepEqual(
+		reversal(tx({ transactionId: "0999" })),
+		{ kind: "ignore", reason: "mismatch" },
+		"a reversal for an older transaction never rolls the row back",
+	);
+	assert.equal(reversal(tx({ revocationDate: NOW.getTime() })).data.status, "revoked");
+});
+
 test("DID_CHANGE_RENEWAL_STATUS only flips cancelAtPeriodEnd", () => {
 	const off = notify("DID_CHANGE_RENEWAL_STATUS", "AUTO_RENEW_DISABLED", tx(), { autoRenewStatus: 0 });
 	assert.equal(off.data.cancelAtPeriodEnd, true);

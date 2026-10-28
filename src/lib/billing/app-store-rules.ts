@@ -223,6 +223,7 @@ export const HANDLED_NOTIFICATION_TYPES = [
 	"EXPIRED",
 	"GRACE_PERIOD_EXPIRED",
 	"REFUND",
+	"REFUND_REVERSED",
 	"REVOKE",
 	"DID_CHANGE_RENEWAL_STATUS",
 ] as const;
@@ -256,6 +257,13 @@ export function applyNotification(row: AppStoreRow, notification: DecodedNotific
 	// a newer one.
 	if (signedAt < row.lastSignedAt) return { kind: "ignore", reason: "stale" };
 	const subtype = notification.subtype ?? null;
+	// A reversed refund reinstates what the REFUND took away, which is the
+	// row's latest transaction. Without this the member stayed revoked until a
+	// renewal: the device redelivering the same transaction cannot un-revoke it
+	// (shouldApplyDeviceTransaction). A reversal for an older transaction must
+	// not roll the row back to that transaction's period.
+	if (type === "REFUND_REVERSED" && tx.transactionId !== row.latestTransactionId)
+		return { kind: "ignore", reason: "mismatch" };
 	let state: AppStoreState;
 	try {
 		state = stateFromTransaction(tx, notification.renewal, now, row);
@@ -265,6 +273,7 @@ export function applyNotification(row: AppStoreRow, notification: DecodedNotific
 	switch (type) {
 		case "SUBSCRIBED":
 		case "DID_RENEW":
+		case "REFUND_REVERSED":
 			break;
 		case "DID_FAIL_TO_RENEW":
 			if (state.status !== "revoked" && subtype !== "GRACE_PERIOD") {
