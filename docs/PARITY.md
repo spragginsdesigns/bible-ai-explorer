@@ -137,11 +137,22 @@ remains open. External beta progression, next App Store release and public
 Mac publication remain separate gates. Adjacent upstream creator-history
 reconciliation has not been resolved by this checkpoint edit.
 
-**2026-10-28 creator credit:** Web, Android and both Apple composer sources
-now say "Created by Austin Spraggins, a follower of Jesus Christ." The name
-links to `https://www.spragginsdesigns.xyz/#faith`. The existing web AI
-discernment note stays above the credit. Android 1.109.0 (128) and Apple
-1.29.0 (38) are prepared; build, runtime and release proof is pending.
+**2026-10-28 creator credit (web deployed, native release blocked):** Source
+`368fc2b2` adds "Created by Austin Spraggins, a follower of Jesus Christ."
+on web, Android and both Apple composers, with the name linking to
+`https://www.spragginsdesigns.xyz/#faith`. Web deployment
+`dpl_EFtztVYbTXu1tj96gumfmGSPD5EW` is READY on `sureword.app`, and its
+public JavaScript contains the exact credit and link. Shipping-fragment
+wrapping/focus checks passed at desktop and phone widths; signed-in web
+runtime acceptance was not performed. Android 1.109.0 (128) is prepared,
+but two build allocation failures and 95-96% host commit usage blocked its
+release. The final single-job native run was stopped with its cache retained;
+no new APK/AAB, install, Play or GitHub publication is claimed. Play internal
+and closed testing still read back 1.108.1 (127), completed. Apple 1.29.0 (38)
+compiled on macOS and iOS Simulator without signing; signed macOS failed
+`errSecInternalComponent`, and another active Mac session owns unpublished
+parity work plus the same version. No Apple install or release occurred.
+Exact receipts and safe resume steps: [creator-credit evidence](creator-credit-2026-10-28.md).
 
 **2026-10-28 upgrade-button billing investigation:** authenticated production
 `GET /api/billing/status` reported `enabled=true`,
