@@ -89,8 +89,9 @@ struct ProMembershipView: View {
             await loadMembership()
             await store.loadProduct()
         }
-        .onChange(of: store.state.phase) { _, phase in
-            if phase == .subscribed { Task { await loadMembership() } }
+        .onChange(of: store.state.phase) { previous, phase in
+            // Into Pro, or out of it (a refund arriving while this is open).
+            if phase == .subscribed || previous == .subscribed { Task { await loadMembership() } }
         }
         .onChange(of: isManaging) { _, open in
             // Back from Apple's sheet: a cancel or resubscribe may have changed things.

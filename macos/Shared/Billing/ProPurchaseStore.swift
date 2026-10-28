@@ -166,6 +166,12 @@ final class ProPurchaseStore {
         if case .accepted(active: true) = outcome, state.phase != .verifying, state.phase != .restoring {
             apply(.verified(outcome))
         }
+        // A refund or revocation delivered through `Transaction.updates` while
+        // the screen still reads "SureWord Pro is active": drop the badge
+        // rather than keep selling the user a subscription they no longer have.
+        if case .accepted(active: false) = outcome, state.phase == .subscribed {
+            apply(.verified(outcome))
+        }
         return outcome
     }
 

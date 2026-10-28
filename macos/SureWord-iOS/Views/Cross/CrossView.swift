@@ -143,7 +143,10 @@ struct CrossView: View {
         if model.listen.phase != .hidden {
             TimelineStop(systemImage: "waveform", label: "LISTEN") {
                 ListenCard(model: model.listen, settings: app.settings, onSeePro: { showingPro = true })
-                    .sheet(isPresented: $showingPro) {
+                    // The card stays mounted under the sheet, so its `.task`
+                    // never re-runs: re-read status on the way back, or a
+                    // reader who just bought Pro keeps the locked panel.
+                    .sheet(isPresented: $showingPro, onDismiss: { model.listen.begin() }) {
                         NavigationStack {
                             ProMembershipView()
                                 .toolbar {
