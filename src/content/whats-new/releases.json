@@ -1,6 +1,19 @@
 {
 	"releases": [
 		{
+			"version": "1.106.1",
+			"versionCode": 124,
+			"date": "2026-10-27",
+			"sections": [
+				{
+					"kind": "fixed",
+					"items": [
+						"Ways to Serve: the keyboard no longer covers the What I did journal or the nearby search box while you type."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.106.0",
 			"versionCode": 123,
 			"date": "2026-10-27",

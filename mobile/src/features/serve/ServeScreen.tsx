@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
 	ActivityIndicator,
 	Alert,
+	Keyboard,
+	KeyboardAvoidingView,
 	Linking,
 	Pressable,
 	ScrollView,
@@ -83,6 +85,22 @@ export default function ServeScreen() {
 	const [shareReference, setShareReference] = useState<string | null>(null);
 	const [journalVerse, setJournalVerse] = useState<string | null>(null);
 
+	// Android does not scroll a ScrollView to a focused input, so once the
+	// keyboard is up (and the view above has shrunk to fit) bring the section
+	// being typed in back into sight.
+	const revealOnKeyboard = useCallback((sectionY: React.RefObject<number>) => {
+		const reveal = () => scrollRef.current?.scrollTo({ y: Math.max(0, sectionY.current - spacing.lg), animated: true });
+		if ((Keyboard.metrics()?.height ?? 0) > 0) {
+			reveal();
+			return;
+		}
+		const shown = Keyboard.addListener("keyboardDidShow", () => {
+			shown.remove();
+			// Let the padding layout settle before measuring the scroll.
+			setTimeout(reveal, 50);
+		});
+	}, []);
+
 	const openChat = useCallback(
 		(prompt: string) => {
 			router.navigate({ pathname: "/", params: { prompt, handoffId: String(Date.now()) } });
@@ -131,6 +149,7 @@ export default function ServeScreen() {
 	return (
 		<Screen>
 			<SettingsTopBar title={view?.title ?? "Ways to Serve"} />
+			<KeyboardAvoidingView style={styles.fill} behavior="padding">
 			<ScrollView
 				ref={scrollRef}
 				contentContainerStyle={[settingsStyles.content, { paddingBottom: bottom + spacing.xl }]}
@@ -205,6 +224,7 @@ export default function ServeScreen() {
 									getToken={getToken}
 									searches={view.nearby.searches}
 									inputRef={locationRef}
+									onInputFocus={() => revealOnKeyboard(nearbyY)}
 								/>
 							</View>
 						) : null}
@@ -215,6 +235,7 @@ export default function ServeScreen() {
 								journal={view.journal}
 								getToken={getToken}
 								inputRef={journalRef}
+								onInputFocus={() => revealOnKeyboard(journalY)}
 								verseRef={journalVerse}
 								onClearVerse={() => setJournalVerse(null)}
 							/>
@@ -222,6 +243,7 @@ export default function ServeScreen() {
 					</>
 				)}
 			</ScrollView>
+			</KeyboardAvoidingView>
 			<SendWordSheet
 				visible={shareReference !== null}
 				verse={shareReference ? { reference: shareReference, translation: "KJV" } : null}
@@ -280,10 +302,12 @@ function NearbySection({
 	getToken,
 	searches,
 	inputRef,
+	onInputFocus,
 }: {
 	getToken: ReturnType<typeof useStableGetToken>;
 	searches: { id: string; label: string }[];
 	inputRef: React.RefObject<NativeTextInput | null>;
+	onInputFocus: () => void;
 }) {
 	const styles = useThemedStyles(createStyles);
 	const settingsStyles = useSettingsStyles();
@@ -333,6 +357,7 @@ function NearbySection({
 					ref={inputRef}
 					value={location}
 					onChangeText={setLocation}
+					onFocus={onInputFocus}
 					placeholder="City or ZIP code"
 					placeholderTextColor={colors.textGhost}
 					accessibilityLabel="City or ZIP code"
@@ -412,12 +437,14 @@ function JournalSection({
 	journal,
 	getToken,
 	inputRef,
+	onInputFocus,
 	verseRef,
 	onClearVerse,
 }: {
 	journal: ServeView["journal"];
 	getToken: ReturnType<typeof useStableGetToken>;
 	inputRef: React.RefObject<NativeTextInput | null>;
+	onInputFocus: () => void;
 	/** The verse of the way that opened the journal, saved with the entry. */
 	verseRef: string | null;
 	onClearVerse: () => void;
@@ -488,6 +515,7 @@ function JournalSection({
 				ref={inputRef}
 				value={draft}
 				onChangeText={setDraft}
+				onFocus={onInputFocus}
 				placeholder="Write what happened"
 				placeholderTextColor={colors.textGhost}
 				accessibilityLabel="Journal entry"
@@ -544,6 +572,7 @@ function JournalSection({
 
 const createStyles = (c: Colors) =>
 	StyleSheet.create({
+		fill: { flex: 1 },
 		firstCard: { marginTop: spacing.xl },
 		list: { gap: spacing.md },
 		body: { ...typography.support, color: c.textSecondary },

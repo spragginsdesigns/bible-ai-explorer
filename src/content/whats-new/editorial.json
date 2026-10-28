@@ -14,6 +14,11 @@
 		]
 	},
 	"releases": {
+		"1.106.1": {
+			"title": "Room to write",
+			"headline": "The keyboard stays out of your way.",
+			"why": "In Ways to Serve, the What I did journal and the nearby search box now move up above the keyboard while you type."
+		},
 		"1.106.0": {
 			"title": "Ways to Serve",
 			"headline": "Let God's love reach someone.",

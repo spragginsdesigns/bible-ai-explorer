@@ -2,6 +2,15 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.106.1 (versionCode 124) - 2026-10-27 - internal and closed testing
+
+**What's new (Play):**
+
+FIXED
+- Ways to Serve: the keyboard no longer covers the What I did journal or the nearby search box while you type.
+
+**Dev notes:** `src/features/serve/ServeScreen.tsx` wraps its ScrollView in `KeyboardAvoidingView` (behavior padding, the notes editor's pattern), and focusing the journal or location input scrolls that section back into view once `keyboardDidShow` fires, since Android never scrolls a ScrollView to a focused input. No native changes.
+
 ## 1.106.0 (versionCode 123) - 2026-10-27 - internal and closed testing
 
 **What's new (Play):**
