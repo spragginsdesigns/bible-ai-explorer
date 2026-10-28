@@ -250,9 +250,31 @@ final class NotificationsTests: XCTestCase {
         )
     }
 
-    /// Until the APNs key is in Expo, nothing may be registered: a token the
-    /// server cannot deliver to would still be this account's newest device.
-    func testServerRegistrationStaysOffUntilDeliveryIsConfigured() {
-        XCTAssertFalse(PushRegistration.isServerDeliveryConfigured)
+    /// Current iOS uses the direct APNs sender. Its server response controls
+    /// fallback dynamically, rather than a binary compiled-in Expo gate.
+    func testIOSServerAvailabilityDynamicallyControlsTheLocalFallback() throws {
+        let identity = try XCTUnwrap(APNsRegistration.DeliveryIdentity(
+            accountID: "user_a", sessionID: "session_a", environment: .production,
+            token: String(repeating: "ab", count: 32)
+        ))
+        let registered = APNsRegistration.deliveryPlan(
+            verseOfDayEnabled: true, authorized: true, outcome: .registered,
+            registered: nil, current: identity
+        )
+        XCTAssertEqual(registered, .init(scheduleLocalReminder: false, remoteLive: true))
+        // An offline request cannot turn a matching live server row into a
+        // duplicate local reminder. A failed DELETE follows the same rule.
+        let offline = APNsRegistration.deliveryPlan(
+            verseOfDayEnabled: true, authorized: true, outcome: .unavailable,
+            registered: identity, current: identity
+        )
+        XCTAssertEqual(offline, registered)
+        // 503 explicitly says the server cannot deliver in this environment.
+        let unconfigured = APNsRegistration.deliveryPlan(
+            verseOfDayEnabled: true, authorized: true, outcome: .unavailable,
+            registered: identity, current: identity,
+            serverUnconfigured: APNsRegistration.isServerUnconfigured(status: 503)
+        )
+        XCTAssertEqual(unconfigured, .init(scheduleLocalReminder: true, remoteLive: false))
     }
 }

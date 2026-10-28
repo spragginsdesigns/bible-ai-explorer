@@ -40,6 +40,73 @@ struct ConnectionCanonSection: Identifiable, Sendable {
     static func containing(_ order: Int) -> Self { all.first { ($0.first...$0.last).contains(order) } ?? all[0] }
 }
 
+/// Pure rules behind the Connections screen, ported from Android's
+/// `connections.tsx` and `features/bible/connectionsMap.ts` (the source of
+/// truth), so the counts, the chapter stepping and the chat prompt read the
+/// same on every client.
+enum ConnectionsRules {
+    /// The prompt "Keep studying this in chat" sends: Android's
+    /// `connectionsAskPrompt`, naming at most ten of the linked passages so the
+    /// answer walks through them. The verse itself rides as an attachment.
+    static func askPrompt(reference: String, linked: [String]) -> String {
+        let list = linked.prefix(10).joined(separator: ", ")
+        return "How does \(reference) connect to \(list)? Walk me through what ties these passages together in the King James Bible."
+    }
+
+    /// How many links land in each canon section (`sectionCounts`), keyed by
+    /// section id. A section with none is absent, not zero.
+    static func sectionCounts(_ orders: [Int]) -> [String: Int] {
+        orders.reduce(into: [:]) { counts, order in counts[ConnectionCanonSection.containing(order).id, default: 0] += 1 }
+    }
+
+    /// Links per verse of the chapter, for the whole-chapter verse list.
+    static func countsByVerse(_ links: [[Int]]) -> [Int: Int] {
+        links.reduce(into: [:]) { counts, link in
+            if let verse = link.first { counts[verse, default: 0] += 1 }
+        }
+    }
+
+    /// The previous or next chapter, crossing into the neighbouring book at
+    /// either end (Genesis 50 -> Exodus 1, and back). Nil before Genesis 1 or
+    /// after Revelation 22. Always the whole chapter.
+    static func step(_ place: ConnectionsPlace, by delta: Int) -> ConnectionsPlace? {
+        guard let book = Bible.book(order: place.order) else { return nil }
+        var order = place.order
+        var chapter = place.chapter + delta
+        if chapter < 1 {
+            order -= 1
+            chapter = Bible.book(order: order)?.chapters ?? 1
+        } else if chapter > book.chapters {
+            order += 1
+            chapter = 1
+        }
+        guard Bible.book(order: order) != nil else { return nil }
+        return ConnectionsPlace(order: order, chapter: chapter, verse: nil)
+    }
+
+    /// The focused verse's empty list, in Android's words.
+    static func emptyFocusMessage(loaded: Bool, sectionLabel: String?, focusCount: Int) -> String {
+        if !loaded { return "Loading connected passages…" }
+        if let sectionLabel, focusCount > 0 {
+            return "No links into \(sectionLabel) from this verse. Tap All to see the other \(focusCount)."
+        }
+        return "No connected passages are listed for this verse."
+    }
+
+    /// "1 connection" / "12 connections", under the ring's title.
+    static func connectionCount(_ count: Int) -> String {
+        "\(count) \(count == 1 ? "connection" : "connections")"
+    }
+
+    /// A reference the explanation names, opened at its first verse:
+    /// "Romans 5:8-10" opens Romans 5:8, as Android splits on the dash.
+    static func explainedTarget(_ reference: String) -> ConnectionsPlace? {
+        let head = reference.split(whereSeparator: { "-\u{2013}\u{2014}".contains($0) }).first.map(String.init) ?? reference
+        guard let target = Bible.resolveReference(head) else { return nil }
+        return ConnectionsPlace(order: target.order, chapter: target.chapter, verse: target.verse)
+    }
+}
+
 struct ConnectionsChapter: Decodable, Sendable {
     let order: Int
     let chapter: Int
@@ -124,6 +191,13 @@ final class ConnectionsModel {
     private(set) var explanationError: String?
     private var explainTask: Task<Void, Never>?
     private var runID = 0
+
+    /// Android's `status === "done"`: the whole answer arrived. Only then is
+    /// there something to keep studying in chat.
+    var explanationFinished: Bool {
+        !explaining && explanationError == nil
+            && !explanation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     func load(api: APIClient, place: ConnectionsPlace) async {
         loading = true

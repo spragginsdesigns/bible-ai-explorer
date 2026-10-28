@@ -1,6 +1,7 @@
+import AppKit
 import SwiftUI
 
-/// "Pick Up Your Cross" (Luke 9:23) — the guided daily walk, rendered as a
+/// "Pick Up Your Cross" (Luke 9:23) - the guided daily walk, rendered as a
 /// timeline: today's verse, why it was chosen from the user's actual week, how
 /// it applies, a short study path, one question to carry, and the hand-off to
 /// chat.
@@ -20,6 +21,10 @@ struct DailyCrossView: View {
     @State private var focus = ""
     /// Today's Share sheet: the day as a card, or as text.
     @State private var shareCard: ShareCardItem?
+    /// Whether the locked Listen panel offers "See SureWord Pro", which opens
+    /// Settings on Membership: only when the website's checkout is on for
+    /// this Free account (`ProUpgradeOffer`), read while the panel is locked.
+    @State private var offerPro = false
 
     /// Where a landed replacement scrolls back to - Android's `scrollTo({ y: 0 })`.
     private static let topAnchor = "cross-top"
@@ -75,10 +80,31 @@ struct DailyCrossView: View {
         .shareCardSheet(item: $shareCard, api: app.api)
         .task {
             model.load()
+            // The model outlives this pane, so a day kept since yesterday is
+            // fetched again on the way in.
+            model.reloadIfDayChanged()
             // The "FROM YOUR PLAN" tag reads the shared plan model, which the
             // Bible section owns; this screen may well be the first thing
             // opened in a session, so it asks for the plan itself.
             app.bible.plan.loadIfNeeded()
+            // The first visit is a moment the notification dialog explains
+            // itself (the morning word), as on iOS.
+            NotificationPermissionMoments.shared.signal(.crossVisit)
+        }
+        // A Mac left open overnight shows today, not yesterday, once it is
+        // looked at again.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            model.reloadIfDayChanged()
+            if model.listen.phase == .locked { model.listen.begin() }
+        }
+        // Back from "Open AI settings" with AI switched on: fetch the day it
+        // could not make before. Without consent this stays put, so closing
+        // Settings never reopens the consent sheet.
+        .onChange(of: app.isSettingsPresented) { _, presented in
+            if !presented, model.listen.phase == .locked { model.listen.begin() }
+            if !presented, app.aiConsent.isCurrent, model.entry == nil, model.error == AIConsent.declinedNotice {
+                model.load(force: true)
+            }
         }
     }
 
@@ -114,7 +140,16 @@ struct DailyCrossView: View {
         // the card inside it.
         if model.listen.phase != .hidden {
             TimelineStop(glyph: "♪", label: "LISTEN") {
-                ListenCard(model: model.listen, settings: app.settings)
+                ListenCard(
+                    model: model.listen,
+                    settings: app.settings,
+                    onSeePro: offerPro ? { app.openSettings(.membership) } : nil
+                )
+                .task(id: model.listen.phase == .locked) {
+                    offerPro = model.listen.phase == .locked
+                        ? await ProUpgradeOffer.load(api: app.api)
+                        : false
+                }
             }
             // One card per day, so a new word re-runs its `.task`.
             .id(DailyCrossModel.identity(entry))
@@ -363,8 +398,15 @@ struct DailyCrossView: View {
                     .appFont(.system(size: 13))
                     .foregroundStyle(theme.textSecondary)
                     .multilineTextAlignment(.center)
-                Button("Try again") { model.load(force: true) }
-                    .buttonStyle(AccentButtonStyle())
+                // AI turned off: retrying cannot help, the switch can
+                // (Android's `today/cross.tsx`).
+                if message == AIConsent.declinedNotice {
+                    Button("Open AI settings") { app.openSettings(.ai) }
+                        .buttonStyle(AccentButtonStyle())
+                } else {
+                    Button("Try again") { model.load(force: true) }
+                        .buttonStyle(AccentButtonStyle())
+                }
             }
             .frame(maxWidth: 360)
             .frame(maxWidth: .infinity)

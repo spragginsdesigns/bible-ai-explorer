@@ -1,240 +1,349 @@
+import ClerkKit
 import Foundation
 import UIKit
 import UserNotifications
 
 extension Notification.Name {
-    /// Posted on the main actor when APNs delivers (or refreshes) this device's
-    /// token, so the shell can re-run its notification sync.
+    /// APNs delivered or refreshed this device's token; the shell re-syncs.
     static let pushTokenDidChange = Notification.Name("sureword.pushTokenDidChange")
 }
 
-/// Remote push for the morning verse and "your answer is ready" - the iOS half
-/// of `usePushNotifications.ts` / `registerPushToken` in
-/// `mobile/src/features/notifications/` (PRD B6).
-///
-/// The device's APNs token is exchanged for an Expo push token in the same EAS
-/// project Android uses (`ExpoPushTokenExchange`), and that Expo token is what
-/// `POST /api/push-tokens` stores, with `platform: "ios"` and the same body
-/// Android sends. The server then needs no iOS-specific code: its one Expo
-/// sender reaches both phones, once the APNs key is uploaded to that EAS
-/// project. Until then `isServerDeliveryConfigured` is false and nothing is
-/// registered, because a token Expo cannot deliver to would still count as
-/// this account's newest device and the local reminder would stand down for a
-/// push that never comes. See `docs/ios/push-design.md`.
-///
-/// Everything is best-effort, as on Android: a denial, a missing entitlement,
-/// an Expo outage or an offline launch are all swallowed, and
-/// `PushDeliveryPlan` decides whether the local daily reminder covers for it.
+/// Direct APNs delivery for the morning verse and answer-ready notices.
+/// The server accepts platform ios plus the raw token and signed environment;
+/// its APNs sender dynamically returns 503 when that environment has no key.
+/// Registration is scoped to the current account, session, environment and
+/// token, and local reminders cover builds or servers that cannot deliver.
 @MainActor
 enum PushRegistration {
-    /// Flip to true once the SureWord APNs key is uploaded to the EAS project
-    /// (`docs/ios/push-design.md`, step 2). It gates the Expo exchange and the
-    /// server registration only; APNs registration itself always runs.
-    static let isServerDeliveryConfigured = false
+    /// The last APNs token, per environment: a Debug build and the installed
+    /// app share this defaults domain but not their tokens.
+    private static let tokenKeyPrefix = "push.ios.apnsDeviceToken."
+    /// An old bool cannot establish who registered. Only a complete matching
+    /// identity can suppress the local fallback after an offline launch.
+    private static let remoteIdentityKey = "push.ios.remoteIdentity"
+    private struct SessionIdentity: Equatable, Sendable {
+        let accountID: String
+        let sessionID: String
+    }
+    private static var operation: Task<Void, Never>?
+    private static var revision = 0
+    private static var activeAPI: ObjectIdentifier?
+    /// Prevent a delayed shell callback from re-registering during sign-out.
+    private static var signingOutSession: SessionIdentity?
+    /// The device proof the server returned, and the stored token it belongs
+    /// to (`APNsRegistration.proofOwner`). Derived from the token, not the
+    /// account, so sign-out keeps it.
+    private static let proofKey = "push.ios.tokenProof"
+    private static let proofOwnerKey = "push.ios.tokenProofOwner"
 
-    private static let apnsTokenKey = "push.apnsDeviceToken"
-    private static let expoTokenKey = "push.expoToken"
-    /// The APNs token `expoTokenKey` was minted from; a new APNs token needs a
-    /// new exchange.
-    private static let expoTokenSourceKey = "push.expoTokenSource"
-    /// Android's `sureword.notifications.remoteLive`: this device registered a
-    /// token with the backend, so a later failed registration must not re-arm
-    /// the local daily.
-    private static let remoteLiveKey = "push.remoteLive"
-    /// Expo's `deviceId`, a per-install UUID like `getInstallationIdAsync`.
-    private static let installationIDKey = "push.installationId"
-    /// The device proof the server returned for `proofTokenKey`'s Expo token
-    /// (Android's `pushTokenProof.ts`). Sent back on every registration so the
-    /// token is bound to this device and another account cannot take it by
-    /// knowing it. Derived from the token, not the account, so sign-out keeps it.
-    private static let proofKey = "push.tokenProof"
-    private static let proofTokenKey = "push.tokenProofToken"
+    /// This signed Info.plist value and the iOS aps-environment entitlement
+    /// share SUREWORD_APS_ENVIRONMENT in project.yml. Missing or unknown
+    /// metadata disables remote registration; there is no DEBUG fallback.
+    static let environment = APNsRegistration.iosEnvironment(infoDictionary: Bundle.main.infoDictionary)
 
-    /// The last token APNs issued, hex-encoded, kept across launches so a
-    /// settings change can re-register (or unregister) without waiting for
-    /// APNs to call back.
+    static var isAvailable: Bool { environment != nil }
+
     static var storedToken: String? {
-        UserDefaults.standard.string(forKey: apnsTokenKey)
+        guard let environment else { return nil }
+        return UserDefaults.standard.string(forKey: tokenKeyPrefix + environment.rawValue)
     }
 
     static var isRemoteLive: Bool {
-        UserDefaults.standard.bool(forKey: remoteLiveKey)
+        guard let session = currentSession, signingOutSession != session else { return false }
+        return legacyRemoteLive || APNsRegistration.isRemoteLive(registered: registeredIdentity, current: identity(for: session))
     }
 
-    /// Ask iOS for a token; the answer arrives on the AppDelegate. Never
-    /// prompts, and only called once notifications are authorized, so the
-    /// launch path stays free of any dialog (PRD B6a).
+    private static var legacyToken: String? {
+        guard let token = UserDefaults.standard.string(forKey: "push.expoToken"), ExpoPushTokenExchange.isExpoToken(token) else { return nil }
+        return token
+    }
+
+    private static var legacyRemoteLive: Bool {
+        legacyToken != nil && UserDefaults.standard.bool(forKey: "push.remoteLive")
+    }
+
+    private static var currentSession: SessionIdentity? {
+        guard let accountID = Clerk.shared.user?.id, let sessionID = Clerk.shared.session?.id else { return nil }
+        return SessionIdentity(accountID: accountID, sessionID: sessionID)
+    }
+
+    private static var registeredIdentity: APNsRegistration.DeliveryIdentity? {
+        guard let data = UserDefaults.standard.data(forKey: remoteIdentityKey) else { return nil }
+        return try? JSONDecoder().decode(APNsRegistration.DeliveryIdentity.self, from: data)
+    }
+
+    private static func identity(for session: SessionIdentity) -> APNsRegistration.DeliveryIdentity? {
+        APNsRegistration.DeliveryIdentity(
+            accountID: session.accountID,
+            sessionID: session.sessionID,
+            environment: environment,
+            token: storedToken
+        )
+    }
+
+    private static func saveIdentity(_ identity: APNsRegistration.DeliveryIdentity?, preserveLegacyLive: Bool = false) {
+        let defaults = UserDefaults.standard
+        if let identity, let data = try? JSONEncoder().encode(identity) {
+            defaults.set(data, forKey: remoteIdentityKey)
+        } else {
+            defaults.removeObject(forKey: remoteIdentityKey)
+        }
+        if !preserveLegacyLive { defaults.removeObject(forKey: "push.remoteLive") }
+    }
+
+    /// A 401 here must not await Clerk sign-out, which itself waits for token
+    /// removal. Keep the shared API behavior but omit its auth-failure hook,
+    /// and refuse to borrow a replacement account or session's bearer token.
+    private static func client(for owner: SessionIdentity) -> APIClient {
+        APIClient(token: { fresh in
+            guard await MainActor.run(body: { currentSession == owner }) else {
+                throw APIError(message: "The notification account changed.", status: 401)
+            }
+            let token = try await ClerkAuth.token(for: owner.accountID, fresh: fresh)
+            guard await MainActor.run(body: { currentSession == owner }) else {
+                throw APIError(message: "The notification account changed.", status: 401)
+            }
+            return token
+        }, onAuthFailure: {})
+    }
+
+    private static func isCurrent(_ owner: SessionIdentity, apiID: ObjectIdentifier, revision expected: Int) -> Bool {
+        currentSession == owner && signingOutSession != owner && activeAPI == apiID && revision == expected
+    }
+
+    /// Ask iOS for a token; the answer arrives on the app delegate. Never
+    /// prompts, and only called once notifications are authorized. A build
+    /// without the entitlement never asks: UIKit would only fail it.
     static func begin() {
+        guard isAvailable else { return }
         UIApplication.shared.registerForRemoteNotifications()
     }
 
-    /// AppDelegate callback entry point.
+    /// App delegate entry point for `didRegisterForRemoteNotificationsWithDeviceToken`.
     static func store(_ deviceToken: Data) {
-        let hex = ExpoPushTokenExchange.hex(deviceToken)
-        guard hex != storedToken else { return }
-        UserDefaults.standard.set(hex, forKey: apnsTokenKey)
+        guard let environment else { return }
+        let hex = APNsRegistration.hex(deviceToken)
+        let key = tokenKeyPrefix + environment.rawValue
+        guard APNsRegistration.isDeviceToken(hex), hex != UserDefaults.standard.string(forKey: key) else { return }
+        UserDefaults.standard.set(hex, forKey: key)
         NotificationCenter.default.post(name: .pushTokenDidChange, object: nil)
     }
 
-    /// Bring both delivery paths in line with the settings: the server's
-    /// push-token row, then the local daily reminder. Called on launch, on
-    /// every settings change, on a new APNs token and after a permission grant.
-    static func syncAll(api: APIClient, settings: SettingsStore) async {
-        let authorized = await DailyCrossNotifications.isAuthorized()
-        let outcome = await register(
-            api: api,
-            authorized: authorized,
-            verseOfDayEnabled: settings.verseOfDayEnabled,
-            chatReplies: settings.notifyChatReplies,
-            hour: settings.verseOfDayHour
-        )
-        let plan = PushDeliveryPlan.plan(
-            verseOfDayEnabled: settings.verseOfDayEnabled,
-            authorized: authorized,
-            outcome: outcome,
-            remoteLive: isRemoteLive
-        )
-        UserDefaults.standard.set(plan.remoteLive, forKey: remoteLiveKey)
-        if plan.scheduleLocalReminder {
-            await DailyCrossNotifications.sync(
-                enabled: true,
-                hour: settings.verseOfDayHour,
-                mayRequestAuthorization: false
+    /// Launch and preference/grant changes only read permission. The owning
+    /// AppModel's account ID prevents an old shell applying its preferences
+    /// to a newly signed-in account. Network operations run in order, so a
+    /// sign-out DELETE always follows any already-started registration.
+    static func syncAll(api: APIClient, settings: SettingsStore, accountID: String?) async {
+        guard !Task.isCancelled, let owner = currentSession,
+              accountID == owner.accountID, signingOutSession != owner else { return }
+        let apiID = ObjectIdentifier(api)
+        activeAPI = apiID
+        revision += 1
+        let expected = revision
+        let previous = operation
+        let verseEnabled = settings.verseOfDayEnabled
+        let repliesEnabled = settings.notifyChatReplies
+        let hour = settings.verseOfDayHour
+        let pushAPI = client(for: owner)
+        let work = Task {
+            await previous?.value
+            guard isCurrent(owner, apiID: apiID, revision: expected) else { return }
+            let authorized = await DailyCrossNotifications.isAuthorized()
+            guard isCurrent(owner, apiID: apiID, revision: expected) else { return }
+            let current = identity(for: owner)
+            let result = await register(
+                api: pushAPI,
+                owner: owner,
+                current: current,
+                authorized: authorized,
+                verseOfDayEnabled: verseEnabled,
+                chatReplies: repliesEnabled,
+                hour: hour
             )
-        } else {
-            DailyCrossNotifications.cancel()
+            guard isCurrent(owner, apiID: apiID, revision: expected), identity(for: owner) == current else { return }
+            let plan = APNsRegistration.deliveryPlan(
+                verseOfDayEnabled: verseEnabled,
+                authorized: authorized,
+                outcome: result.outcome,
+                registered: registeredIdentity,
+                current: current,
+                serverUnconfigured: result.serverUnconfigured,
+                legacyRemoteLive: result.legacyRemoteLive
+            )
+            let rawPlan = APNsRegistration.deliveryPlan(
+                verseOfDayEnabled: verseEnabled, authorized: authorized,
+                outcome: result.outcome, registered: registeredIdentity, current: current,
+                serverUnconfigured: result.serverUnconfigured
+            )
+            saveIdentity(rawPlan.remoteLive ? current : nil, preserveLegacyLive: result.legacyRemoteLive)
+            if plan.scheduleLocalReminder {
+                await DailyCrossNotifications.sync(enabled: true, hour: hour, mayRequestAuthorization: false)
+            } else {
+                DailyCrossNotifications.cancel()
+            }
         }
+        operation = work
+        await work.value
+    }
+
+    /// Call before Clerk invalidates the current session. Remote registration
+    /// is stopped locally immediately even when the server is unreachable;
+    /// server-row retirement remains best-effort. Keep the proof, so the same
+    /// installation can move a surviving row to its next account safely.
+    @discardableResult
+    static func unregister(api: APIClient) async -> Bool {
+        UIApplication.shared.unregisterForRemoteNotifications()
+        DailyCrossNotifications.cancel()
+        guard let owner = currentSession else { return false }
+        signingOutSession = owner
+        activeAPI = ObjectIdentifier(api)
+        revision += 1
+        let previous = operation
+        var tokens = Set([APNsRegistration.Environment.production, .development].compactMap {
+            UserDefaults.standard.string(forKey: tokenKeyPrefix + $0.rawValue)
+        }.filter(APNsRegistration.isDeviceToken))
+        // Retire a legacy Expo row too if this installation has one. The
+        // exchange itself is no longer part of current registration.
+        if let legacy = UserDefaults.standard.string(forKey: "push.expoToken"),
+           ExpoPushTokenExchange.isExpoToken(legacy) {
+            tokens.insert(legacy)
+        }
+        let pushAPI = client(for: owner)
+        let removal = Task {
+            await previous?.value
+            guard currentSession == owner else { return false }
+            // A previous scheduling call may have been awaiting system
+            // permission settings when sign-out began.
+            DailyCrossNotifications.cancel()
+            var succeeded = true
+            for token in tokens {
+                do {
+                    try await pushAPI.data("/api/push-tokens", method: "DELETE", body: APNsRegistration.UnregisterBody(token: token, platform: "ios"))
+                } catch {
+                    succeeded = false
+                }
+            }
+            if succeeded, currentSession == owner { saveIdentity(nil) }
+            return succeeded
+        }
+        operation = Task { _ = await removal.value }
+        return await removal.value
     }
 
     private static func register(
         api: APIClient,
+        owner: SessionIdentity,
+        current: APNsRegistration.DeliveryIdentity?,
         authorized: Bool,
         verseOfDayEnabled: Bool,
         chatReplies: Bool,
         hour: Int
-    ) async -> PushRegistrationOutcome {
-        guard authorized else { return .unavailable }
-        // Safe to repeat: iOS answers from its cache once it has a token.
+    ) async -> APNsRegistration.IOSSyncResult {
+        let defaults = UserDefaults.standard
+        let legacy = legacyToken.map { token in
+            APNsRegistration.IOSLegacyToken(
+                token: token,
+                proof: defaults.string(forKey: "push.tokenProofToken") == token ? defaults.string(forKey: "push.tokenProof") : nil,
+                remoteLive: legacyRemoteLive
+            )
+        }
+        return await APNsRegistration.syncIOSLegacyMigration(
+            legacy: legacy, timezone: TimeZone.current.identifier, hour: hour,
+            transport: { method, body in
+                try await api.data("/api/push-tokens", method: method, body: body)
+            },
+            didDisable: { defaults.removeObject(forKey: "push.remoteLive") },
+            rememberProof: { proof in
+                guard let legacy else { return }
+                defaults.set(proof, forKey: "push.tokenProof")
+                defaults.set(legacy.token, forKey: "push.tokenProofToken")
+            },
+            didRemove: {
+                guard let legacy, defaults.string(forKey: "push.expoToken") == legacy.token else { return }
+                defaults.removeObject(forKey: "push.expoToken")
+                defaults.removeObject(forKey: "push.expoTokenSource")
+            },
+            rawOperation: {
+                await registerRaw(api: api, owner: owner, current: current, authorized: authorized,
+                                  verseOfDayEnabled: verseOfDayEnabled, chatReplies: chatReplies, hour: hour)
+            }
+        )
+    }
+
+    private static func registerRaw(
+        api: APIClient,
+        owner: SessionIdentity,
+        current: APNsRegistration.DeliveryIdentity?,
+        authorized: Bool,
+        verseOfDayEnabled: Bool,
+        chatReplies: Bool,
+        hour: Int
+    ) async -> (PushRegistrationOutcome, serverUnconfigured: Bool) {
+        // Legacy cleanup awaited the network. Sign-out may have started in
+        // that time; it must not be followed by a new UIKit registration.
+        guard currentSession == owner, signingOutSession != owner else { return (.unavailable, false) }
+        // Both-off still retires legacy and cached raw rows when this build
+        // has no current APNs token or environment metadata.
+        guard verseOfDayEnabled || chatReplies else {
+            let tokens = Set([APNsRegistration.Environment.production, .development].compactMap {
+                UserDefaults.standard.string(forKey: tokenKeyPrefix + $0.rawValue)
+            }.filter(APNsRegistration.isDeviceToken))
+            var removed = true
+            for token in tokens {
+                do {
+                    try await api.data("/api/push-tokens", method: "DELETE", body: APNsRegistration.UnregisterBody(token: token, platform: "ios"))
+                } catch { removed = false }
+            }
+            return (APNsRegistration.unregisterOutcome(succeeded: removed), false)
+        }
+        guard authorized, environment != nil else { return (.unavailable, false) }
         begin()
-        guard isServerDeliveryConfigured, let apnsToken = storedToken else { return .unavailable }
-
-        // The device registers whenever ANY stream is wanted; the two
-        // preferences travel with the token rather than deciding whether it
-        // exists, so silencing one never silences the other.
-        let wantsPush = verseOfDayEnabled || chatReplies
-        guard let expoToken = await expoToken(for: apnsToken) else { return .unavailable }
-
-        if !wantsPush {
-            struct UnregisterBody: Encodable { let token: String }
-            _ = try? await api.data("/api/push-tokens", method: "DELETE", body: UnregisterBody(token: expoToken))
-            return .unregistered
-        }
-
-        struct RegisterBody: Encodable {
-            let token: String
-            let platform: String
-            let timezone: String
-            let notifyHour: Int
-            let enabled: Bool
-            let chatReplies: Bool
-            /// Omitted while nil; servers before 2026-10-09 ignore it.
-            let proof: String?
-        }
-        /// Only `proof` is read, and it is optional: an older server, or one with
-        /// the feature off, answers `{ id }` alone.
-        struct RegisterResponse: Decodable {
-            let proof: String?
-        }
+        guard let current else { return (.unavailable, false) }
+        let proofOwner = APNsRegistration.proofOwner(token: current.token, environment: current.environment)
         func send(proof: String?) async throws -> String? {
             let data = try await api.data(
                 "/api/push-tokens",
                 method: "POST",
-                body: RegisterBody(
-                    token: expoToken,
+                body: APNsRegistration.RegisterBody(
+                    token: current.token,
                     platform: "ios",
+                    environment: current.environment,
                     timezone: TimeZone.current.identifier,
                     notifyHour: hour,
-                    enabled: verseOfDayEnabled,
+                    verseOfDayEnabled: verseOfDayEnabled,
                     chatReplies: chatReplies,
                     proof: proof
                 )
             )
-            return (try? JSONDecoder().decode(RegisterResponse.self, from: data))?.proof
+            return (try? JSONDecoder().decode(APNsRegistration.RegisterResponse.self, from: data))?.proof
         }
         do {
-            let returned = try await send(proof: storedProof(for: expoToken))
-            // A proof this device did not send yet is echoed straight back, which
-            // binds the token now rather than at the next launch. Best-effort.
-            if let returned, storeProof(returned, for: expoToken) {
+            let returned = try await send(proof: storedProof(for: proofOwner))
+            guard currentSession == owner, signingOutSession != owner else { return (.unavailable, false) }
+            if let returned, storeProof(returned, for: proofOwner) {
                 _ = try? await send(proof: returned)
             }
-            return .registered
+            return (.registered, false)
+        } catch let error as APIError {
+            return (.unavailable, APNsRegistration.isServerUnconfigured(status: error.status))
         } catch {
-            return .unavailable
+            return (.unavailable, false)
         }
     }
 
-    private static func storedProof(for expoToken: String) -> String? {
+    private static func storedProof(for owner: String) -> String? {
         let defaults = UserDefaults.standard
-        guard defaults.string(forKey: proofTokenKey) == expoToken else { return nil }
+        guard defaults.string(forKey: proofOwnerKey) == owner else { return nil }
         return defaults.string(forKey: proofKey)
     }
 
     /// Returns true when `proof` is new for this token and was stored.
-    private static func storeProof(_ proof: String, for expoToken: String) -> Bool {
-        guard !proof.isEmpty, storedProof(for: expoToken) != proof else { return false }
+    private static func storeProof(_ proof: String, for owner: String) -> Bool {
+        guard !proof.isEmpty, storedProof(for: owner) != proof else { return false }
         let defaults = UserDefaults.standard
         defaults.set(proof, forKey: proofKey)
-        defaults.set(expoToken, forKey: proofTokenKey)
+        defaults.set(owner, forKey: proofOwnerKey)
         return true
-    }
-
-    /// The Expo token for this APNs token, exchanged once and then reused.
-    private static func expoToken(for apnsToken: String) async -> String? {
-        let defaults = UserDefaults.standard
-        if defaults.string(forKey: expoTokenSourceKey) == apnsToken,
-           let cached = defaults.string(forKey: expoTokenKey) {
-            return cached
-        }
-        let request = ExpoPushTokenExchange.Request(
-            apnsToken: apnsToken,
-            deviceID: installationID(),
-            development: apsEnvironmentIsDevelopment,
-            bundleID: Bundle.main.bundleIdentifier ?? "com.spragginsdesigns.sureword",
-            projectID: Config.expoProjectID
-        )
-        var urlRequest = URLRequest(url: ExpoPushTokenExchange.url)
-        urlRequest.httpMethod = "POST"
-        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.timeoutInterval = 30
-        guard let body = try? JSONEncoder().encode(request) else { return nil }
-        urlRequest.httpBody = body
-        guard let (data, response) = try? await URLSession.shared.data(for: urlRequest),
-              (response as? HTTPURLResponse)?.statusCode == 200,
-              let token = try? ExpoPushTokenExchange.parse(data)
-        else { return nil }
-        defaults.set(token, forKey: expoTokenKey)
-        defaults.set(apnsToken, forKey: expoTokenSourceKey)
-        return token
-    }
-
-    private static func installationID() -> String {
-        let defaults = UserDefaults.standard
-        if let existing = defaults.string(forKey: installationIDKey) { return existing }
-        let fresh = UUID().uuidString.lowercased()
-        defaults.set(fresh, forKey: installationIDKey)
-        return fresh
-    }
-
-    /// Debug builds are signed with `aps-environment = development` and
-    /// Release (TestFlight, App Store) with `production`; see the entitlement
-    /// in `project.yml`. Expo routes the token to the matching APNs host.
-    private static var apsEnvironmentIsDevelopment: Bool {
-        #if DEBUG
-        true
-        #else
-        false
-        #endif
     }
 }
 

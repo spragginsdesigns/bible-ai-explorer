@@ -60,6 +60,19 @@ final class LanguagesTests: XCTestCase {
         XCTAssertEqual(hits.first.map { "\($0.order) \($0.chapter):\($0.verse)" }, "41 5:22", "accent folding finds Ja\u{00EF}rus")
     }
 
+    func testASVReaderDispatchAndFormattingKeepMarkOmissionsInTheirNumberedSlots() async throws {
+        let mark = try await BibleTranslations.chapter(.asv, order: 41, chapter: 9)
+        XCTAssertEqual(mark.count, 50)
+        XCTAssertEqual(mark[43], "", "Mark 9:44 is omitted")
+        XCTAssertEqual(mark[45], "", "Mark 9:46 is omitted")
+        let formatted = await ReaderAnnotations.shared.chapter(.asv, order: 41, chapter: 9, markups: mark)
+        XCTAssertEqual(formatted.filter(\.omitted).map(\.number), [44, 46])
+        XCTAssertEqual(formatted[44].number, 45)
+        XCTAssertEqual(formatted[44].plainText, mark[44])
+        XCTAssertFalse(formatted[44].omitted)
+        XCTAssertTrue(formatted.allSatisfy { $0.headings.isEmpty }, "ASV must not inherit KJV/BSB editorial headings")
+    }
+
     func testAnUnknownChapterIsTheReaderError() async {
         do {
             _ = try await BibleTranslations.chapter(.rv1909, order: 43, chapter: 22)

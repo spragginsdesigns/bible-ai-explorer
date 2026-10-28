@@ -170,4 +170,19 @@ enum ClipboardAttachments {
     }
 
     static var hasImage: Bool { UIPasteboard.general.hasImages }
+
+    /// Images pasted straight into the composer, named like the "Paste" row's
+    /// (`clipboard-<ms>.<ext>`, `clipboard-<ms>-2.<ext>` ...).
+    static func named(_ photos: [PickedPhoto], now: Date = Date()) -> [LocalAttachment] {
+        let stamp = PastedImages.timestamp(now)
+        return photos.enumerated().map { index, photo in
+            let named = PastedImages.metadata(
+                name: nil,
+                declaredType: photo.attachment.mediaType,
+                index: index,
+                timestamp: stamp
+            )
+            return LocalAttachment(filename: named.filename, mediaType: named.mediaType, data: photo.attachment.data)
+        }
+    }
 }

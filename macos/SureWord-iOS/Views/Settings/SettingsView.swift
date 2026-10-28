@@ -29,6 +29,14 @@ struct SettingsView: View {
 
     private var data: SettingsDataStore { .shared }
 
+    /// The page another surface asked for (`AppModel.openSettings`), pushed
+    /// over the hub once it is on screen.
+    @State private var requestedPage: SettingsPageRequest?
+    /// Settings can be on more than one stack at once (a tab's gear push and
+    /// the sheet `openSettings` presents), so only a hub that is on screen
+    /// takes a request; one left on a tab in the background never does.
+    @State private var isVisible = false
+
     var body: some View {
         List {
             Section {
@@ -122,6 +130,17 @@ struct SettingsView: View {
         .navigationTitle("Settings")
         .analyticsScreen(AnalyticsScreen.settings)
         .onAppear(perform: revalidate)
+        .onAppear {
+            isVisible = true
+            consumePageRequest()
+        }
+        .onDisappear { isVisible = false }
+        .onChange(of: app.pendingSettingsPage) { _, _ in
+            if isVisible { consumePageRequest() }
+        }
+        .navigationDestination(item: $requestedPage) { page in
+            SettingsRequestedPage(page: page)
+        }
         // Usually already loaded by Today; only a cold open of Settings fetches.
         .task { if app.serve.view == nil { await app.serve.refresh() } }
     }
@@ -175,6 +194,14 @@ struct SettingsView: View {
         }
         .disabled(app.onboarding.isStarting)
         .accessibilityIdentifier("settings.row.Walk me through SureWord")
+    }
+
+    // MARK: - Page requests
+
+    private func consumePageRequest() {
+        guard let request = app.pendingSettingsPage else { return }
+        app.pendingSettingsPage = nil
+        requestedPage = request
     }
 
     // MARK: - Revalidation
@@ -267,6 +294,24 @@ struct SettingsView: View {
             .padding(.vertical, 2)
         }
         .accessibilityIdentifier("settings.row.\(title)")
+    }
+}
+
+/// The page `AppModel.openSettings(_:)` pushes: the hub row's own page, so
+/// arriving from a chat receipt or a Pro wall looks exactly like tapping the
+/// row. Membership is the StoreKit SureWord Pro screen the AI page links to.
+struct SettingsRequestedPage: View {
+    let page: SettingsPageRequest
+
+    var body: some View {
+        switch page {
+        case .account: AccountSettingsPage()
+        case .ai: AISettingsPage()
+        case .membership: ProMembershipView()
+        case .memory: MemorySettingsPage()
+        case .church: ChurchSettingsPage()
+        case .notifications: NotificationSettingsPage()
+        }
     }
 }
 

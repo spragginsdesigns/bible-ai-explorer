@@ -11,7 +11,9 @@ import SwiftUI
 struct LearnPane: View {
     @Environment(\.theme) private var theme
     @Environment(AppModel.self) private var app
-    /// Back to the books.
+    /// Where the back button returns: the books, or Today when Today's
+    /// "Learn a verse" opened it, as Android's back title follows the stack.
+    var backTitle = "Bible"
     let onDismiss: () -> Void
 
     private var model: LearnModel { app.learn }
@@ -27,12 +29,12 @@ struct LearnPane: View {
     private var header: some View {
         HStack(spacing: Spacing.md) {
             Button(action: onDismiss) {
-                Label("Bible", systemImage: "chevron.left")
+                Label(backTitle, systemImage: "chevron.left")
                     .appFont(.system(size: 12, weight: .semibold))
                     .foregroundStyle(theme.accent)
             }
             .buttonStyle(SubtleButtonStyle())
-            .help("Back to the books")
+            .help(backTitle == "Bible" ? "Back to the books" : "Back to \(backTitle)")
 
             Text("Learn a verse")
                 .appFont(.system(size: 15, weight: .semibold))

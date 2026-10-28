@@ -8,11 +8,13 @@ import SwiftUI
 /// the native segmented picker.
 struct StudyTabsView: View {
     @Binding var selection: VerseSheetModel.StudyTab
+    /// Study notes that mention the selection, counted on the Notes tab.
+    var noteCount = 0
 
     var body: some View {
         Picker("Study", selection: $selection) {
             ForEach(VerseSheetModel.StudyTab.allCases) { tab in
-                Text(tab.label).tag(tab)
+                Text(tab.label(noteCount: noteCount)).tag(tab)
             }
         }
         .pickerStyle(.segmented)

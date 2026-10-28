@@ -10,7 +10,11 @@ import SwiftUI
 /// which is why it takes either the descriptor or the rendered-message form.
 struct AttachmentCard: View {
     @Environment(\.theme) private var theme
+    /// For the preview refresh; every chat surface that draws a card has it.
+    @Environment(AppModel.self) private var app
 
+    /// The attachment id, which a fresh preview URL is minted for.
+    let id: String
     let filename: String
     let mediaType: String
     let size: Int
@@ -22,8 +26,15 @@ struct AttachmentCard: View {
     /// A voice message opens its transcript in place rather than the file: the
     /// words are what the assistant read, and they are what the user wants to see.
     @State private var showsTranscript = false
+    /// The last preview URL minted for this chip (`AttachmentPreviewRefresh`):
+    /// a presigned one lasts 15 minutes, so an older conversation needs a new one.
+    @State private var refreshedURL: String?
+    /// One re-mint per chip when its thumbnail fails, so an image that is truly
+    /// gone does not ask forever.
+    @State private var didRetryPreview = false
 
     init(attachment: ChatAttachmentDescriptor, onRemove: (() -> Void)? = nil) {
+        id = attachment.id
         filename = attachment.filename
         mediaType = attachment.mediaType
         size = attachment.size
@@ -34,6 +45,7 @@ struct AttachmentCard: View {
     }
 
     init(attachment: ChatAttachment, onRemove: (() -> Void)? = nil) {
+        id = attachment.id
         filename = attachment.filename
         mediaType = attachment.mediaType
         size = attachment.size
@@ -101,11 +113,30 @@ struct AttachmentCard: View {
         .onTapGesture {
             if shownTranscript != nil {
                 showsTranscript.toggle()
-            } else if let url = URL(string: previewURL) {
-                NSWorkspace.shared.open(url)
+            } else {
+                openFile()
             }
         }
         .help(shownTranscript != nil ? "Show what was said in \(filename)" : filename)
+    }
+
+    private func retryPreview() async {
+        guard !didRetryPreview else { return }
+        didRetryPreview = true
+        if let fresh = await AttachmentPreviewRefresh.freshURL(for: id, api: app.api) {
+            refreshedURL = fresh
+        }
+    }
+
+    /// Re-mint before every open, as Android does, so the file opens even
+    /// when the message is hours old.
+    private func openFile() {
+        Task {
+            let fresh = await AttachmentPreviewRefresh.freshURL(for: id, api: app.api)
+            if let fresh { refreshedURL = fresh }
+            guard let url = AttachmentPreviewRefresh.openTarget(fresh: fresh, refreshed: refreshedURL, original: previewURL) else { return }
+            NSWorkspace.shared.open(url)
+        }
     }
 
     @ViewBuilder
@@ -116,11 +147,18 @@ struct AttachmentCard: View {
                 .foregroundStyle(theme.accent)
                 .frame(width: 42, height: 42)
                 .background(theme.accentSoft, in: .rect(cornerRadius: Radius.sm))
-        } else if isImage, let url = URL(string: previewURL) {
-            AsyncImage(url: url) { image in
-                image.resizable().aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Rectangle().fill(theme.surfaceStrong)
+        } else if isImage, let url = URL(string: refreshedURL ?? previewURL) {
+            AsyncImage(url: url) { phase in
+                if let image = phase.image {
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } else {
+                    Rectangle().fill(theme.surfaceStrong)
+                        // Android's `onError` refresh: an expired link is
+                        // re-minted, and the new URL reloads the image.
+                        .task(id: phase.error != nil) {
+                            if phase.error != nil { await retryPreview() }
+                        }
+                }
             }
             .frame(width: 42, height: 42)
             .clipShape(.rect(cornerRadius: Radius.sm))

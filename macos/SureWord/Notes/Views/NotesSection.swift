@@ -31,6 +31,12 @@ struct NotesSection: View {
             await model.start()
         }
         .onChange(of: app.pendingNoteID) { openPendingNote(in: library) }
+        // Android reloads silently when the app returns to the foreground,
+        // to pick up edits made on the web or another device.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            guard let library else { return }
+            Task { await library.load(.silent) }
+        }
     }
 
     /// A note receipt tapped in chat stages its note on `AppModel.pendingNoteID`
@@ -39,8 +45,11 @@ struct NotesSection: View {
     /// assistant just created opens even before the list has fetched it.
     private func openPendingNote(in library: NotesLibraryModel?) {
         guard let library, let noteID = app.pendingNoteID else { return }
-        library.selectedNoteID = noteID
-        app.pendingNoteID = nil
+        Task {
+            guard await app.noteDeparture.canLeave() else { return }
+            library.selectedNoteID = noteID
+            app.pendingNoteID = nil
+        }
     }
 
     @ViewBuilder

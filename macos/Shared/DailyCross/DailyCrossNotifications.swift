@@ -28,11 +28,11 @@ enum DailyCrossNotifications {
     /// Bring the scheduled reminder in line with the user's settings. Safe to
     /// call on every launch and on every settings change.
     ///
-    /// `mayRequestAuthorization: false` is the iOS path (PRD B6a): the phone
-    /// never opens the permission dialog from here, because this runs at
+    /// `mayRequestAuthorization: false` is what both apps pass (PRD B6a):
+    /// neither opens the permission dialog from here, because this runs at
     /// launch. It schedules only once permission was granted at one of the
-    /// moments `NotificationPermissionMoments` reports. The Mac keeps asking
-    /// on the first sync, as it always has.
+    /// moments `NotificationPermissionMoments` reports, and the app re-runs
+    /// it after a grant.
     static func sync(enabled: Bool, hour: Int, mayRequestAuthorization: Bool = true) async {
         guard enabled else {
             cancel()

@@ -7,7 +7,7 @@ import UniformTypeIdentifiers
 /// first byte past the file's cap, and what lands is measured again before it
 /// is kept, so an oversize or endless source never fills the inbox.
 ///
-/// The iOS share extension copies this way into the App Group container, and
+/// Both share extensions copy this way into their App Group container, and
 /// the Mac does too for the Services menu and drops (`MacShareInbox`). In
 /// `ShareInbox` so the app's tests pin it; the caps are the app's own
 /// `AttachmentLimits` (`Shared/Chat/FileAttachments.swift`, which the

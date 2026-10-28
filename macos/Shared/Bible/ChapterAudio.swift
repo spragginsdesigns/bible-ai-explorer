@@ -1,6 +1,11 @@
 import Foundation
 import AVFoundation
 import MediaPlayer
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 
 /// Which recording of a chapter to play: the book's usual one, or the Alive
 /// production (full cast, on the ASV or the LC Greek) offered beside it on
@@ -67,6 +72,15 @@ struct ChapterAudio: Decodable, Sendable, Equatable {
     }
 }
 
+/// The reader scrolls with the verse being read, except for a few seconds
+/// after the listener drags the chapter themselves (Android's `lastManualScroll`).
+enum ChapterAudioFollow {
+    static let pause: TimeInterval = 5
+    static func follows(lastManualScroll: Date, now: Date = .now) -> Bool {
+        now.timeIntervalSince(lastManualScroll) >= pause
+    }
+}
+
 @MainActor @Observable
 final class ChapterAudioModel {
     private(set) var audio: ChapterAudio?
@@ -101,11 +115,14 @@ final class ChapterAudioModel {
     @ObservationIgnored private var pendingStart: Double?
     /// The listener's Listen choice; it carries into the next chapter, or falls back to regular there.
     @ObservationIgnored private var chosenEdition: AudioEdition = .regular
+    /// The last `load` request, so Retry can repeat it after a failed fetch.
+    @ObservationIgnored private var lastLoad: (book: Int, chapter: Int, reference: String, enabled: Bool, next: (@MainActor () -> Void)?)?
 
     init(api: APIClient, settings: SettingsStore) { self.api = api; self.settings = settings }
 
     func load(book: Int, chapter: Int, reference: String, enabled: Bool, next: (@MainActor () -> Void)?) async {
         let key = "\(enabled):\(book):\(chapter)"
+        lastLoad = (book, chapter, reference, enabled, next)
         guard sourceKey != key || audio == nil else { return }
         sourceKey = key
         generation += 1
@@ -135,6 +152,23 @@ final class ChapterAudioModel {
             pendingStart = nil
             self.error = "Couldn't load narration. Check your connection and try again."
         }
+    }
+
+    /// Fetch the chapter's narration again after a failure - the readers'
+    /// "Retry chapter narration" (Android's `retryLoad`). The source key is
+    /// cleared so the load cannot short-circuit on the chapter it already holds.
+    func retryLoad() async {
+        guard let request = lastLoad else { return }
+        sourceKey = ""
+        await load(book: request.book, chapter: request.chapter, reference: request.reference,
+                   enabled: request.enabled, next: request.next)
+    }
+
+    /// The bar's Retry after a play or load error: replay from the verse it
+    /// reached when the recording is in hand (Android's `play(verse)`), and
+    /// fetch it again when it is not.
+    func retry() async {
+        if audio == nil { await retryLoad() } else { start(from: verse ?? 0) }
     }
 
     func start(from verse: Int = 0, edition: AudioEdition? = nil) {
@@ -178,12 +212,16 @@ final class ChapterAudioModel {
                 }
             }
         })
-        observations.append(player.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
-            let playing = player.timeControlStatus == .playing
+        observations.append(player.observe(\.timeControlStatus, options: [.new]) { [weak self] _, _ in
             Task { @MainActor in
                 guard let self, self.generation == run else { return }
+                // Read the player after the hop: a queued playing event may
+                // arrive after Pause. Reapplying its old rate would resume it.
+                let playing = self.player.timeControlStatus == .playing && self.player.rate != 0
                 self.isPlaying = playing
-                if playing { self.player.rate = Float(self.settings.listenRate) }
+                let rate = Float(self.settings.listenRate)
+                // Writing even the same rate triggers another status event.
+                if playing, self.player.rate != rate { self.player.rate = rate }
                 self.updateNowPlaying()
             }
         })
@@ -240,14 +278,28 @@ final class ChapterAudioModel {
         if let endObserver { NotificationCenter.default.removeObserver(endObserver) }; endObserver = nil
         player.replaceCurrentItem(with: nil)
     }
+    /// The app icon on the lock screen and the OS media card, as the spoken
+    /// devotional shows it (Android hands its player the same 512px mark).
+    private static let artwork: MPMediaItemArtwork? = {
+        #if os(macOS)
+        let image = NSImage(named: NSImage.applicationIconName)
+        #else
+        let image = UIImage(named: "AppIcon")
+        #endif
+        guard let image else { return nil }
+        return MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+    }()
+
     private func updateNowPlaying() {
         guard isOpen, audio != nil else { return }
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = [
+        var info: [String: Any] = [
             MPMediaItemPropertyTitle: reference, MPMediaItemPropertyArtist: edition == .alive ? "SureWord · Alive" : "SureWord · KJV",
             MPMediaItemPropertyPlaybackDuration: duration,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: elapsed,
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? settings.listenRate : 0,
         ]
+        if let artwork = Self.artwork { info[MPMediaItemPropertyArtwork] = artwork }
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
     private func registerRemoteCommands() {
         guard remoteTargets.isEmpty else { return }

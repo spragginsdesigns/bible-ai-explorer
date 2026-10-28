@@ -25,6 +25,9 @@ struct ChatMessageList: View {
     /// from the error card (StoreKit only, never a web link), as the locked
     /// Listen panel does.
     @State private var showingPro = false
+    /// True once `/api/billing/status` says the App Store can sell Pro to this
+    /// account; read only while a used-up allowance is on screen.
+    @State private var canSellPro = false
 
     var body: some View {
         // The newest question shows Copy / Edit under it; only the newest
@@ -72,7 +75,7 @@ struct ChatMessageList: View {
                         ChatErrorCard(
                             error: sendError,
                             actionTitle: "Try again",
-                            onSeePro: sendError.upgrade ? { showingPro = true } : nil
+                            onSeePro: sendError.upgrade && canSellPro ? { showingPro = true } : nil
                         ) {
                             Task { await chat.retrySend() }
                         }
@@ -83,6 +86,11 @@ struct ChatMessageList: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .scrollDismissesKeyboard(.interactively)
+            // Android's `usePlayUpgrade`: the status is read only while the
+            // card asks for it, so a Pro reader never pays for the request.
+            .task(id: chat.sendError?.upgrade == true) {
+                await loadProOffer(upgrade: chat.sendError?.upgrade == true)
+            }
             .guideVoice(chat: chat, app: app)
             // On the list, not the card: the sheet must outlive the error it came from.
             .sheet(isPresented: $showingPro) {
@@ -119,88 +127,15 @@ struct ChatMessageList: View {
             }
         }
     }
-}
 
-/// Port of `mobile/src/features/chat/ErrorCard.tsx` — the chat copy of the
-/// Mac's `ErrorCard`, full-width on a phone.
-struct ChatErrorCard: View {
-    @Environment(\.theme) private var theme
-    var title: String?
-    let message: String
-    /// Shown muted as "ref: <code>" so a screenshot identifies the failure.
-    var code: String?
-    var actionTitle: String = "Retry"
-    /// Nil hides the button - Android offers none when retrying cannot help.
-    var action: (() -> Void)?
-    /// "See SureWord Pro", for a Free reader's used-up allowance. Nil hides it.
-    var onSeePro: (() -> Void)? = nil
-
-    init(
-        title: String? = nil,
-        message: String,
-        code: String? = nil,
-        actionTitle: String = "Retry",
-        action: (() -> Void)?
-    ) {
-        self.title = title
-        self.message = message
-        self.code = code
-        self.actionTitle = actionTitle
-        self.action = action
-    }
-
-    /// A classified chat error: its title, message and code, and the action
-    /// only when the error says retrying can help (`onRetry={error.retryable ?
-    /// retrySend : undefined}` on Android).
-    init(
-        error: ClassifiedChatError,
-        actionTitle: String,
-        alwaysRetry: Bool = false,
-        onSeePro: (() -> Void)? = nil,
-        action: @escaping () -> Void
-    ) {
-        self.init(
-            title: error.title,
-            message: error.message,
-            code: error.code.rawValue,
-            actionTitle: actionTitle,
-            action: (error.retryable || alwaysRetry) ? action : nil
-        )
-        self.onSeePro = onSeePro
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            if let title {
-                Text(title)
-                    .appFont(.system(size: 14, weight: .bold))
-                    .foregroundStyle(theme.text)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Text(message)
-                .appFont(.system(size: 13))
-                .foregroundStyle(theme.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-            if let code {
-                Text("ref: \(code)")
-                    .appFont(.system(size: 11))
-                    .foregroundStyle(theme.textGhost)
-            }
-            if let action {
-                Button(actionTitle, action: action)
-                    .buttonStyle(AccentButtonStyle())
-            }
-            if let onSeePro {
-                Button("See SureWord Pro", action: onSeePro)
-                    .buttonStyle(.bordered)
-            }
+    /// Any failure answers no: no button beats a button that leads nowhere.
+    private func loadProOffer(upgrade: Bool) async {
+        guard upgrade else {
+            canSellPro = false
+            return
         }
-        .padding(Spacing.lg)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.dangerSoft, in: .rect(cornerRadius: Radius.lg))
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.lg)
-                .strokeBorder(theme.dangerBorder, lineWidth: 1)
-        }
+        let canOffer = await ProUpgradeOffer.load(api: app.api)
+        guard !Task.isCancelled else { return }
+        canSellPro = canOffer
     }
 }

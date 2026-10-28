@@ -28,6 +28,19 @@ enum ClerkAuth {
     }
 
     static func signOut() async {
+        #if os(macOS)
+        if Clerk.shared.user != nil {
+            // Remove the device while its owning session can authenticate.
+            // Push cleanup never recursively invokes this auth-failure path.
+            let api = APIClient(token: tokenProvider, onAuthFailure: {})
+            _ = await MacPushRegistration.unregister(api: api)
+        }
+        #elseif os(iOS)
+        if Clerk.shared.user != nil {
+            let api = APIClient(token: tokenProvider, onAuthFailure: {})
+            _ = await PushRegistration.unregister(api: api)
+        }
+        #endif
         try? await Clerk.shared.auth.signOut()
     }
 

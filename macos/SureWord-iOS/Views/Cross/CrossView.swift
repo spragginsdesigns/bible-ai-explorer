@@ -11,10 +11,8 @@ import SwiftUI
 /// over the tab shell, so it can be reached from anywhere without owning a tab.
 ///
 /// Navigation hooks (owned by TabShell, documented for the other lanes):
-/// - `onOpenReader` — called after a study-path step has been handed to the
-///   reader via `AppModel.pendingVerseReference`; the shell dismisses the
-///   sheet and selects the Bible tab, whose root observes the pending
-///   reference and pushes Lane 2's reader.
+/// - Study-path steps push a reader inside this sheet, so Back returns to
+///   today's word. `onOpenReader` is retained for existing shell callers.
 /// - `onOpenChat` — called after today's verse has been attached to
 ///   `app.chat.attachment`; the shell dismisses and selects the Chat tab, and
 ///   Lane 3's input bar renders the attachment chip.
@@ -35,6 +33,17 @@ struct CrossView: View {
     /// The locked Listen panel's "See SureWord Pro" opens the in-app purchase
     /// screen over the cross (StoreKit only, never a web link).
     @State private var showingPro = false
+    /// Whether that button is offered at all: only when the purchase screen
+    /// has Pro to sell (`ProUpgradeOffer`, Android's `usePlayUpgrade`), read
+    /// while the panel is locked.
+    @State private var offerPro = false
+    /// The AI-off notice's "Open AI settings": the AI page pushed on this
+    /// sheet's own stack rather than `app.openSettings(.ai)`, whose Settings
+    /// sheet cannot present while this one is up. Back returns here, and the
+    /// day is fetched again.
+    @State private var showingAISettings = false
+    /// Study-path chapters keep the Cross on this stack, as on Android.
+    @State private var readerRequest: BibleReaderRequest?
     /// Today's Share sheet: the day as a card, or as text.
     @State private var shareCard: ShareCardItem?
 
@@ -99,6 +108,17 @@ struct CrossView: View {
             }
         }
         .shareCardSheet(item: $shareCard, api: app.api)
+        .navigationDestination(isPresented: $showingAISettings) { AISettingsPage() }
+        .navigationDestination(item: $readerRequest) { request in
+            ChapterReaderView(order: request.order, chapter: request.chapter, verse: request.verse)
+        }
+        .onChange(of: showingAISettings) { _, showing in
+            // Only once AI is back on, so coming back without switching it
+            // on never reopens the consent sheet.
+            if !showing, app.aiConsent.isCurrent, model.entry == nil, model.error == AIConsent.declinedNotice {
+                model.load(force: true)
+            }
+        }
         .task {
             model.load()
             // The "FROM YOUR PLAN" tag reads the shared plan model, which the
@@ -142,7 +162,16 @@ struct CrossView: View {
         // not even the rail node - so the whole stop is conditional.
         if model.listen.phase != .hidden {
             TimelineStop(systemImage: "waveform", label: "LISTEN") {
-                ListenCard(model: model.listen, settings: app.settings, onSeePro: { showingPro = true })
+                ListenCard(
+                    model: model.listen,
+                    settings: app.settings,
+                    onSeePro: offerPro ? { showingPro = true } : nil
+                )
+                    .task(id: model.listen.phase == .locked) {
+                        offerPro = model.listen.phase == .locked
+                            ? await ProUpgradeOffer.load(api: app.api)
+                            : false
+                    }
                     // The card stays mounted under the sheet, so its `.task`
                     // never re-runs: re-read status on the way back, or a
                     // reader who just bought Pro keeps the locked panel.
@@ -418,8 +447,15 @@ struct CrossView: View {
                     .appFont(.footnote)
                     .foregroundStyle(theme.textSecondary)
                     .multilineTextAlignment(.center)
-                Button("Try again") { model.load(force: true) }
-                    .buttonStyle(AccentButtonStyle())
+                // AI turned off: retrying cannot help, the switch can
+                // (Android's `today/cross.tsx`).
+                if message == AIConsent.declinedNotice {
+                    Button("Open AI settings") { showingAISettings = true }
+                        .buttonStyle(AccentButtonStyle())
+                } else {
+                    Button("Try again") { model.load(force: true) }
+                        .buttonStyle(AccentButtonStyle())
+                }
             }
             .frame(maxWidth: .infinity)
         }
@@ -450,16 +486,11 @@ struct CrossView: View {
         }
     }
 
-    /// The study path names books by canonical KJV name. The reader hook is
-    /// `AppModel.pendingVerseReference`: the Bible tab root observes it,
-    /// resolves it through `Bible.resolveReference`, and pushes the reader
-    /// itself (Lane 2's `BibleTabView`) — so this validates resolvability,
-    /// hands the reference over, and lets the shell switch tabs.
+    /// Keep the Cross beneath its study chapter so Back returns to the day,
+    /// matching Android's pushed `/today/chapter` route.
     private func openStudyStep(_ step: DailyCrossStudyStep) {
-        let reference = "\(step.book) \(step.chapter)"
-        guard Bible.resolveReference(reference) != nil else { return }
-        app.pendingVerseReference = reference
-        onOpenReader()
+        guard let reference = Bible.resolveReference("\(step.book) \(step.chapter)") else { return }
+        readerRequest = BibleReaderRequest(order: reference.order, chapter: reference.chapter, verse: reference.verse)
     }
 
     /// Attach the verse to the next question and hand back to the shell — the

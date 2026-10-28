@@ -1,4 +1,7 @@
 import Foundation
+#if os(macOS)
+import UserNotifications
+#endif
 
 /// When to show the system notification permission dialog - the Apple port of
 /// `mobile/src/features/notifications/permissionPrompt.ts` (Android 1.55.0,
@@ -12,7 +15,9 @@ import Foundation
 /// shown at most once per install, except when the user switches notifications
 /// on in Settings, which is an explicit request and always asks.
 ///
-/// No UserNotifications import, so the decision stays unit-testable.
+/// The decision is pure, so it stays unit-testable; only the Mac's dialog
+/// owner at the bottom of this file touches UserNotifications (iOS keeps its
+/// own beside the push registration).
 enum NotificationPermissionTrigger: String, Sendable {
     case firstAnswer = "first-answer"
     case crossVisit = "cross-visit"
@@ -143,3 +148,44 @@ enum NotificationTapTarget: Equatable, Sendable {
         }
     }
 }
+
+#if os(macOS)
+
+/// The deferred permission dialog on the Mac (PRD B6a), owned by the
+/// signed-in window: the Mac port of the iOS coordinator in
+/// `SureWord-iOS/App/PushRegistration.swift`. Launch only ever reads the
+/// status; the dialog opens at a moment reported to
+/// `NotificationPermissionMoments` (the first settled answer, the first Daily
+/// Cross visit, a Settings switch), and a grant re-runs the reminder sync so
+/// the morning reminder is scheduled straight away.
+@MainActor
+enum NotificationPermissionCoordinator {
+    private static var isAsking = false
+
+    /// Returns true when the dialog was shown and granted.
+    static func handle(_ trigger: NotificationPermissionTrigger, settings: SettingsStore) async -> Bool {
+        // One dialog at a time: an answer settling while the Cross's trigger
+        // is mid-check must not queue a second prompt behind it.
+        guard !isAsking else { return false }
+        isAsking = true
+        defer { isAsking = false }
+        let center = UNUserNotificationCenter.current()
+        let current = await center.notificationSettings().authorizationStatus
+        let status = NotificationPermissionStatus(
+            granted: current == .authorized || current == .provisional,
+            // macOS, like iOS, shows the dialog only before the first answer;
+            // after that the switch lives in System Settings.
+            canAskAgain: current == .notDetermined
+        )
+        guard NotificationPermissionPrompt.shouldRequest(
+            verseOfDayEnabled: settings.verseOfDayEnabled,
+            chatReplies: settings.notifyChatReplies,
+            asked: NotificationPermissionPrompt.hasAsked(),
+            status: status,
+            trigger: trigger
+        ) else { return false }
+        NotificationPermissionPrompt.markAsked()
+        return (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+    }
+}
+#endif

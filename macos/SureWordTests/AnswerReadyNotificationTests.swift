@@ -102,7 +102,7 @@ struct AnswerReadyNotificationTests {
         )
         let chat = ChatViewModel(api: api, settings: SettingsStore())
         let landed = Landed()
-        chat.onAnswerReady = { conversationID, _ in landed.ids.append(conversationID) }
+        chat.onAnswerReady = { conversationID, _, _ in landed.ids.append(conversationID) }
         return (chat, landed)
     }
 

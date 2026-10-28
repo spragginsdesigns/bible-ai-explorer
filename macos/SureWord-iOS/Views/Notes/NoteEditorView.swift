@@ -12,6 +12,7 @@ import UIKit
 /// autosave, and this view flushes on the two exits the debounce can miss —
 /// back navigation and app backgrounding (Android's AppState listener).
 struct NoteEditorView: View {
+    @Environment(AppModel.self) private var app
     @Environment(\.theme) private var theme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dismiss) private var dismiss
@@ -22,7 +23,6 @@ struct NoteEditorView: View {
 
     @State private var model: NoteEditorModel
     @State private var ai: NoteAIModel
-    @State private var draftTitle = ""
     @State private var isAIPresented = false
     @State private var isTagSheetPresented = false
     @State private var isDeleteConfirming = false
@@ -39,6 +39,7 @@ struct NoteEditorView: View {
     @State private var exportError: String?
     @State private var copiedTick = 0
     @State private var isCopiedVisible = false
+    @State private var departureID = UUID()
     @FocusState private var isTitleFocused: Bool
 
     init(noteID: String, api: APIClient, onDeleted: (() -> Void)? = nil) {
@@ -72,7 +73,7 @@ struct NoteEditorView: View {
         .background(theme.bg.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle("")
-        .navigationBarBackButtonHidden(false)
+        .navigationBarBackButtonHidden(true)
         .toolbar { toolbarItems }
         .alert("Link", isPresented: $isLinkAlertPresented) {
             TextField("https://…", text: $linkTarget)
@@ -146,6 +147,7 @@ struct NoteEditorView: View {
             }
         }
         .task {
+            app.noteDeparture.register(owner: departureID) { await model.flush() }
             model.start()
             ai.onNoteAppended = { event in
                 guard event.noteID == noteID else { return }
@@ -153,14 +155,13 @@ struct NoteEditorView: View {
                 Task { await model.reloadAfterAIAppend() }
             }
             // A tapped `[[link]]` pushes its note, like the info sheet's links.
-            model.controller.onOpenWikilink = { id in linkedNoteID = id }
+            model.controller.onOpenWikilink = { id in
+                Task { if await model.flush() { linkedNoteID = id } }
+            }
         }
         .onChange(of: NotesStore.shared.notes) {
             // A note created, renamed or aliased can resolve a drawn link.
             model.controller.refreshWikilinks()
-        }
-        .onChange(of: model.note?.title) { _, title in
-            if !isTitleFocused { draftTitle = title ?? "" }
         }
         .onChange(of: isTitleFocused) { _, focused in
             if !focused { commitTitle() }
@@ -175,6 +176,7 @@ struct NoteEditorView: View {
             }
         }
         .onDisappear {
+            app.noteDeparture.unregister(owner: departureID)
             // Last-chance write: the pane can go away between the debounce
             // firing and the PATCH landing.
             let model = model
@@ -196,12 +198,11 @@ struct NoteEditorView: View {
                         .foregroundStyle(theme.accent)
                         .accessibilityLabel("Pinned")
                 }
-                TextField("Untitled Note", text: $draftTitle)
+                TextField("Untitled Note", text: Binding(get: { model.draftTitle }, set: { model.setDraftTitle($0) }))
                     .appFont(.title3.weight(.semibold))
                     .foregroundStyle(theme.text)
                     .focused($isTitleFocused)
                     .onSubmit(commitTitle)
-                    .onAppear { draftTitle = model.note?.title ?? "" }
             }
 
             if model.isSaving {
@@ -227,6 +228,14 @@ struct NoteEditorView: View {
     /// Everything else about the note lives in that menu, in Android's order.
     @ToolbarContentBuilder
     private var toolbarItems: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            Button {
+                Task { if await model.flush() { dismiss() } }
+            } label: {
+                Label("Notes", systemImage: "chevron.left")
+            }
+            .accessibilityLabel("Back to notes")
+        }
         ToolbarItem(placement: .topBarTrailing) {
             HStack(spacing: 4) {
                 Button {
@@ -279,14 +288,14 @@ struct NoteEditorView: View {
     /// is the one on screen.
     private func openInfo() {
         Task {
-            await model.flush()
+            guard await model.flush() else { return }
             isInfoPresented = true
         }
     }
 
     private func copyMarkdown() {
         do {
-            UIPasteboard.general.string = try NoteEditorMarkdown.markdown(title: NoteEditorMarkdown.exportTitle(draft: draftTitle), controller: model.controller)
+            UIPasteboard.general.string = try NoteEditorMarkdown.markdown(title: NoteEditorMarkdown.exportTitle(draft: model.draftTitle), controller: model.controller)
             copiedTick += 1
             withAnimation { isCopiedVisible = true }
             Task {
@@ -300,23 +309,21 @@ struct NoteEditorView: View {
 
     private func shareMarkdown() {
         do {
-            shareText = NoteShareText(text: try NoteEditorMarkdown.markdown(title: NoteEditorMarkdown.exportTitle(draft: draftTitle), controller: model.controller))
+            shareText = NoteShareText(text: try NoteEditorMarkdown.markdown(title: NoteEditorMarkdown.exportTitle(draft: model.draftTitle), controller: model.controller))
         } catch {
             exportError = error.localizedDescription
         }
     }
 
     private func commitTitle() {
-        let trimmed = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed != model.note?.title else { return }
-        Task { await model.rename(to: draftTitle) }
+        Task { await model.flush() }
     }
 
     /// Save before opening the panel so the assistant reads the current text,
     /// not the last autosave — the same ordering as `openAI` on Android.
     private func openAI() {
         Task {
-            await model.flush()
+            guard await model.flush() else { return }
             isAIPresented = true
         }
     }

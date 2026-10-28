@@ -17,8 +17,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "1.29.0"
-    CURRENT_PROJECT_VERSION: "38"
+    MARKETING_VERSION: "1.30.0"
+    CURRENT_PROJECT_VERSION: "39"
     # Signed manually with the local Apple Development identity.
     #
     # Ad-hoc ("-") does NOT work here: a keychain access group is only honored
@@ -74,17 +74,37 @@ targets:
       # or Dock icon write the same inbox the iOS share extension does
       # (`SureWord/App/MacShareInbox.swift`), under Application Support.
       - path: ShareInbox
+      - path: SureWord-iOS/App/PushDelivery.swift
     dependencies:
       - package: Clerk
         product: ClerkKit
       - package: Clerk
         product: ClerkKitUI
+      # "SureWord" in other apps' Share menus, embedded in PlugIns/.
+      - target: SureWord-macOS-Share
     settings:
+      configs:
+        Debug:
+          SUREWORD_APS_ENVIRONMENT: development
+          CODE_SIGN_ENTITLEMENTS: "$(SUREWORD_MAC_ENTITLEMENTS)"
+        Release:
+          SUREWORD_APS_ENVIRONMENT: production
+          CODE_SIGN_ENTITLEMENTS: "$(SUREWORD_MAC_ENTITLEMENTS)"
+          CODE_SIGN_IDENTITY: "Developer ID Application"
+          CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
+          OTHER_CODE_SIGN_FLAGS: "$(inherited) --timestamp"
+          SUREWORD_MAC_ENTITLEMENTS: SureWord/SureWordPush.entitlements
+          SUREWORD_MAC_PUSH_PROFILE: "SureWord com.spragginsdesigns.sureword Developer ID Push"
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.spragginsdesigns.sureword
         PRODUCT_NAME: SureWord
         ENABLE_HARDENED_RUNTIME: YES
         COMBINE_HIDPI_IMAGES: YES
+        SUREWORD_MAC_ENTITLEMENTS: SureWord/SureWord.entitlements
+        SUREWORD_MAC_PUSH_PROFILE: ""
+        PROVISIONING_PROFILE_SPECIFIER: "$(SUREWORD_MAC_PUSH_PROFILE)"
+        # Release uses the matching Developer ID Push profile above. Debug
+        # retains the local notification path without a provisioning profile.
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
     info:
@@ -149,10 +169,15 @@ targets:
     # The Hardened Runtime refuses calendar access to an app that lacks this
     # entitlement, whatever the person answers; it needs no provisioning
     # profile.
-    entitlements:
-      path: SureWord/SureWord.entitlements
-      properties:
-        com.apple.security.personal-information.calendars: true
+    #
+    # The App Group, which an unsandboxed app may carry too, is how the Share
+    # extension hands a share over (`ShareInbox/PendingShareStore.swift`). It
+    # is the Mac's Team-ID-prefixed form, which macOS authorizes from the
+    # signature's team alone, so it needs no provisioning profile and no
+    # portal registration; the iOS `group.` form would need both on the Mac.
+    # The host's two entitlement files are maintained as sources. XcodeGen's
+    # entitlements generator overwrites CODE_SIGN_ENTITLEMENTS, preventing the
+    # target-specific push selection above from taking effect.
     #
     # The sandbox is a Mac App Store requirement, and nothing here is distributed
     # that way. Enabling it costs an outage and buys nothing: a sandboxed app
@@ -200,6 +225,64 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.spragginsdesigns.sureword.tests
         GENERATE_INFOPLIST_FILE: YES
+
+  # "SureWord" in the Mac's Share menu (Safari, Photos, Voice Memos, Finder,
+  # Notes): the iOS share extension's Mac twin. Same collector, caps and
+  # inbox (`ShareInbox/`), written to the Mac's App Group container; the app
+  # takes it into the same chat intake as the Services menu and drops
+  # (`SureWord/App/MacShareInbox.swift`).
+  SureWord-macOS-Share:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: SureWord-macOS-Share
+      - path: ShareInbox
+      # The app's attachment caps (`ShareInbox/PendingShareCopy.swift`), as
+      # in the iOS extension. Foundation and UniformTypeIdentifiers only.
+      - path: Shared/Chat/FileAttachments.swift
+    settings:
+      configs:
+        Release:
+          CODE_SIGN_IDENTITY: "Developer ID Application"
+          CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
+          OTHER_CODE_SIGN_FLAGS: "$(inherited) --timestamp"
+      base:
+        # The iOS extension's id: the Mac app already shares the iOS app's.
+        PRODUCT_BUNDLE_IDENTIFIER: com.spragginsdesigns.sureword.share
+        PRODUCT_NAME: SureWordShare
+        APPLICATION_EXTENSION_API_ONLY: YES
+        ENABLE_HARDENED_RUNTIME: YES
+        SKIP_INSTALL: YES
+    # macOS loads only sandboxed app extensions. The sandbox plus a
+    # Team-ID-prefixed group runs signed with the Development certificate
+    # and no provisioning profile (checked on this Mac, 2026-10-28); the
+    # container the extension writes is the one the app reads.
+    entitlements:
+      path: SureWord-macOS-Share/SureWord-macOS-Share.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.application-groups:
+          - 389LLKGY3Y.group.com.spragginsdesigns.sureword
+    info:
+      path: SureWord-macOS-Share/Info.plist
+      properties:
+        CFBundleDisplayName: SureWord
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        NSHumanReadableCopyright: "© 2026 Austin Spraggins"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            # The iOS extension's rule, for the same reason: a voice note with
+            # only a dynamic type is still a file.
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+              NSExtensionActivationSupportsImageWithMaxCount: 5
+              NSExtensionActivationSupportsFileWithMaxCount: 5
+              NSExtensionActivationSupportsAttachmentsWithMaxCount: 5
 
   # iOS client. Shares everything under Shared/ with the macOS target — same
   # module layout, so no import changes either side. Only the shell
@@ -279,6 +362,9 @@ targets:
     info:
       path: SureWord-iOS/Info.plist
       properties:
+        # Readable on iOS without private entitlement APIs; the same setting
+        # also signs aps-environment above.
+        SureWordAPNsEnvironment: $(SUREWORD_APS_ENVIRONMENT)
         CFBundleDisplayName: SureWord
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)

@@ -20,6 +20,9 @@ struct ChatTabView: View {
     /// The answer whose Share sheet is open, if any.
     @State private var shareCard: ShareCardItem?
     @State private var isModelPickerPresented = false
+    /// `GET /api/ai/models`, for the composer chip. The picker loads its own
+    /// copy on every open; this one reloads when it closes.
+    @State private var models: AIModelsResponse?
     @State private var isTextSizePresented = false
     /// A plan or Learn receipt tapped in chat pushes that screen onto this
     /// stack - the same screens the Bible home's cards push.
@@ -54,7 +57,9 @@ struct ChatTabView: View {
                 if let notices = chat.shareNotices {
                     ShareActionsRow(chat: chat, notices: notices)
                 }
-                ChatInputBar(chat: chat)
+                ChatInputBar(chat: chat, modelChip: modelChip) {
+                    isModelPickerPresented = true
+                }
             }
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.sm)
@@ -162,9 +167,10 @@ struct ChatTabView: View {
         } message: {
             Text("The conversation and its messages will be removed.")
         }
-        .sheet(isPresented: $isModelPickerPresented) {
+        .sheet(isPresented: $isModelPickerPresented, onDismiss: { Task { await loadModels() } }) {
             ModelPickerSheet(api: app.api, settings: app.settings)
         }
+        .task { await loadModels() }
         .sheet(item: $noteTarget) { target in
             ChatAddToNoteSheet(
                 api: app.api,
@@ -184,8 +190,14 @@ struct ChatTabView: View {
     @ViewBuilder
     private var content: some View {
         if chat.historyLoading {
-            ProgressView().controlSize(.small)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            VStack(spacing: Spacing.sm) {
+                ProgressView().controlSize(.small)
+                // Android's caption, so a slow load reads as progress.
+                Text("Restoring this conversation...")
+                    .appFont(.system(size: 13))
+                    .foregroundStyle(theme.textMuted)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if let historyError = chat.historyError {
             // Android always offers Retry on the history card: reloading is
             // the remedy whatever the cause.
@@ -306,9 +318,12 @@ struct ChatTabView: View {
             app.pendingDailyDestination = .learn
             app.section = .today
         case .settings(let section):
-            // Android opens settings/memory for a memory change and the hub
-            // otherwise (church lives inside the hub on iOS).
-            studyRoute = section == .memory ? .memories : .settings
+            if let page = ReceiptLine.settingsPage(for: section) {
+                app.openSettings(page)
+            } else {
+                app.pendingSettingsPage = nil
+                app.isSettingsPresented = true
+            }
         }
     }
 
@@ -322,18 +337,39 @@ struct ChatTabView: View {
         NotificationCenter.default.post(name: .openBibleVerse, object: nil, userInfo: userInfo)
     }
 
+    // MARK: - Model chip
+
+    private var modelChip: ModelPickerSheet.ComposerChip? {
+        let settings = app.settings
+        return ModelPickerSheet.composerChip(
+            data: models,
+            stored: settings.chatModelId,
+            effort: settings.chatEffort,
+            speed: settings.chatSpeed,
+            verbosity: settings.chatVerbosity,
+            mode: settings.chatMode
+        )
+    }
+
+    /// Best effort: the chip is a shortcut, so a failed load keeps whatever
+    /// list it had (or hides it) and the picker still loads its own.
+    private func loadModels() async {
+        if let loaded = try? await AIModelsAPI.load(api: app.api) { models = loaded }
+    }
+
     // MARK: - Verse save + toast
 
     private func save(_ verse: RetrievedVerse) {
         Task {
             do {
-                try await VerseActions.saveToNote(
+                let noteID = try await VerseActions.saveToNote(
                     api: app.api,
                     reference: verse.reference,
                     text: verse.text,
                     translation: verse.translation
                 )
-                show(toast: "Saved \(verse.reference) to your notes")
+                // Android opens the new note, so the verse can be written on.
+                openNote(noteID)
             } catch {
                 show(toast: (error as? APIError)?.message ?? "Could not save that verse.")
             }

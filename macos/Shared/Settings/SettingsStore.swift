@@ -44,6 +44,16 @@ enum TranslationID: String, CaseIterable, Sendable, Codable {
         }
     }
 
+    /// The line under the default-translation picker: Android's sentence word
+    /// for word (`settings/appearance.tsx`), then this edition's copyright,
+    /// which only the Apple pickers show.
+    var settingsHint: String {
+        "Used by the Bible reader and verse attachments. Every translation but NKJV works fully "
+            + "offline; NKJV is fetched when needed. SureWord's AI answers quote the translation you "
+            + "select when it is in the language they are written in (Settings, Language). "
+            + "\(copyright)."
+    }
+
     /// The language the edition is written in - `TRANSLATIONS[id].language`.
     var language: AnswerLanguage {
         switch self {

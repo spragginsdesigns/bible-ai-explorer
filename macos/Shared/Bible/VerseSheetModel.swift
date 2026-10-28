@@ -31,12 +31,16 @@ final class VerseSheetModel {
 
         var id: String { rawValue }
 
-        var label: String {
+        var label: String { label(noteCount: 0) }
+
+        /// The Notes tab counts the study notes that mention the selection:
+        /// "Notes · 2", as on Android.
+        func label(noteCount: Int) -> String {
             switch self {
             case .explain: "Explain"
             case .words: "Words"
             case .seeAlso: "See also"
-            case .notes: "Notes"
+            case .notes: noteCount > 0 ? "Notes · \(noteCount)" : "Notes"
             }
         }
     }
@@ -57,7 +61,6 @@ final class VerseSheetModel {
     static let closeDelay = Duration.milliseconds(320)
     static let copiedDuration = Duration.milliseconds(1400)
 
-    static let saveError = "The note could not be saved. Check your connection and try again."
     static let learnError = "Could not add to Learn. Check your connection and try again."
 
     /// Nil means the sheet is closed.
@@ -68,7 +71,6 @@ final class VerseSheetModel {
     var tier: Tier = .peek
     var studyTab: StudyTab = .explain
     private(set) var copied = false
-    private(set) var saveBusy = false
     private(set) var learnStatus: LearnStatus = .idle
     var actionMessage: Message?
 
@@ -232,25 +234,18 @@ final class VerseSheetModel {
         }
     }
 
-    /// Save the selection as a new note. Returns the note id for the caller to
-    /// open, or nil after showing the failure on the bar.
-    func saveToNote(api: APIClient, context: VerseSheetContext) async -> String? {
-        guard selection != nil, !saveBusy else { return nil }
-        saveBusy = true
+    /// What the note picker saves for the selection: the words on screen as a
+    /// blockquote, titled by the reference - Android's `onSaveVerse`. Nil with
+    /// the sheet closed. The picker owns the save and its errors, so the bar's
+    /// message is cleared rather than reused.
+    func notePick(_ context: VerseSheetContext) -> VerseNotePick? {
+        guard selection != nil else { return nil }
         actionMessage = nil
-        defer { saveBusy = false }
-        do {
-            return try await VerseActions.saveToNote(
-                api: api,
-                reference: reference(context),
-                text: text(context),
-                translation: context.translation,
-                label: context.label
-            )
-        } catch {
-            actionMessage = Message(text: Self.saveError, tone: .danger)
-            return nil
-        }
+        let reference = reference(context)
+        return VerseNotePick(
+            markdown: VerseNoteMarkdown.format(reference: reference, text: text(context), translation: context.label),
+            title: reference
+        )
     }
 
     /// Learn takes one verse per request, so a range is added verse by verse;

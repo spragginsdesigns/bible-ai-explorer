@@ -12,6 +12,11 @@ import UniformTypeIdentifiers
 struct ChatInputBar: View {
     @Environment(\.theme) private var theme
     @Bindable var chat: ChatViewModel
+    /// "SureWord AI" above the field, the premium mark on Pro: Android's
+    /// composer chip. Nil until the model list loads, which hides it.
+    var modelChip: ModelPickerSheet.ComposerChip? = nil
+    /// Opens the model picker the chat menu also opens.
+    var onModelChip: () -> Void = {}
 
     @FocusState private var isFocused: Bool
     @Environment(AppModel.self) private var app
@@ -70,6 +75,10 @@ struct ChatInputBar: View {
                 filePills
             }
 
+            if let modelChip {
+                modelChipButton(modelChip)
+            }
+
             HStack(alignment: .bottom, spacing: Spacing.sm) {
                 Button {
                     chat.clearAttachmentError()
@@ -102,6 +111,12 @@ struct ChatInputBar: View {
                     .focused($isFocused)
                     .disabled(isLocked)
                     .onSubmit(submit)
+                    // An image pasted straight into the field attaches it, as
+                    // Android's paste-aware input does; text pastes as text.
+                    .pastesImages { photos in
+                        guard !isLocked else { return }
+                        Task { await chat.addAttachments(ClipboardAttachments.named(photos)) }
+                    }
 
                 if chat.isBusy {
                     Button {
@@ -248,6 +263,40 @@ struct ChatInputBar: View {
         }
         await chat.addAttachments(files)
         if let problem { chat.reportAttachmentError(problem) }
+    }
+
+    // MARK: Model chip
+
+    /// Android's `modelChip`: a small capsule, sparkles (or the premium mark
+    /// on Pro), the label and a chevron.
+    private func modelChipButton(_ chip: ModelPickerSheet.ComposerChip) -> some View {
+        Button(action: onModelChip) {
+            HStack(spacing: Spacing.xs) {
+                if chip.premium {
+                    PremiumMark(size: 15)
+                } else {
+                    Image(systemName: "sparkles")
+                        .appFont(.system(size: 13))
+                        .foregroundStyle(theme.textMuted)
+                }
+                Text(chip.label)
+                    .appFont(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(theme.textMuted)
+                    .lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .appFont(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(theme.textFaint)
+            }
+            .padding(.horizontal, Spacing.md)
+            .frame(minHeight: 32)
+            .background(theme.surface, in: .capsule)
+            .overlay { Capsule().strokeBorder(theme.border, lineWidth: 0.5) }
+            .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(ModelPickerSheet.composerChipAccessibilityLabel(chip))
+        .accessibilityAddTraits(.isButton)
     }
 
     // MARK: Attachment views
@@ -400,6 +449,20 @@ struct ChatInputBar: View {
         .overlay {
             RoundedRectangle(cornerRadius: Radius.md)
                 .strokeBorder(theme.accentBorder, lineWidth: 1)
+        }
+    }
+}
+
+private extension View {
+    /// Pasting an image into the field, where the OS offers it: SwiftUI's
+    /// `pasteDestination` arrives on iOS 27. Earlier systems keep the
+    /// attachment sheet's "Paste" row, which reads the clipboard itself.
+    @ViewBuilder
+    func pastesImages(_ action: @escaping ([PickedPhoto]) -> Void) -> some View {
+        if #available(iOS 27.0, *) {
+            pasteDestination(for: PickedPhoto.self, action: action)
+        } else {
+            self
         }
     }
 }

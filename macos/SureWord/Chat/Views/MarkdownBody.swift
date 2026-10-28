@@ -18,6 +18,11 @@ struct MarkdownBody: View {
     /// `streaming` flag `mobile/src/features/chat/MessageBubble.tsx` and
     /// `src/components/ChatMessage.tsx` pass.
     var streaming: Bool = false
+    /// Turns Bible references into tappable `sureword-verse:` links (see
+    /// `VerseLinks`). Chat answers only: the bubble that sets it also handles
+    /// the tap, and headings and table headers stay plain, as on Android, so
+    /// half a heading never turns amber and underlined.
+    var linksVerses: Bool = false
 
     var body: some View {
         // Every client runs the assistant's markdown through the same
@@ -37,7 +42,7 @@ struct MarkdownBody: View {
     private func blockView(_ block: MarkdownBlock) -> some View {
         switch block {
         case .paragraph(let source):
-            Text(MarkdownInline.render(source, style: .body(theme, size: 14 * scale, scale: scale)))
+            Text(MarkdownInline.render(source, style: .body(theme, size: 14 * scale, scale: scale), linkVerses: linksVerses))
                 .font(.system(size: 14 * scale))
                 .lineSpacing(5 * scale)
                 .bodyText(theme)
@@ -53,10 +58,10 @@ struct MarkdownBody: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
         case .blockquote(let paragraphs):
-            BlockquoteView(paragraphs: paragraphs)
+            BlockquoteView(paragraphs: paragraphs, linksVerses: linksVerses)
 
         case .list(let ordered, let start, let items):
-            ListView(ordered: ordered, start: start, items: items)
+            ListView(ordered: ordered, start: start, items: items, linksVerses: linksVerses)
 
         case .codeBlock(_, let code):
             Text(code)
@@ -73,7 +78,7 @@ struct MarkdownBody: View {
                 }
 
         case .table(let header, let rows):
-            TableView(header: header, rows: rows)
+            TableView(header: header, rows: rows, linksVerses: linksVerses)
 
         case .rule:
             Rectangle()
@@ -103,11 +108,12 @@ private struct BlockquoteView: View {
     @ScaledMetric private var systemScale: CGFloat = 1
     private var scale: CGFloat { appScale * systemScale }
     let paragraphs: [String]
+    var linksVerses = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, paragraph in
-                Text(MarkdownInline.render(paragraph, style: .verse(theme, scale: scale)))
+                Text(MarkdownInline.render(paragraph, style: .verse(theme, scale: scale), linkVerses: linksVerses))
                     .font(.custom(FontFamily.verse, fixedSize: 18 * scale))
                     .lineSpacing(4)
                     .foregroundStyle(theme.textSecondary)
@@ -136,6 +142,7 @@ private struct ListView: View {
     let ordered: Bool
     let start: Int
     let items: [MarkdownListItem]
+    var linksVerses = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -155,7 +162,7 @@ private struct ListView: View {
                 .font(.system(size: 14 * scale, weight: ordered ? .medium : .regular))
                 .foregroundStyle(theme.accent)
                 .frame(minWidth: ordered ? 18 * scale : 0, alignment: .trailing)
-            Text(MarkdownInline.render(text, style: .body(theme, size: 14 * scale, scale: scale)))
+            Text(MarkdownInline.render(text, style: .body(theme, size: 14 * scale, scale: scale), linkVerses: linksVerses))
                 .font(.system(size: 14 * scale))
                 .lineSpacing(4)
                 .bodyText(theme)
@@ -172,6 +179,7 @@ private struct TableView: View {
     private var scale: CGFloat { appScale * systemScale }
     let header: [String]
     let rows: [[String]]
+    var linksVerses = false
 
     var body: some View {
         Grid(alignment: .topLeading, horizontalSpacing: 0, verticalSpacing: 0) {
@@ -191,7 +199,7 @@ private struct TableView: View {
                 GridRow {
                     // Ragged rows happen in streamed output; pad to the header.
                     ForEach(0..<max(header.count, 1), id: \.self) { column in
-                        Text(MarkdownInline.render(column < row.count ? row[column] : "", style: .body(theme, size: 13 * scale, scale: scale)))
+                        Text(MarkdownInline.render(column < row.count ? row[column] : "", style: .body(theme, size: 13 * scale, scale: scale), linkVerses: linksVerses))
                             .font(.system(size: 13 * scale))
                             .foregroundStyle(theme.textSecondary)
                             .textSelection(.enabled)
@@ -252,11 +260,16 @@ enum MarkdownInline {
         }
     }
 
-    static func render(_ source: String, style: Style) -> AttributedString {
+    /// `linkVerses` marks Bible references as `sureword-verse:` links before
+    /// the restyle below, so they take the ordinary link look.
+    static func render(_ source: String, style: Style, linkVerses: Bool = false) -> AttributedString {
         var attributed = (try? AttributedString(
             markdown: source,
             options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         )) ?? AttributedString(source)
+        if linkVerses {
+            attributed = VerseLinks.linkingReferences(in: attributed)
+        }
 
         for run in attributed.runs {
             let intent = run.inlinePresentationIntent ?? []

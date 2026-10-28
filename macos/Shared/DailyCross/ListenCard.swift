@@ -15,8 +15,8 @@ import SwiftUI
 /// narrative"), a requested generation shimmers, and the result becomes a
 /// player with a scrubber, a speed chip and a "Read along" transcript. Listen
 /// is a SureWord Pro benefit, so a free account gets the locked panel instead.
-/// iOS adds a "See SureWord Pro" StoreKit button to that panel (Android has no
-/// button there; Apple billing is in-app only).
+/// Where Pro can be bought, that panel carries "See SureWord Pro", as
+/// Android's does when Play checkout is on (`usePlayUpgrade`).
 struct ListenCard: View {
     @Environment(\.theme) private var theme
 
@@ -24,8 +24,10 @@ struct ListenCard: View {
     /// The speed chip's home. Persisted, so a listener who prefers 1.25x gets
     /// it on every device this account signs into a Mac from.
     @Bindable var settings: SettingsStore
-    /// iOS only: opens the in-app SureWord Pro screen (StoreKit) from the
-    /// locked panel. nil (macOS) keeps the panel button-free. Never a web link.
+    /// "See SureWord Pro" on the locked panel, passed only where that screen
+    /// has Pro to sell (`ProUpgradeOffer`): iOS opens the in-app StoreKit
+    /// screen, the Mac opens Settings on Membership, whose Subscribe button
+    /// goes to the website. nil keeps the panel button-free.
     var onSeePro: (() -> Void)? = nil
 
     var body: some View {
@@ -55,7 +57,7 @@ struct ListenCard: View {
     // MARK: - States
 
     /// A locked benefit is shown, not hidden. The only button it may carry is
-    /// `onSeePro` (iOS: the in-app purchase screen); macOS passes none.
+    /// `onSeePro`, and only when the host passed one.
     private var lockedPanel: some View {
         VStack(spacing: Spacing.sm) {
             Text("🔒")

@@ -21,6 +21,9 @@ struct MessageBubble: View {
     /// "Not helpful" panel collected - `nil` when the thumb travelled alone.
     /// The shell owns the write and the toast.
     var onFeedback: (ChatViewMessage, AnswerFeedback?, AnswerFeedbackDetails?) -> Void
+    /// False until the conversation exists: an unsaved turn has nothing to
+    /// share, so Android hides the button rather than explaining.
+    var canShare: Bool = true
     /// Open the Share sheet for this answer. The shell owns the sheet, which
     /// mints the public link the card is drawn from.
     var onShare: (ChatViewMessage) -> Void
@@ -52,8 +55,41 @@ struct MessageBubble: View {
     /// Which copy owns the current countdown, so a second one does not have its
     /// checkmark cleared early by the first one's timer.
     @State private var copyGeneration = 0
+    /// The "Scripture in this answer" sheet, raised by its card or by a Bible
+    /// reference clicked in the answer.
+    @State private var versesFocus: VersesSheetFocus?
 
     private var isUser: Bool { message.role == .user }
+
+    /// A clicked `sureword-verse:` link, as Android's `MessageBubble` routes
+    /// it: in a settled answer, a reference this turn retrieved opens the
+    /// sheet on its passage; anything else, and every reference in a
+    /// question, opens the reader at that verse. Other links open normally.
+    private func openLink(_ url: URL) -> OpenURLAction.Result {
+        guard let raw = VerseLinks.reference(from: url) else { return .systemAction }
+        // Mid-stream the passages are still arriving, so a reference reads instead.
+        let grouped = isUser || message.isStreaming || message.retrievedVerses.isEmpty ? nil : message.groupedVerses
+        switch VerseLinks.destination(for: raw, grouped: grouped) {
+        case .passage(let key):
+            versesFocus = VersesSheetFocus(key: key)
+        case .reader(let reference):
+            onVerseReadInBible(RetrievedVerse(reference: reference, similarity: 0, text: nil))
+        case nil:
+            break
+        }
+        return .handled
+    }
+
+    /// The question with its Bible references linked, in Android's
+    /// `userRefLink` look: accent and underlined.
+    private var linkedQuestion: AttributedString {
+        var text = VerseLinks.linkedPlainText(message.content)
+        for run in text.runs where run.link != nil {
+            text[run.range].foregroundColor = theme.accent
+            text[run.range].underlineStyle = .single
+        }
+        return text
+    }
 
     var body: some View {
         VStack(alignment: isUser ? .trailing : .leading, spacing: Spacing.md) {
@@ -156,10 +192,11 @@ struct MessageBubble: View {
                 attachmentCards
             }
             if !message.content.isEmpty {
-                Text(message.content)
+                Text(linkedQuestion)
                     .appFont(.system(size: 14))
                     .foregroundStyle(theme.text)
                     .textSelection(.enabled)
+                    .environment(\.openURL, OpenURLAction(handler: openLink))
                     .padding(.horizontal, Spacing.lg)
                     .padding(.vertical, Spacing.md)
                     .background(theme.surfaceStrong, in: .rect(cornerRadius: Radius.lg))
@@ -257,12 +294,14 @@ struct MessageBubble: View {
                     api: api,
                     onCopy: onVerseCopy,
                     onSaveToNote: onVerseSaveToNote,
-                    onReadInBible: onVerseReadInBible
+                    onReadInBible: onVerseReadInBible,
+                    focus: $versesFocus
                 )
             }
 
             if !message.content.isEmpty {
-                MarkdownBody(text: message.content, streaming: message.isStreaming)
+                MarkdownBody(text: message.content, streaming: message.isStreaming, linksVerses: true)
+                    .environment(\.openURL, OpenURLAction(handler: openLink))
             } else if message.isStreaming, message.activity == nil, message.progress == nil {
                 TypingDots()
             }
@@ -292,7 +331,7 @@ struct MessageBubble: View {
 
                     AnswerFeedbackButtons(feedback: message.feedback, onSelect: rate)
 
-                    shareControl
+                    if canShare { shareControl }
 
                     if let onRetry { retryControl(onRetry) }
                 }

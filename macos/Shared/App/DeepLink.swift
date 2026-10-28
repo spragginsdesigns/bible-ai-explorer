@@ -2,8 +2,8 @@ import Foundation
 
 extension Notification.Name {
     /// Posted (object: the reference string, e.g. "John 3:16") when a
-    /// `sureword://verse?ref=…` deep link arrives. The iOS TabShell observes it
-    /// and hands the reference to the Bible model; on Android the same journey
+    /// `sureword://verse?ref=…` deep link arrives. The iOS TabShell and the Mac
+    /// window observe it and hand the reference to the reader; on Android the same journey
     /// is the `/bible/chapter?verse=` link.
     static let openVerseReference = Notification.Name("sureword.openVerseReference")
 

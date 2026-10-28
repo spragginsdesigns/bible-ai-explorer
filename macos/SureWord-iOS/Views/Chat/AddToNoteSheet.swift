@@ -1,18 +1,26 @@
 import SwiftUI
 
-/// The "Add to notes" picker: create a new note from an answer, or append it to
-/// one of the user's existing notes. iOS port of
-/// `macos/SureWord/Chat/Views/AddToNoteSheet.swift` — same capability, sheet
+/// The "Add to notes" picker: create a new note from an answer or a verse, or
+/// append it to one of the user's existing notes. iOS port of
+/// `macos/SureWord/Chat/Views/AddToNoteSheet.swift` - same capability, sheet
 /// form factor, matching Android's bottom sheet.
 struct ChatAddToNoteSheet: View {
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
 
     let api: APIClient
-    /// The assistant answer's cleaned markdown (follow-up block already stripped).
+    /// The assistant answer's cleaned markdown (follow-up block already
+    /// stripped), or a verse blockquote (`VerseNoteMarkdown`).
     let markdown: String
-    /// Active conversation title — the default title on the create path.
+    /// Active conversation title or verse reference - the default title on the
+    /// create path.
     var defaultTitle: String?
+    /// False stores pre-formatted Scripture verbatim; true (an answer) has the
+    /// model compose it into a study note first, which needs AI consent.
+    var compose = true
+    /// Set by the reader: a save then stays on the sheet as Android's success
+    /// row, which opens the note. Chat leaves it nil and closes on save.
+    var onOpenNote: ((String) -> Void)?
     var onSaved: (AppendToNoteResult) -> Void
 
     /// Which row is in flight: the "New note" row, or a note's id.
@@ -31,6 +39,7 @@ struct ChatAddToNoteSheet: View {
     @State private var pendingKey: String?
     @State private var saveError: String?
     @State private var lastTarget: SaveTarget?
+    @State private var saved: AppendToNoteResult?
 
     private var saving: Bool { pendingKey != nil }
 
@@ -40,90 +49,134 @@ struct ChatAddToNoteSheet: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    Button {
-                        save(SaveTarget(key: Self.newNoteKey, noteId: nil))
-                    } label: {
-                        HStack(spacing: Spacing.sm) {
-                            if pendingKey == Self.newNoteKey {
-                                ProgressView().controlSize(.small)
-                            } else {
-                                Image(systemName: "plus")
-                            }
-                            Text("New note")
-                        }
-                        .foregroundStyle(theme.accent)
-                    }
-                    .disabled(saving)
-                    .accessibilityLabel("Create a new note with this answer")
-                }
-
-                if let saveError {
-                    Section {
-                        VStack(alignment: .leading, spacing: Spacing.sm) {
-                            Text(saveError)
-                                .appFont(.system(size: 12))
-                                .foregroundStyle(theme.danger)
-                                .fixedSize(horizontal: false, vertical: true)
-                            Button("Retry") { retry() }
-                                .appFont(.system(size: 12, weight: .medium))
-                                .foregroundStyle(theme.danger)
-                                .disabled(saving)
-                        }
-                    }
-                }
-
-                Section {
-                    if listLoading {
-                        HStack {
-                            Spacer()
-                            ProgressView().controlSize(.small)
-                            Spacer()
-                        }
-                    } else if let listError {
-                        VStack(spacing: Spacing.sm) {
-                            Text(listError)
-                                .appFont(.system(size: 12))
-                                .foregroundStyle(theme.textFaint)
-                                .multilineTextAlignment(.center)
-                            Button("Retry") { Task { await loadNotes() } }
-                                .appFont(.system(size: 12))
-                                .foregroundStyle(theme.accent)
-                        }
-                        .frame(maxWidth: .infinity)
-                    } else if filtered.isEmpty {
-                        Text(
-                            notes.isEmpty
-                                ? "No notes yet — start one with “New note” above."
-                                : "No notes match that search."
-                        )
-                        .appFont(.system(size: 12))
-                        .foregroundStyle(theme.textFaint)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                    } else {
-                        ForEach(filtered) { note in
-                            noteRow(note)
-                        }
-                    }
+            Group {
+                if let saved, let onOpenNote {
+                    savedView(saved, onOpenNote: onOpenNote)
+                } else {
+                    picker
                 }
             }
-            .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
-            .background(theme.bgElevated)
-            .searchable(text: $query, prompt: "Search your notes")
             .navigationTitle("Add to notes")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Cancel") { dismiss() }
+                    Button(saved == nil ? "Cancel" : "Done") { dismiss() }
                 }
             }
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .task { await loadNotes() }
+    }
+
+    /// Android's success row: "Created" or "Added to" the note, a tap away.
+    private func savedView(_ saved: AppendToNoteResult, onOpenNote: @escaping (String) -> Void) -> some View {
+        List {
+            Section {
+                Button {
+                    dismiss()
+                    onOpenNote(saved.noteId)
+                } label: {
+                    HStack(spacing: Spacing.md) {
+                        Image(systemName: "checkmark")
+                            .foregroundStyle(theme.accent)
+                        (Text(saved.created ? "Created " : "Added to ")
+                            .foregroundStyle(theme.textSecondary)
+                            + Text(saved.noteTitle)
+                            .foregroundStyle(theme.accent)
+                            .fontWeight(.semibold))
+                            .appFont(.system(size: 14))
+                            .lineLimit(2)
+                        Spacer(minLength: Spacing.sm)
+                        Image(systemName: "chevron.right")
+                            .appFont(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(theme.accent)
+                    }
+                    .contentShape(.rect)
+                }
+                .accessibilityLabel("Open note \(saved.noteTitle)")
+                .listRowBackground(theme.accentSoft)
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(theme.bgElevated)
+    }
+
+    private var picker: some View {
+        List {
+            Section {
+                Button {
+                    save(SaveTarget(key: Self.newNoteKey, noteId: nil))
+                } label: {
+                    HStack(spacing: Spacing.sm) {
+                        if pendingKey == Self.newNoteKey {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Image(systemName: "plus")
+                        }
+                        Text("New note")
+                    }
+                    .foregroundStyle(theme.accent)
+                }
+                .disabled(saving)
+                .accessibilityLabel(compose ? "Create a new note with this answer" : "Create a new note with this verse")
+            }
+
+            if let saveError {
+                Section {
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Text(saveError)
+                            .appFont(.system(size: 12))
+                            .foregroundStyle(theme.danger)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Button("Retry") { retry() }
+                            .appFont(.system(size: 12, weight: .medium))
+                            .foregroundStyle(theme.danger)
+                            .disabled(saving)
+                    }
+                }
+            }
+
+            Section {
+                if listLoading {
+                    HStack {
+                        Spacer()
+                        ProgressView().controlSize(.small)
+                        Spacer()
+                    }
+                } else if let listError {
+                    VStack(spacing: Spacing.sm) {
+                        Text(listError)
+                            .appFont(.system(size: 12))
+                            .foregroundStyle(theme.textFaint)
+                            .multilineTextAlignment(.center)
+                        Button("Retry") { Task { await loadNotes() } }
+                            .appFont(.system(size: 12))
+                            .foregroundStyle(theme.accent)
+                    }
+                    .frame(maxWidth: .infinity)
+                } else if filtered.isEmpty {
+                    Text(
+                        notes.isEmpty
+                            ? "No notes yet — start one with “New note” above."
+                            : "No notes match that search."
+                    )
+                    .appFont(.system(size: 12))
+                    .foregroundStyle(theme.textFaint)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                } else {
+                    ForEach(filtered) { note in
+                        noteRow(note)
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
+        .background(theme.bgElevated)
+        .searchable(text: $query, prompt: "Search your notes")
     }
 
     private func noteRow(_ note: NoteSummary) -> some View {
@@ -177,22 +230,30 @@ struct ChatAddToNoteSheet: View {
         saveError = nil
 
         Task {
-            // The append composes the answer into a study note with the model
-            // (`/api/notes/append`, compose on), so it waits on AI consent.
-            guard await AIConsentGate.ensure() else {
-                pendingKey = nil
-                return
+            // An answer is composed into a study note with the model
+            // (`/api/notes/append`, compose on), so it waits on AI consent. A
+            // verse is stored verbatim, with no model involved, as on Android.
+            if compose {
+                guard await AIConsentGate.ensure() else {
+                    pendingKey = nil
+                    return
+                }
             }
             do {
                 let result = try await AddToNote.append(
                     api: api,
                     markdown: markdown,
                     noteId: target.noteId,
-                    defaultTitle: defaultTitle
+                    defaultTitle: defaultTitle,
+                    compose: compose
                 )
                 pendingKey = nil
                 onSaved(result)
-                dismiss()
+                if onOpenNote == nil {
+                    dismiss()
+                } else {
+                    saved = result
+                }
             } catch {
                 saveError = (error as? APIError)?.message ?? "Could not save to the note."
                 pendingKey = nil

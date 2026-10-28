@@ -56,6 +56,19 @@ enum PlanView {
         streak <= 0 ? "No streak yet" : "\(streak)-day streak"
     }
 
+    /// How many days the reader has fallen behind the calendar: Android's
+    /// `daysBehind` (`today/plan.tsx`). Only an active plan can be behind.
+    static func daysBehind(_ plan: ReadingPlan) -> Int {
+        plan.status == .active ? max(0, plan.todayDay - plan.currentDay) : 0
+    }
+
+    /// "1 day behind", "3 days behind", or nil when they are on pace.
+    static func behindLabel(_ plan: ReadingPlan) -> String? {
+        let days = daysBehind(plan)
+        guard days > 0 else { return nil }
+        return "\(days) \(days == 1 ? "day" : "days") behind"
+    }
+
     static func dayStateLabel(_ state: PlanDayState) -> String {
         switch state {
         case .done: "Done"

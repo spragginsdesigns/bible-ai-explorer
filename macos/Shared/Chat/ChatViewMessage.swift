@@ -197,10 +197,12 @@ struct ChatViewMessage: Sendable, Equatable, Identifiable {
 
 extension ChatViewMessage {
     /// Labels for in-flight tool calls, keyed by the TS part discriminator.
+    /// Exactly `src/lib/tool-activity-labels.ts` (the server's table), in its
+    /// order, with the `tool-` prefix; `ToolActivityLabelsTests` reads that
+    /// file and fails on any drift.
     static let toolActivityLabels: [String: String] = [
         "tool-searchScripture": "Searching the Scriptures",
         "tool-findVerses": "Searching the Bible for those words",
-        "tool-searchOriginalLanguage": "Searching the Hebrew and Greek",
         "tool-getPassage": "Opening the passage",
         "tool-webSearch": "Searching the web",
         "tool-readLink": "Reading the link",
@@ -208,18 +210,33 @@ extension ChatViewMessage {
         "tool-readNote": "Reading your note",
         "tool-updateNote": "Rewriting your note",
         "tool-findNotes": "Looking through your notes",
+        "tool-organizeNote": "Filing your note",
         "tool-getHighlights": "Reading your highlights",
+        "tool-highlightVerse": "Marking your verse",
         "tool-listMemories": "Reading your memories",
         "tool-saveMemory": "Saving your memory",
         "tool-updateMemory": "Updating your memory",
         "tool-deleteMemories": "Deleting your memories",
+        "tool-resolvePrayerRequest": "Updating that prayer request",
+        "tool-findChurch": "Looking up your church",
+        "tool-setChurch": "Saving your church",
+        "tool-saveTestimony": "Saving your testimony",
+        "tool-saveAboutMe": "Saving your About me",
+        "tool-finishOnboarding": "Finishing getting to know you",
         "tool-getCrossReferences": "Tracing cross-references",
         "tool-getOriginalText": "Opening the original text",
         "tool-lookupStrongs": "Studying the original word",
+        "tool-searchOriginalLanguage": "Searching the Hebrew and Greek",
         "tool-lookupBibleEntity": "Looking them up in Scripture",
         "tool-getBibleTimeline": "Walking the timeline",
         "tool-getDailyCross": "Opening today's cross",
         "tool-setDailyCross": "Preparing your new day",
+        "tool-listSermonStudies": "Looking through your church's studies",
+        "tool-getSermonStudy": "Opening the sermon study",
+        "tool-getChurchEvents": "Checking what's coming up at church",
+        "tool-getWaysToServe": "Looking at ways to serve",
+        "tool-saveServeEntry": "Writing it in your journal",
+        "tool-listServeEntries": "Reading your journal",
         "tool-getReadingPlan": "Opening your reading plan",
         "tool-startReadingPlan": "Setting up your reading plan",
         "tool-markReadingPlanDay": "Marking your reading",
@@ -230,10 +247,10 @@ extension ChatViewMessage {
         "tool-removeReadingLog": "Removing the reading entry",
         "tool-learnVerse": "Adding that verse to Learn",
         "tool-getLearnVerses": "Opening your Learn verses",
-        "tool-resolvePrayerRequest": "Updating that prayer request",
-        "tool-getWaysToServe": "Looking at ways to serve",
-        "tool-saveServeEntry": "Writing it in your journal",
-        "tool-listServeEntries": "Reading your journal",
+        "tool-findStudies": "Finding your ongoing studies",
+        "tool-readStudy": "Picking up your study",
+        "tool-saveStudy": "Saving your study progress",
+        "tool-requestActionApproval": "Preparing the proposed change",
     ]
 
     /// Strip the trailing `[FOLLOWUP]` block the model appends — it drives the

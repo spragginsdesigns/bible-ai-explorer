@@ -24,6 +24,9 @@ final class NoteEditorModel {
     let controller = NoteRichTextController()
 
     private(set) var note: Note?
+    /// Kept outside the returned note row so a save response cannot replace
+    /// a title the user is still typing. Text fields update this synchronously.
+    private(set) var draftTitle = ""
     private(set) var isLoading = true
     private(set) var isSaving = false
     private(set) var error: String?
@@ -33,10 +36,18 @@ final class NoteEditorModel {
     private let noteID: String
 
     @ObservationIgnored private var saveTask: Task<Void, Never>?
+    @ObservationIgnored private var persistTask: (id: UUID, task: Task<Bool, Never>)?
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     /// The HTML last written to the server, so an unchanged document never
     /// costs a PATCH.
     @ObservationIgnored private var savedHTML = ""
+    /// The same saved content in the editor's serialization format. Server
+    /// HTML may contain harmless whitespace between blocks; loading alone
+    /// must not turn that normalization into a pending write.
+    @ObservationIgnored private var savedEditorHTML = ""
+    @ObservationIgnored private var savedTitle = "Untitled Note"
+    @ObservationIgnored private var titleRevision: UInt64 = 0
+    @ObservationIgnored private var writeRevision: UInt64 = 0
 
     init(noteID: String, api: NotesAPI, store: NotesStore = .shared) {
         self.noteID = noteID
@@ -45,6 +56,8 @@ final class NoteEditorModel {
 
         let cached = store.cachedNote(id: noteID)
         note = cached
+        draftTitle = cached?.title ?? ""
+        savedTitle = Self.normalizedTitle(draftTitle)
         // A cached summary row can fill the title bar, but the editor waits for
         // the real body — seeding an empty document over a note that has
         // content would autosave that emptiness straight back.
@@ -66,20 +79,21 @@ final class NoteEditorModel {
         guard loadTask == nil else { return }
         loadTask = Task { [weak self] in
             guard let self else { return }
+            let hydrationTitleRevision = titleRevision
+            let hydrationWriteRevision = writeRevision
             await store.hydrate()
 
             if let cached = store.cachedNote(id: noteID), cached.hasBody {
-                note = cached
-                seedEditor(with: cached)
+                await applyFetchedNote(cached, titleRevision: hydrationTitleRevision, writeRevision: hydrationWriteRevision)
                 isLoading = false
             }
 
             do {
+                let requestTitleRevision = titleRevision
+                let requestWriteRevision = writeRevision
                 let loaded = try await api.note(id: noteID)
-                note = loaded
-                store.upsert(loaded)
-                seedEditor(with: loaded)
-                error = nil
+                await applyFetchedNote(loaded, titleRevision: requestTitleRevision, writeRevision: requestWriteRevision)
+                if !hasPendingChanges { error = nil }
             } catch {
                 self.error = (error as? APIError)?.message ?? "Could not open this note."
             }
@@ -92,10 +106,52 @@ final class NoteEditorModel {
         }
     }
 
+    private static func normalizedTitle(_ title: String) -> String {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "Untitled Note" : trimmed
+    }
+
+    func setDraftTitle(_ title: String) {
+        guard draftTitle != title else { return }
+        draftTitle = title
+        titleRevision &+= 1
+    }
+
+    private var hasPendingChanges: Bool {
+        Self.normalizedTitle(draftTitle) != savedTitle ||
+            (controller.hasLoadedDocument && controller.html() != savedEditorHTML)
+    }
+
+    private func applyFetchedNote(_ loaded: Note, titleRevision requestedTitleRevision: UInt64, writeRevision requestedWriteRevision: UInt64) async {
+        // A read must not install a competing baseline while the single
+        // writer is awaiting its response. A failed write still permits this
+        // GET to initialize an unopened body while retaining its dirty title.
+        if let active = persistTask { _ = await active.task.value }
+        // A GET started before an accepted write must not reinstall its older
+        // title/body in either the editor or the shared library cache.
+        guard writeRevision == requestedWriteRevision else { return }
+        let titleWasClean = Self.normalizedTitle(draftTitle) == savedTitle
+        savedTitle = Self.normalizedTitle(loaded.title)
+        if titleRevision == requestedTitleRevision, titleWasClean {
+            draftTitle = loaded.title
+        }
+        note = loaded
+        store.upsert(loaded)
+        // Title-only changes must reconcile even when HTML is unchanged.
+        seedEditor(with: loaded)
+    }
+
     private func seedEditor(with note: Note) {
         let html = NoteUtils.initialHTML(for: note)
         guard html != savedHTML || savedHTML.isEmpty else { return }
+        // A revalidation must not replace edits made after a cached document
+        // became visible while the request was still in flight.
+        guard !controller.hasLoadedDocument || controller.html() == savedEditorHTML else { return }
+        let document = NoteHTMLParser.parse(html)
         savedHTML = html
+        savedEditorHTML = document.isEmpty ? "" : NoteHTMLSerializer.serialize(document)
+        saveTask?.cancel()
+        saveTask = nil
         controller.load(html: html)
     }
 
@@ -106,72 +162,99 @@ final class NoteEditorModel {
         saveTask = Task { [weak self] in
             try? await Task.sleep(for: NoteEditorModel.autosaveDelay)
             guard !Task.isCancelled else { return }
-            await self?.persist()
+            _ = await self?.persist()
         }
     }
 
     /// Cancel the pending debounce and write immediately — used when the pane
     /// closes, when another note is selected, and before opening the AI panel
     /// so the assistant reads the current text rather than the last autosave.
-    func flush() async {
+    @discardableResult
+    func flush() async -> Bool {
         saveTask?.cancel()
         saveTask = nil
-        await persist()
+        return await persist()
     }
 
-    private func persist() async {
-        // Never write from an editor that never received its document — that
-        // would PATCH an empty body over a note that has content.
-        guard controller.hasLoadedDocument else { return }
-        let html = controller.html()
-        guard html != savedHTML else { return }
-        savedHTML = html
+    private func persist() async -> Bool {
+        // A departure must await an in-flight autosave, not mistake its
+        // snapshot for a successful write. One writer drains newer edits too.
+        while true {
+            if let active = persistTask {
+                let success = await active.task.value
+                if persistTask?.id == active.id { persistTask = nil }
+                guard success else { return false }
+                continue
+            }
+            guard hasPendingChanges else { return true }
+            let task = Task { @MainActor [weak self] in
+                await self?.persistPendingChanges() ?? false
+            }
+            persistTask = (UUID(), task)
+        }
+    }
 
-        let plainText = NoteUtils.htmlToPlainText(html)
-        let payload = NoteSavePayload(
-            // `content` and `htmlContent` both get the HTML, exactly as the
-            // Android client saves it: the web's Tiptap falls back to parsing
-            // `content` as HTML when it is not JSON, and rewrites it to JSON on
-            // the next edit there.
-            content: html,
-            htmlContent: html,
-            plainText: plainText,
-            wordCount: NoteUtils.countWords(plainText)
-        )
-
-        isSaving = true
+    private func persistPendingChanges() async -> Bool {
         defer { isSaving = false }
-        do {
-            let updated = try await api.saveNote(id: noteID, payload)
-            note = updated
-            store.upsert(updated)
-            error = nil
-        } catch {
-            self.error = (error as? APIError)?.message ?? "Changes could not be saved."
-            // Let the next edit try again rather than pretending it stuck.
-            savedHTML = ""
+        while true {
+            let title = Self.normalizedTitle(draftTitle)
+            let titleChanged = title != savedTitle
+            let requestTitleRevision = titleRevision
+            // A title can be saved before the body view attaches. Never send
+            // that view's empty buffer over a body it has not received.
+            let html = controller.hasLoadedDocument ? controller.html() : nil
+            let bodyChanged = html.map { $0 != savedEditorHTML } ?? false
+            guard titleChanged || bodyChanged else { return true }
+            isSaving = true
+            do {
+                let updated: Note
+                if bodyChanged, let html {
+                    let plainText = NoteUtils.htmlToPlainText(html)
+                    updated = try await api.saveNote(id: noteID, NoteSavePayload(
+                        content: html,
+                        htmlContent: html,
+                        plainText: plainText,
+                        wordCount: NoteUtils.countWords(plainText),
+                        title: titleChanged ? title : nil
+                    ))
+                } else {
+                    updated = try await api.patchNote(id: noteID, .title(title))
+                }
+                // Advance only after the server accepted this snapshot. On a
+                // failure both drafts survive and the next flush retries.
+                writeRevision &+= 1
+                if bodyChanged, let html {
+                    savedHTML = html
+                    savedEditorHTML = html
+                }
+                savedTitle = titleChanged ? title : Self.normalizedTitle(updated.title)
+                if titleRevision == requestTitleRevision {
+                    draftTitle = updated.title
+                }
+                note = updated
+                store.upsert(updated)
+                // A title may be accepted before the initial GET or before
+                // the body view attaches. Its full response can seed that
+                // body, while seedEditor's dirty guard preserves newer edits.
+                if !bodyChanged { seedEditor(with: updated) }
+                error = nil
+            } catch {
+                self.error = (error as? APIError)?.message ?? "Changes could not be saved."
+                return false
+            }
         }
     }
 
     // MARK: - Metadata
 
-    /// Optimistic, rolling back to the pre-change note when the server rejects
-    /// the write — the same shape as every mutation in the Android hook.
+    /// Title commits use the same awaited writer as body autosaves/departure.
     func rename(to title: String) async {
-        let previous = note
-        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        let next = trimmed.isEmpty ? "Untitled Note" : trimmed
-        note?.title = next
-        store.patch(id: noteID) { $0.title = next }
-        do {
-            _ = try await api.patchNote(id: noteID, .title(next))
-        } catch {
-            note = previous
-            if let previous { store.upsert(previous) }
-            self.error = (error as? APIError)?.message ?? "The title could not be saved."
-        }
+        setDraftTitle(title)
+        _ = await flush()
     }
 
+    /// Optimistic, rolling back to the pre-change note when the server rejects
+    /// the write — the same shape as every mutation in the Android hook.
     func togglePin() async {
         let previous = note
         let next = !(note?.isPinned ?? false)
@@ -258,7 +341,7 @@ final class NoteEditorModel {
     /// an unsaved `[[link]]` would otherwise be missing from the panel that is
     /// meant to show it (Android's `openInfo` does the same).
     func loadLinks() async {
-        await flush()
+        guard await flush() else { return }
         isLoadingLinks = true
         linksError = nil
         defer { isLoadingLinks = false }
@@ -312,14 +395,10 @@ final class NoteEditorModel {
     /// append into the stored document, and that merged copy is the truth.
     func reloadAfterAIAppend() async {
         do {
+            let requestTitleRevision = titleRevision
+            let requestWriteRevision = writeRevision
             let fresh = try await api.note(id: noteID)
-            note = fresh
-            store.upsert(fresh)
-            let html = NoteUtils.initialHTML(for: fresh)
-            savedHTML = html
-            saveTask?.cancel()
-            saveTask = nil
-            controller.load(html: html)
+            await applyFetchedNote(fresh, titleRevision: requestTitleRevision, writeRevision: requestWriteRevision)
         } catch {
             // Leave the editor as it stands; the next save still wins.
         }

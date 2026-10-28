@@ -120,6 +120,17 @@ enum ReceiptLine {
         case nil: "Open Settings to see that change."
         }
     }
+
+    /// The Settings page a settings receipt opens, as Android's
+    /// `receiptNavigation` lands it: Memory and My church have pages of their
+    /// own; preferences live on several, so nil opens Settings itself.
+    static func settingsPage(for section: ChatReceiptSettingsSection?) -> SettingsPageRequest? {
+        switch section {
+        case .memory: .memory
+        case .church: .church
+        case .preferences, nil: nil
+        }
+    }
 }
 
 // MARK: - View

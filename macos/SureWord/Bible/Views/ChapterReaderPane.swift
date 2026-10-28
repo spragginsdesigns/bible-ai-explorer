@@ -40,6 +40,7 @@ struct ChapterReaderPane: View {
     @Environment(\.appearsActive) private var appearsActive
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.theme) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(AppModel.self) private var app
 
     @Bindable var model: BibleModel
@@ -76,8 +77,25 @@ struct ChapterReaderPane: View {
     @State private var shareCard: ShareCardItem?
     @State private var crossReferences = CrossReferencesModel()
     @State private var showingCustomColor = false
+    /// The note picker, open on a verse's blockquote (Note, the Notes tab's
+    /// "Add to a note" and the context menu's Save to Note).
+    @State private var notePick: VerseNotePick?
+    /// When the reader last scrolled the chapter by hand, which pauses the
+    /// scroll that follows the narration (Android's `lastManualScroll`).
+    @State private var lastManualScroll = Date.distantPast
 
     private var sheet: VerseSheetModel { model.sheet }
+
+    /// The user's notes that mention this chapter (`ChapterNotesModel`).
+    private var chapterNoteMatches: [MatchedChapterNote] {
+        guard let book = model.book else { return [] }
+        return model.chapterNotes.matches(
+            bookName: book.name,
+            bookAbbr: book.abbr,
+            chapter: model.chapter,
+            verseCount: model.verses.count
+        )
+    }
 
     /// The chapter on screen, as the sheet sees it. Nil until the text for
     /// this exact translation and chapter has arrived.
@@ -143,6 +161,9 @@ struct ChapterReaderPane: View {
                 return { @MainActor [weak reader] in reader?.open(order: location.order, chapter: location.chapter) }
             })
         }
+        // The ✎ markers and the Notes tab: the cached notes at once, then a
+        // silent revalidation every time the reader opens.
+        .task { await model.chapterNotes.open() }
         .safeAreaInset(edge: .bottom, spacing: 0) { ChapterAudioBar() }
         .spotlightHost()
         // The lit verse has done its job once it is clicked.
@@ -172,6 +193,23 @@ struct ChapterReaderPane: View {
                 applyHighlight(hex)
             }
         }
+        .sheet(item: $notePick) { pick in
+            AddToNoteSheet(
+                api: app.api,
+                markdown: pick.markdown,
+                defaultTitle: pick.title,
+                compose: false,
+                onOpenNote: { noteID in openNote(noteID) },
+                onSaved: { _ in Task { await model.chapterNotes.refresh() } }
+            )
+        }
+    }
+
+    /// Open a note in the Notes section's editor, as a quiz reflection does.
+    private func openNote(_ noteID: String) {
+        sheet.close()
+        app.pendingNoteID = noteID
+        app.section = .notes
     }
 
     // MARK: - Chrome
@@ -257,6 +295,16 @@ struct ChapterReaderPane: View {
             .buttonStyle(SubtleButtonStyle())
             .fixedSize()
             .help("Listen to this chapter")
+        } else if app.chapterAudio.error != nil {
+            // The chapter's timings could not be fetched: Android's refresh
+            // button in place of Listen.
+            Button("Retry", systemImage: "arrow.clockwise") {
+                Task { await app.chapterAudio.retryLoad() }
+            }
+            .buttonStyle(SubtleButtonStyle())
+            .fixedSize()
+            .help("Retry chapter narration")
+            .accessibilityLabel("Retry chapter narration")
         }
 
         if let book = model.selectedBook {
@@ -387,9 +435,10 @@ struct ChapterReaderPane: View {
     private var reader: some View {
         ScrollViewReader { proxy in
             ScrollView {
+                let noted = ChapterNotes.versesWithNotes(chapterNoteMatches)
                 LazyVStack(alignment: .leading, spacing: Spacing.md) {
                     ForEach(model.readerVerses, id: \.number) { verse in
-                        verseEntry(verse)
+                        verseEntry(verse, hasNote: noted.contains(verse.number))
                             .id(verse.number)
                             .onScrollVisibilityChange(threshold: 0.5) { visible in
                                 model.readingVisibility(verse: verse.number, visible: visible, translation: translation, lcGreek: lcGreek)
@@ -435,6 +484,24 @@ struct ChapterReaderPane: View {
             .onChange(of: model.pendingVerse) { _, verse in
                 guard verse != nil else { return }
                 scrollToPendingVerse(proxy)
+            }
+            // A wheel or scroller drag is the reader looking elsewhere:
+            // playback stops following for a few seconds, as on Android.
+            .onScrollPhaseChange { _, phase in
+                guard phase == .interacting else { return }
+                lastManualScroll = .now
+                app.chapterAudio.markAction()
+            }
+            // The narration keeps its verse in view, as the iPhone and
+            // Android readers do, unless the study tier covers the chapter.
+            .onChange(of: app.chapterAudio.verse) { _, verse in
+                guard app.chapterAudio.isPlaying, let verse, !sheet.obscuresReader,
+                      model.loadedKey == model.chapterKey(translation, lcGreek: lcGreek),
+                      verse <= model.verses.count,
+                      ChapterAudioFollow.follows(lastManualScroll: lastManualScroll)
+                else { return }
+                if reduceMotion { proxy.scrollTo(verse, anchor: .center) }
+                else { withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo(verse, anchor: .center) } }
             }
             // The page goes *behind* the scroll view rather than around it -
             // see `page`.
@@ -542,7 +609,7 @@ struct ChapterReaderPane: View {
     /// top, still shows it. Headings are never part of the verse, so they sit
     /// outside its wash and its menu and are never copied.
     @ViewBuilder
-    private func verseEntry(_ verse: ReaderVerse) -> some View {
+    private func verseEntry(_ verse: ReaderVerse, hasNote: Bool) -> some View {
         let isTitle = verse.number == 1 && verse.headings.isEmpty
 
         VStack(alignment: .leading, spacing: 0) {
@@ -555,13 +622,13 @@ struct ChapterReaderPane: View {
                     .padding(.horizontal, Spacing.sm)
                     .accessibilityAddTraits(.isHeader)
             }
-            verseRow(verse)
+            verseRow(verse, hasNote: hasNote)
                 .spotlightTarget(.readerVerse, isActive: app.onboarding.spotlightVerse == verse.number)
         }
     }
 
     @ViewBuilder
-    private func verseRow(_ verse: ReaderVerse) -> some View {
+    private func verseRow(_ verse: ReaderVerse, hasNote: Bool) -> some View {
         let number = verse.number
         let isHighlighted = model.highlightedVerse == number || (app.chapterAudio.isPlaying && app.chapterAudio.verse == number)
         let isOpen = sheet.selection?.includes(number) ?? false
@@ -588,13 +655,13 @@ struct ChapterReaderPane: View {
             Button {
                 tap(number)
             } label: {
-                verseText(verse)
+                verseText(verse, hasNote: hasNote)
                     .lineSpacing((model.lineHeight - model.fontSize) * textScale * systemTextScale)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(.rect)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("\(reference). Explain this verse")
+            .accessibilityLabel("\(reference)\(hasNote ? ", has a study note" : ""). Explain this verse")
             .accessibilityHint(isOpen ? "Selected. Click to change the selection." : "Opens the verse sheet")
             .accessibilityAddTraits(isOpen ? .isSelected : [])
         }
@@ -645,8 +712,11 @@ struct ChapterReaderPane: View {
             Button("Share…") {
                 share(reference: reference, text: text)
             }
-            Button("Save to note") {
-                model.saveToNote(reference: reference, text: text, translation: translation, label: textLabel)
+            Button("Save to Note…") {
+                notePick = VerseNotePick(
+                    markdown: VerseNoteMarkdown.format(reference: reference, text: text, translation: textLabel),
+                    title: reference
+                )
             }
             Button("✦ Expand with AI") {
                 askAI(reference, model.verseText(number))
@@ -671,15 +741,16 @@ struct ChapterReaderPane: View {
 
     /// Verse number then the formatted segments (`ReaderAnnotations`),
     /// concatenated into one `Text` so the number stays inline with the
-    /// wrapped body. The sourced words of Jesus take Android's two reds.
-    private func verseText(_ verse: ReaderVerse) -> Text {
+    /// wrapped body. The sourced words of Jesus take Android's two reds, and a
+    /// ✎ after the number marks a verse one of the user's notes mentions.
+    private func verseText(_ verse: ReaderVerse, hasNote: Bool) -> Text {
         // Ink read against the sheet, not against the shell: the parchment
         // tokens are a separate set for exactly this reason.
         let ink = parchment ? theme.parchmentInk : theme.textSecondary
         let numberInk = parchment ? theme.parchmentNumber : theme.accentDim
         let redLetter = theme.isDark ? Color(hex: 0xEF8A83) : Color(hex: 0xA12E2A)
 
-        var result = Text("\(verse.number) ")
+        var result = Text("\(verse.number)\(hasNote ? " ✎" : "") ")
             .appFont(.system(size: 11, weight: .bold), scale: textScale * systemTextScale)
             .foregroundStyle(numberInk)
         if verse.omitted {
@@ -772,6 +843,7 @@ struct ChapterReaderPane: View {
     private func studyView(context: VerseSheetContext, reference: String, text: String) -> some View {
         @Bindable var sheet = sheet
         let selection = sheet.activeSelection
+        let selectionNotes = ChapterNotes.notesForSelection(chapterNoteMatches, selection: selection)
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text(text)
                 .appFont(.custom(FontFamily.verse, size: 17))
@@ -779,7 +851,7 @@ struct ChapterReaderPane: View {
                 .lineLimit(4)
                 .padding(.horizontal, Spacing.lg)
 
-            StudyTabsView(selection: $sheet.studyTab)
+            StudyTabsView(selection: $sheet.studyTab, noteCount: selectionNotes.count)
 
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 // Each study is a model generation, so a range studies its
@@ -826,8 +898,12 @@ struct ChapterReaderPane: View {
                         translation: context.translation,
                         onNavigate: openCrossReference
                     )
+                    ConnectionsMapLink(verse: selection.start) {
+                        sheet.close()
+                        app.openConnections(order: context.order, chapter: context.chapter, verse: selection.start)
+                    }
                 case .notes:
-                    notesTab(context: context, reference: reference, selection: selection)
+                    notesTab(context: context, reference: reference, matched: selectionNotes)
                 }
             }
             .padding(.horizontal, Spacing.lg)
@@ -836,29 +912,10 @@ struct ChapterReaderPane: View {
     }
 
     /// Study notes that mention the selection, and a way to add it to one.
-    /// A note opens in the Notes section; the Mac's Notes pane owns its own
-    /// selection, so the hop lands on the library, as a chat note receipt does
-    /// (`ChatView.openReceipt`).
-    private func notesTab(context: VerseSheetContext, reference: String, selection: VerseSelection) -> some View {
-        let matched = ChapterNotes.notesForSelection(
-            ChapterNotes.matchChapterNotes(
-                notes: NotesStore.shared.notes.map {
-                    ChapterNoteSummary(
-                        id: $0.id,
-                        title: $0.title,
-                        plainText: $0.plainText,
-                        updatedAt: $0.updatedAt
-                    )
-                },
-                context: ChapterNotesContext(
-                    bookName: context.bookName,
-                    chapter: context.chapter,
-                    verseCount: context.plainTexts.count
-                )
-            ),
-            selection: selection
-        )
-        return VStack(alignment: .leading, spacing: Spacing.sm) {
+    /// A note opens in the Notes section's editor, the way a quiz reflection
+    /// note does (`app.pendingNoteID`).
+    private func notesTab(context: VerseSheetContext, reference: String, matched: [MatchedChapterNote]) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             if matched.isEmpty {
                 Text("No study notes mention \(reference) yet.")
                     .appFont(.system(size: 13))
@@ -866,8 +923,7 @@ struct ChapterReaderPane: View {
             } else {
                 ForEach(matched) { note in
                     Button {
-                        sheet.close()
-                        app.section = .notes
+                        openNote(note.id)
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("✎ \(note.title)")
@@ -889,7 +945,7 @@ struct ChapterReaderPane: View {
                 }
             }
             Button {
-                Task { await saveToNote(context) }
+                notePick = sheet.notePick(context)
             } label: {
                 Text("＋ Add \(reference) to a note")
                     .appFont(.system(size: 13, weight: .semibold))
@@ -899,11 +955,8 @@ struct ChapterReaderPane: View {
                     .contentShape(.rect(cornerRadius: Radius.md))
             }
             .buttonStyle(.plain)
-            .disabled(sheet.saveBusy)
+            .accessibilityLabel("Add \(reference) to a note")
         }
-        // The library cache is read from disk once per run; the reader may be
-        // the first screen to need it.
-        .task { await NotesStore.shared.hydrate() }
     }
 
     private func actions(context: VerseSheetContext, reference: String, text: String, highlighted: Bool) -> [VerseSheetAction] {
@@ -942,13 +995,10 @@ struct ChapterReaderPane: View {
                     shareText: sheet.shareText(context)
                 )
             },
-            VerseSheetAction(
-                id: "note",
-                systemImage: "square.and.pencil",
-                label: sheet.saveBusy ? "Saving…" : "Note",
-                disabled: sheet.saveBusy
-            ) {
-                Task { await saveToNote(context) }
+            // New note, or append to one of the user's notes, through the
+            // picker - Android's `onSaveVerse`.
+            VerseSheetAction(id: "note", systemImage: "square.and.pencil", label: "Note") {
+                notePick = sheet.notePick(context)
             },
             // Adds every selected verse to Learn (as "highlight" when the
             // range is highlighted); the "Added" chip then opens Learn, as on
@@ -983,15 +1033,6 @@ struct ChapterReaderPane: View {
         for verse in sheet.activeSelection.verses {
             app.highlights.remove(translation: translation, book: book, chapter: model.chapter, verse: verse)
         }
-    }
-
-    /// Save the selection as a new note. A failure stays on the action bar;
-    /// a success closes the sheet with the toast the reader has always shown.
-    private func saveToNote(_ context: VerseSheetContext) async {
-        let reference = sheet.reference(context)
-        guard await sheet.saveToNote(api: app.api, context: context) != nil else { return }
-        sheet.close()
-        model.show(toast: "Saved \(reference) to your notes")
     }
 
     private func addToLearn(_ context: VerseSheetContext, highlighted: Bool) async {

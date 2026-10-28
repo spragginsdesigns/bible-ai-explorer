@@ -66,20 +66,28 @@ struct AppendToNoteResult: Sendable, Equatable, Decodable {
 /// only rides along on the create path, and only when there is one to send: on
 /// the append path the server ignores it, and an empty one would just override
 /// nothing.
+///
+/// `compose: false` stores the markdown verbatim instead of rewriting it into
+/// a study note with the model - what a verse saved from the reader wants
+/// (Android's `AddToNoteSheet compose={false}`). Like Android it is only ever
+/// sent as `false`: composing is the route's default, so a chat answer posts
+/// no `compose` key at all.
 struct AppendToNoteRequest: Sendable, Equatable, Encodable {
     var markdown: String
     var noteId: String?
     var title: String?
+    var compose: Bool
 
-    init(markdown: String, noteId: String?, defaultTitle: String? = nil) {
+    init(markdown: String, noteId: String?, defaultTitle: String? = nil, compose: Bool = true) {
         self.markdown = markdown
         self.noteId = noteId
         let trimmed = defaultTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
         self.title = (noteId == nil && !(trimmed ?? "").isEmpty) ? trimmed : nil
+        self.compose = compose
     }
 
     private enum CodingKeys: String, CodingKey {
-        case markdown, noteId, title
+        case markdown, noteId, compose, title
     }
 
     func encode(to encoder: any Encoder) throws {
@@ -88,6 +96,7 @@ struct AppendToNoteRequest: Sendable, Equatable, Encodable {
         // Explicit `encode` (not `encodeIfPresent`) so a create posts
         // `"noteId": null` rather than dropping the key.
         try container.encode(noteId, forKey: .noteId)
+        if !compose { try container.encode(false, forKey: .compose) }
         try container.encodeIfPresent(title, forKey: .title)
     }
 }
@@ -101,18 +110,26 @@ enum AddToNote {
     }
 
     /// Save an answer into a note. `noteId: nil` creates a new one, titled after
-    /// the active conversation when there is a title to use.
+    /// the active conversation (or the verse reference) when there is a title
+    /// to use. The server creates and fills the note in one step, so a failed
+    /// save never leaves an empty note behind.
     @discardableResult
     static func append(
         api: APIClient,
         markdown: String,
         noteId: String?,
-        defaultTitle: String? = nil
+        defaultTitle: String? = nil,
+        compose: Bool = true
     ) async throws -> AppendToNoteResult {
         try await api.json(
             "/api/notes/append",
             method: "POST",
-            body: AppendToNoteRequest(markdown: markdown, noteId: noteId, defaultTitle: defaultTitle),
+            body: AppendToNoteRequest(
+                markdown: markdown,
+                noteId: noteId,
+                defaultTitle: defaultTitle,
+                compose: compose
+            ),
             as: AppendToNoteResult.self
         )
     }

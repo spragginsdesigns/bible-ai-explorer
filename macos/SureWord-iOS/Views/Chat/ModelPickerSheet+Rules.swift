@@ -373,6 +373,38 @@ extension ModelPickerSheet {
         return parts.joined(separator: " \u{00B7} ")
     }
 
+    /// The composer's model chip: what the next message runs on, and whether
+    /// the premium mark replaces the sparkles. Android's `ComposerChip`.
+    struct ComposerChip: Equatable {
+        var label: String
+        var premium: Bool
+    }
+
+    /// Android's `composerChip`, mirroring the web trigger: the house label (or
+    /// the picked model's summary) and whether to draw the premium mark. Nil
+    /// until the model list has loaded, or when the pick names no model.
+    static func composerChip(
+        data: AIModelsResponse?,
+        stored: String?,
+        effort: String?,
+        speed: String?,
+        verbosity: String?,
+        mode: String?
+    ) -> ComposerChip? {
+        guard let data else { return nil }
+        if let house = houseMode(data) { return ComposerChip(label: house.label, premium: house.isPremium) }
+        guard let model = selectedModel(data: data, stored: stored) else { return nil }
+        return ComposerChip(
+            label: summaryLabel(model: model, effort: effort, speed: speed, verbosity: verbosity, mode: mode),
+            premium: AIModelsAPI.isPremium(house: nil, selected: model)
+        )
+    }
+
+    /// What VoiceOver hears for the chip; a premium pick says "Pro".
+    static func composerChipAccessibilityLabel(_ chip: ComposerChip) -> String {
+        "Choose AI model, currently \(chip.label)\(chip.premium ? ", Pro" : "")"
+    }
+
     static func houseNote(_ house: AIModelsResponse.HouseModel) -> String {
         let note = house.note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return note.isEmpty ? fallbackHouseNote : note

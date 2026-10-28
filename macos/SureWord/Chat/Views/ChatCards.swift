@@ -15,7 +15,9 @@ struct RetrievedVersesCard: View {
     var onSaveToNote: (RetrievedVerse) -> Void
     var onReadInBible: (RetrievedVerse) -> Void
 
-    @State private var focus: VersesSheetFocus?
+    /// Which passage the sheet is open on. Owned by the bubble, because a Bible
+    /// reference tapped in the answer opens this same sheet on its passage.
+    @Binding var focus: VersesSheetFocus?
     /// Presented over the passages sheet, so sharing does not lose the place.
     @State private var shareCard: ShareCardItem?
 

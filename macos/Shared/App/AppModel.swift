@@ -60,6 +60,7 @@ enum SettingsPageRequest: String, Hashable { case account, ai, membership, memor
 @MainActor
 @Observable
 final class AppModel {
+    let userID: String?
     let settings: SettingsStore
     let api: APIClient
     let chat: ChatViewModel
@@ -99,7 +100,25 @@ final class AppModel {
     /// Settings row agree the moment the mode changes.
     let serve: ServeModel
 
-    var section: AppSection = .today
+    let noteDeparture = NoteDepartureCoordinator()
+    private var selectedSection: AppSection = .today
+    private var sectionRequestID = UUID()
+
+    var section: AppSection {
+        get { selectedSection }
+        set {
+            let requestID = UUID()
+            sectionRequestID = requestID
+            guard newValue != selectedSection, noteDeparture.hasEditor else {
+                selectedSection = newValue
+                return
+            }
+            Task {
+                guard await noteDeparture.canLeave(), sectionRequestID == requestID else { return }
+                selectedSection = newValue
+            }
+        }
+    }
     var connectionPlace = ConnectionsPlace(order: 43, chapter: 3, verse: 16)
 
     func openConnections(order: Int, chapter: Int, verse: Int? = nil) {
@@ -143,6 +162,7 @@ final class AppModel {
     /// It is what tells the preference sync whether the persisted caches belong
     /// to this account or to the last one signed in on this device.
     init(settings: SettingsStore, userID: String?) {
+        self.userID = userID
         self.settings = settings
         // A second 401 after the fresh-token retry means the session itself is
         // invalid, so sign out locally rather than leaving the app looking

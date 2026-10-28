@@ -31,6 +31,7 @@ struct ChatView: View {
     /// button can name the current model while the popover is closed.
     @State private var models = ModelPickerModel()
     @State private var isModelPickerPresented = false
+    @State private var canSellPro = false
 
     /// A settled answer waiting to be saved. Identifiable so `.sheet(item:)`
     /// re-presents cleanly when a second answer is picked.
@@ -81,6 +82,15 @@ struct ChatView: View {
         .task {
             models.configure(api)
             await models.load()
+        }
+        .task(id: chat.sendError?.upgrade == true) {
+            guard chat.sendError?.upgrade == true else {
+                canSellPro = false
+                return
+            }
+            let canOffer = await ProUpgradeOffer.load(api: api)
+            guard !Task.isCancelled else { return }
+            canSellPro = canOffer
         }
         // `/clear` asks before deleting (shared `ChatViewModel` behaviour).
         .alert("Delete this conversation?", isPresented: $chat.isClearConfirmationPresented) {
@@ -160,12 +170,23 @@ struct ChatView: View {
     @ViewBuilder
     private var content: some View {
         if chat.historyLoading {
-            centered { ProgressView().controlSize(.small) }
+            centered {
+                VStack(spacing: Spacing.sm) {
+                    ProgressView().controlSize(.small)
+                    // Android's caption, so a slow load reads as progress.
+                    Text("Restoring this conversation...")
+                        .appFont(.system(size: 12))
+                        .foregroundStyle(theme.textMuted)
+                }
+            }
         } else if let historyError = chat.historyError {
             centered {
-                ErrorCard(message: historyError.message, actionTitle: "Retry") {
+                // Android always offers Retry on the history card: reloading
+                // is the remedy whatever the cause.
+                ChatErrorCard(error: historyError, actionTitle: "Retry", alwaysRetry: true) {
                     Task { await chat.retryHistory() }
                 }
+                .frame(maxWidth: 520)
             }
         } else if chat.messages.isEmpty {
             WelcomeState(
@@ -226,6 +247,8 @@ struct ChatView: View {
                                     }
                                 }
                             },
+                            // Android hides Share until the conversation exists.
+                            canShare: chat.activeConversationID != nil,
                             onShare: { answer in
                                 // The sheet mints the link as it opens; an
                                 // unsaved turn has nothing to share and says so.
@@ -252,9 +275,14 @@ struct ChatView: View {
                     }
 
                     if let sendError = chat.sendError {
-                        ErrorCard(message: sendError.message, actionTitle: "Retry") {
+                        ChatErrorCard(
+                            error: sendError,
+                            actionTitle: "Try again",
+                            onSeePro: sendError.upgrade && canSellPro ? { app.openSettings(.membership) } : nil
+                        ) {
                             Task { await chat.retrySend() }
                         }
+                        .frame(maxWidth: 520, alignment: .leading)
                     }
                 }
                 .padding(Spacing.xl)
@@ -309,9 +337,8 @@ struct ChatView: View {
     /// `chat`, `bible`, `notes` and `cross` (`AppSection`, `Shared/App/AppModel.swift:9`),
     /// and the shell also handed this pane two hops of its own: the Daily Cross
     /// and the reader. A note and Learn are staged on `AppModel` for their
-    /// section to open. Anything else a section owns privately - the Memories
-    /// sheet inside Settings, the reading plan and history panes inside Bible -
-    /// is named rather than jumped to.
+    /// section to open, and a memory or settings change opens Settings on its
+    /// page (`AppModel.openSettings`), as Android's `receiptRoutes.ts` does.
     private func openReceipt(_ receipt: ChatReceipt) {
         switch receipt.target {
         case .note(let noteID):
@@ -321,7 +348,7 @@ struct ChatView: View {
             app.pendingNoteID = noteID
             app.section = .notes
         case .memories:
-            show(toast: ReceiptLine.settingsMessage(for: .memory))
+            app.openSettings(.memory)
         case .chapter(let book, let chapter, let verse, let translation):
             guard let reference = ReceiptLine.chapterReference(book: book, chapter: chapter, verse: verse) else {
                 show(toast: "That passage could not be opened.")
@@ -344,20 +371,29 @@ struct ChatView: View {
             app.pendingDailyDestination = .learn
             app.section = .today
         case .settings(let section):
-            show(toast: ReceiptLine.settingsMessage(for: section))
+            // Android's `receiptNavigation`: the page the section names, or
+            // the Settings window itself for one with no page of its own.
+            if let page = ReceiptLine.settingsPage(for: section) {
+                app.openSettings(page)
+            } else {
+                app.pendingSettingsPage = nil
+                app.isSettingsPresented = true
+            }
         }
     }
 
     private func save(_ verse: RetrievedVerse) {
         Task {
             do {
-                try await VerseActions.saveToNote(
+                let noteID = try await VerseActions.saveToNote(
                     api: api,
                     reference: verse.reference,
                     text: verse.text,
                     translation: verse.translation
                 )
-                show(toast: "Saved \(verse.reference) to your notes")
+                // Android opens the new note, so the verse can be written on.
+                app.pendingNoteID = noteID
+                app.section = .notes
             } catch {
                 show(toast: (error as? APIError)?.message ?? "Could not save that verse.")
             }

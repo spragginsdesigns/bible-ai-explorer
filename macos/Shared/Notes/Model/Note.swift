@@ -141,6 +141,9 @@ struct NoteSavePayload: Sendable, Equatable, Encodable {
     var htmlContent: String
     var plainText: String
     var wordCount: Int
+    /// Omitted on body-only saves so an unchanged local title cannot replace
+    /// a title edited by another client.
+    var title: String? = nil
 }
 
 /// Partial update for `PATCH /api/notes/{id}`.

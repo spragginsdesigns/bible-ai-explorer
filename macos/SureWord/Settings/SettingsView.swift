@@ -72,8 +72,20 @@ struct SettingsView: View {
             search = ""
             app.onboarding.consumeSettingsTarget()
         }
+        // Another surface asked for a page (`AppModel.openSettings`): a chat
+        // receipt, the Daily Cross's AI-off notice, a Pro wall.
+        .onChange(of: app.pendingSettingsPage, initial: true) { _, request in
+            guard let request else { return }
+            selection = SettingsPane(request: request)
+            search = ""
+            app.pendingSettingsPage = nil
+        }
         .onChange(of: selection) { _, pane in
-            if let pane { savedPane = pane.rawValue }
+            guard let pane else { return }
+            savedPane = pane.rawValue
+            // Each page reports its Android route, as the phone's pushed
+            // category screens do.
+            Analytics.shared.screen(pane.analyticsScreen)
         }
         .onChange(of: search) { _, _ in
             // Keep the page in view in step with the search: if the open page
@@ -103,10 +115,14 @@ struct SettingsView: View {
             sentCards.configure(app.api)
             await sentCards.load()
         }
+        // Opening About asks for a newer build every time.
+        .task(id: selection) {
+            if selection == .about { await MacUpdateCheck.shared.check() }
+        }
         .sheet(isPresented: $isMemoriesPresented) {
             MemoriesView(model: memory)
                 .analyticsScreen(AnalyticsScreen.memories)
-                .onDisappear { Analytics.shared.screen(AnalyticsScreen.settings) }
+                .onDisappear { reportPane() }
         }
         // Android's Settings -> APP -> What's new row; a sheet here because
         // Settings is itself a sheet on the Mac. "Try it" closes Settings first.
@@ -124,7 +140,8 @@ struct SettingsView: View {
                 }
             }
             .frame(width: 560, height: 680)
-            .onDisappear { Analytics.shared.screen(AnalyticsScreen.settings) }
+            .analyticsScreen(AnalyticsScreen.settingsWhatsNew)
+            .onDisappear { reportPane() }
         }
         .analyticsScreen(AnalyticsScreen.settings)
         .memoryErrorAlert(memory, isActive: !isMemoriesPresented)
@@ -349,10 +366,7 @@ struct SettingsView: View {
                         Text(option.pickerLabel).tag(option)
                     }
                 }
-                hint(
-                    "Used by the Bible reader and verse attachments. \(settings.translation.copyright). "
-                        + "SureWord's AI answers use the translation you select."
-                )
+                hint(settings.translation.settingsHint)
                 Toggle("Offer a quiz after each chapter", isOn: $settings.offerQuiz)
                 hint("A short, optional quiz at the end of each chapter. Every answer comes with its verse.")
             }
@@ -416,6 +430,9 @@ struct SettingsView: View {
         case .about:
             Section {
                 LabeledContent("Version", value: Config.appVersion)
+                // The DMG has no auto-updater: say when GitHub has a newer
+                // build, and link to it (`MacUpdateCheck`).
+                MacUpdateRow(check: MacUpdateCheck.shared)
                 LabeledContent("What's new") {
                     Button("Release notes…") { isWhatsNewPresented = true }
                 }
@@ -465,8 +482,11 @@ struct SettingsView: View {
                     + "This tells you when the answer has landed."
             )
         }
+        // Switching either notice on is an explicit request, so it asks for
+        // permission at once (PRD B6a), the one place the dialog may open
+        // without a moment from chat or the Daily Cross.
         .onChange(of: settings.notifyChatReplies) { was, now in
-            if now, !was { Task { await AnswerReadyNotifier.requestAuthorization() } }
+            if now, !was { NotificationPermissionMoments.shared.signal(.settingsEnabled) }
         }
     }
 
@@ -511,6 +531,11 @@ struct SettingsView: View {
                     }
                 }
             }
+        }
+        // The other explicit request (see the Chat switch): the reminder can
+        // only be scheduled once notifications are allowed.
+        .onChange(of: settings.verseOfDayEnabled) { was, now in
+            if now, !was { NotificationPermissionMoments.shared.signal(.settingsEnabled) }
         }
     }
 
@@ -581,139 +606,16 @@ struct SettingsView: View {
         clerk.user?.primaryEmailAddress?.emailAddress
     }
 
+    /// The open page's route, again, once a sheet over it closes.
+    private func reportPane() {
+        Analytics.shared.screen((selection ?? .appearance).analyticsScreen)
+    }
+
     private func hint(_ text: String) -> some View {
         Text(text)
             .appFont(.system(size: 11))
             .foregroundStyle(theme.textGhost)
             .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-// MARK: - Categories
-
-/// One page of Settings. Grouped, named and ordered like Android's hub rows.
-enum SettingsPane: String, CaseIterable, Identifiable {
-    case account, appearance, language, highlights, church, serve, memory, ai, shared, notifications, feedback, about
-
-    enum Group: CaseIterable {
-        case study, assistant, app
-
-        var title: String {
-            switch self {
-            case .study: "Study"
-            case .assistant: "Assistant"
-            case .app: "App"
-            }
-        }
-    }
-
-    var id: String { rawValue }
-
-    /// nil for the account row, which sits above the groups.
-    var group: Group? {
-        switch self {
-        case .account: nil
-        case .appearance, .language, .highlights, .church, .serve: .study
-        case .memory, .ai, .shared: .assistant
-        case .notifications, .feedback, .about: .app
-        }
-    }
-
-    var title: String {
-        switch self {
-        case .account: "Account"
-        case .appearance: "Appearance & reading"
-        case .language: "Language"
-        case .highlights: "Highlight labels"
-        case .church: "My church"
-        case .serve: "Ways to Serve"
-        case .memory: "Memory"
-        case .ai: "AI"
-        case .shared: "Shared answers"
-        case .notifications: "Notifications"
-        case .feedback: "Send feedback"
-        case .about: "About"
-        }
-    }
-
-    /// The line under the page title, saying what the page is for.
-    var summary: String {
-        switch self {
-        case .account: "Who is signed in, signing out, and deleting your account."
-        case .appearance: "Theme, the parchment page, and your default Bible translation."
-        case .language: "The language SureWord answers in, and its Bible."
-        case .highlights: "Names and meanings for your highlight colours."
-        case .church: "The congregation you belong to."
-        case .serve: "Optional ways to put faith into action, online, nearby or both."
-        case .memory: "What SureWord remembers about you, and what you've told it."
-        case .ai: "SureWord Pro, web search and data sharing."
-        case .shared: "Public links to answers and verse cards you've sent."
-        case .notifications: "The daily verse reminder and answer-ready notices."
-        case .feedback: "Tell us what is broken or missing."
-        case .about: "Version, release notes and links."
-        }
-    }
-
-    var symbol: String {
-        switch self {
-        case .account: "person.crop.circle"
-        case .appearance: "paintpalette.fill"
-        case .language: "globe"
-        case .highlights: "highlighter"
-        case .church: "building.columns.fill"
-        case .serve: "hands.sparkles.fill"
-        case .memory: "sparkles"
-        case .ai: "cpu.fill"
-        case .shared: "square.and.arrow.up.fill"
-        case .notifications: "bell.badge.fill"
-        case .feedback: "bubble.left.and.text.bubble.right.fill"
-        case .about: "info.circle.fill"
-        }
-    }
-
-    /// System Settings-style tile colours, so a page is found by colour as
-    /// much as by name.
-    var tint: Color {
-        switch self {
-        case .account: .gray
-        case .appearance: .indigo
-        case .language: .cyan
-        case .highlights: .orange
-        case .church: .brown
-        case .serve: .pink
-        case .memory: .purple
-        case .ai: .teal
-        case .shared: .blue
-        case .notifications: .red
-        case .feedback: .green
-        case .about: .gray
-        }
-    }
-
-    /// Words a reader might search for that are on the page but not in its title.
-    private var keywords: [String] {
-        switch self {
-        case .account: ["sign out", "log out", "delete", "email", "profile"]
-        case .appearance: ["theme", "dark", "light", "parchment", "translation", "kjv", "nkjv", "bsb", "bible", "quiz"]
-        case .language: ["spanish", "german", "espa\u{00F1}ol", "espanol", "deutsch", "reina-valera", "luther", "answers"]
-        case .highlights: ["colour", "color", "highlight", "labels", "yellow", "meaning"]
-        case .church: ["church", "congregation", "mission"]
-        case .serve: ["serve", "volunteer", "give", "giving", "food bank", "journal", "nearby"]
-        case .memory: ["memories", "about me", "testimony", "personal", "remember"]
-        case .ai: ["model", "pro", "membership", "subscription", "web search", "tavily", "consent", "privacy"]
-        case .shared: ["links", "share", "cards", "revoke", "privacy"]
-        case .notifications: ["verse of the day", "reminder", "daily", "chat", "alert"]
-        case .feedback: ["bug", "report", "suggestion", "contact"]
-        case .about: ["version", "what's new", "release notes", "privacy policy", "terms", "website"]
-        }
-    }
-
-    func matches(_ query: String) -> Bool {
-        let query = query.trimmingCharacters(in: .whitespaces).lowercased()
-        if query.isEmpty { return true }
-        return title.lowercased().contains(query)
-            || summary.lowercased().contains(query)
-            || keywords.contains { $0.contains(query) }
     }
 }
 

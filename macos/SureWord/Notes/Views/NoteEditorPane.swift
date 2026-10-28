@@ -8,6 +8,7 @@ import SwiftUI
 /// because a phone has one column; here it is a trailing inspector, which is
 /// the same thing with room to type beside it.
 struct NoteEditorPane: View {
+    @Environment(AppModel.self) private var app
     @Environment(\.theme) private var theme
 
     let noteID: String
@@ -18,7 +19,7 @@ struct NoteEditorPane: View {
     @State private var ai: NoteAIModel
     @State private var isAIOpen = false
     @State private var isTagPopoverPresented = false
-    @State private var draftTitle = ""
+    @FocusState private var isTitleFocused: Bool
     @State private var linkTarget = ""
     @State private var isLinkPopoverPresented = false
     @State private var isWikilinkPickerPresented = false
@@ -28,6 +29,7 @@ struct NoteEditorPane: View {
     @State private var pendingShare: OutgoingShare?
     @State private var exportError: String?
     @State private var isCopiedVisible = false
+    @State private var departureID = UUID()
 
     init(noteID: String, api: APIClient, library: NotesLibraryModel) {
         self.noteID = noteID
@@ -93,7 +95,7 @@ struct NoteEditorPane: View {
                 model: model,
                 folderName: library.folders.first { $0.id == model.note?.folderId }?.name
             ) { id in
-                library.selectedNoteID = id
+                Task { if await model.flush() { library.selectedNoteID = id } }
             }
         }
         .alert(
@@ -116,6 +118,7 @@ struct NoteEditorPane: View {
             }
         }
         .task {
+            app.noteDeparture.register(owner: departureID) { await model.flush() }
             model.start()
             ai.onNoteAppended = { event in
                 guard event.noteID == noteID else { return }
@@ -123,16 +126,19 @@ struct NoteEditorPane: View {
             }
             // A clicked `[[link]]` opens its note in this pane, as the info
             // sheet's links do; `onDisappear` flushes this one first.
-            model.controller.onOpenWikilink = { id in library.selectedNoteID = id }
+            model.controller.onOpenWikilink = { id in
+                Task { if await model.flush() { library.selectedNoteID = id } }
+            }
         }
         .onChange(of: NotesStore.shared.notes) {
             // A note created, renamed or aliased can resolve a drawn link.
             model.controller.refreshWikilinks()
         }
-        .onChange(of: model.note?.title) { _, title in
-            draftTitle = title ?? ""
+        .onChange(of: isTitleFocused) { _, focused in
+            if !focused { commitTitle() }
         }
         .onDisappear {
+            app.noteDeparture.unregister(owner: departureID)
             // Last-chance write: the pane can go away between the debounce
             // firing and the PATCH landing.
             let model = model
@@ -148,9 +154,9 @@ struct NoteEditorPane: View {
     private var topBar: some View {
         HStack(spacing: Spacing.sm) {
             // The list stays beside the editor on a Mac, so back closes the
-            // note instead of popping a screen; `onDisappear` flushes it.
+            // note instead of popping a screen. A failed save keeps it open.
             Button {
-                library.selectedNoteID = nil
+                Task { if await model.flush() { library.selectedNoteID = nil } }
             } label: {
                 Image(systemName: "chevron.left")
                     .foregroundStyle(theme.textMuted)
@@ -169,11 +175,11 @@ struct NoteEditorPane: View {
                             .foregroundStyle(theme.accent)
                             .accessibilityLabel("Pinned")
                     }
-                    TextField("Untitled Note", text: $draftTitle)
+                    TextField("Untitled Note", text: Binding(get: { model.draftTitle }, set: { model.setDraftTitle($0) }))
                         .textFieldStyle(.plain)
                         .appFont(.system(size: 16, weight: .semibold))
+                        .focused($isTitleFocused)
                         .onSubmit(commitTitle)
-                        .onAppear { draftTitle = model.note?.title ?? "" }
                 }
 
                 if model.isSaving {
@@ -272,14 +278,14 @@ struct NoteEditorPane: View {
     /// is the one on screen.
     private func openInfo() {
         Task {
-            await model.flush()
+            guard await model.flush() else { return }
             isInfoPresented = true
         }
     }
 
     private func copyMarkdown() {
         do {
-            SharedAnswerPasteboard.copy(try NoteEditorMarkdown.markdown(title: NoteEditorMarkdown.exportTitle(draft: draftTitle), controller: model.controller))
+            SharedAnswerPasteboard.copy(try NoteEditorMarkdown.markdown(title: NoteEditorMarkdown.exportTitle(draft: model.draftTitle), controller: model.controller))
             withAnimation { isCopiedVisible = true }
             Task {
                 try? await Task.sleep(for: .milliseconds(1200))
@@ -293,7 +299,7 @@ struct NoteEditorPane: View {
     private func shareMarkdown() {
         do {
             pendingShare = OutgoingShare(
-                payload: .text(try NoteEditorMarkdown.markdown(title: NoteEditorMarkdown.exportTitle(draft: draftTitle), controller: model.controller))
+                payload: .text(try NoteEditorMarkdown.markdown(title: NoteEditorMarkdown.exportTitle(draft: model.draftTitle), controller: model.controller))
             )
         } catch {
             exportError = error.localizedDescription
@@ -301,9 +307,7 @@ struct NoteEditorPane: View {
     }
 
     private func commitTitle() {
-        let trimmed = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed != model.note?.title else { return }
-        Task { await model.rename(to: draftTitle) }
+        Task { await model.flush() }
     }
 
     /// Save before opening the panel so the assistant reads the current text,
@@ -314,7 +318,7 @@ struct NoteEditorPane: View {
             return
         }
         Task {
-            await model.flush()
+            guard await model.flush() else { return }
             isAIOpen = true
             await ai.loadHistory()
         }

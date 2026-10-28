@@ -7,13 +7,17 @@ import UserNotifications
 /// and opens that conversation.
 @MainActor
 enum AnswerReadyNotifier {
-    static func answerLanded(conversationID: String, title: String?, chatReplies: Bool) {
+    static func answerLanded(conversationID: String, title: String?, chatReplies: Bool, recovered: Bool = false) {
+        // The server pushes recovered answers after a disconnected stream.
+        // A live background stream still needs this local notice.
+        guard !(recovered && MacPushRegistration.isRemoteLive) else { return }
         // Read now, while the answer is landing, not after the permission
         // check below has awaited.
         let inBackground = !NSApplication.shared.isActive
         Task {
-            // Never prompts: the dialog belongs to Settings and to the morning
-            // reminder's first sync, never to an answer arriving unseen.
+            // Never prompts: the dialog opens only at the moments
+            // `NotificationPermissionCoordinator` handles, never for an
+            // answer arriving unseen.
             let authorized = await DailyCrossNotifications.isAuthorized()
             guard AnswerReadyNotification.shouldNotify(
                 conversationID: conversationID,
@@ -35,14 +39,5 @@ enum AnswerReadyNotifier {
             )
             try? await UNUserNotificationCenter.current().add(request)
         }
-    }
-
-    /// Switching "Notify when an answer is ready" on is an explicit request, so
-    /// it asks straight away, as Android and the web do inside the switch. A
-    /// Mac that already answered is not asked again; macOS keeps the answer.
-    static func requestAuthorization() async {
-        let center = UNUserNotificationCenter.current()
-        guard await center.notificationSettings().authorizationStatus == .notDetermined else { return }
-        _ = try? await center.requestAuthorization(options: [.alert, .sound])
     }
 }

@@ -40,6 +40,7 @@ enum AnalyticsScreen {
     static let settingsLanguage = "/settings/language"
     static let settingsHighlights = "/settings/highlights"
     static let settingsChurch = "/settings/church"
+    static let settingsServe = "/settings/serve"
     static let settingsMemory = "/settings/memory"
     static let settingsAI = "/settings/ai"
     static let settingsShared = "/settings/shared"

@@ -10,6 +10,10 @@ import UniformTypeIdentifiers
 /// well before an app would be, and a voice message can be 20 MB. Each copy
 /// stops at the file's cap (`PendingShareCopy`); a file over it is listed
 /// without bytes so the app can say why.
+///
+/// Both share extensions run it, the iOS one and the Mac one
+/// (`SureWord-macOS-Share`). It lives in `ShareInbox` so the app's tests pin
+/// it too; Foundation and UniformTypeIdentifiers only.
 enum ShareCollector {
     /// One provider's contribution, already in Sendable form.
     private enum Loaded: Sendable {
@@ -53,8 +57,14 @@ enum ShareCollector {
 
         // A content type that is a real file (photo, PDF, audio, document)
         // wins over the URL or text forms the same provider may also offer.
-        if let fileType = registered.compactMap(UTType.init).first(where: isFileContent) {
+        if let fileType = fileType(among: registered.compactMap(UTType.init)) {
             return await loadFile(provider, type: fileType, suggestedName: suggestedName, index: index, into: directory)
+        }
+        // Finder also offers a file's URL as generic URL/text. Ask for its
+        // explicit file form first, otherwise those fallbacks can turn a
+        // shared document into a literal file:/// path in the composer.
+        if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+            return await loadItem(provider, type: .fileURL, suggestedName: suggestedName, index: index, into: directory)
         }
         if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
             return await loadItem(provider, type: .url, suggestedName: suggestedName, index: index, into: directory)
@@ -66,6 +76,26 @@ enum ShareCollector {
             return await loadFile(provider, type: anyData, suggestedName: suggestedName, index: index, into: directory)
         }
         return .nothing
+    }
+
+    /// The file form to copy when a provider offers several. iOS takes the
+    /// first, since the app re-encodes any photo as the picker does
+    /// (`ShareInboxIntake`). The Mac attaches images as they are, so when
+    /// Photos offers its HEIC original beside a JPEG it takes the form the
+    /// attachment allowlist accepts.
+    static func fileType(among registered: [UTType]) -> UTType? {
+        let files = registered.filter(isFileContent)
+#if os(macOS)
+        return files.first(where: isAllowlisted) ?? files.first
+#else
+        return files.first
+#endif
+    }
+
+    /// A type the attachment allowlist (`AttachmentLimits`) takes as it is.
+    static func isAllowlisted(_ type: UTType) -> Bool {
+        guard let mime = type.preferredMIMEType else { return false }
+        return AttachmentLimits.mediaTypeByExtension.values.contains(AttachmentLimits.canonicalMediaType(mime))
     }
 
     /// Bytes worth attaching rather than reading as text or a link. Plain text
@@ -124,32 +154,51 @@ enum ShareCollector {
         await withCheckedContinuation { (continuation: CheckedContinuation<Loaded, Never>) in
             provider.loadItem(forTypeIdentifier: type.identifier, options: nil) { @Sendable item, _ in
                 let loaded: Loaded
-                switch item {
-                case let url as URL where url.isFileURL:
-                    let fileType = UTType(filenameExtension: url.pathExtension) ?? type
-                    loaded = .file(PendingShareCopy.file(from: url, type: fileType, suggestedName: suggestedName, index: index, into: directory))
-                case let url as URL:
-                    loaded = .webURL(url.absoluteString)
-                case let text as String:
-                    loaded = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                        ? .nothing
-                        : (type == .url ? .webURL(text) : .text(text))
-                case let attributed as NSAttributedString:
-                    loaded = attributed.string.isEmpty ? .nothing : .text(attributed.string)
-                case let data as Data:
-                    if type == .url, let url = URL(dataRepresentation: data, relativeTo: nil) {
-                        loaded = .webURL(url.absoluteString)
-                    } else if let text = String(data: data, encoding: .utf8), suggestedName == nil {
-                        loaded = .text(text)
+                // The same URL may arrive as NSURL, NSString or NSData. The
+                // representation must not decide whether we copy its bytes.
+                if let url = providedURL(item, type: type) {
+                    if url.isFileURL {
+                        let fileType = UTType(filenameExtension: url.pathExtension) ?? .data
+                        loaded = .file(PendingShareCopy.file(from: url, type: fileType, suggestedName: suggestedName, index: index, into: directory))
                     } else {
-                        loaded = .file(write(data, type: type, suggestedName: suggestedName, index: index, into: directory))
+                        loaded = type == .fileURL ? .nothing : .webURL(url.absoluteString)
                     }
-                default:
+                } else if type == .fileURL {
+                    // An unreadable file URL is never a web link or message.
                     loaded = .nothing
+                } else {
+                    switch item {
+                    case let text as String:
+                        loaded = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            ? .nothing
+                            : (type == .url ? .webURL(text) : .text(text))
+                    case let attributed as NSAttributedString:
+                        loaded = attributed.string.isEmpty ? .nothing : .text(attributed.string)
+                    case let data as Data:
+                        if let text = String(data: data, encoding: .utf8), suggestedName == nil {
+                            loaded = .text(text)
+                        } else {
+                            loaded = .file(write(data, type: type, suggestedName: suggestedName, index: index, into: directory))
+                        }
+                    default:
+                        loaded = .nothing
+                    }
                 }
                 continuation.resume(returning: loaded)
             }
         }
+    }
+
+    /// Only an actual URL representation is decoded from text/data. A user
+    /// sharing a text selection that happens to say file:/// keeps that text.
+    private static func providedURL(_ item: Any?, type: UTType) -> URL? {
+        if let url = item as? URL { return url }
+        guard type.conforms(to: .url) else { return nil }
+        if let data = item as? Data { return URL(dataRepresentation: data, relativeTo: nil) }
+        if let text = item as? String {
+            return URL(string: text.trimmingCharacters(in: .whitespacesAndNewlines))
+        }
+        return nil
     }
 
     // MARK: Copying
@@ -171,8 +220,12 @@ enum ShareCollector {
         )
         guard data.count <= PendingShareCopy.limit(filename: original, mediaType: file.mediaType) else { return file }
         let stored = PendingShareNaming.storedName(original, index: index)
-        if (try? data.write(to: directory.appendingPathComponent(stored))) != nil {
+        let destination = directory.appendingPathComponent(stored)
+        do {
+            try data.write(to: destination, options: .atomic)
             file.storedName = stored
+        } catch {
+            try? FileManager.default.removeItem(at: destination)
         }
         return file
     }

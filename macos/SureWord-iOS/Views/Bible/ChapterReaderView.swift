@@ -12,8 +12,8 @@ import UIKit
 /// list (`macos/README.md`, "The reader is a layout minefield").
 ///
 /// The pushed-in `order`/`chapter`/`verse` only seed the shared `BibleModel`
-/// once; after that the model is the source of truth (prev/next paging and
-/// See-also jumps change the model, never the stack), so reading position
+/// once; after that the model is the source of truth (prev/next pages in
+/// place, See also pushes a reader and restores its source on Back), so reading position
 /// survives a trip to another tab.
 struct ChapterReaderView: View {
     @Environment(\.scenePhase) private var scenePhase
@@ -44,6 +44,9 @@ struct ChapterReaderView: View {
     /// Re-appearing (back from Atlas or Learn) must not re-seed it, or the
     /// reader would jump back to the chapter it was first opened on.
     @State private var seeded = false
+    /// Pushed readers share the session model. A reader below another screen
+    /// must not reload that model with its own translation override.
+    @State private var isReaderVisible = false
     @State private var crossReferences = CrossReferencesModel()
     @State private var showingLearn = false
     /// "Quiz me" is pushed from this reader. The quiz itself lives on
@@ -61,6 +64,16 @@ struct ChapterReaderView: View {
     @State private var revealGeometry = RevealGeometry()
     /// The verse sheet's height, for the footer's clearance.
     @State private var sheetHeight: CGFloat = 0
+    /// The note picker, open on the selection's blockquote (Note, and the
+    /// Notes tab's "Add to a note").
+    @State private var notePick: VerseNotePick?
+    /// The current book's chapter grid - Android's dock "Choose chapter".
+    @State private var showingChapterPicker = false
+    /// "Open Learn" from a quiz's Missed card, pushed over the quiz so Back
+    /// returns to the results.
+    @State private var showingQuizLearn = false
+    /// A See-also jump, pushed as its own reader so Back returns here.
+    @State private var crossReferenceHop: CrossReferenceHop?
 
     /// The parchment page surface, per the shared account preference.
     private var parchment: Bool { app.settings.parchment }
@@ -121,27 +134,41 @@ struct ChapterReaderView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) { ChapterAudioBar() }
         .task {
             guard !seeded else { return }
-            model.open(order: order, chapter: chapter, verse: verse)
+            model.open(order: order, chapter: chapter, verse: verse, translationOverride: localTranslationOverride)
             seeded = true
         }
+        // The ✎ markers and the Notes tab: the cached notes at once, then a
+        // silent revalidation every time the reader opens.
+        .task { await model.chapterNotes.open() }
         // The chapter *and* the translation are part of the identity of what is
         // on screen, so a translation change reloads through the same path a
         // page turn does.
-        .task(id: chapterKey) {
+        .task(id: "\(isReaderVisible):\(chapterKey)") {
+            guard isReaderVisible else { return }
             await model.load(translation: translation, lcGreek: lcGreek)
+            guard isReaderVisible, !Task.isCancelled else { return }
             await loadAudio()
         }
         // A new chapter or translation under an open sheet: the selection no
         // longer describes what is on screen.
         .onChange(of: chapterKey) { _, _ in sheet.chapterChanged() }
         .onAppear {
+            isReaderVisible = true
             model.reading.setReaderVisible(true)
             model.reading.setForeground(scenePhase == .active)
             model.prepareReading(translation: translation, lcGreek: lcGreek)
         }
-        .onDisappear { model.reading.setReaderVisible(false); app.chapterAudio.close() }
-        .onChange(of: model.loadedKey) { _, _ in model.prepareReading(translation: translation, lcGreek: lcGreek) }
-        .onChange(of: scenePhase) { _, phase in model.reading.setForeground(phase == .active) }
+        .onDisappear {
+            isReaderVisible = false
+            model.reading.setReaderVisible(false)
+            app.chapterAudio.close()
+        }
+        .onChange(of: model.loadedKey) { _, _ in
+            if isReaderVisible { model.prepareReading(translation: translation, lcGreek: lcGreek) }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if isReaderVisible { model.reading.setForeground(phase == .active) }
+        }
         // The peek leaves most of the chapter readable; only the expanded
         // study view covers the text.
         .onChange(of: sheet.obscuresReader) { _, obscured in model.reading.setObscured(obscured) }
@@ -151,14 +178,73 @@ struct ChapterReaderView: View {
                 QuizScreen(model: quiz, actions: quizActions(quiz))
                     .toolbar(.hidden, for: .navigationBar)
                     .toolbar(.hidden, for: .tabBar)
+                    .navigationDestination(isPresented: $showingQuizLearn) { LearnView() }
             }
+        }
+        .navigationDestination(item: $crossReferenceHop) { hop in
+            ChapterReaderView(
+                order: hop.target.order,
+                chapter: hop.target.chapter,
+                verse: hop.target.verse,
+                translation: localTranslationOverride
+            )
+        }
+        // Back from a See-also reader: the shared model followed that reader,
+        // so bring it home to the verse the jump started from.
+        .onChange(of: crossReferenceHop) { previous, hop in
+            guard hop == nil, let previous else { return }
+            model.open(
+                order: previous.source.order,
+                chapter: previous.source.chapter,
+                verse: previous.source.verse,
+                translationOverride: localTranslationOverride
+            )
+            // The popped reader reports itself hidden as it goes; this one is
+            // the reader on screen again.
+            Task { @MainActor in model.reading.setReaderVisible(true) }
         }
         .sheet(isPresented: $showingCustomColor) {
             CustomHighlightSheet(color: Color(hex: selectionHex ?? HighlightColors.presets[0].hex) ?? .yellow) { hex in
                 applyHighlight(hex)
             }
         }
+        .sheet(item: $notePick) { pick in
+            ChatAddToNoteSheet(
+                api: app.api,
+                markdown: pick.markdown,
+                defaultTitle: pick.title,
+                compose: false,
+                onOpenNote: { noteID in
+                    sheet.close()
+                    NotificationCenter.default.post(name: .openNote, object: nil, userInfo: ["noteId": noteID])
+                },
+                onSaved: { _ in Task { await model.chapterNotes.refresh() } }
+            )
+        }
+        .sheet(isPresented: $showingChapterPicker) { chapterPicker }
         .shareCardSheet(item: $shareCard, api: app.api)
+    }
+
+    /// The current book's chapters, the open one marked; a pick pages the
+    /// reader in place, as the dock's arrows do.
+    @ViewBuilder
+    private var chapterPicker: some View {
+        if let book = model.book {
+            NavigationStack {
+                ChapterGridView(book: book, current: model.chapter) { chapter in
+                    showingChapterPicker = false
+                    model.go(to: Bible.Location(order: book.order, chapter: chapter))
+                }
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Cancel") { showingChapterPicker = false }
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
     }
 
     private func loadAudio() async {
@@ -184,6 +270,7 @@ struct ChapterReaderView: View {
                 // chat source's one-hop override and persists.
                 translationChip(id.label, name: id.name, isActive: !lcGreek && translation == id) {
                     localTranslationOverride = nil
+                    model.translationOverride = nil
                     model.lcGreek = false
                     settings.translation = id
                 }
@@ -192,6 +279,7 @@ struct ChapterReaderView: View {
             if LCGreek.has(model.selectedBook ?? order) {
                 translationChip(LCGreek.label, name: LCGreek.label, isActive: lcGreek) {
                     localTranslationOverride = nil
+                    model.translationOverride = nil
                     model.lcGreek = true
                 }
             }
@@ -246,6 +334,26 @@ struct ChapterReaderView: View {
 
     @ToolbarContentBuilder
     private var fontControls: some ToolbarContent {
+        // The title opens the book's chapter grid - Android's dock button.
+        ToolbarItem(placement: .principal) {
+            Button {
+                showingChapterPicker = true
+            } label: {
+                HStack(spacing: 4) {
+                    Text(title)
+                        .appFont(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(theme.text)
+                        .lineLimit(1)
+                    Image(systemName: "chevron.down")
+                        .appFont(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(theme.textMuted)
+                }
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .disabled(model.book == nil)
+            .accessibilityLabel("Choose chapter, \(title)")
+        }
         ToolbarItem(placement: .topBarTrailing) {
             HStack(spacing: Spacing.sm) {
                 Button {
@@ -290,6 +398,14 @@ struct ChapterReaderView: View {
                         app.dailyCross.listen.pause()
                         app.chapterAudio.start()
                     }.labelStyle(.iconOnly)
+                } else if app.chapterAudio.error != nil {
+                    // The chapter's timings could not be fetched: Android's
+                    // refresh button in place of Listen.
+                    Button("Retry chapter narration", systemImage: "arrow.clockwise") {
+                        Task { await app.chapterAudio.retryLoad() }
+                    }
+                    .labelStyle(.iconOnly)
+                    .frame(width: 44, height: 44)
                 }
                 fontButton("A−", size: 12, enabled: model.canShrinkFont) { model.stepFont(-1) }
                 fontButton("A+", size: 15, enabled: model.canGrowFont) { model.stepFont(1) }
@@ -363,6 +479,7 @@ struct ChapterReaderView: View {
         GeometryReader { geometry in
             ScrollViewReader { proxy in
                 ScrollView {
+                    let noted = ChapterNotes.versesWithNotes(chapterNoteMatches)
                     LazyVStack(alignment: .leading, spacing: 0) {
                         if model.readerVerses.first?.headings.isEmpty ?? true {
                             Text(model.reference)
@@ -372,7 +489,7 @@ struct ChapterReaderView: View {
                                 .accessibilityAddTraits(.isHeader)
                         }
                         ForEach(model.readerVerses, id: \.number) { verse in
-                            verseRow(verse)
+                            verseRow(verse, hasNote: noted.contains(verse.number))
                                 .spotlightTarget(.readerVerse, isActive: app.onboarding.spotlightVerse == verse.number)
                                 .id(verse.number)
                                 .onGeometryChange(for: CGRect.self) { proxy in
@@ -423,8 +540,18 @@ struct ChapterReaderView: View {
                     guard verse != nil else { return }
                     scrollToPendingVerse(proxy)
                 }
+                // A drag is the reader looking elsewhere: playback stops
+                // following for a few seconds, as on Android.
+                .onScrollPhaseChange { _, phase in
+                    guard phase == .interacting else { return }
+                    revealGeometry.lastManualScroll = .now
+                    app.chapterAudio.markAction()
+                }
                 .onChange(of: app.chapterAudio.verse) { _, verse in
-                    guard app.chapterAudio.isPlaying, let verse, !sheet.obscuresReader else { return }
+                    guard isReaderVisible, app.chapterAudio.isPlaying, let verse, !sheet.obscuresReader,
+                          model.loadedKey == chapterKey, verse <= model.verses.count,
+                          ChapterAudioFollow.follows(lastManualScroll: revealGeometry.lastManualScroll)
+                    else { return }
                     if reduceMotion { proxy.scrollTo(verse, anchor: .center) }
                     else { withAnimation(.easeOut(duration: 0.25)) { proxy.scrollTo(verse, anchor: .center) } }
                 }
@@ -573,8 +700,19 @@ struct ChapterReaderView: View {
         withAnimation(.easeOut(duration: 0.2)) { model.flash(verse: verse) }
     }
 
+    /// The user's notes that mention this chapter (`ChapterNotesModel`).
+    private var chapterNoteMatches: [MatchedChapterNote] {
+        guard let book = model.book else { return [] }
+        return model.chapterNotes.matches(
+            bookName: book.name,
+            bookAbbr: book.abbr,
+            chapter: model.chapter,
+            verseCount: model.verses.count
+        )
+    }
+
     @ViewBuilder
-    private func verseRow(_ verse: ReaderVerse) -> some View {
+    private func verseRow(_ verse: ReaderVerse, hasNote: Bool) -> some View {
         let number = verse.number
         let selected = (sheet.selection?.includes(number) ?? false) || (app.chapterAudio.isPlaying && app.chapterAudio.verse == number)
         let flashed = model.highlightedVerse == number
@@ -598,7 +736,7 @@ struct ChapterReaderView: View {
             Button {
                 tap(number)
             } label: {
-                Text(attributedVerse(verse, selected: selected, highlightHex: highlightHex))
+                Text(attributedVerse(verse, selected: selected, highlightHex: highlightHex, hasNote: hasNote))
                     .lineSpacing(model.fontSize * appScale * systemScale * 0.6)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 4)
@@ -610,7 +748,7 @@ struct ChapterReaderView: View {
             }
             .buttonStyle(.plain)
             .padding(.bottom, 16)
-            .accessibilityLabel("\(model.verseReference(number)). \(verse.omitted ? "Not included in this edition's main text." : verse.plainText)")
+            .accessibilityLabel("\(model.verseReference(number))\(hasNote ? ", has a study note" : ""). \(verse.omitted ? "Not included in this edition's main text." : verse.plainText)")
             .accessibilityHint(selected ? "Selected. Tap to change the selection." : "Opens the verse sheet")
             .accessibilityAddTraits(selected ? .isSelected : [])
         }
@@ -618,9 +756,10 @@ struct ChapterReaderView: View {
 
     /// Verse number then the formatted segments in one attributed run, so the
     /// number stays inline with the wrapped body and a user highlight washes
-    /// the words themselves, as Android draws it.
-    private func attributedVerse(_ verse: ReaderVerse, selected: Bool, highlightHex: String?) -> AttributedString {
-        var result = AttributedString("\(verse.number)\u{2002}")
+    /// the words themselves, as Android draws it. A ✎ after the number marks a
+    /// verse one of the user's notes mentions.
+    private func attributedVerse(_ verse: ReaderVerse, selected: Bool, highlightHex: String?, hasNote: Bool) -> AttributedString {
+        var result = AttributedString("\(verse.number)\(hasNote ? " ✎" : "")\u{2002}")
         result.font = .system(size: 12 * appScale * systemScale)
         result.foregroundColor = selected ? theme.accent : numberInk
 
@@ -741,13 +880,15 @@ struct ChapterReaderView: View {
             continueTo: { location in
                 closeQuiz()
                 model.go(to: location)
-            }
+            },
+            openLearn: { showingQuizLearn = true }
         )
     }
 
     /// Pop first and drop the quiz once the pop has finished, so the screen
     /// sliding away is not emptied mid-animation.
     private func closeQuiz() {
+        showingQuizLearn = false
         showingQuiz = false
         Task {
             try? await Task.sleep(for: .milliseconds(450))
@@ -824,6 +965,7 @@ struct ChapterReaderView: View {
     private func studyView(context: VerseSheetContext, reference: String, text: String) -> some View {
         @Bindable var sheet = sheet
         let selection = sheet.activeSelection
+        let selectionNotes = ChapterNotes.notesForSelection(chapterNoteMatches, selection: selection)
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text(text)
                 .appFont(.custom(FontFamily.verse, size: 17))
@@ -831,7 +973,7 @@ struct ChapterReaderView: View {
                 .lineLimit(4)
                 .padding(.horizontal, Spacing.lg)
 
-            StudyTabsView(selection: $sheet.studyTab)
+            StudyTabsView(selection: $sheet.studyTab, noteCount: selectionNotes.count)
 
             VStack(alignment: .leading, spacing: Spacing.sm) {
                 // Each study is a model generation, so a range studies its
@@ -869,26 +1011,13 @@ struct ChapterReaderView: View {
                         translation: context.translation,
                         onNavigate: openCrossReference
                     )
+                    ConnectionsMapLink(verse: selection.start) {
+                        sheet.close()
+                        app.openConnections(order: context.order, chapter: context.chapter, verse: selection.start)
+                    }
                 case .notes:
                     VStack(alignment: .leading, spacing: Spacing.sm) {
-                        let matched = ChapterNotes.notesForSelection(
-                            ChapterNotes.matchChapterNotes(
-                                notes: NotesStore.shared.notes.map {
-                                    ChapterNoteSummary(
-                                        id: $0.id,
-                                        title: $0.title,
-                                        plainText: $0.plainText,
-                                        updatedAt: $0.updatedAt
-                                    )
-                                },
-                                context: ChapterNotesContext(
-                                    bookName: context.bookName,
-                                    chapter: context.chapter,
-                                    verseCount: context.plainTexts.count
-                                )
-                            ),
-                            selection: selection
-                        )
+                        let matched = selectionNotes
                         if matched.isEmpty {
                             Text("No study notes mention \(reference) yet.")
                                 .appFont(.system(size: 13))
@@ -922,7 +1051,7 @@ struct ChapterReaderView: View {
                             }
                         }
                         Button {
-                            Task { await saveToNote(context) }
+                            notePick = sheet.notePick(context)
                         } label: {
                             Text("＋ Add \(reference) to a note")
                                 .appFont(.system(size: 13, weight: .semibold))
@@ -973,13 +1102,10 @@ struct ChapterReaderView: View {
                     shareText: share
                 )
             },
-            VerseSheetAction(
-                id: "note",
-                systemImage: "square.and.pencil",
-                label: sheet.saveBusy ? "Saving…" : "Note",
-                disabled: sheet.saveBusy
-            ) {
-                Task { await saveToNote(context) }
+            // New note, or append to one of the user's notes, through the
+            // picker - Android's `onSaveVerse`.
+            VerseSheetAction(id: "note", systemImage: "square.and.pencil", label: "Note") {
+                notePick = sheet.notePick(context)
             },
             VerseSheetAction(
                 id: "learn",
@@ -1015,12 +1141,6 @@ struct ChapterReaderView: View {
         }
     }
 
-    private func saveToNote(_ context: VerseSheetContext) async {
-        guard let noteID = await sheet.saveToNote(api: app.api, context: context) else { return }
-        sheet.close()
-        NotificationCenter.default.post(name: .openNote, object: nil, userInfo: ["noteId": noteID])
-    }
-
     private func addToLearn(_ context: VerseSheetContext, highlighted: Bool) async {
         let api = app.api
         await sheet.addToLearn(context: context, highlighted: highlighted) { body in
@@ -1028,11 +1148,17 @@ struct ChapterReaderView: View {
         }
     }
 
-    /// The sheet is not modal, so a See-also jump can land straight away: the
-    /// reader opens the passage in place and flashes the verse.
+    /// The sheet is not modal, so a See-also jump can land straight away. It
+    /// pushes its own reader, flashed on the verse, so Back returns to the
+    /// verse the jump started from - Android's `router.push`.
     private func openCrossReference(_ target: Reference) {
+        guard let source = model.location else { return }
+        let from = sheet.selection?.start
         sheet.close()
-        model.open(target, translationOverride: localTranslationOverride)
+        crossReferenceHop = CrossReferenceHop(
+            target: target,
+            source: Reference(order: source.order, chapter: source.chapter, verse: from)
+        )
     }
 
     /// Attach the passage to the next question and ask the shell to switch to
@@ -1058,6 +1184,13 @@ struct ChapterReaderView: View {
     }
 }
 
+/// A See-also jump: where it lands, and the verse it left from, which the
+/// reader returns to when the pushed reader is popped.
+private struct CrossReferenceHop: Hashable {
+    let target: Reference
+    let source: Reference
+}
+
 /// Geometry the reveal reads at decision time. A plain class held in `@State`
 /// so writes from scroll and layout callbacks are not view updates.
 private final class RevealGeometry {
@@ -1070,6 +1203,8 @@ private final class RevealGeometry {
     var scrollMinY: CGFloat = 0
     /// The open sheet's settled height; nil while it is closed.
     var sheetHeight: CGFloat?
+    /// When the reader last dragged the chapter, which pauses audio follow.
+    var lastManualScroll = Date.distantPast
 
     func record(_ frame: CGRect, verse: Int, chapter: String?) {
         if chapter != framesChapter {

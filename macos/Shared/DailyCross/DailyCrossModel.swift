@@ -19,6 +19,9 @@ final class DailyCrossModel {
     /// Rises each time a replacement lands, so the screen can scroll back to
     /// the verse (and fire its haptic) for that and only that.
     private(set) var replacedCount = 0
+    /// The local calendar day the entry in hand was fetched on, so a Mac
+    /// left open overnight can tell it is showing yesterday's word.
+    private(set) var loadedDay: String?
 
     /// Today's spoken devotional. Owned here rather than by the card for the
     /// same reason the day is: the pane is destroyed whenever the sidebar
@@ -69,6 +72,7 @@ final class DailyCrossModel {
     func invalidate() {
         task?.cancel()
         entry = nil
+        loadedDay = nil
         error = nil
         isLoading = false
         isReplacing = false
@@ -128,8 +132,37 @@ final class DailyCrossModel {
             listen.reset()
         }
         entry = next
+        loadedDay = Self.dayKey(Date.now)
         listen.reference = next.reference
         listen.begin()
+    }
+
+    /// Fetch again when the day in hand was loaded on an earlier calendar
+    /// day. The Mac's version of Android reloading the open day on resume
+    /// (`today/cross.tsx`): a Mac app becomes active far too often to refetch
+    /// every time, so it refetches only when the date has actually turned.
+    func reloadIfDayChanged(now: Date = .now) {
+        guard Self.isStale(loadedDay: loadedDay, hasEntry: entry != nil, now: now) else { return }
+        load(force: true)
+    }
+
+    /// True when a day is in hand and it was fetched before today. Nothing
+    /// in hand is not stale: the ordinary `load()` covers that.
+    nonisolated static func isStale(
+        loadedDay: String?,
+        hasEntry: Bool,
+        now: Date,
+        calendar: Calendar = .current
+    ) -> Bool {
+        guard hasEntry, let loadedDay else { return false }
+        return loadedDay != dayKey(now, calendar: calendar)
+    }
+
+    /// The local calendar day, as "yyyy-MM-dd". The server's day turns over
+    /// on the reader's clock too, so the local calendar is the right one.
+    nonisolated static func dayKey(_ date: Date, calendar: Calendar = .current) -> String {
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
 
     /// What makes two days the same day: the stored row id, or the reference

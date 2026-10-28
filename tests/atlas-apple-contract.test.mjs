@@ -23,7 +23,9 @@ test("Apple Study owns atlas discovery and both readers retain contextual entry 
 		read("macos/SureWord-iOS/Views/Bible/ChapterReaderView.swift"),
 	]);
 
-	assert.match(studyHome, /Timeline, People & Places/);
+	for (const title of ["Bible timeline", "People of the Bible", "Places & atlas"]) {
+		assert.ok(studyHome.includes(`title: "${title}"`));
+	}
 	assert.match(macStudy, /StudyHome/);
 	assert.match(iosStudy, /StudyHome/);
 	assert.match(macReader, /Who's in this chapter/);

@@ -42,22 +42,21 @@ struct TodayTabView: View {
     }
 }
 
-private enum StudyDestination: Hashable { case notes, atlas, sermons, words }
-
 struct StudyTabView: View {
     @Environment(AppModel.self) private var app
-    @State private var path: [StudyDestination] = []
+    @State private var path: [StudyHubDestination] = []
     var body: some View {
         NavigationStack(path: $path) {
-            StudyHome(onNotes: { path.append(.notes) }, onAtlas: { path.append(.atlas) },
-                      onSermons: { path.append(.sermons) }, onWords: { path.append(.words) })
+            StudyHome(onOpen: { path.append($0) })
                 .spotlightTarget(.tabStudy)
                 .spotlightHost()
                 .settingsGearToolbar(help: .study)
-                .navigationDestination(for: StudyDestination.self) { destination in
+                .navigationDestination(for: StudyHubDestination.self) { destination in
                     switch destination {
                     case .notes: NotesTabView().analyticsScreen(AnalyticsScreen.notes)
-                    case .atlas: AtlasExplorerView(model: app.atlas).analyticsScreen(AnalyticsScreen.timeline)
+                    case .timeline, .people, .places:
+                        AtlasExplorerView(model: app.atlas, mode: AtlasExplorerMode(study: destination) ?? .timeline)
+                            .analyticsScreen(AnalyticsScreen.timeline)
                     case .sermons: SermonStudiesView().analyticsScreen(AnalyticsScreen.sermons)
                     case .words: OriginalLanguagesHome()
                     }
@@ -68,6 +67,13 @@ struct StudyTabView: View {
             // A receipt always opens Notes inside Study, even when another
             // Study tool is currently pushed.
             path = [.notes]
+        }
+        // What's new "Try it" and Today's notes link: the page on top of the
+        // hub, whatever was pushed before, so Back lands on Study.
+        .onChange(of: app.pendingStudyDestination, initial: true) { _, pending in
+            guard let pending else { return }
+            path = [pending]
+            app.pendingStudyDestination = nil
         }
         // Walk with me lights a Study row: back to the root first.
         .onChange(of: app.onboarding.pendingRootReset.contains(.study), initial: true) { _, pending in

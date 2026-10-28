@@ -17,6 +17,9 @@ struct QuizActions {
     var ask: (_ prompt: String, _ reference: String, _ verseText: String) -> Void
     var openNote: (_ noteID: String) -> Void
     var continueTo: (_ location: Bible.Location) -> Void
+    /// Learn a verse, from a Missed card's "Open Learn" once the verse is
+    /// added (Android pushes `/today/learn`).
+    var openLearn: () -> Void
 }
 
 // MARK: - Styles
@@ -800,7 +803,8 @@ private struct QuizMissedCard: View {
                         verse: verse,
                         translation: TranslationID.kjv.rawValue,
                         source: .quiz,
-                        accessibilityName: "Learn \(question.reference)"
+                        accessibilityName: "Learn \(question.reference)",
+                        onOpenLearn: actions.openLearn
                     )
                 }
                 Button("Ask about it") {

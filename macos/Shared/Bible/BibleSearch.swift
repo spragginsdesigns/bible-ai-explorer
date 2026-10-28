@@ -34,7 +34,9 @@ struct BibleSearch: Sendable {
     var fetch: Fetch = { try await URLSession.shared.data(for: $0) }
 
     /// `searchBible`: KJV stays available offline; a miss checks the other
-    /// supported wording (NKJV for KJV, KJV for everything else).
+    /// supported wording (NKJV for KJV, KJV for the other English Bibles). A
+    /// Spanish or German search has no other Bible in its language to try, so
+    /// its miss stays a miss.
     func search(_ query: String, translation: TranslationID, limit: Int = defaultLimit) async throws -> BibleSearchResult {
         let normalized = query
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -44,6 +46,7 @@ struct BibleSearch: Sendable {
         let cap = max(1, min(Self.defaultLimit, limit))
         let hits = try await searchTranslation(normalized, translation: translation, limit: cap)
         if !hits.isEmpty { return BibleSearchResult(hits: hits, translation: translation) }
+        guard Self.checksAlternate(translation) else { return BibleSearchResult(hits: hits, translation: translation) }
         let alternate = Self.alternate(for: translation)
         return BibleSearchResult(
             hits: try await searchTranslation(normalized, translation: alternate, limit: cap),
@@ -53,6 +56,11 @@ struct BibleSearch: Sendable {
 
     static func alternate(for translation: TranslationID) -> TranslationID {
         translation == .kjv ? .nkjv : .kjv
+    }
+
+    /// Only an English Bible falls back to another wording on a miss.
+    static func checksAlternate(_ translation: TranslationID) -> Bool {
+        translation.language == .en
     }
 
     func searchTranslation(_ query: String, translation: TranslationID, limit: Int) async throws -> [BibleSearchHit] {
@@ -238,9 +246,11 @@ final class BibleSearchModel {
         guard !searched.isEmpty else { return nil }
         var line: String
         if hits.isEmpty {
-            line = referenceJump == nil
-                ? "No phrase matches in KJV or NKJV. Try fewer words or a reference like Job 1:8."
-                : ""
+            line = referenceJump != nil
+                ? ""
+                : BibleSearch.checksAlternate(translation)
+                    ? "No phrase matches in KJV or NKJV. Try fewer words or a reference like Job 1:8."
+                    : "No phrase matches in \(translation.rawValue). Try fewer words or a reference like Job 1:8."
         } else if hits.count >= BibleSearch.defaultLimit {
             line = "First \(BibleSearch.defaultLimit) results. Refine your search."
         } else {
@@ -252,9 +262,13 @@ final class BibleSearchModel {
         return line.isEmpty ? nil : line
     }
 
-    /// Shown before any search has run.
+    /// Shown before any search has run. A Spanish or German Bible has no
+    /// fallback to mention; its search ignores accents instead.
     func hint(account: TranslationID) -> String {
         let translation = translation(account: account)
+        guard BibleSearch.checksAlternate(translation) else {
+            return "Search \(translation.rawValue) by word or phrase. Accents are optional."
+        }
         let other = BibleSearch.alternate(for: translation)
         return "Search \(translation.rawValue) by word or phrase. If there are no matches, we check \(other.rawValue) too. NKJV requires a connection."
     }

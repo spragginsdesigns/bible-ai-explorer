@@ -124,10 +124,7 @@ struct AppearanceSettingsPage: View {
                     }
                 }
                 .pickerStyle(.menu)
-                SettingsHint(
-                    "Used by the Bible reader and verse attachments. \(settings.translation.copyright). "
-                        + "SureWord's AI answers use the translation you select."
-                )
+                SettingsHint(settings.translation.settingsHint)
             }
 
 

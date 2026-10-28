@@ -87,6 +87,11 @@ final class BibleModel {
     /// It streams through `insight` above.
     let sheet: VerseSheetModel
 
+    /// The user's notes that mention the chapter on screen: the ✎ markers and
+    /// the sheet's Notes tab. Shared by both readers, so a revalidation in one
+    /// is not repeated cold by the other.
+    let chapterNotes: ChapterNotesModel
+
     /// The reading plan the user is following, and every action the plan pane
     /// takes on it. It hangs off the reader rather than off `AppModel` because
     /// the plan *is* Bible-section state - the sidebar card and the plan pane
@@ -110,7 +115,6 @@ final class BibleModel {
     /// throwaway suite: under `TEST_HOST` `.standard` *is* the shipping app's
     /// domain, and a test run must not rewrite the reader's real type size.
     private let defaults: UserDefaults
-    private var saveTask: Task<Void, Never>?
     private var toastTask: Task<Void, Never>?
     private var flashTask: Task<Void, Never>?
     let reading: ReadingJournal
@@ -122,6 +126,7 @@ final class BibleModel {
         let insight = VerseInsightModel(api: api)
         self.insight = insight
         sheet = VerseSheetModel(insight: insight)
+        chapterNotes = ChapterNotesModel(api: api)
         plan = ReadingPlanModel(api: api)
         search = BibleSearchModel()
         lcGreekText = LCGreekProvider { [api] path in try await api.data(path) }
@@ -351,28 +356,6 @@ final class BibleModel {
         VerseActions.copy(reference: reference, text: text, translation: translation, label: label)
         show(toast: "Copied \(reference)")
         dismissVerseActions()
-    }
-
-    func saveToNote(reference: String, text: String, translation: TranslationID, label: String? = nil) {
-        saveTask?.cancel()
-        saveTask = Task { [api] in
-            do {
-                try await VerseActions.saveToNote(
-                    api: api,
-                    reference: reference,
-                    text: text,
-                    translation: translation,
-                    label: label
-                )
-                show(toast: "Saved \(reference) to your notes")
-                dismissVerseActions()
-            } catch {
-                show(
-                    toast: (error as? APIError)?.message
-                        ?? "The note could not be saved. Check your connection and try again."
-                )
-            }
-        }
     }
 
     func show(toast message: String) {

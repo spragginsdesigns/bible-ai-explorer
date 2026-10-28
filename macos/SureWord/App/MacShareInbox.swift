@@ -42,18 +42,21 @@ struct MacSharedItems: Equatable, Sendable {
 /// window and a drop on the Dock icon (or Open With) all write one share into
 /// the same inbox the iOS share extension writes (`ShareInbox/`): the text and
 /// the link in the manifest, the files copied in under their caps by
-/// `PendingShareCopy`. The signed-in window then opens it exactly as iOS does
-/// (`ShareInboxIntake`, then `ChatViewModel.startSharedChat`): a new chat with
-/// the text in the composer, the files attached, and Check against Scripture
-/// and Help me reply. The share is on disk, so one made signed out waits
-/// through sign-in, as on Android.
+/// `PendingShareCopy`. The Share menu's SureWord extension
+/// (`SureWord-macOS-Share`) writes the same kind of share into the App Group
+/// container. The signed-in window then opens the newest of them exactly as
+/// iOS does (`ShareInboxIntake`, then `ChatViewModel.startSharedChat`): a new
+/// chat with the text in the composer, the files attached, and Check against
+/// Scripture and Help me reply. The share is on disk, so one made signed out
+/// waits through sign-in, as on Android.
 @MainActor
 final class MacShareInbox {
-    static let shared = MacShareInbox(store: MacShareInbox.defaultStore())
+    static let shared = MacShareInbox(store: MacShareInbox.defaultStore(), extensionStore: .appGroup())
 
     /// `<Application Support>/SureWord/PendingShares`, beside the app's other
-    /// files. Not the App Group container: the Mac app is not sandboxed, has
-    /// no App Group entitlement, and has no extension to share it with.
+    /// files, for what the app receives itself. Not the App Group container:
+    /// the app writes this one in every build, signed or not, and only the
+    /// extension needs the group.
     nonisolated static func defaultStore() -> PendingShareStore? {
         guard let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
         else { return nil }
@@ -61,6 +64,9 @@ final class MacShareInbox {
     }
 
     let store: PendingShareStore?
+    /// The Share extension's inbox in the App Group container; nil in a build
+    /// whose signature does not carry the group (`PendingShareStore.appGroup`).
+    let extensionStore: PendingShareStore?
     /// How long files opened together are gathered into one share.
     private let gatherDelay: Duration
     private var openedFiles: [URL] = []
@@ -73,9 +79,33 @@ final class MacShareInbox {
     /// window, so two windows never both open the same share.
     private var isTaking = false
 
-    init(store: PendingShareStore?, gatherDelay: Duration = .milliseconds(300)) {
+    init(
+        store: PendingShareStore?,
+        extensionStore: PendingShareStore? = nil,
+        gatherDelay: Duration = .milliseconds(300)
+    ) {
         self.store = store
+        self.extensionStore = extensionStore
         self.gatherDelay = gatherDelay
+        guard extensionStore != nil else { return }
+        // The extension saves, then opens `sureword://share` with this app,
+        // which brings it forward: coming forward is when to look, whether
+        // the app was already running or that URL just launched it (the
+        // window looks on appearing too).
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.extensionShareArrived() }
+        }
+    }
+
+    /// `sureword://share`, the extension's "look in the inbox now". It never
+    /// carries the share itself, and the window opens whatever is waiting.
+    func extensionShareArrived() {
+        guard extensionStore?.hasPending == true else { return }
+        NotificationCenter.default.post(name: .pendingShareArrived, object: nil)
     }
 
     /// Save one share, then tell the window and bring SureWord forward. The
@@ -120,14 +150,16 @@ final class MacShareInbox {
     }
 
     /// The waiting share as a chat draft, or nil when there is none (or it is
-    /// already being opened). The read, up to five files, runs off the main
-    /// actor; taking it empties the inbox.
+    /// already being opened). The newest of the app's own inbox and the Share
+    /// extension's wins; taking empties both. The read, up to five files, runs
+    /// off the main actor.
     func takeDraft() async -> SharedChatDraft? {
-        guard !isTaking, let store, store.hasPending else { return nil }
+        let stores = [store, extensionStore].compactMap { $0 }.filter(\.hasPending)
+        guard !isTaking, !stores.isEmpty else { return nil }
         isTaking = true
         defer { isTaking = false }
         return await Task.detached(priority: .userInitiated) {
-            ShareInboxIntake.takeDraft(from: store)
+            PendingShareStore.takeNewest(from: stores).map(ShareInboxIntake.draft(for:))
         }.value
     }
 

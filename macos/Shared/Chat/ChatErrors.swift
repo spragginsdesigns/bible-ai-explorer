@@ -161,6 +161,16 @@ enum ChatErrors {
         override: String? = nil
     ) -> ClassifiedChatError {
         let copy = Self.copy[code] ?? Self.copy[.internal]!
+        if code == .rateLimited, looksFriendly(serverMessage), let serverMessage {
+            let message = localizeTimestamps(serverMessage.trimmingCharacters(in: .whitespacesAndNewlines))
+            let allowance = message.range(of: "included AI allowance|free messages", options: [.regularExpression, .caseInsensitive]) != nil
+            return ClassifiedChatError(
+                code: code,
+                title: allowance ? "You've used today's messages" : copy.title,
+                message: override ?? message,
+                retryable: copy.retryable
+            )
+        }
         let message: String
         if let override {
             message = override
@@ -170,6 +180,37 @@ enum ChatErrors {
             message = copy.message
         }
         return ClassifiedChatError(code: code, title: copy.title, message: message, retryable: copy.retryable)
+    }
+
+    /// The server cannot know the device's time zone. Match Android/web's
+    /// readable local reset time, leaving malformed dates untouched.
+    static func localizeTimestamps(_ text: String, locale: Locale = .current, timeZone: TimeZone = .current) -> String {
+        let pattern = #"\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})\b"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return text }
+        let parser = ISO8601DateFormatter()
+        let display = DateFormatter()
+        display.locale = locale
+        display.timeZone = timeZone
+        display.setLocalizedDateFormatFromTemplate("EEEjm")
+        let result = NSMutableString(string: text)
+        for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
+            guard let range = Range(match.range, in: text) else { continue }
+            var iso = String(text[range])
+            // Foundation's ISO parser requires seconds; JavaScript accepts
+            // the minute-only form included in the shared timestamp pattern.
+            if iso.range(of: #"T\d{2}:\d{2}(?:Z|[+-])"#, options: .regularExpression) != nil {
+                let offset = iso.index(iso.startIndex, offsetBy: 16)
+                iso.insert(contentsOf: ":00", at: offset)
+            }
+            parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            var date = parser.date(from: iso)
+            if date == nil {
+                parser.formatOptions = [.withInternetDateTime]
+                date = parser.date(from: iso)
+            }
+            if let date { result.replaceCharacters(in: match.range, with: display.string(from: date)) }
+        }
+        return result as String
     }
 
     /// Classify anything the chat pipeline can throw. Order follows the shared

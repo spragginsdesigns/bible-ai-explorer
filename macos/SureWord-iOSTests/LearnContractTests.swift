@@ -88,9 +88,9 @@ final class LearnContractTests: XCTestCase {
         XCTAssertEqual(unavailable.textUnavailable, true)
     }
 
-    func testAcceptsCardsKeptInTheSpanishAndGermanBibles() throws {
+    func testAcceptsCardsKeptInASVSpanishAndGermanBibles() throws {
         XCTAssertEqual(LearnTranslations.all, ["KJV", "NKJV", "BSB", "ASV", "RV1909", "LUT1912"])
-        for translation in ["RV1909", "LUT1912"] {
+        for translation in ["ASV", "RV1909", "LUT1912"] {
             let card = try decode(LearnCard.self, json(Self.card(translation: translation)))
             XCTAssertEqual(card.translation, translation)
         }

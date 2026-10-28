@@ -2,7 +2,8 @@ import SwiftUI
 
 /// Desktop Timeline / People / Places explorer. The data and request
 /// cancellation live in AtlasModel; this view only composes the native list
-/// and detail panes around that shared state.
+/// and detail panes around that shared state. Wording, dates and prompts come
+/// from `AtlasPresentation`, the same port of Android's `atlasView.ts` iOS uses.
 struct AtlasExplorerPane: View {
     @Environment(\.theme) private var theme
     @Environment(AppModel.self) private var app
@@ -14,12 +15,37 @@ struct AtlasExplorerPane: View {
     // memberwise initializer, which is what BibleSection uses to pass these.
     var scopedBook: Int? = nil
     var scopedChapter: Int? = nil
+    /// The view it opens on: Study's Bible timeline, People of the Bible and
+    /// Places & atlas rows each open their own, as Android's `?mode=` does.
+    var initialMode: AtlasExplorerMode = .timeline
+    /// Where the back button returns: the Bible, or Study when opened there.
+    var backTitle: String = "Bible"
 
     @State private var mode: AtlasExplorerMode = .timeline
     @State private var expandedRelationID: String?
     @State private var traceExpanded = false
     @State private var traceQuery = ""
     @State private var traceTargetID: String?
+    /// The person the rail is filtered to, by name, while a journey shows.
+    @State private var journeyName: String?
+    @State private var history = AtlasDetailHistory()
+    /// The scope this pane last started for, so a return to the same pane
+    /// keeps the reader's mode and filters.
+    @State private var startedKey: String?
+
+    private var scopeKey: String { "\(scopedBook ?? 0):\(scopedChapter ?? 0)" }
+
+    /// A validated chapter scope, as Android's `chapterScope`.
+    private var chapterScope: (name: String, chapter: Int)? {
+        guard let scopedBook, let scopedChapter, let book = Bible.book(order: scopedBook),
+              scopedChapter >= 1, scopedChapter <= book.chapters
+        else { return nil }
+        return (book.name, scopedChapter)
+    }
+
+    private var isSearching: Bool {
+        !model.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -31,13 +57,7 @@ struct AtlasExplorerPane: View {
             detailPane
                 .frame(minWidth: 340, idealWidth: 410, maxWidth: 480)
         }
-        .task {
-            if let scopedBook {
-                model.loadTimeline(book: scopedBook, chapter: scopedChapter)
-            } else {
-                model.loadTimeline()
-            }
-        }
+        .task(id: scopeKey) { start() }
         .onChange(of: model.selectedEntityID) { _, _ in
             expandedRelationID = nil
             traceExpanded = false
@@ -66,14 +86,14 @@ struct AtlasExplorerPane: View {
             header
             searchField
 
-            if mode != .places && model.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if mode != .places && chapterScope == nil && !isSearching {
                 eraScroller
             }
 
-            if model.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                modeContent
-            } else {
+            if isSearching {
                 searchContent
+            } else {
+                modeContent
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -82,16 +102,17 @@ struct AtlasExplorerPane: View {
     private var header: some View {
         HStack(spacing: Spacing.md) {
             Button(action: onDismiss) {
-                Label("Bible", systemImage: "chevron.left")
+                Label(backTitle, systemImage: "chevron.left")
                     .appFont(.system(size: 12, weight: .semibold))
                     .foregroundStyle(theme.accent)
             }
             .buttonStyle(SubtleButtonStyle())
-            .help("Back to Bible")
+            .help("Back to \(backTitle)")
 
-            Text("Timeline, People & Places")
+            Text(AtlasExplorerMode.title(mode: mode, chapterScope: chapterScope))
                 .appFont(.custom(FontFamily.brand, size: 24))
                 .foregroundStyle(theme.text)
+                .lineLimit(1)
 
             Spacer()
         }
@@ -115,6 +136,7 @@ struct AtlasExplorerPane: View {
             .textFieldStyle(.plain)
             .appFont(.system(size: 13))
             .foregroundStyle(theme.text)
+            .accessibilityLabel("Search the Bible atlas")
 
             if !model.searchQuery.isEmpty {
                 Button {
@@ -144,8 +166,10 @@ struct AtlasExplorerPane: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: Spacing.xs) {
                 eraButton(nil, title: "All")
-                ForEach(model.allEras) { era in
-                    eraButton(era, title: shortEra(era))
+                // Static, like Android's ATLAS_ERAS: the chips render before
+                // (and without) a timeline response.
+                ForEach(AtlasPresentation.eraChips()) { chip in
+                    eraButton(chip.era, title: chip.label)
                 }
             }
             .padding(.horizontal, Spacing.xl)
@@ -156,18 +180,20 @@ struct AtlasExplorerPane: View {
     private func eraButton(_ era: AtlasEra?, title: String) -> some View {
         let active = model.selectedEra == era
         return Button {
+            // Android: tapping the active era clears it back to All.
+            let next = era == nil || active ? nil : era
             switch mode {
             case .timeline:
-                model.selectedEra = era
+                model.selectedEra = next
                 model.loadTimeline(
-                    era: era,
+                    era: next,
                     book: scopedBook,
                     chapter: scopedChapter,
                     personID: model.journeyPersonID
                 )
             case .people:
-                model.selectedEra = era
-                model.loadEntities(kind: .person, era: era)
+                model.selectedEra = next
+                model.loadEntities(kind: .person, era: next, limit: 100, allPages: true)
             case .places:
                 // Places have no era dimension.
                 break
@@ -184,14 +210,18 @@ struct AtlasExplorerPane: View {
                 }
         }
         .buttonStyle(.plain)
-        .help(title)
+        .help(era?.rawValue ?? "All eras")
+        .accessibilityLabel(era?.rawValue ?? "All eras")
+        .accessibilityAddTraits(active ? .isSelected : [])
     }
 
     private var modePicker: some View {
         // An explicit closure, not `set: setMode`: partially applying the
         // @MainActor method here makes the Swift 6.2 compiler (Xcode 26.6)
         // crash in IRGen on the reabstraction thunk.
-        Picker("Atlas view", selection: Binding(get: { mode }, set: { setMode($0) })) {
+        Picker("Atlas view", selection: Binding(get: { mode }, set: { next in
+            if next != mode { setMode(next) }
+        })) {
             ForEach(AtlasExplorerMode.allCases) { item in
                 Text(item.title).tag(item)
             }
@@ -219,7 +249,13 @@ struct AtlasExplorerPane: View {
     }
 
     private var timelineContent: some View {
-        Group {
+        LazyVStack(alignment: .leading, spacing: 0) {
+            if let scope = chapterScope {
+                chapterHeader(scope)
+            }
+            if model.journeyPersonID != nil, let journeyName {
+                journeyBar(journeyName)
+            }
             switch model.timelineState {
             case .idle, .loading:
                 atlasLoading("Opening the timeline…")
@@ -233,64 +269,114 @@ struct AtlasExplorerPane: View {
                     )
                 }
             case .empty:
-                atlasEmpty("No events match this timeline filter.")
+                atlasEmpty(AtlasPresentation.emptyTimelineMessage(
+                    book: chapterScope?.name,
+                    chapter: chapterScope?.chapter
+                ))
+                chronologyNote
             case .loaded:
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    if scopedBook != nil, !scopedEntities.isEmpty {
-                        Text("WHO'S IN THIS CHAPTER")
-                            .appFont(.system(size: 10, weight: .bold))
-                            .kerning(1.1)
-                            .foregroundStyle(theme.accent)
-                            .padding(.bottom, Spacing.sm)
-                        LazyVGrid(
-                            columns: [GridItem(.adaptive(minimum: 120), alignment: .leading)],
-                            alignment: .leading,
-                            spacing: Spacing.xs
-                        ) {
-                            ForEach(scopedEntities) { entity in
-                                Button {
-                                    model.loadEntity(entity.id)
-                                } label: {
-                                    entityChip(entity)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.bottom, Spacing.md)
-                    }
-                    if let journey = model.journeyPersonID {
-                        Text("Journey · \(journey)")
-                            .appFont(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(theme.accent)
-                            .padding(.bottom, Spacing.sm)
-                    }
-                    ForEach(model.timelineGroups) { group in
-                        Text(group.era.rawValue)
-                            .appFont(.system(size: 10, weight: .bold))
-                            .kerning(1.1)
-                            .foregroundStyle(theme.textMuted)
-                            .padding(.top, Spacing.md)
-                            .padding(.bottom, Spacing.sm)
+                ForEach(model.timelineGroups) { group in
+                    Text(group.era.rawValue.uppercased())
+                        .appFont(.system(size: 10, weight: .bold))
+                        .kerning(1.1)
+                        .foregroundStyle(theme.textMuted)
+                        .padding(.top, Spacing.md)
+                        .padding(.bottom, Spacing.sm)
 
-                        ForEach(Array(group.events.enumerated()), id: \.element.id) { index, event in
-                            eventRow(event, isLast: index == group.events.count - 1)
-                        }
+                    ForEach(Array(group.events.enumerated()), id: \.element.id) { index, event in
+                        eventRow(event, isLast: index == group.events.count - 1)
                     }
-                    Text("Dates follow the traditional Ussher chronology carried in the margins of the King James Bible; they are not part of the inspired text.")
-                        .appFont(.system(size: 10))
-                        .foregroundStyle(theme.textGhost)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, Spacing.lg)
                 }
-                .padding(.horizontal, Spacing.xl)
-                .padding(.bottom, Spacing.xl)
+                chronologyNote
             }
         }
+        .padding(.horizontal, Spacing.xl)
+        .padding(.bottom, Spacing.xl)
+    }
+
+    /// "Who's in this chapter": the chapter's people and places from the
+    /// atlas's own references, not only the people of its events.
+    @ViewBuilder private func chapterHeader(_ scope: (name: String, chapter: Int)) -> some View {
+        Text("WHO'S IN THIS CHAPTER")
+            .appFont(.system(size: 10, weight: .bold))
+            .kerning(1.1)
+            .foregroundStyle(theme.accent)
+            .padding(.bottom, Spacing.sm)
+        let current = model.chapterBook == scopedBook && model.chapterNumber == scopedChapter
+        switch current ? model.chapterState : .loading {
+        case .idle, .loading:
+            ProgressView().controlSize(.small).frame(maxWidth: .infinity, minHeight: 36)
+        case .failed(let message):
+            atlasError(message) {
+                if let scopedBook, let scopedChapter { model.loadChapter(book: scopedBook, chapter: scopedChapter) }
+            }
+        case .empty:
+            Text(AtlasPresentation.emptyChapterMessage(book: scope.name, chapter: scope.chapter))
+                .appFont(.system(size: 12))
+                .foregroundStyle(theme.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, Spacing.md)
+        case .loaded:
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 120), alignment: .leading)],
+                alignment: .leading,
+                spacing: Spacing.xs
+            ) {
+                ForEach(model.chapterView?.entities ?? []) { entity in
+                    Button {
+                        openDetail(.entity(entity.id), fromDetail: false)
+                    } label: {
+                        entityChip(entity)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.bottom, Spacing.md)
+        }
+    }
+
+    /// The rail is one person's journey: say whose, and offer the way out.
+    private func journeyBar(_ name: String) -> some View {
+        HStack(spacing: Spacing.sm) {
+            Text("Journey · \(name)")
+                .appFont(.system(size: 11, weight: .semibold))
+                .foregroundStyle(theme.accent)
+            Spacer(minLength: Spacing.sm)
+            Button {
+                clearJourney()
+            } label: {
+                Label("Show all events", systemImage: "xmark.circle.fill")
+                    .appFont(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(theme.textMuted)
+            }
+            .buttonStyle(.plain)
+            .help("Show the whole timeline")
+        }
+        .padding(.horizontal, Spacing.sm)
+        .padding(.vertical, Spacing.xs)
+        .background(theme.accentSoft, in: .capsule)
+        .overlay { Capsule().strokeBorder(theme.accentBorder, lineWidth: 1) }
+        .padding(.bottom, Spacing.sm)
+    }
+
+    private var chronologyNote: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            Text(AtlasPresentation.chronologyLabel)
+                .appFont(.system(size: 10, weight: .bold))
+                .kerning(1.1)
+                .foregroundStyle(theme.textMuted)
+            Text(AtlasPresentation.ussherNote)
+                .appFont(.system(size: 10))
+                .foregroundStyle(theme.textGhost)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.top, Spacing.lg)
+        .accessibilityElement(children: .combine)
     }
 
     private func eventRow(_ event: AtlasEventView, isLast: Bool) -> some View {
         Button {
-            model.loadEvent(event.id)
+            openDetail(.event(event.id), fromDetail: false)
         } label: {
             HStack(alignment: .top, spacing: Spacing.md) {
                 VStack(spacing: 0) {
@@ -303,14 +389,18 @@ struct AtlasExplorerPane: View {
                     if !isLast {
                         Rectangle()
                             .fill(theme.accentBorder)
-                            .frame(width: 1, height: 52)
+                            .frame(width: 1)
+                            .frame(minHeight: 52, maxHeight: .infinity)
                     }
                 }
 
                 VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Text(atlasDateLabel(event))
+                    Text(AtlasPresentation.eventDateLabel(event))
                         .appFont(.system(size: 10, weight: .bold))
                         .foregroundStyle(theme.accent)
+                    Text(AtlasPresentation.eventDateProvenanceLabel(event))
+                        .appFont(.system(size: 10))
+                        .foregroundStyle(theme.textGhost)
                     Text(event.title)
                         .appFont(.system(size: 14, weight: .semibold))
                         .foregroundStyle(theme.text)
@@ -320,6 +410,12 @@ struct AtlasExplorerPane: View {
                         .foregroundStyle(theme.textMuted)
                         .lineLimit(3)
                         .multilineTextAlignment(.leading)
+                    if !event.refs.isEmpty {
+                        Text(event.refs.joined(separator: " · "))
+                            .appFont(.system(size: 10.5))
+                            .foregroundStyle(theme.textGhost)
+                            .multilineTextAlignment(.leading)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -332,7 +428,7 @@ struct AtlasExplorerPane: View {
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Open event \(event.title), \(atlasDateLabel(event))")
+        .accessibilityLabel("Open event \(event.title), \(AtlasPresentation.eventDateLabel(event))")
     }
 
     private func entityList(kind: AtlasEntityKind) -> some View {
@@ -346,13 +442,13 @@ struct AtlasExplorerPane: View {
             case .idle, .loading:
                 atlasLoading("Opening \(noun)…")
             case .failed(let message):
-                atlasError(message) { model.loadEntities(kind: kind, era: kind == .person ? model.selectedEra : nil) }
+                atlasError(message) { model.reloadEntities(kind: kind) }
             case .empty:
-                atlasEmpty("No \(noun) match this filter.")
+                atlasEmpty(AtlasPresentation.emptyDirectoryMessage(kind))
             case .loaded:
                 LazyVStack(spacing: Spacing.xs) {
                     ForEach(entities) { entity in
-                        Button { model.loadEntity(entity.id) } label: {
+                        Button { openDetail(.entity(entity.id), fromDetail: false) } label: {
                             HStack(spacing: Spacing.md) {
                                 Image(systemName: kind == .person ? "person" : "mappin.and.ellipse")
                                     .foregroundStyle(theme.accent)
@@ -363,8 +459,18 @@ struct AtlasExplorerPane: View {
                                     if let disambiguator = entity.disambiguator {
                                         Text(disambiguator)
                                             .appFont(.system(size: 10))
-                                            .foregroundStyle(theme.textMuted)
+                                            .foregroundStyle(theme.accent)
                                     }
+                                    if !entity.description.isEmpty {
+                                        Text(entity.description)
+                                            .appFont(.system(size: 11))
+                                            .foregroundStyle(theme.textMuted)
+                                            .lineLimit(2)
+                                            .multilineTextAlignment(.leading)
+                                    }
+                                    Text(AtlasPresentation.entityRowMeta(entity))
+                                        .appFont(.system(size: 10))
+                                        .foregroundStyle(theme.textGhost)
                                 }
                                 Spacer()
                                 Image(systemName: "chevron.right")
@@ -378,14 +484,16 @@ struct AtlasExplorerPane: View {
                             .contentShape(.rect(cornerRadius: Radius.md))
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel(entity.disambiguator.map { "\(entity.name), \($0)" } ?? entity.name)
+                        .accessibilityLabel(
+                            "\(entity.name)\(entity.disambiguator.map { ", \($0)" } ?? ""), \(kind == .person ? "person" : "place")"
+                        )
                     }
+                    // Directories load every page, as Android's do; this only
+                    // appears if a later page failed to arrive.
                     if cursor != nil {
-                        Button("Load more") {
-                            model.loadEntities(kind: kind, era: kind == .person ? model.selectedEra : nil, cursor: cursor)
-                        }
-                        .buttonStyle(AccentButtonStyle())
-                        .padding(.top, Spacing.sm)
+                        Button("Load more") { model.loadMoreEntities(kind: kind) }
+                            .buttonStyle(AccentButtonStyle())
+                            .padding(.top, Spacing.sm)
                     }
                 }
                 .padding(.horizontal, Spacing.xl)
@@ -394,45 +502,54 @@ struct AtlasExplorerPane: View {
         }
         .onAppear {
             if state == .idle {
-                model.loadEntities(kind: kind, era: kind == .person ? model.selectedEra : nil)
+                model.loadEntities(kind: kind, era: kind == .person ? model.selectedEra : nil, limit: 100, allPages: true)
             }
         }
     }
 
     private var searchContent: some View {
         ScrollView {
-            switch model.searchState {
-            case .idle, .loading:
-                atlasLoading("Searching the atlas…")
-            case .failed(let message):
-                atlasError(message) { model.search(model.searchQuery) }
-            case .empty:
-                atlasEmpty("Nothing in the atlas matches that search.")
-            case .loaded:
-                LazyVStack(alignment: .leading, spacing: Spacing.lg) {
-                    searchGroup("People", count: model.searchCounts.person, hits: model.searchResults.filter { $0.kind == .person })
-                    searchGroup("Places", count: model.searchCounts.place, hits: model.searchResults.filter { $0.kind == .place })
-                    searchGroup("Events", count: model.searchCounts.event, hits: model.searchResults.filter { $0.kind == .event })
+            Group {
+                switch model.searchState {
+                case .idle:
+                    atlasLoading("Searching the atlas…")
+                case .loading where model.searchResults.isEmpty:
+                    // A refining query keeps the previous results visible.
+                    atlasLoading("Searching the atlas…")
+                case .failed(let message):
+                    atlasError(message) { model.search(model.searchQuery) }
+                case .empty:
+                    atlasEmpty("Nothing in the atlas matches that search.")
+                default:
+                    LazyVStack(alignment: .leading, spacing: Spacing.lg) {
+                        Text(AtlasPresentation.searchSummary(shown: model.searchResults.count, counts: model.searchCounts))
+                            .appFont(.system(size: 11))
+                            .foregroundStyle(theme.textFaint)
+                        searchGroup(.person, count: model.searchCounts.person)
+                        searchGroup(.place, count: model.searchCounts.place)
+                        searchGroup(.event, count: model.searchCounts.event)
+                    }
                 }
-                .padding(.horizontal, Spacing.xl)
-                .padding(.bottom, Spacing.xl)
             }
+            .padding(.horizontal, Spacing.xl)
+            .padding(.bottom, Spacing.xl)
         }
     }
 
-    private func searchGroup(_ title: String, count: Int, hits: [AtlasSearchHit]) -> some View {
-        Group {
+    private func searchGroup(_ kind: AtlasHitKind, count: Int) -> some View {
+        let hits = model.searchResults.filter { $0.kind == kind }
+        return Group {
             if !hits.isEmpty {
                 VStack(alignment: .leading, spacing: Spacing.xs) {
-                    Text("\(title) · \(count)")
+                    Text("\(AtlasPresentation.hitSectionLabel(kind)) (\(count))".uppercased())
                         .appFont(.system(size: 10, weight: .bold))
                         .kerning(1.1)
                         .foregroundStyle(theme.accent)
                     ForEach(hits) { hit in
                         Button {
                             switch hit.kind {
-                            case .event: model.loadEvent(hit.id)
-                            case .person, .place: model.loadEntity(hit.id)
+                            case .event: openDetail(.event(hit.id), fromDetail: false)
+                            case .person, .place: openDetail(.entity(hit.id), fromDetail: false)
                             }
                         } label: {
                             VStack(alignment: .leading, spacing: 2) {
@@ -442,24 +559,27 @@ struct AtlasExplorerPane: View {
                                 if let disambiguator = hit.disambiguator {
                                     Text(disambiguator)
                                         .appFont(.system(size: 10))
-                                        .foregroundStyle(theme.textMuted)
+                                        .foregroundStyle(theme.accent)
                                 }
                                 Text(hit.description)
                                     .appFont(.system(size: 11))
                                     .foregroundStyle(theme.textMuted)
                                     .lineLimit(2)
-                                if hit.kind == .event {
-                                    Text(atlasSearchDateLabel(hit))
-                                        .appFont(.system(size: 10, weight: .semibold))
-                                        .foregroundStyle(theme.accent)
-                                }
+                                    .multilineTextAlignment(.leading)
+                                Text(AtlasPresentation.searchRowMeta(hit))
+                                    .appFont(.system(size: 10))
+                                    .foregroundStyle(theme.textGhost)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(Spacing.md)
                             .background(theme.surface, in: .rect(cornerRadius: Radius.md))
                             .overlay { RoundedRectangle(cornerRadius: Radius.md).strokeBorder(theme.border, lineWidth: 1) }
+                            .contentShape(.rect(cornerRadius: Radius.md))
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel(
+                            "\(hit.name)\(hit.disambiguator.map { ", \($0)" } ?? ""), \(AtlasPresentation.hitKindLabel(hit.kind))"
+                        )
                     }
                 }
             }
@@ -468,20 +588,37 @@ struct AtlasExplorerPane: View {
 
     private var detailPane: some View {
         ScrollView {
-            Group {
-                if model.detailState.isLoading {
-                    atlasLoading("Opening atlas detail…")
-                } else if case .failed(let message) = model.detailState {
-                    atlasError(message) {
-                        if let id = model.selectedEntityID { model.loadEntity(id) }
-                        else if let id = model.selectedEventID { model.loadEvent(id) }
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                if history.canGoBack {
+                    Button {
+                        goBack()
+                    } label: {
+                        Label("Back", systemImage: "chevron.left")
+                            .appFont(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(theme.accent)
                     }
-                } else if let event = model.selectedEvent {
-                    eventDetail(event)
-                } else if let entity = model.selectedEntity {
-                    entityDetail(entity)
-                } else {
-                    atlasEmpty("Select an event, person, or place to explore it here.")
+                    .buttonStyle(SubtleButtonStyle())
+                    .help("Back to the previous entry")
+                }
+                Group {
+                    if model.detailState.isLoading {
+                        atlasLoading("Opening atlas detail…")
+                    } else if model.detailNotFound {
+                        atlasEmpty(model.selectedEventID != nil
+                            ? AtlasPresentation.eventNotFoundMessage
+                            : AtlasPresentation.entityNotFoundMessage)
+                    } else if case .failed(let message) = model.detailState {
+                        atlasError(message) {
+                            if let id = model.selectedEntityID { model.loadEntity(id) }
+                            else if let id = model.selectedEventID { model.loadEvent(id) }
+                        }
+                    } else if let event = model.selectedEvent {
+                        eventDetail(event)
+                    } else if let entity = model.selectedEntity {
+                        entityDetail(entity)
+                    } else {
+                        atlasEmpty("Select an event, person, or place to explore it here.")
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -495,9 +632,12 @@ struct AtlasExplorerPane: View {
             Text(event.title)
                 .appFont(.custom(FontFamily.brand, size: 28))
                 .foregroundStyle(theme.text)
-            Text("\(atlasDateLabel(event)) · \(event.era.rawValue)")
+            Text(AtlasPresentation.eventCaption(event))
                 .appFont(.system(size: 11, weight: .semibold))
                 .foregroundStyle(theme.accent)
+            Text(AtlasPresentation.eventDateProvenanceLabel(event))
+                .appFont(.system(size: 11))
+                .foregroundStyle(theme.textGhost)
             Text(event.summary)
                 .appFont(.system(size: 14))
                 .foregroundStyle(theme.textSecondary)
@@ -510,14 +650,14 @@ struct AtlasExplorerPane: View {
                 detailLabel("Who and where")
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), alignment: .leading)], alignment: .leading, spacing: Spacing.xs) {
                     ForEach(event.people + event.places) { entity in
-                        Button { model.loadEntity(entity.id) } label: { entityChip(entity) }
+                        Button { openDetail(.entity(entity.id), fromDetail: true) } label: { entityChip(entity) }
                             .buttonStyle(.plain)
                     }
                 }
             }
 
             Button("✦ Ask about this") {
-                app.chat.input = "Tell me about \(event.title) (\(event.yearLabel)) from the KJV."
+                app.chat.input = AtlasPresentation.askPrompt(for: event)
                 app.section = .chat
             }
             .buttonStyle(AccentButtonStyle())
@@ -532,13 +672,14 @@ struct AtlasExplorerPane: View {
             if let disambiguator = entity.disambiguator {
                 Text(disambiguator)
                     .appFont(.system(size: 12))
-                    .foregroundStyle(theme.textMuted)
+                    .foregroundStyle(theme.accent)
             }
-            Text(entity.kind == .person ? "Person" : "Place")
+            Text(AtlasPresentation.entitySubtitle(entity))
                 .appFont(.system(size: 12, weight: .semibold))
-                .foregroundStyle(theme.accent)
-            if !entity.alsoCalled.isEmpty {
-                Text("Also called \(entity.alsoCalled.joined(separator: ", "))")
+                .foregroundStyle(theme.textMuted)
+            let alsoCalled = AtlasPresentation.alsoCalledLine(entity)
+            if !alsoCalled.isEmpty {
+                Text(alsoCalled)
                     .appFont(.system(size: 12).italic())
                     .foregroundStyle(theme.textMuted)
             }
@@ -546,13 +687,14 @@ struct AtlasExplorerPane: View {
                 .appFont(.system(size: 14))
                 .foregroundStyle(theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
+            Text(AtlasPresentation.entityCounts(entity))
+                .appFont(.system(size: 11))
+                .foregroundStyle(theme.textGhost)
 
             detailLabel("In Scripture")
             referenceChips(entity.refs)
 
-            let family = entity.relationDetails.filter { detail in
-                entity.kind == .person && [.parent, .spouse, .sibling].contains(detail.relation.type)
-            }
+            let family = entity.kind == .person ? AtlasPresentation.immediateFamily(entity.relationDetails) : []
             let relationships = entity.relationDetails.filter { detail in
                 !family.contains(where: { $0.id == detail.id })
             }
@@ -573,7 +715,7 @@ struct AtlasExplorerPane: View {
                 ) {
                     ForEach(legacyConnections) { connection in
                         Button {
-                            model.loadEntity(connection.id)
+                            openDetail(.entity(connection.id), fromDetail: true)
                         } label: {
                             entityChip(connection)
                         }
@@ -581,45 +723,53 @@ struct AtlasExplorerPane: View {
                     }
                 }
             }
-            if entity.kind == .person, !entity.relationDetails.isEmpty {
-                traceControl(entityID: entity.id)
-            }
 
             if !entity.events.isEmpty {
                 detailLabel("On the timeline")
                 ForEach(Array(entity.events.prefix(5))) { event in
-                    Button { model.loadEvent(event.id) } label: {
+                    Button { openDetail(.event(event.id), fromDetail: true) } label: {
                         HStack(alignment: .top, spacing: Spacing.sm) {
-                            Text(atlasEntityDateLabel(event.yearLabel))
+                            Text(event.yearLabel)
                                 .appFont(.system(size: 10, weight: .bold))
                                 .foregroundStyle(theme.accent)
-                                .frame(width: 150, alignment: .leading)
-                            Text(event.title)
-                                .appFont(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(theme.textSecondary)
-                                .multilineTextAlignment(.leading)
+                                .frame(width: 92, alignment: .leading)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(event.title)
+                                    .appFont(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(theme.textSecondary)
+                                    .multilineTextAlignment(.leading)
+                                Text(event.era.rawValue)
+                                    .appFont(.system(size: 10))
+                                    .foregroundStyle(theme.textGhost)
+                            }
                             Spacer()
                             Image(systemName: "chevron.right")
                                 .appFont(.system(size: 10, weight: .semibold))
                                 .foregroundStyle(theme.textGhost)
                         }
                         .padding(.vertical, Spacing.xs)
+                        .contentShape(.rect)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Open event \(event.title)")
                 }
                 if entity.kind == .person, entity.events.count > 5 {
-                    Button("View all \(entity.events.count) events") {
-                        model.loadPersonJourney(entity.id)
-                        mode = .timeline
-                    }
-                    .buttonStyle(AccentButtonStyle())
+                    Button("View all \(entity.events.count) events ›") { startJourney(entity) }
+                        .buttonStyle(.plain)
+                        .appFont(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(theme.accent)
                 }
             }
 
+            if entity.kind == .person {
+                Button("View journey") { startJourney(entity) }
+                    .buttonStyle(AccentButtonStyle())
+                    .help("Show \(entity.name)'s events on the timeline")
+                traceControl(entityID: entity.id)
+            }
+
             Button("✦ Ask about this") {
-                app.chat.input = entity.kind == .person
-                    ? "Who was \(entity.name) in the Bible, and what can I learn from them?"
-                    : "What happened at \(entity.name) in the Bible?"
+                app.chat.input = AtlasPresentation.askPrompt(for: entity)
                 app.section = .chat
             }
             .buttonStyle(AccentButtonStyle())
@@ -645,7 +795,7 @@ struct AtlasExplorerPane: View {
                                     .appFont(.system(size: 10))
                                     .foregroundStyle(theme.textMuted)
                             }
-                            Text("\(entry.label) · \(entry.relation.certainty.rawValue)")
+                            Text("\(entry.label) · \(AtlasPresentation.relationCertaintyLabel(entry.relation.certainty))")
                                 .appFont(.system(size: 10))
                                 .foregroundStyle(theme.textMuted)
                         }
@@ -657,15 +807,16 @@ struct AtlasExplorerPane: View {
                     .padding(Spacing.sm)
                     .background(theme.surface, in: .rect(cornerRadius: Radius.md))
                     .overlay { RoundedRectangle(cornerRadius: Radius.md).strokeBorder(theme.border, lineWidth: 1) }
+                    .contentShape(.rect(cornerRadius: Radius.md))
                 }
                 .buttonStyle(.plain)
                 if expandedRelationID == entry.id {
                     VStack(alignment: .leading, spacing: Spacing.xs) {
-                        Text("\(entry.label) · \(entry.relation.certainty.rawValue)")
+                        Text("\(entry.label) · \(AtlasPresentation.relationCertaintyLabel(entry.relation.certainty))")
                             .appFont(.system(size: 11, weight: .semibold))
                             .foregroundStyle(theme.accent)
                         referenceChips(entry.relation.refs)
-                        Button("Open \(entry.entity.name)") { model.loadEntity(entry.entity.id) }
+                        Button("Open \(entry.entity.name)") { openDetail(.entity(entry.entity.id), fromDetail: true) }
                             .buttonStyle(SubtleButtonStyle())
                     }
                     .padding(.leading, Spacing.xl)
@@ -674,76 +825,122 @@ struct AtlasExplorerPane: View {
         }
     }
 
+    /// Android's Trace page, inline: its own people-only search (never the
+    /// explorer's search box) and a cited path whose people open in turn.
     private func traceControl(entityID: String) -> some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Button(traceExpanded ? "Hide connection trace" : "Trace connection") {
                 traceExpanded.toggle()
-                if !traceExpanded {
-                    traceTargetID = nil
-                }
+                traceQuery = ""
+                traceTargetID = nil
+                model.resetTrace()
             }
             .buttonStyle(AccentButtonStyle())
 
             if traceExpanded {
-                TextField("Search any person", text: Binding(get: { traceQuery }, set: {
-                    traceQuery = $0
-                    model.search($0)
+                Text(AtlasPresentation.traceSubtitle)
+                    .appFont(.system(size: 11))
+                    .foregroundStyle(theme.textMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+                TextField("Search a person", text: Binding(get: { traceQuery }, set: { next in
+                    traceQuery = next
+                    traceTargetID = nil
+                    model.searchTracePeople(next, excluding: entityID)
                 }))
                 .textFieldStyle(.roundedBorder)
                 .appFont(.system(size: 12))
+                .accessibilityLabel("Search a person to trace")
 
-                if traceTargetID == nil {
-                    ForEach(model.searchResults.filter { $0.kind == .person && $0.id != entityID }) { hit in
-                        Button {
-                            traceTargetID = hit.id
-                            traceQuery = hit.name
-                            model.traceConnection(from: entityID, to: hit.id)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(hit.name).appFont(.system(size: 12, weight: .semibold))
-                                if let disambiguator = hit.disambiguator {
-                                    Text(disambiguator).appFont(.system(size: 10)).foregroundStyle(theme.textMuted)
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, Spacing.xs)
-                        }
-                        .buttonStyle(.plain)
-                    }
+                if traceTargetID == nil, !traceQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    traceCandidates(entityID: entityID)
                 }
+                if let target = traceTargetID {
+                    traceOutcome(from: entityID, to: target)
+                }
+            }
+        }
+    }
 
-                if model.connectionState.isLoading {
-                    atlasLoading("Tracing the shortest cited path…")
-                } else if case .failed(let message) = model.connectionState {
-                    atlasError(message) { if let target = traceTargetID { model.traceConnection(from: entityID, to: target) } }
-                } else if let path = model.connectionPath {
-                    ForEach(Array(path.entities.enumerated()), id: \.offset) { index, step in
+    @ViewBuilder private func traceCandidates(entityID: String) -> some View {
+        switch model.traceSearchState {
+        case .idle, .loading:
+            ProgressView().controlSize(.small).frame(maxWidth: .infinity, minHeight: 32)
+        case .failed(let message):
+            atlasError(message) { model.searchTracePeople(traceQuery, excluding: entityID) }
+        case .empty, .loaded:
+            ForEach(model.traceResults) { hit in
+                Button {
+                    traceTargetID = hit.id
+                    model.traceConnection(from: entityID, to: hit.id)
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(hit.name).appFont(.system(size: 12, weight: .semibold)).foregroundStyle(theme.text)
+                        if let disambiguator = hit.disambiguator {
+                            Text(disambiguator).appFont(.system(size: 10)).foregroundStyle(theme.accent)
+                        }
+                        Text(hit.era?.rawValue ?? "Person")
+                            .appFont(.system(size: 10))
+                            .foregroundStyle(theme.textGhost)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, Spacing.xs)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Trace to \(hit.name)\(hit.disambiguator.map { ", \($0)" } ?? "")")
+            }
+        }
+    }
+
+    @ViewBuilder private func traceOutcome(from entityID: String, to targetID: String) -> some View {
+        // Only a path from this person to the chosen target is ever shown.
+        if let path = model.connectionPath, path.ids.first == entityID, path.ids.last == targetID {
+            detailLabel("Shortest cited path")
+            ForEach(Array(path.entities.enumerated()), id: \.offset) { index, step in
+                VStack(alignment: .leading, spacing: 2) {
+                    Button {
+                        openDetail(.entity(step.id), fromDetail: true)
+                    } label: {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("\(index + 1). \(step.name)")
                                 .appFont(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(theme.text)
+                                .foregroundStyle(theme.accent)
                             if let disambiguator = step.disambiguator {
                                 Text(disambiguator).appFont(.system(size: 10)).foregroundStyle(theme.textMuted)
                             }
-                            if index < path.relations.count {
-                                let relation = path.relations[index]
-                                Text("\(AtlasRelationLabels.label(for: relation, perspectiveID: step.id)) · \(relation.certainty.rawValue)")
-                                    .appFont(.system(size: 10))
-                                    .foregroundStyle(theme.textMuted)
-                                referenceChips(relation.refs)
-                            }
                         }
-                        .padding(.vertical, Spacing.xs)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(Spacing.sm)
+                        .background(theme.accentSoft, in: .rect(cornerRadius: Radius.md))
+                        .contentShape(.rect(cornerRadius: Radius.md))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Open \(step.name)")
+                    .accessibilityLabel("Open \(step.name)\(step.disambiguator.map { ", \($0)" } ?? "")")
+                    if index < path.relations.count {
+                        let relation = path.relations[index]
+                        Text("\(AtlasRelationLabels.label(for: relation, perspectiveID: step.id)) · \(AtlasPresentation.relationCertaintyLabel(relation.certainty))")
+                            .appFont(.system(size: 10))
+                            .foregroundStyle(theme.textMuted)
+                        referenceChips(relation.refs)
                     }
                 }
+                .padding(.vertical, Spacing.xs)
             }
+        } else if model.connectionNotFound {
+            atlasEmpty(AtlasPresentation.traceNoPathMessage)
+        } else if case .failed(let message) = model.connectionState {
+            atlasError(message) { model.traceConnection(from: entityID, to: targetID) }
+        } else {
+            atlasLoading("Tracing the shortest cited path…")
         }
     }
 
     private func referenceChips(_ refs: [String]) -> some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), alignment: .leading)], alignment: .leading, spacing: Spacing.xs) {
             ForEach(refs, id: \.self) { reference in
-                Button(reference) { onOpenReference(reference) }
+                Button(AtlasPresentation.referenceChipLabel(reference)) { onOpenReference(reference) }
                     .buttonStyle(SubtleButtonStyle())
                     .foregroundStyle(theme.accent)
                     .appFont(.system(size: 11, weight: .semibold))
@@ -779,61 +976,66 @@ struct AtlasExplorerPane: View {
             .padding(.top, Spacing.sm)
     }
 
+    // MARK: Navigation
+
+    /// First appearance for this scope: a clean rail in the requested mode.
+    /// A return to the same pane keeps whatever the reader had chosen.
+    private func start() {
+        guard startedKey != scopeKey else { return }
+        startedKey = scopeKey
+        model.selectedEra = nil
+        model.clearSearch()
+        if let scopedBook, let scopedChapter, chapterScope != nil {
+            model.loadChapter(book: scopedBook, chapter: scopedChapter)
+        }
+        setMode(initialMode)
+    }
+
     private func setMode(_ next: AtlasExplorerMode) {
         mode = next
+        // A journey belongs to the rail it was opened on; any other view
+        // (and a return to the timeline) shows everything again.
+        journeyName = nil
         if next == .places { model.selectedEra = nil }
         switch next {
         case .timeline:
-            model.loadTimeline(
-                era: model.selectedEra,
-                book: scopedBook,
-                chapter: scopedChapter,
-                personID: model.journeyPersonID
-            )
+            model.loadTimeline(era: model.selectedEra, book: scopedBook, chapter: scopedChapter)
         case .people:
-            model.loadEntities(kind: .person, era: model.selectedEra)
+            model.loadEntities(kind: .person, era: model.selectedEra, limit: 100, allPages: true)
         case .places:
-            model.loadEntities(kind: .place)
+            model.loadEntities(kind: .place, limit: 100, allPages: true)
         }
     }
 
-    private func shortEra(_ era: AtlasEra) -> String {
-        switch era {
-        case .creationAndPatriarchs: "Patriarchs"
-        case .egyptAndExodus: "Exodus"
-        case .conquestAndJudges: "Judges"
-        case .unitedKingdom: "Kingdom"
-        case .dividedKingdom: "Divided"
-        case .exileAndReturn: "Exile"
-        case .betweenTheTestaments: "Silence"
-        case .lifeOfChrist: "Christ"
-        case .earlyChurch: "Church"
+    /// "View journey": the rail filtered to one person, named in the bar
+    /// above it, rather than their raw atlas id.
+    private func startJourney(_ entity: AtlasEntityView) {
+        mode = .timeline
+        journeyName = entity.name
+        model.loadPersonJourney(entity.id)
+    }
+
+    private func clearJourney() {
+        journeyName = nil
+        model.loadTimeline(era: model.selectedEra, book: scopedBook, chapter: scopedChapter)
+    }
+
+    /// Android pushes a page per entry, so Back walks the chain; here the
+    /// detail column keeps it. The list starts a new chain.
+    private func openDetail(_ ref: AtlasDetailRef, fromDetail: Bool) {
+        history.open(ref, fromDetail: fromDetail)
+        load(ref)
+    }
+
+    private func goBack() {
+        if let ref = history.back() { load(ref) }
+    }
+
+    private func load(_ ref: AtlasDetailRef) {
+        switch ref {
+        case .entity(let id): model.loadEntity(id)
+        case .event(let id): model.loadEvent(id)
         }
-    }
-
-    private func atlasDateLabel(_ event: AtlasEventView) -> String {
-        guard let date = event.date else { return atlasEntityDateLabel(event.yearLabel) }
-        switch date.provenance {
-        case .traditionalUssher: return "Traditional chronology · \(date.label)"
-        case .scriptureExplicit: return date.label
-        case .undated: return "Date not given"
-        }
-    }
-
-    private func atlasSearchDateLabel(_ hit: AtlasSearchHit) -> String {
-        guard let yearLabel = hit.yearLabel, !yearLabel.isEmpty, yearLabel.lowercased() != "undated" else { return "Date not given" }
-        return "Traditional chronology · \(yearLabel)"
-    }
-
-    private func atlasEntityDateLabel(_ yearLabel: String) -> String {
-        yearLabel.lowercased() == "undated" ? "Date not given" : "Traditional chronology · \(yearLabel)"
-    }
-
-    private var scopedEntities: [AtlasEntityRef] {
-        var seen = Set<String>()
-        return model.timelineEvents
-            .flatMap { $0.people + $0.places }
-            .filter { seen.insert($0.id).inserted }
     }
 
     private func atlasLoading(_ text: String) -> some View {
@@ -870,11 +1072,4 @@ struct AtlasExplorerPane: View {
         }
         .padding(.vertical, Spacing.xl)
     }
-}
-
-private enum AtlasExplorerMode: String, CaseIterable, Identifiable {
-    case timeline, people, places
-
-    var id: String { rawValue }
-    var title: String { rawValue.capitalized }
 }

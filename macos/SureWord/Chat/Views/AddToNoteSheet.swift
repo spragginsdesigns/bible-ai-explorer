@@ -1,18 +1,26 @@
 import SwiftUI
 
-/// The "Add to notes" picker: create a new note from an answer, or append it to
-/// one of the user's existing notes. Port of
+/// The "Add to notes" picker: create a new note from an answer or a verse, or
+/// append it to one of the user's existing notes. Port of
 /// `mobile/src/features/chat/AddToNoteSheet.tsx` (a bottom sheet there, a sheet
-/// here — same capability, Mac form factor).
+/// here - same capability, Mac form factor).
 struct AddToNoteSheet: View {
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
 
     let api: APIClient
-    /// The assistant answer's cleaned markdown (follow-up block already stripped).
+    /// The assistant answer's cleaned markdown (follow-up block already
+    /// stripped), or a verse blockquote (`VerseNoteMarkdown`).
     let markdown: String
-    /// Active conversation title — the default title on the create path.
+    /// Active conversation title or verse reference - the default title on the
+    /// create path.
     var defaultTitle: String?
+    /// False stores pre-formatted Scripture verbatim; true (an answer) has the
+    /// model compose it into a study note first, which needs AI consent.
+    var compose = true
+    /// Set by the reader: a save then stays on the sheet as Android's success
+    /// row, which opens the note. Chat leaves it nil and closes on save.
+    var onOpenNote: ((String) -> Void)?
     var onSaved: (AppendToNoteResult) -> Void
 
     /// Which row is in flight: the "New note" row, or a note's id.
@@ -31,6 +39,7 @@ struct AddToNoteSheet: View {
     @State private var pendingKey: String?
     @State private var saveError: String?
     @State private var lastTarget: SaveTarget?
+    @State private var saved: AppendToNoteResult?
 
     private var saving: Bool { pendingKey != nil }
 
@@ -41,10 +50,15 @@ struct AddToNoteSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             header
-            newNoteButton
-            searchField
-            if let saveError { errorBar(saveError) }
-            list
+            if let saved, let onOpenNote {
+                savedRow(saved, onOpenNote: onOpenNote)
+                Spacer(minLength: 0)
+            } else {
+                newNoteButton
+                searchField
+                if let saveError { errorBar(saveError) }
+                list
+            }
         }
         .padding(Spacing.lg)
         .frame(width: 420, height: 480)
@@ -72,6 +86,39 @@ struct AddToNoteSheet: View {
         }
     }
 
+    /// Android's success row: "Created" or "Added to" the note, a click away.
+    private func savedRow(_ saved: AppendToNoteResult, onOpenNote: @escaping (String) -> Void) -> some View {
+        Button {
+            dismiss()
+            onOpenNote(saved.noteId)
+        } label: {
+            HStack(spacing: Spacing.md) {
+                Image(systemName: "checkmark")
+                    .foregroundStyle(theme.accent)
+                (Text(saved.created ? "Created " : "Added to ")
+                    .foregroundStyle(theme.textSecondary)
+                    + Text(saved.noteTitle)
+                    .foregroundStyle(theme.accent)
+                    .fontWeight(.semibold))
+                    .appFont(.system(size: 13))
+                    .lineLimit(2)
+                Spacer(minLength: Spacing.sm)
+                Image(systemName: "chevron.right")
+                    .appFont(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(theme.accent)
+            }
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, Spacing.md)
+            .background(theme.accentSoft, in: .rect(cornerRadius: Radius.lg))
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.lg).strokeBorder(theme.accentBorder, lineWidth: 1)
+            }
+            .contentShape(.rect(cornerRadius: Radius.lg))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Open note \(saved.noteTitle)")
+    }
+
     private var newNoteButton: some View {
         Button {
             save(SaveTarget(key: Self.newNoteKey, noteId: nil))
@@ -88,7 +135,7 @@ struct AddToNoteSheet: View {
         }
         .buttonStyle(AccentButtonStyle())
         .disabled(saving)
-        .accessibilityLabel("Create a new note with this answer")
+        .accessibilityLabel(compose ? "Create a new note with this answer" : "Create a new note with this verse")
     }
 
     private var searchField: some View {
@@ -225,22 +272,30 @@ struct AddToNoteSheet: View {
         saveError = nil
 
         Task {
-            // The append composes the answer into a study note with the model
-            // (`/api/notes/append`, compose on), so it waits on AI consent.
-            guard await AIConsentGate.ensure() else {
-                pendingKey = nil
-                return
+            // An answer is composed into a study note with the model
+            // (`/api/notes/append`, compose on), so it waits on AI consent. A
+            // verse is stored verbatim, with no model involved, as on Android.
+            if compose {
+                guard await AIConsentGate.ensure() else {
+                    pendingKey = nil
+                    return
+                }
             }
             do {
                 let result = try await AddToNote.append(
                     api: api,
                     markdown: markdown,
                     noteId: target.noteId,
-                    defaultTitle: defaultTitle
+                    defaultTitle: defaultTitle,
+                    compose: compose
                 )
                 pendingKey = nil
                 onSaved(result)
-                dismiss()
+                if onOpenNote == nil {
+                    dismiss()
+                } else {
+                    saved = result
+                }
             } catch {
                 saveError = (error as? APIError)?.message ?? "Could not save to the note."
                 pendingKey = nil

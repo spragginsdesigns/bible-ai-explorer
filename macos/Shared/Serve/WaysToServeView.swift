@@ -109,7 +109,7 @@ struct WaysToServeView: View {
     @ViewBuilder
     private func loaded(_ view: ServeView) -> some View {
         Text(view.title)
-            .font(.custom(FontFamily.verse, size: 32))
+            .appFont(.custom(FontFamily.verse, size: 32))
             .foregroundStyle(theme.text)
             .fixedSize(horizontal: false, vertical: true)
 
@@ -142,7 +142,7 @@ struct WaysToServeView: View {
     private func introBlock(_ intro: ServeIntro) -> some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             Text(intro.text)
-                .font(.body)
+                .appFont(.body)
                 .foregroundStyle(theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             ForEach(Array(intro.verses.enumerated()), id: \.offset) { _, verse in
@@ -176,11 +176,11 @@ struct WaysToServeView: View {
         )
         return VStack(alignment: .leading, spacing: Spacing.sm) {
             Text(way.title)
-                .font(emphasized ? .title3.weight(.semibold) : .headline)
+                .appFont(emphasized ? .title3.weight(.semibold) : .headline)
                 .foregroundStyle(theme.text)
                 .fixedSize(horizontal: false, vertical: true)
             Text(way.detail)
-                .font(.subheadline)
+                .appFont(.subheadline)
                 .foregroundStyle(theme.textMuted)
                 .fixedSize(horizontal: false, vertical: true)
             if !way.verse.reference.isEmpty {
@@ -284,7 +284,7 @@ struct WaysToServeView: View {
             hint("Nearby search isn't available right now.")
         case .failed(let message):
             Text(message)
-                .font(.footnote)
+                .appFont(.footnote)
                 .foregroundStyle(theme.danger)
         case .results(let places):
             if places.isEmpty {
@@ -300,10 +300,10 @@ struct WaysToServeView: View {
     private func placeRow(_ place: ServePlace) -> some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(place.name)
-                .font(.headline)
+                .appFont(.headline)
                 .foregroundStyle(theme.text)
             Text(place.address)
-                .font(.footnote)
+                .appFont(.footnote)
                 .foregroundStyle(theme.textMuted)
             HStack(spacing: Spacing.md) {
                 if let maps = place.mapsUrl, let url = URL(string: maps) {
@@ -318,7 +318,7 @@ struct WaysToServeView: View {
                     Link(destination: url) { Label(phone, systemImage: "phone") }
                 }
             }
-            .font(.footnote)
+            .appFont(.footnote)
             .tint(theme.accent)
         }
         .padding(Spacing.md)
@@ -333,7 +333,7 @@ struct WaysToServeView: View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             sectionLabel(journal.title.uppercased())
             Text(journal.prompt)
-                .font(.subheadline)
+                .appFont(.subheadline)
                 .foregroundStyle(theme.textMuted)
                 .fixedSize(horizontal: false, vertical: true)
             if !journal.verse.reference.isEmpty {
@@ -342,7 +342,7 @@ struct WaysToServeView: View {
             TextEditor(text: $model.draft)
                 .focused($focus, equals: .journal)
                 .scrollContentBackground(.hidden)
-                .font(.body)
+                .appFont(.body)
                 .foregroundStyle(theme.text)
                 .frame(minHeight: 96)
                 .padding(Spacing.sm)
@@ -357,7 +357,7 @@ struct WaysToServeView: View {
             if let verseRef = model.journalVerse {
                 HStack {
                     Text("With \(verseRef)")
-                        .font(.footnote)
+                        .appFont(.footnote)
                         .foregroundStyle(theme.textMuted)
                     Button("Remove") { model.journalVerse = nil }
                         .buttonStyle(.borderless)
@@ -389,10 +389,10 @@ struct WaysToServeView: View {
                         Text(verse)
                     }
                 }
-                .font(.caption.weight(.semibold))
+                .appFont(.caption.weight(.semibold))
                 .foregroundStyle(theme.textMuted)
                 Text(entry.text)
-                    .font(.body)
+                    .appFont(.body)
                     .foregroundStyle(theme.text)
                     .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
@@ -418,12 +418,12 @@ struct WaysToServeView: View {
         VStack(alignment: .leading, spacing: 2) {
             if !verse.text.isEmpty {
                 Text(verse.text)
-                    .font(.custom(FontFamily.verseItalic, size: size))
+                    .appFont(.custom(FontFamily.verseItalic, size: size))
                     .foregroundStyle(theme.text)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Text("\(verse.reference.uppercased()) · KJV")
-                .font(.caption2.weight(.semibold))
+                .appFont(.caption2.weight(.semibold))
                 .tracking(1.5)
                 .foregroundStyle(theme.textMuted)
         }
@@ -432,7 +432,7 @@ struct WaysToServeView: View {
 
     private func sectionLabel(_ text: String) -> some View {
         Text(text)
-            .font(.caption.weight(.semibold))
+            .appFont(.caption.weight(.semibold))
             .tracking(3)
             .foregroundStyle(theme.textMuted)
             .padding(.top, Spacing.sm)
@@ -440,7 +440,7 @@ struct WaysToServeView: View {
 
     private func hint(_ text: String) -> some View {
         Text(text)
-            .font(.footnote)
+            .appFont(.footnote)
             .foregroundStyle(theme.textMuted)
     }
 }
@@ -514,6 +514,7 @@ struct ServeSettingsPage: View {
             }
         }
         .navigationTitle("Ways to Serve")
+        .analyticsScreen(AnalyticsScreen.settingsServe)
     }
 }
 
@@ -560,21 +561,21 @@ struct ServeTodayCard: View {
             Button(action: onOpen) {
                 HStack(spacing: Spacing.md) {
                     Image(systemName: "hands.sparkles")
-                        .font(.system(size: 23, weight: .light))
+                        .appFont(.system(size: 23, weight: .light))
                         .foregroundStyle(theme.accent)
                         .frame(width: 32)
                     VStack(alignment: .leading, spacing: 4) {
                         Text((app.serve.view?.title ?? "Ways to Serve").uppercased())
-                            .font(.caption.weight(.semibold))
+                            .appFont(.caption.weight(.semibold))
                             .tracking(2)
                             .foregroundStyle(theme.textMuted)
                         Text(way.title)
-                            .font(.headline)
+                            .appFont(.headline)
                             .foregroundStyle(theme.text)
                             .fixedSize(horizontal: false, vertical: true)
                         if !way.verse.reference.isEmpty {
                             Text(way.verse.reference)
-                                .font(.subheadline)
+                                .appFont(.subheadline)
                                 .foregroundStyle(theme.textMuted)
                         }
                     }

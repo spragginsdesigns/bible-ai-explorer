@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+	The macOS app's entitlements for a build with remote push, selected with
+	CODE_SIGN_ENTITLEMENTS=SureWord/SureWordPush.entitlements on the
+	xcodebuild command line (macos/project.yml). Everything in the generated
+	SureWord.entitlements, plus aps-environment, which needs a provisioning
+	profile with Push Notifications; see SureWord/App/MacPushRegistration.swift.
+-->
+<plist version="1.0">
+<dict>
+	<key>com.apple.developer.aps-environment</key>
+	<string>$(SUREWORD_APS_ENVIRONMENT)</string>
+	<key>com.apple.security.personal-information.calendars</key>
+	<true/>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>389LLKGY3Y.group.com.spragginsdesigns.sureword</string>
+	</array>
+</dict>
+</plist>

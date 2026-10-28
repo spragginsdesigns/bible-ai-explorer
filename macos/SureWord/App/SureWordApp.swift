@@ -73,13 +73,24 @@ struct SureWordApp: App {
                 // scheme; without this the browser hands back a callback the app
                 // never consumes and sign-in hangs on the last step. A file URL
                 // is a file dropped on the Dock icon (or opened with SureWord):
-                // "Share into SureWord" (`MacShareInbox`).
+                // "Share into SureWord" (`MacShareInbox`). A `sureword://` URL
+                // Clerk does not claim is the app's own deep link
+                // (sureword://cross, sureword://verse?ref=…), buffered for the
+                // signed-in window as on iOS.
                 .onOpenURL { url in
                     if url.isFileURL {
                         Task { @MainActor in MacShareInbox.shared.open(fileURL: url) }
                         return
                     }
-                    Task { try? await Clerk.shared.handle(url) }
+                    if url.scheme?.lowercased() == "sureword", url.host?.lowercased() == "share" {
+                        MacShareInbox.shared.extensionShareArrived()
+                        return
+                    }
+                    Task { @MainActor in
+                        let handledByClerk = (try? await Clerk.shared.handle(url)) ?? false
+                        guard !handledByClerk, let link = DeepLink.parse(url) else { return }
+                        PendingDeepLinks.shared.post(link)
+                    }
                 }
                 .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
                 // Injected last, so it is the outermost modifier: anything
@@ -127,7 +138,7 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
-        completionHandler([.banner, .sound])
+        completionHandler(ChatStopSignals.shared.isUnwantedChatPush(notification.request.content.userInfo) ? [] : [.banner, .sound])
     }
 
     func userNotificationCenter(
@@ -147,6 +158,12 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         }
         completionHandler()
     }
+
+    func application(_ application: NSApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        Task { @MainActor in MacPushRegistration.store(deviceToken) }
+    }
+
+    func application(_ application: NSApplication, didFailToRegisterForRemoteNotificationsWithError error: any Error) {}
 }
 
 /// Holds the signed-in `AppModel` so the menu commands can reach it from the

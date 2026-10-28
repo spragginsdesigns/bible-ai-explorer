@@ -171,10 +171,12 @@ struct ChatInputBar: View {
         if let urls = pasteboard.readObjects(forClasses: [NSURL.self]) as? [URL] {
             let files = urls.filter(\.isFileURL).compactMap { url -> LocalAttachment? in
                 guard let data = try? Data(contentsOf: url) else { return nil }
+                // Android's 2048px rule, before the size cap (`ImageUploadSizing`).
+                let upload = ImageUploadSizing.prepared(filename: url.lastPathComponent, data: data)
                 return try? AttachmentValidator.normalize(
-                    filename: url.lastPathComponent,
+                    filename: upload.filename,
                     declaredMediaType: "",
-                    data: data
+                    data: upload.data
                 )
             }
             if !files.isEmpty { return files }
@@ -184,13 +186,22 @@ struct ChatInputBar: View {
         // allowlist while TIFF is not.
         let stamp = Int(Date().timeIntervalSince1970)
         if let png = pasteboard.data(forType: .png) {
-            return [LocalAttachment(filename: "clipboard-\(stamp).png", mediaType: "image/png", data: png)]
+            return [clipboardImage(png, stamp: stamp)]
         }
         if let tiff = pasteboard.data(forType: .tiff),
            let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) {
-            return [LocalAttachment(filename: "clipboard-\(stamp).png", mediaType: "image/png", data: png)]
+            return [clipboardImage(png, stamp: stamp)]
         }
         return nil
+    }
+
+    /// A pasted image as it uploads: PNG inside 2048px, else the downscaled
+    /// JPEG (`ImageUploadSizing`), so a pasted 5K screenshot fits the cap.
+    private static func clipboardImage(_ png: Data, stamp: Int) -> LocalAttachment {
+        if let jpeg = ImageUploadSizing.downscaledJPEG(png) {
+            return LocalAttachment(filename: "clipboard-\(stamp).jpg", mediaType: "image/jpeg", data: jpeg)
+        }
+        return LocalAttachment(filename: "clipboard-\(stamp).png", mediaType: "image/png", data: png)
     }
 
     // MARK: Attachment views

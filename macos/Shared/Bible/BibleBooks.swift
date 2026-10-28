@@ -33,7 +33,7 @@ struct Book: Sendable, Equatable, Identifiable, Decodable {
 }
 
 /// A resolved location. `verse` is nil for a chapter-only reference.
-struct Reference: Sendable, Equatable {
+struct Reference: Sendable, Hashable {
     var order: Int
     var chapter: Int
     var verse: Int?

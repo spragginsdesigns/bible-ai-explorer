@@ -276,8 +276,9 @@ enum VersePassages {
     // MARK: Citations in the answer text
 
     // Port of the detection pattern in `mobile/src/features/chat/verseLinks.ts`
-    // (itself from the web's `src/utils/verseParser.ts`). The Apple chat has no
-    // tappable verse links, so here it only orders passages by citation.
+    // (itself from the web's `src/utils/verseParser.ts`). It orders passages by
+    // citation here, and `VerseLinks` turns the same matches into tappable
+    // references in the chat.
     private static let fullBookNames = [
         "Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy",
         "Joshua", "Judges", "Ruth",
@@ -401,6 +402,14 @@ enum VersePassages {
     /// References in the order the answer text cites them. A match that starts
     /// mid-word ("xJohn 3:16") or does not resolve is skipped.
     static func citedReferences(in text: String) -> [String] {
+        citationMatches(in: text).map(\.value)
+    }
+
+    /// Every validated reference in `text` with where it sits (UTF-16, as
+    /// `NSString` measures it), in reading order. The one scan both the
+    /// citation order above and `VerseLinks` read, so the passages a reference
+    /// orders and the links it draws can never disagree.
+    static func citationMatches(in text: String) -> [(range: NSRange, value: String)] {
         guard let regex = citationRegex, !text.isEmpty else { return [] }
         let nsText = text as NSString
         return regex.matches(in: text, range: NSRange(location: 0, length: nsText.length)).compactMap { match in
@@ -410,8 +419,9 @@ enum VersePassages {
                     return nil
                 }
             }
-            let value = nsText.substring(with: match.range(at: 1))
-            return resolveCitation(value) == nil ? nil : value
+            let range = match.range(at: 1)
+            let value = nsText.substring(with: range)
+            return resolveCitation(value) == nil ? nil : (range, value)
         }
     }
 }

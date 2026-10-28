@@ -15,13 +15,16 @@ struct AtlasExplorerView: View {
     let scopedChapter: Int?
     let journeyPersonID: String?
 
-    @State private var mode: AtlasExplorerMode = .timeline
+    @State private var mode: AtlasExplorerMode
     /// This screen's era. Never read back from the shared model, so a pushed
     /// explorer cannot change the root's filter.
     @State private var era: AtlasEra?
 
-    init(model: AtlasModel, book: Int? = nil, chapter: Int? = nil, personID: String? = nil) {
+    /// `mode` is the view it opens on, as Android's Study rows pass
+    /// `/study/timeline?mode=`; the picker still switches freely after.
+    init(model: AtlasModel, mode: AtlasExplorerMode = .timeline, book: Int? = nil, chapter: Int? = nil, personID: String? = nil) {
         self.model = model
+        _mode = State(initialValue: mode)
         scopedBook = book
         scopedChapter = chapter
         journeyPersonID = personID
@@ -473,12 +476,7 @@ struct AtlasExplorerView: View {
 
     /// Android's title: the chapter, the directory, or the explorer name.
     private var atlasTitle: String {
-        if let chapterScope { return "\(chapterScope.name) \(chapterScope.chapter)" }
-        switch mode {
-        case .people: return "People"
-        case .places: return "Places"
-        case .timeline: return AtlasPresentation.explorerTitle
-        }
+        AtlasExplorerMode.title(mode: mode, chapterScope: chapterScope.map { ($0.name, $0.chapter) })
     }
 
     private func openReference(_ raw: String) -> AnyView {
@@ -501,12 +499,6 @@ struct AtlasExplorerView: View {
     private func retryCard(_ message: String, retry: @escaping () -> Void) -> some View {
         AtlasMessageCard(message: message, retry: retry)
     }
-}
-
-private enum AtlasExplorerMode: String, CaseIterable, Identifiable {
-    case timeline, people, places
-    var id: String { rawValue }
-    var title: String { rawValue.capitalized }
 }
 
 // MARK: - Shared pieces

@@ -42,7 +42,7 @@ struct DailyWalkHome: View {
                 } else {
                     DailyWalkRow(symbol: "book", title: "Open the Bible", detail: "A quiet place to read") { app.section = .bible }
                 }
-                DailyWalkRow(symbol: "calendar", title: app.bible.plan.plan?.title ?? "Reading plan", detail: PlanView.planCardSubtitle(app.bible.plan.plan), action: onPlan)
+                DailyWalkRow(symbol: "calendar", title: app.bible.plan.plan?.title ?? "Reading plan", detail: Self.planSubtitle(app.bible.plan), action: onPlan)
                     .spotlightTarget(.todayPlan)
                     .id(AppTarget.todayPlan)
                 DailyWalkRow(symbol: "square.stack.3d.up", title: "Learn a verse", detail: "Carry Scripture with you", action: onLearn)
@@ -51,6 +51,16 @@ struct DailyWalkHome: View {
                 DailyWalkRow(symbol: "clock.arrow.circlepath", title: "Your walk", detail: "Your reading log and reflections", action: onHistory)
                 ServeTodayCard(onOpen: onServe)
                 SendWordHomeCard(titleSize: 16, subtitleSize: 13)
+                Button { StudyHubNavigation.open(.notes, in: app) } label: {
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: "doc.text")
+                        Text("Your notes in Study")
+                        Image(systemName: "arrow.right")
+                    }
+                    .appFont(.subheadline).foregroundStyle(theme.accent)
+                    .frame(minHeight: 44).contentShape(.rect)
+                }
+                .buttonStyle(.plain)
             }
             .padding(Spacing.lg)
             .frame(maxWidth: 680)
@@ -73,6 +83,18 @@ struct DailyWalkHome: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await reading?.refresh(); await refreshPreview(); await app.serve.refresh() } }
         }
+    }
+
+    /// Android's plan row: "Loading your plan..." until the first answer, a
+    /// way back in when it failed, and the plan's own summary otherwise.
+    static func planSubtitle(_ plan: ReadingPlanModel) -> String {
+        planSubtitle(plan.plan, hasLoaded: plan.hasLoaded, error: plan.error)
+    }
+
+    static func planSubtitle(_ plan: ReadingPlan?, hasLoaded: Bool, error: String?) -> String {
+        if !hasLoaded { return "Loading your plan..." }
+        if error != nil { return "Open your plan to reconnect" }
+        return PlanView.planCardSubtitle(plan)
     }
 
     private func open(_ last: LastRead) {
@@ -145,31 +167,100 @@ private struct DailyWalkArtwork: View {
     }
 }
 
+/// Whether the reader's church has anything for the Study hub: Android shows
+/// YOUR CHURCH only when `GET /api/sermon-studies` returns studies or events,
+/// and the announcements row only for events.
+struct StudyChurchPresence: Equatable, Sendable {
+    var studies = false
+    var events = false
+
+    init(studies: Bool = false, events: Bool = false) {
+        self.studies = studies
+        self.events = events
+    }
+
+    init(_ home: SermonHome) {
+        self.init(studies: !home.studies.isEmpty, events: !home.events.isEmpty)
+    }
+
+    var showsSection: Bool { studies || events }
+    var showsAnnouncements: Bool { events }
+}
+
+/// Opens a Study hub page from anywhere (What's new "Try it", Today's notes
+/// link). The Study root on each shell consumes `pendingStudyDestination`.
+@MainActor
+enum StudyHubNavigation {
+    static func open(_ destination: StudyHubDestination, in app: AppModel) {
+        #if os(macOS)
+        // Notes is its own section on the Mac, beside Study.
+        if destination == .notes {
+            app.section = .notes
+            return
+        }
+        #endif
+        app.pendingStudyDestination = destination
+        app.section = .study
+    }
+}
+
+/// Android's `study/index.tsx`: Notes, then the three ways into the atlas and
+/// the word studies, then the church's sermons and announcements when it has
+/// any. A hidden sermons row leaves the `study.sermons` spotlight unregistered,
+/// which the spotlight skips, as Android's does.
 struct StudyHome: View {
+    @Environment(AppModel.self) private var app
     @Environment(\.theme) private var theme
-    let onNotes: () -> Void
-    let onAtlas: () -> Void
-    let onSermons: () -> Void
-    let onWords: () -> Void
+    let onOpen: (StudyHubDestination) -> Void
+    @State private var church = StudyChurchPresence()
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
                 Text("GO DEEPER").appFont(.caption.weight(.semibold)).tracking(3).foregroundStyle(theme.textMuted)
                 Text("Room to understand.").appFont(.custom(FontFamily.verse, size: 32)).foregroundStyle(theme.text)
-                Text("Keep what you discover. Explore the people, places, and words of Scripture.")
+                Text("Keep what you learn. Explore the people, places, and words of Scripture.")
                     .appFont(.body).foregroundStyle(theme.textMuted)
-                DailyWalkRow(symbol: "note.text", title: "Notes", detail: "Your thoughts, linked verses, and study notebooks", action: onNotes)
+                DailyWalkRow(symbol: "note.text", title: "Notes", detail: "Your notes, folders, and Scripture connections") { onOpen(.notes) }
                     .spotlightTarget(.studyNotes)
                     .id(AppTarget.studyNotes)
-                DailyWalkRow(symbol: "globe.europe.africa", title: "Timeline, People & Places", detail: "The Bible atlas, journeys, and history", action: onAtlas)
-                DailyWalkRow(symbol: "building.columns", title: "Sermon studies & church", detail: "Messages, study guides, and church announcements", action: onSermons)
-                    .spotlightTarget(.studySermons)
-                    .id(AppTarget.studySermons)
-                DailyWalkRow(symbol: "character.book.closed", title: "Original languages", detail: "Explore Hebrew, Greek, and Strong's word studies", action: onWords)
+                sectionLabel("EXPLORE SCRIPTURE")
+                DailyWalkRow(symbol: "clock", title: "Bible timeline", detail: "Follow the events of Scripture through time") { onOpen(.timeline) }
+                DailyWalkRow(symbol: "person.2", title: "People of the Bible", detail: "Lives, families, and where their stories meet") { onOpen(.people) }
+                DailyWalkRow(symbol: "map", title: "Places & atlas", detail: "Explore the lands and journeys of the Bible") { onOpen(.places) }
+                DailyWalkRow(symbol: "character.book.closed", title: "Original languages", detail: "Hebrew, Greek, and Strong's word studies") { onOpen(.words) }
+                if church.showsSection {
+                    sectionLabel("YOUR CHURCH")
+                    DailyWalkRow(symbol: "mic", title: "Sermon studies", detail: "Walk through your church's recorded messages") { onOpen(.sermons) }
+                        .spotlightTarget(.studySermons)
+                        .id(AppTarget.studySermons)
+                    if church.showsAnnouncements {
+                        DailyWalkRow(symbol: "megaphone", title: "Church announcements", detail: "Coming up at your church, with calendar links") { onOpen(.sermons) }
+                    }
+                }
             }.padding(Spacing.lg).frame(maxWidth: 680).frame(maxWidth: .infinity)
         }
         .spotlightScroll(to: [.studyNotes, .studySermons])
         .background { MeshBackground() }.navigationTitle("Study")
+        // Every return to the hub, as Android's focus effect: a church just
+        // saved in Settings, or a first study, shows up without a relaunch.
+        .task { await refreshChurch() }
+    }
+
+    private func sectionLabel(_ title: String) -> some View {
+        Text(title).appFont(.caption.weight(.semibold)).tracking(2).foregroundStyle(theme.textMuted)
+            .padding(.top, Spacing.sm)
+    }
+
+    private func refreshChurch() async {
+        do {
+            let home = try await SermonStudiesAPI.home(api: app.api)
+            guard !Task.isCancelled else { return }
+            church = StudyChurchPresence(home)
+        } catch {
+            guard !Task.isCancelled else { return }
+            church = StudyChurchPresence()
+        }
     }
 }
 

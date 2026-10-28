@@ -1,25 +1,18 @@
 import UIKit
 
-/// Mirrors `mobile/src/features/chat/imageDownscale.ts` (D9): a modern camera
-/// hands back 4000px+ frames that cost seconds of upload for detail no vision
-/// model reads. Anything whose longest side exceeds 2048px is resized to 2048
-/// and re-encoded as JPEG; anything inside the budget passes through untouched.
+/// The UIKit encoder for `ImageUploadSizing` (`Shared/Chat/ImageUploadSizing.swift`),
+/// Android's D9 rule: anything whose longest side exceeds 2048px is resized to
+/// 2048 and re-encoded as JPEG; anything inside the budget passes through
+/// untouched. The Mac applies the same rule through ImageIO.
 enum ImageDownscale {
     /// Longest edge we upload (Android `MAX_UPLOAD_IMAGE_EDGE`).
-    static let maxEdge = 2048
+    static let maxEdge = ImageUploadSizing.maxEdge
     /// JPEG quality for a re-encoded upload (Android `UPLOAD_JPEG_COMPRESS`).
-    static let jpegQuality: CGFloat = 0.85
+    static let jpegQuality = CGFloat(ImageUploadSizing.jpegQuality)
 
-    /// Target pixel size, or nil when the image needs nothing. Pure, so the rule
-    /// is testable without rendering. Unknown or non-positive sizes pass through.
+    /// Target pixel size, or nil when the image needs nothing: the shared rule.
     static func targetSize(width: Int, height: Int, maxEdge: Int = maxEdge) -> (width: Int, height: Int)? {
-        guard width > 0, height > 0 else { return nil }
-        if width <= maxEdge && height <= maxEdge { return nil }
-        let scale = Double(maxEdge) / Double(max(width, height))
-        if width >= height {
-            return (maxEdge, max(1, Int((Double(height) * scale).rounded())))
-        }
-        return (max(1, Int((Double(width) * scale).rounded())), maxEdge)
+        ImageUploadSizing.targetSize(width: width, height: height, maxEdge: maxEdge)
     }
 
     /// Pixel dimensions of `image`, orientation applied (what `draw` produces).

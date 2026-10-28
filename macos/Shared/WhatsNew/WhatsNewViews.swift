@@ -444,8 +444,8 @@ struct WhatsNewCatchUpPresenter: ViewModifier {
 }
 
 /// Opens a release's feature through the hooks each shell already observes:
-/// the selected section, the Daily Cross notification, and the Today stack's
-/// pending destination.
+/// the selected section, the Daily Cross notification, the Today stack's
+/// pending destination and the Study hub's.
 @MainActor
 enum WhatsNewNavigation {
     static func open(_ destination: WhatsNewDestination, in app: AppModel) {
@@ -457,6 +457,8 @@ enum WhatsNewNavigation {
         case .daily(let daily):
             app.pendingDailyDestination = daily
             app.section = .today
+        case .study(let page):
+            StudyHubNavigation.open(page, in: app)
         }
     }
 }

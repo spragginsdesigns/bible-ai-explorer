@@ -50,6 +50,23 @@ struct ProMembershipView: View {
                 Section {
                     Label("Pro is active on your account", systemImage: "checkmark.seal.fill")
                         .foregroundStyle(.primary)
+                    // Where it renews and where it is managed (Android's
+                    // Membership lines), never a link: the iOS wording names
+                    // no website (`MembershipView`).
+                    if let membership, !membership.owner {
+                        if let line = MembershipView.subscriptionStatusLine(
+                            plan: membership.plan,
+                            subscription: membership.subscription
+                        ) {
+                            Text(line).appFont(.footnote).foregroundStyle(.secondary)
+                        }
+                        if let line = MembershipView.externalManagementLine(
+                            plan: membership.plan,
+                            subscription: membership.subscription
+                        ) {
+                            Text(line).appFont(.footnote).foregroundStyle(.secondary)
+                        }
+                    }
                 }
             case .activeHere:
                 activeHereSection
@@ -69,6 +86,19 @@ struct ProMembershipView: View {
                     } else {
                         ProgressView()
                     }
+                }
+            }
+
+            // A failed payment or lapse changes the offer back to Free, but
+            // managing the existing Apple subscription must remain possible.
+            if offer != .activeHere, MembershipView.canManageInAppStore(membership) {
+                Section {
+                    if let membership, let line = MembershipView.subscriptionStatusLine(
+                        plan: membership.plan, subscription: membership.subscription
+                    ) {
+                        Text(line).appFont(.footnote).foregroundStyle(.secondary)
+                    }
+                    Button("Manage subscription") { isManaging = true }
                 }
             }
 

@@ -87,6 +87,34 @@ struct ShareCardsTests {
         #expect(ShareCards.canDraw(answer))
     }
 
+    @Test("Every served Bible draws a verse card with its canonical translation id")
+    func publicTranslationCardsKeepCanonicalWireIDs() {
+        for canonical in ["KJV", "BSB", "NKJV", "ASV", "RV1909", "LUT1912"] {
+            let label = "  \(canonical.lowercased())  "
+            let target = ShareCardTarget.verse(reference: "John 3:16", translation: label)
+            #expect(ShareCards.cardTranslation(label) == canonical)
+            #expect(ShareCards.canDraw(target))
+            #expect(!ShareCards.needsSession(target))
+            #expect(
+                ShareCards.path(for: target, ShareCardRequest(style: .dawn, format: .story, size: .full))
+                    == "/api/cards/verse?ref=John+3%3A16&translation=\(canonical)&style=dawn&format=story&v=\(ShareCards.designVersion)"
+            )
+        }
+    }
+
+    @Test("LC Greek and unsupported labels keep the text-only fallback")
+    func unsupportedTranslationsRemainTextOnly() {
+        for label in ["LC Greek", "NIV", ""] {
+            let target = ShareCardTarget.verse(reference: "John 3:16", translation: label)
+            #expect(ShareCards.cardTranslation(label) == nil)
+            #expect(!ShareCards.canDraw(target))
+            #expect(ShareCards.path(for: target, ShareCardRequest(style: .dawn, format: .story, size: .full)) == nil)
+            #expect(ShareCards.textOnlyNotice(for: target) == "Cards are drawn in the KJV, BSB, NKJV, ASV, RV1909 and LUT1912. This passage shares as text.")
+        }
+        #expect(!ShareCards.canDraw(.verse(reference: "1 Corinthians 13:1-13", translation: "ASV")))
+        #expect(ShareCards.textOnlyNotice(for: .verse(reference: "1 Corinthians 13:1-13", translation: "ASV")).hasPrefix("A card holds up to 10"))
+    }
+
     @Test("Sends the session only for the personal card")
     func sessionOnlyForCross() {
         #expect(ShareCards.needsSession(cross))

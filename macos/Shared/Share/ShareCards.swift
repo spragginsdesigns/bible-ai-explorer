@@ -123,7 +123,7 @@ enum ShareCards {
         if case .verse(_, let translation) = target, cardTranslation(translation) != nil {
             return "A card holds up to \(maxCardVerses) verses. This passage shares as text."
         }
-        return "Cards are drawn in the KJV, BSB and NKJV. This passage shares as text."
+        return "Cards are drawn in the KJV, BSB, NKJV, ASV, RV1909 and LUT1912. This passage shares as text."
     }
 
     /// How many verses "John 3:16-18" spans: 3. A single verse, or a reference
@@ -140,7 +140,7 @@ enum ShareCards {
     /// The translations the server can look up and draw, by their wire id.
     static func cardTranslation(_ label: String) -> String? {
         let upper = label.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        return ["KJV", "BSB", "NKJV"].contains(upper) ? upper : nil
+        return ["KJV", "BSB", "NKJV", "ASV", "RV1909", "LUT1912"].contains(upper) ? upper : nil
     }
 
     /// Whether this share can be a picture. A verse in a translation the server

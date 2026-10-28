@@ -242,6 +242,11 @@ struct ReadingPlanPane: View {
                 Label(PlanView.streakLabel(plan.streak), systemImage: "flame")
                     .appFont(.system(size: 12, weight: .semibold))
                     .foregroundStyle(plan.streak > 0 ? theme.accentDim : theme.textMuted)
+                if let behind = PlanView.behindLabel(plan) {
+                    Text(behind)
+                        .appFont(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(theme.textMuted)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }

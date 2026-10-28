@@ -145,12 +145,13 @@ struct WhatsNewSeenBody: Encodable, Sendable {
 }
 
 /// Where a target opens on the Apple clients. Sermon studies and the timeline
-/// sit behind Study's own navigation with no outside entry, so their cards
-/// read "Read more" instead of opening the wrong place.
+/// are pages of the Study hub, opened through `pendingStudyDestination` as
+/// Android pushes `/study/sermons` and `/study/timeline`.
 enum WhatsNewDestination: Equatable {
     case section(AppSection)
     case cross
     case daily(DailyWalkDestination)
+    case study(StudyHubDestination)
 }
 
 enum WhatsNewRules {
@@ -161,9 +162,17 @@ enum WhatsNewRules {
     /// Android release whose features it carries. The catch-up sends it as
     /// `upTo`, the way Android sends its own code, so an Apple reader is never
     /// shown (or marked as having seen) a feature this build does not have.
+    ///
     /// Raise it with every Apple release that catches up to a newer Android
-    /// one: 1.24.0 (30) carries Android 1.99.0 (114), Create an account.
-    static let appleParityVersionCode = 114
+    /// one, to a versionCode that exists in `src/content/whats-new/releases.json`
+    /// (`WhatsNewTests` fails otherwise). History:
+    /// - 114: 1.24.0 (30) carries Android 1.99.0, Create an account.
+    /// - 128: the 2026-10-28 parity release carries Android 1.109.0, Membership
+    ///   renewal and message-limit wording (Quiz me, Walk with me, Spanish and
+    ///   German, Ways to Serve and text size all between), including Pro
+    ///   upgrade routes, an anchored Getting started Bible destination, and
+    ///   the creator's faith-story link.
+    static let appleParityVersionCode = 128
 
     /// `GET /api/whats-new/catch-up`, capped at this build's features.
     static var catchUpPath: String { "/api/whats-new/catch-up?upTo=\(appleParityVersionCode)" }
@@ -179,7 +188,8 @@ enum WhatsNewRules {
         case .plan: .daily(.plan)
         case .learn: .daily(.learn)
         case .history: .daily(.history)
-        case .sermons, .timeline: nil
+        case .sermons: .study(.sermons)
+        case .timeline: .study(.timeline)
         }
     }
 

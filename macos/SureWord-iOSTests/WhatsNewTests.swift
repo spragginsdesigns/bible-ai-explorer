@@ -54,10 +54,46 @@ final class WhatsNewTests: XCTestCase {
         XCTAssertEqual(WhatsNewRules.destination(for: .chat), .section(.chat))
         XCTAssertEqual(WhatsNewRules.destination(for: .cross), .cross)
         XCTAssertEqual(WhatsNewRules.destination(for: .learn), .daily(.learn))
-        // No outside entry into Study's own stack: these read "Read more".
-        XCTAssertNil(WhatsNewRules.destination(for: .sermons))
-        XCTAssertNil(WhatsNewRules.destination(for: .timeline))
+        // Android's /study/sermons and /study/timeline: pages of the Study hub.
+        XCTAssertEqual(WhatsNewRules.destination(for: .sermons), .study(.sermons))
+        XCTAssertEqual(WhatsNewRules.destination(for: .timeline), .study(.timeline))
         XCTAssertEqual(WhatsNewTarget.allCases.count, 11)
+    }
+
+    /// Every target has a place to open, so no card on Apple reads "Read
+    /// more" where Android's reads "Try it".
+    func testEveryTargetOpensSomewhere() {
+        for target in WhatsNewTarget.allCases {
+            XCTAssertNotNil(WhatsNewRules.destination(for: target), target.rawValue)
+        }
+    }
+
+    /// "Try it" on a Study page selects Study and leaves the page for the
+    /// Study root to push, then clear.
+    func testStudyTryItStagesTheStudyPage() throws {
+        let app = AppModel(settings: SettingsStore(), userID: nil)
+        WhatsNewNavigation.open(.study(.sermons), in: app)
+        XCTAssertEqual(app.section, .study)
+        XCTAssertEqual(app.pendingStudyDestination, .sermons)
+        WhatsNewNavigation.open(.study(.timeline), in: app)
+        XCTAssertEqual(app.pendingStudyDestination, .timeline)
+    }
+
+    /// The parity code is a deliberate, documented step: never below the
+    /// release Apple last caught up to, never past the newest Android one.
+    func testAppleParityCodeIsWithinPublishedReleases() throws {
+        XCTAssertGreaterThanOrEqual(WhatsNewRules.appleParityVersionCode, 125)
+        let releasesURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .appendingPathComponent("../../src/content/whats-new/releases.json")
+            .standardizedFileURL
+        struct File: Decodable {
+            struct Release: Decodable { let versionCode: Int }
+            let releases: [Release]
+        }
+        let file = try JSONDecoder().decode(File.self, from: Data(contentsOf: releasesURL))
+        let newest = try XCTUnwrap(file.releases.map(\.versionCode).max())
+        XCTAssertLessThanOrEqual(WhatsNewRules.appleParityVersionCode, newest)
     }
 
     /// The catch-up is capped at the Android release this Apple build matches,

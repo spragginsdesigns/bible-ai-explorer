@@ -1,10 +1,14 @@
 import Foundation
+#if os(macOS)
+import Security
+#endif
 
-/// "Share into SureWord" on iOS: the hand-off between the share extension and
-/// the app, through the App Group container both are entitled to.
+/// "Share into SureWord": the hand-off between a share extension and the app,
+/// through the App Group container both are entitled to.
 ///
-/// Compiled into both targets (`SureWord-iOS` and `SureWord-iOS-Share`), so it
-/// is Foundation only and extension-safe. The extension writes one share as a
+/// Compiled into both sides on each platform (`SureWord-iOS` and
+/// `SureWord-iOS-Share`; `SureWord` and `SureWord-macOS-Share`), so it is
+/// Foundation only and extension-safe. The extension writes one share as a
 /// folder - the shared files copied in, plus `manifest.json` describing them -
 /// and the app takes it when it next has a signed-in chat to open it in. The
 /// share is on disk, not in memory, so it waits through a cold start and through
@@ -15,7 +19,15 @@ import Foundation
 /// beside it. A newer share replaces any older one that was never opened, the
 /// same rule as Android's `shareInbox.ts`.
 enum PendingShare {
+#if os(macOS)
+    /// The Mac's form of the group: prefixed with the Team ID that signs the
+    /// app (`DEVELOPMENT_TEAM` in project.yml), which macOS authorizes from
+    /// the code signature alone. A `group.` id on the Mac must be authorized
+    /// by a provisioning profile, and the Mac app is signed without one.
+    static let appGroupID = "389LLKGY3Y.group.com.spragginsdesigns.sureword"
+#else
     static let appGroupID = "group.com.spragginsdesigns.sureword"
+#endif
     /// Opened by the extension after it saves; the app treats it as "look in
     /// the inbox now". Never carries the share itself.
     static let openURL = URL(string: "sureword://share")!
@@ -94,11 +106,28 @@ struct PendingShareStore: Sendable {
     /// The App Group inbox, or nil when the process is not entitled to the
     /// group (a build signed without the App Group capability).
     static func appGroup() -> PendingShareStore? {
+#if os(macOS)
+        // An app that is not sandboxed gets a container URL whether or not
+        // it is entitled, and reading the extension's container from an
+        // unentitled build (an agent's `CODE_SIGNING_ALLOWED=NO` build, a test
+        // host) raises "would like to access data from other apps". Only a
+        // signature that carries the group looks.
+        guard isEntitledToAppGroup else { return nil }
+#endif
         guard let container = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: PendingShare.appGroupID
         ) else { return nil }
         return PendingShareStore(root: container.appendingPathComponent("PendingShares", isDirectory: true))
     }
+
+#if os(macOS)
+    private static var isEntitledToAppGroup: Bool {
+        guard let task = SecTaskCreateFromSelf(nil),
+              let value = SecTaskCopyValueForEntitlement(task, "com.apple.security.application-groups" as CFString, nil)
+        else { return false }
+        return (value as? [String])?.contains(PendingShare.appGroupID) == true
+    }
+#endif
 
     // MARK: Extension side
 
@@ -135,6 +164,30 @@ struct PendingShareStore: Sendable {
                 atPath: directory.appendingPathComponent(PendingShare.manifestFilename).path
             )
         }
+    }
+
+    /// When the newest committed share was made, without reading any file
+    /// bytes. Nil when none is waiting (or none can be read).
+    var newestPendingDate: Date? {
+        shareDirectories().compactMap { directory -> Date? in
+            let manifestURL = directory.appendingPathComponent(PendingShare.manifestFilename)
+            guard let data = try? Data(contentsOf: manifestURL) else { return nil }
+            return (try? PendingShareManifest.decoder().decode(PendingShareManifest.self, from: data))?.createdAt
+        }.max()
+    }
+
+    /// The newest share across several inboxes, every one of them emptied. On
+    /// the Mac the Share extension writes the App Group container while the
+    /// Services menu and drops write Application Support (`MacShareInbox`),
+    /// and a newer share replaces an unopened older one wherever each landed.
+    static func takeNewest(from stores: [PendingShareStore], now: Date = Date()) -> ReceivedShare? {
+        let ordered = stores.sorted { ($0.newestPendingDate ?? .distantPast) > ($1.newestPendingDate ?? .distantPast) }
+        var newest: ReceivedShare?
+        for store in ordered {
+            let share = store.take(now: now)
+            if newest == nil { newest = share }
+        }
+        return newest
     }
 
     /// Hand the newest committed share to exactly one caller and empty the

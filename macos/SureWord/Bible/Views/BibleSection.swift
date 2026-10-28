@@ -127,10 +127,12 @@ struct BibleSection: View {
 
     @ViewBuilder
     private var detail: some View {
-        if let quiz = model.quiz {
+        if showingLearn {
+            LearnPane(onDismiss: {
+                if model.quiz != nil { showingLearn = false } else { showBible() }
+            })
+        } else if let quiz = model.quiz {
             QuizScreen(model: quiz, actions: quizActions(quiz))
-        } else if showingLearn {
-            LearnPane(onDismiss: { showBible() })
         } else if showingSermons {
             SermonStudiesPane(onDismiss: { showBible() })
         } else if showingPlan {
@@ -227,7 +229,10 @@ struct BibleSection: View {
             continueTo: { location in
                 model.closeQuiz()
                 model.go(to: location)
-            }
+            },
+            // Learn opens over the quiz, and closing it lands back on the
+            // results - Android pushes `/today/learn` on top of the quiz.
+            openLearn: { showingLearn = true }
         )
     }
 

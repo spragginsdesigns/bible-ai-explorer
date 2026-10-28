@@ -6,6 +6,7 @@ import SwiftUI
 /// create, and the per-note actions Android reaches by long-press. On a Mac
 /// those live in a right-click menu, which is the same gesture by another name.
 struct NotesListPane: View {
+    @Environment(AppModel.self) private var app
     @Environment(\.theme) private var theme
     @Bindable var library: NotesLibraryModel
     /// For the sermon template's church name (`/api/church`).
@@ -68,6 +69,9 @@ struct NotesListPane: View {
             // `createNote(template:)` selects the new note, which opens it in
             // the editor beside the list.
             NoteTemplatePickerSheet { template in
+                guard await app.noteDeparture.canLeave() else {
+                    throw APIError(message: "Save the current note before opening another one.")
+                }
                 _ = try await library.createNote(template: template) {
                     switch try await api.fetchChurch() {
                     case .unavailable: return nil
@@ -96,6 +100,22 @@ struct NotesListPane: View {
                 .appFont(.custom(FontFamily.brand, size: 28))
                 .foregroundStyle(theme.text)
             Spacer()
+            // Android's pull-to-refresh, as a Mac button: the only reload
+            // that shows a spinner.
+            Button {
+                Task { await library.refresh() }
+            } label: {
+                if library.isRefreshing {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Image(systemName: "arrow.clockwise")
+                }
+            }
+            .buttonStyle(SubtleButtonStyle())
+            .disabled(library.isRefreshing)
+            .keyboardShortcut("r", modifiers: .command)
+            .help("Refresh notes (⌘R)")
+            .accessibilityLabel("Refresh notes")
             Button {
                 isTemplatePickerPresented = true
             } label: {
@@ -227,7 +247,10 @@ struct NotesListPane: View {
                         // activation and an accessibility action for free, which
                         // a tap gesture on a VStack does not.
                         Button {
-                            library.selectedNoteID = note.id
+                            Task {
+                                guard await app.noteDeparture.canLeave() else { return }
+                                library.selectedNoteID = note.id
+                            }
                         } label: {
                             NoteRow(
                                 note: note,
