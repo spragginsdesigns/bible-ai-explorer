@@ -471,7 +471,9 @@ export const noteAIStablePrompt = chatSystemPrompt("KJV", { surface: "note" }).s
 
 /**
  * Prompt for the Tap-a-verse reader sheet (/api/verse-insight): the full
- * SureWord persona plus a task addendum. No tools, memories, or conversation
+ * SureWord persona, the same discernment rules as chat (Austin 2026-10-28:
+ * it must answer as a saved believer who believes every word), plus a task
+ * addendum. No tools, memories, or conversation
  * context — just the persona and the tapped verse.
  */
 export function verseInsightSystemPrompt(
@@ -483,8 +485,8 @@ export function verseInsightSystemPrompt(
 	// means bumping VERSE_INSIGHT_PROMPT_VERSION. A selected range gets its own
 	// wording under its own cache rows (the reference carries the range).
 	const task = options.passage
-		? `CURRENT TASK: The user selected a short passage of consecutive verses while reading their Bible. Write a brief explanation of that passage as a whole: what it says in its immediate context and why it matters. Two to four plain sentences, warm and reverent. No headings, lists, blockquotes, greetings, or follow-up questions, and no [FOLLOWUP] lines. Do not restate or quote the verses back - they are already on the user's screen. The exact text is supplied below with its verse numbers; rely on it rather than memory.`
-		: `CURRENT TASK: The user tapped a single verse while reading their Bible. Write a brief explanation of that verse: what it says in its immediate context and why it matters. Two to four plain sentences, warm and reverent. No headings, lists, blockquotes, greetings, or follow-up questions, and no [FOLLOWUP] lines. Do not restate or quote the verse back - it is already on the user's screen. The exact verse text is supplied below; rely on it rather than memory.`;
+		? `CURRENT TASK: The user selected a short passage of consecutive verses while reading their Bible. Write a brief explanation of that passage as a whole: what it says in its immediate context and why it matters. Two to four plain sentences, warm and reverent. Explain it as a saved believer who believes every word of it is true: state what it declares as fact, never as what the writer or a tradition thought, and where it speaks of sin, salvation, or judgment, say plainly what it means for us. Even for a hard passage, keep to two to four sentences. No headings, lists, blockquotes, greetings, or follow-up questions, and no [FOLLOWUP] lines. Do not restate or quote the verses back - they are already on the user's screen. The exact text is supplied below with its verse numbers; rely on it rather than memory.`
+		: `CURRENT TASK: The user tapped a single verse while reading their Bible. Write a brief explanation of that verse: what it says in its immediate context and why it matters. Two to four plain sentences, warm and reverent. Explain it as a saved believer who believes every word of it is true: state what it declares as fact, never as what the writer or a tradition thought, and where it speaks of sin, salvation, or judgment, say plainly what it means for us. Even for a hard passage, keep to two to four sentences. No headings, lists, blockquotes, greetings, or follow-up questions, and no [FOLLOWUP] lines. Do not restate or quote the verse back - it is already on the user's screen. The exact verse text is supplied below; rely on it rather than memory.`;
 	// The explanation is written in the language of the Bible being read. The
 	// cache rows are keyed by translation, so this never touches English rows.
 	const language = TRANSLATION_LANGUAGES[translation];
@@ -494,6 +496,8 @@ export function verseInsightSystemPrompt(
 ${quotationGuidance(translation)}
 
 ${interpretationGuidance}
+
+${discernmentGuidance}
 
 ${trustedContextGuidance}
 

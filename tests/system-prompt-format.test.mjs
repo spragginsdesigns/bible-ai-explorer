@@ -19,6 +19,7 @@ import {
 	noteAISystemPrompt,
 	systemPrompt,
 	verseInsightSystemPrompt,
+	discernmentGuidance,
 } from "../src/utils/systemPrompt.ts";
 
 const EM_DASH = "\u2014";
@@ -150,6 +151,16 @@ test("the verse-insight prompt still forbids structure entirely", () => {
 	const insight = verseInsightSystemPrompt("KJV");
 	assert.ok(!insight.includes(markdownOutputRules));
 	assert.ok(insight.includes("No headings, lists, blockquotes"));
+});
+
+test("tap-a-verse answers as a saved believer, with chat's discernment rules", () => {
+	// Austin 2026-10-28: the reader sheet read like a commentator. It carries
+	// the same doctrinal foundation and discernment guidance as chat.
+	for (const prompt of [verseInsightSystemPrompt("KJV"), verseInsightSystemPrompt("KJV", { passage: true })]) {
+		assert.ok(prompt.includes("ALWAYS ANSWER AS A SAVED BELIEVER"));
+		assert.ok(prompt.includes(discernmentGuidance));
+		assert.ok(prompt.includes("as a saved believer who believes every word of it is true"));
+	}
 });
 
 test("the verse-insight prompt explains a selected range as one passage", () => {
