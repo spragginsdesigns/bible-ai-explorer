@@ -2,6 +2,16 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.108.0 (versionCode 126) - 2026-10-28 - internal and closed testing
+
+**What's new (Play):**
+
+IMPROVED
+- Listen to the daily devotional is now part of every SureWord Pro membership.
+- When Free reaches a Pro feature or today's message limit, a See SureWord Pro button takes you straight to Membership.
+
+**Dev notes:** Austin's Free/Pro rulings (2026-10-28). Server (33058edd): `listenAccess` gives Listen to every Pro account with no env switch; `SERVER_CREDENTIAL_USER_IDS` is Austin only, so the owner picker and GPT-6.1 Sol are his alone; owner utility on Luna. Upgrade paths (c47f2f7c): the allowance 429 body carries `plan` (`includedLimitBody`), Android ListenCard and chat ErrorCard show "See SureWord Pro" (opens Settings -> AI Membership) only when `canOfferPlayUpgrade` says Play checkout is available and the reader is Free (`usePlayUpgrade`, fetched only while a wall shows). Web links to /membership; iOS opens ProMembershipView; iOS voice-quota copy names Pro while App Store checkout is available (`mentionsProFor`). Google Play RTDN wired (versemind-auth Pub/Sub push, verified 200). No native changes.
+
 ## 1.107.0 (versionCode 125) - 2026-10-27 - internal and closed testing
 
 **What's new (Play):**

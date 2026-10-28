@@ -14,6 +14,11 @@
 		]
 	},
 	"releases": {
+		"1.108.0": {
+			"title": "Pro, one tap away",
+			"headline": "Every Pro member can listen.",
+			"why": "The spoken devotional comes with SureWord Pro, and wherever Free reaches a limit, one button opens Membership."
+		},
 		"1.107.0": {
 			"title": "Your membership, clearly",
 			"headline": "See where your subscription stands.",

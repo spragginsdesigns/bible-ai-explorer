@@ -1,6 +1,20 @@
 {
 	"releases": [
 		{
+			"version": "1.108.0",
+			"versionCode": 126,
+			"date": "2026-10-28",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Listen to the daily devotional is now part of every SureWord Pro membership.",
+						"When Free reaches a Pro feature or today's message limit, a See SureWord Pro button takes you straight to Membership."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.107.0",
 			"versionCode": 125,
 			"date": "2026-10-27",
