@@ -1,6 +1,19 @@
 {
 	"releases": [
 		{
+			"version": "1.108.1",
+			"versionCode": 127,
+			"date": "2026-10-28",
+			"sections": [
+				{
+					"kind": "fixed",
+					"items": [
+						"After the \"Tap a verse\" step of Getting started, the Bible tab no longer gets stuck on John 3. Back now takes you to the Bible home so you can open any book and chapter."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.108.0",
 			"versionCode": 126,
 			"date": "2026-10-28",

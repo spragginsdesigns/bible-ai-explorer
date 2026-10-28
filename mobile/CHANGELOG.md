@@ -2,6 +2,15 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.108.1 (versionCode 127) - 2026-10-28 - internal and closed testing
+
+**What's new (Play):**
+
+FIXED
+- After the "Tap a verse" step of Getting started, the Bible tab no longer gets stuck on John 3. Back now takes you to the Bible home so you can open any book and chapter.
+
+**Dev notes:** Austin's recording (2026-10-28): "Show me" on the Tap a verse step called `router.navigate` to `/bible/chapter?book=43&chapter=3&verse=16` without an anchor while the Bible tab had never been opened, so the Bible stack held only that chapter. System Back and the reader's back arrow left the tab, and every return to Bible landed on John 3 again. Fix: every spotlight navigation passes `SPOTLIGHT_NAVIGATION_OPTIONS` (`withAnchor: true`, the same option the Today and notification links already use), and the reader opens its stack's home (Bible, Today or Study) in place of itself when Back is pressed with nothing beneath it, so no future link can strand it either. No native changes.
+
 ## 1.108.0 (versionCode 126) - 2026-10-28 - internal and closed testing
 
 **What's new (Play):**

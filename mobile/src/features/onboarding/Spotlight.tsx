@@ -23,7 +23,7 @@ import { AppText as Text } from "@/components/AppText";
 import { radius, spacing, typography, type Colors } from "@/theme";
 import { useThemedStyles } from "@/features/settings/settingsStore";
 import { track as trackEvent, ANALYTICS_EVENTS } from "@/lib/analytics";
-import { hrefForTarget, isKnownTarget } from "./spotlightRoutes";
+import { hrefForTarget, isKnownTarget, SPOTLIGHT_NAVIGATION_OPTIONS } from "./spotlightRoutes";
 
 /**
  * The gold spotlight (Walk with me): dims the app and rings one named place,
@@ -247,7 +247,7 @@ export function SpotlightOverlay() {
 		if (!current || !stop) return;
 		let live = true;
 		const href = hrefForTarget(stop.target);
-		if (href) router.navigate(href as Href);
+		if (href) router.navigate(href as Href, SPOTLIGHT_NAVIGATION_OPTIONS);
 		const settle = () => new Promise((resolve) => setTimeout(resolve, 400));
 		void (async () => {
 			const found = await findTarget(stop.target, () => live);

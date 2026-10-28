@@ -14,6 +14,11 @@
 		]
 	},
 	"releases": {
+		"1.108.1": {
+			"title": "Free to roam",
+			"headline": "Back always finds the Bible.",
+			"why": "After Getting started shows you how to tap a verse, Back now takes you to the Bible home, so you can open any book instead of returning to John 3."
+		},
 		"1.108.0": {
 			"title": "Pro, one tap away",
 			"headline": "Every Pro member can listen.",

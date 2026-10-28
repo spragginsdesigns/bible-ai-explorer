@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
 	ActivityIndicator,
 	Alert,
+	BackHandler,
 	FlatList,
 	Image,
 	Modal,
@@ -12,7 +13,7 @@ import {
 } from "react-native";
 import { AppText as Text, AppScriptText as ScriptureText } from "@/components/AppText";
 import { typography } from "@/theme";
-import { useFocusEffect, useLocalSearchParams, useRouter, useSegments } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter, useSegments } from "expo-router";
 import { useChapterAudio } from "@/features/bible/useChapterAudio";
 import { ChapterAudioBar } from "@/features/bible/ChapterAudioBar";
 import {
@@ -258,6 +259,26 @@ export default function BibleChapterScreen() {
 	const segments: readonly string[] = useSegments();
 	const chapterPath = segments.includes("today") ? "/today/chapter" : segments.includes("study") ? "/study/chapter" : "/bible/chapter";
 	const quizPath = segments.includes("today") ? "/today/quiz" : segments.includes("study") ? "/study/quiz" : "/bible/quiz";
+	const homePath = segments.includes("today") ? "/today" : segments.includes("study") ? "/study" : "/bible";
+	const navigation = useNavigation();
+	// A reader opened from another tab without its anchor is alone in its
+	// stack: Back would leave the tab and every return would land on this
+	// chapter again, with no way to another book (Austin, 2026-10-28, after
+	// the Tap a verse tour step). Open the stack's home in its place instead.
+	const openHomeIfAlone = useCallback(() => {
+		if ((navigation.getState()?.index ?? 0) > 0) return false;
+		router.replace(homePath);
+		return true;
+	}, [navigation, router, homePath]);
+	const goBack = useCallback(() => {
+		if (!openHomeIfAlone()) router.back();
+	}, [openHomeIfAlone, router]);
+	useFocusEffect(
+		useCallback(() => {
+			const subscription = BackHandler.addEventListener("hardwareBackPress", openHomeIfAlone);
+			return () => subscription.remove();
+		}, [openHomeIfAlone])
+	);
 	const readingStatus = useReadingLogStatus();
 	const getToken = useStableGetToken();
 	const tabBarSpace = useTabBarSpace();
@@ -977,7 +998,7 @@ export default function BibleChapterScreen() {
 					<Pressable
 						accessibilityRole="button"
 						accessibilityLabel="Back to chapters"
-						onPress={() => router.back()}
+						onPress={goBack}
 						style={styles.fontButton}
 					>
 						<Ionicons name="chevron-back" size={24} color={colors.text} />
@@ -996,7 +1017,7 @@ export default function BibleChapterScreen() {
 				<Pressable
 					accessibilityRole="button"
 					accessibilityLabel="Back to chapters"
-					onPress={() => router.back()}
+					onPress={goBack}
 					style={styles.fontButton}
 				>
 					<Ionicons name="chevron-back" size={24} color={colors.text} />

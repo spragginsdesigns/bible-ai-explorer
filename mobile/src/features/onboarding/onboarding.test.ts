@@ -1,8 +1,10 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { isRenderableChatViewMessage, toViewMessage } from "@/lib/chatView";
 import { hourForLabel, hourLabel } from "./dailyTime";
 import { heardOnEnable, takeUnheard, type VoiceMessage } from "./voiceQueue";
-import { hrefForTarget, isKnownTarget, TOUR_READER_HREF } from "./spotlightRoutes";
+import { hrefForTarget, isKnownTarget, SPOTLIGHT_NAVIGATION_OPTIONS, TOUR_READER_HREF } from "./spotlightRoutes";
 import { APP_TARGET_KEYS, DAILY_TIME_HOURS, DAILY_TIME_OPTIONS, TOUR_STOPS } from "./onboardingRules";
 import {
 	TEXT_SCALE_FACTORS,
@@ -78,6 +80,13 @@ describe("spotlight routes", () => {
 	it("ends the tour on John 3:16 in the reader", () => {
 		expect(TOUR_STOPS.at(-1)?.target).toBe("reader.verse");
 		expect(hrefForTarget("reader.verse")).toEqual(TOUR_READER_HREF);
+	});
+
+	it("keeps each stack's home beneath what it opens, so Back never strands the reader", () => {
+		// Without the anchor the Bible tab held John 3 alone after the tour.
+		expect(SPOTLIGHT_NAVIGATION_OPTIONS).toEqual({ withAnchor: true });
+		const overlay = readFileSync(path.resolve(__dirname, "Spotlight.tsx"), "utf8");
+		expect(overlay).toContain("router.navigate(href as Href, SPOTLIGHT_NAVIGATION_OPTIONS)");
 	});
 });
 

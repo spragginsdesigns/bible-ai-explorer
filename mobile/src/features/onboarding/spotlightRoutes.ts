@@ -31,6 +31,14 @@ const TARGET_HREFS: Readonly<Record<string, SpotlightHref | null>> = {
 	tour: null,
 };
 
+/**
+ * Every spotlight navigation keeps the destination stack's home beneath it.
+ * Without the anchor, "Show me" on Tap a verse opened the Bible tab with John 3
+ * as its only screen, so Back left the tab and every return to Bible landed on
+ * John 3 again, with no way to reach another book (Austin, 2026-10-28).
+ */
+export const SPOTLIGHT_NAVIGATION_OPTIONS = { withAnchor: true } as const;
+
 /** Null: no navigation needed (or an unknown target, which is skipped). */
 export function hrefForTarget(target: string): SpotlightHref | null {
 	return Object.prototype.hasOwnProperty.call(TARGET_HREFS, target) ? TARGET_HREFS[target] : null;
