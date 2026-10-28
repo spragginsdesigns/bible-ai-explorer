@@ -68,5 +68,17 @@ export async function GET(request: Request) {
     console.error("Could not clean up church save events:", error);
   }
 
-  return NextResponse.json({ checked, deleted, guestTurnsDeleted, churchSaveEventsDeleted });
+  // Stops outlive the maximum chat duration, then cease to suppress delivery.
+  // expiresAt is indexed; account/conversation deletion also cascades these rows.
+  let chatNotificationStopsDeleted = 0;
+  try {
+    const expired = await prisma.chatNotificationStop.deleteMany({
+      where: { expiresAt: { lte: new Date() } },
+    });
+    chatNotificationStopsDeleted = expired.count;
+  } catch {
+    console.error("Could not clean up expired chat notification Stops");
+  }
+
+  return NextResponse.json({ checked, deleted, guestTurnsDeleted, churchSaveEventsDeleted, chatNotificationStopsDeleted });
 }

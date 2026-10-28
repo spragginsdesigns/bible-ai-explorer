@@ -4382,6 +4382,7 @@ if Clerk fails after the commit).
 | User | id = Clerk id | deleted explicitly (last statement of the transaction) |
 | AiPreference, BillingSubscription, GooglePlaySubscription, AppStoreSubscription, AiUsageRequest, UserChurch, ProviderCredential (BYO keys), UserMemory | userId | cascade |
 | Conversation | userId | cascade |
+| ChatNotificationStop (one-hour notification suppression per stream attempt) | userId + conversation + attempt | cascade via User or Conversation |
 | Message (answer feedback lives here) | conversation | cascade via Conversation |
 | ChatAttachment (incl. voice transcripts) | userId | cascade; blobs deleted by pathname |
 | Folder, Tag, Note | userId | cascade |

@@ -29,6 +29,7 @@ import { audioTranscriptText } from "@/lib/audio-transcription-rules";
 import { prisma } from "@/lib/prisma";
 import { notifyChatAnswerReady } from "@/lib/push";
 import { withChatClientConnection, type ChatClientConnection } from "@/lib/chat-client-connection";
+import { notifyUnlessChatStopped, parseChatNotificationAttemptId } from "@/lib/chat-notification-stop";
 import { buildSureWordTools, type SureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
 import { linksInText } from "@/lib/chat/user-links";
 import { resolveModel, aiAccessFor } from "@/lib/ai/provider";
@@ -652,6 +653,13 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 			typeof body === "object" && body !== null
 				? (body as Record<string, unknown>)
 				: {};
+		const notificationAttemptId = parseChatNotificationAttemptId(requestData.notificationAttemptId);
+		if (notificationAttemptId === null) {
+			return NextResponse.json(
+				chatErrorPayload("invalid_input", "Invalid input: 'notificationAttemptId' must be a full UUID."),
+				{ status: 400 },
+			);
+		}
 
 		if (!Array.isArray(requestData.messages) || requestData.messages.length === 0) {
 			return NextResponse.json(
@@ -917,11 +925,18 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 						if (exit !== "persisted") return;
 						// Keep this waitUntil alive if saving wins the race against
 						// departure. A normal client EOF/error resolves without a push.
-						return clientConnection.afterPersistence(() => notifyChatAnswerReady({
-							userId,
-							conversationId,
-							answerText: stripFollowUps(extractAssistantText(responseMessage)).cleanText,
-						})).then(() => {
+						return clientConnection.afterPersistence(async () => {
+							await notifyUnlessChatStopped({ userId, conversationId, attemptId: notificationAttemptId }, {
+								findStop: (attempt) => prisma.chatNotificationStop.findUnique({
+									where: { userId_conversationId_attemptId: attempt }, select: { expiresAt: true },
+								}),
+								notify: () => notifyChatAnswerReady({
+									userId,
+									conversationId,
+									answerText: stripFollowUps(extractAssistantText(responseMessage)).cleanText,
+								}),
+							});
+						}).then(() => {
 							console.info("[chat-reply-push] connection", JSON.stringify({
 								disconnected: clientConnection.disconnected,
 							}));

@@ -74,6 +74,7 @@ export const ACCOUNT_DATA_MODELS: readonly AccountDataModel[] = [
 	{ model: "ProviderCredential", via: "cascade" },
 	{ model: "UserMemory", via: "cascade" },
 	{ model: "Conversation", via: "cascade" },
+	{ model: "ChatNotificationStop", via: "cascade" },
 	{ model: "Message", via: "cascade", parent: "Conversation" },
 	{ model: "ChatAttachment", via: "cascade", blob: true },
 	{ model: "AudioTranscriptionUsage", via: "cascade" },
