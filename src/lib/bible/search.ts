@@ -44,7 +44,7 @@ async function searchTranslation(query: string, translation: TranslationId, limi
   if (translation === "KJV") {
     return (await searchKjv(query, limit)).map((hit) => ({ ...hit, translation }));
   }
-  if (translation === "RV1909" || translation === "LUT1912") {
+  if (translation === "ASV" || translation === "RV1909" || translation === "LUT1912") {
     // Accent-insensitive, so "jehova" finds "Jehová" as typed on any keyboard.
     const fold = (text: string) => foldAccents(text.toLowerCase());
     const needle = fold(query);

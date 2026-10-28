@@ -10,7 +10,7 @@
  */
 
 /** Every Bible the reader serves. Inlined so this module stays import-free. */
-const TRANSLATION_IDS = ["KJV", "NKJV", "BSB", "RV1909", "LUT1912"] as const;
+const TRANSLATION_IDS = ["KJV", "NKJV", "BSB", "ASV", "RV1909", "LUT1912"] as const;
 type ReceiptTranslation = (typeof TRANSLATION_IDS)[number];
 
 function receiptTranslation(value: unknown): ReceiptTranslation | undefined {

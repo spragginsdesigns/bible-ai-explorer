@@ -77,7 +77,7 @@ describe("getChapter (NKJV)", () => {
 
 describe("translation list", () => {
 	it("holds every id exactly once, each entry keyed by its own id", () => {
-		expect(TRANSLATION_IDS).toEqual(["KJV", "NKJV", "BSB", "RV1909", "LUT1912"]);
+		expect(TRANSLATION_IDS).toEqual(["KJV", "NKJV", "BSB", "ASV", "RV1909", "LUT1912"]);
 		expect(Object.keys(TRANSLATIONS).sort()).toEqual([...TRANSLATION_IDS].sort());
 		for (const id of TRANSLATION_IDS) expect(TRANSLATIONS[id].id).toBe(id);
 	});
@@ -88,7 +88,9 @@ describe("translation list", () => {
 		expect(translationPickerLabel("RV1909")).toBe("Reina-Valera 1909 · Español");
 		expect(translationPickerLabel("LUT1912")).toBe("Lutherbibel 1912 · Deutsch");
 		expect(translationPickerLabel("KJV")).toBe("KJV");
-		for (const id of ["KJV", "NKJV", "BSB"] as const) expect(TRANSLATIONS[id].language).toBe("en");
+		for (const id of ["KJV", "NKJV", "BSB", "ASV"] as const) expect(TRANSLATIONS[id].language).toBe("en");
+		expect(TRANSLATIONS.ASV).toMatchObject({ label: "American Standard Version", copyright: "Public domain" });
+		expect(translationPickerLabel("ASV")).toBe("ASV");
 	});
 
 	it("maps each language to its own Bible", () => {
@@ -115,6 +117,18 @@ describe("getChapter (bundled Bibles in other languages)", () => {
 		expect(lut).toHaveLength(kjv.length);
 		expect(rv[15]).toMatch(/^Porque de tal manera amó Dios al mundo/);
 		expect(lut[15]).toMatch(/^Also hat Gott die Welt geliebt/);
+		expect(fetchSpy).not.toHaveBeenCalled();
+	});
+
+	it("reads the American Standard Version offline, with the verses it omits left empty (LC-17800)", async () => {
+		const fetchSpy = vi.fn();
+		vi.stubGlobal("fetch", fetchSpy);
+		const genesis = await getChapter("ASV", 1, 1);
+		expect(genesis[0]).toBe("In the beginning God created the heavens and the earth.");
+		const matthew = await getChapter("ASV", 40, 17);
+		expect(matthew).toHaveLength((await getChapter("KJV", 40, 17)).length);
+		expect(matthew[20]).toBe("");
+		expect(matthew[21]).toMatch(/^And while they abode in Galilee/);
 		expect(fetchSpy).not.toHaveBeenCalled();
 	});
 

@@ -1,6 +1,8 @@
 /**
- * Lazy access to the bundled public-domain Bibles in other languages
- * (data/rv1909 and data/lut1912, chapters of verses in the KJV's shape).
+ * Lazy access to the bundled public-domain eBible editions: the Bibles in other
+ * languages (data/rv1909 and data/lut1912) and the American Standard Version
+ * (data/asv, which leaves the 16 verses it omits as empty strings), chapters
+ * of verses in the KJV's shape.
  * Regenerate the data with scripts/bible/build-ebible.py. Metro needs literal
  * require paths, so every book is listed by hand; a book's JSON is parsed on
  * first access and then cached for the session.
@@ -9,7 +11,7 @@ import { bookByOrder } from "./books";
 
 type RawBook = string[][];
 
-export type BundledForeignBible = "RV1909" | "LUT1912";
+export type BundledForeignBible = "RV1909" | "LUT1912" | "ASV";
 
 const RV1909_LOADERS: Record<number, () => RawBook> = {
 	1: () => require("./data/rv1909/01.json") as RawBook,
@@ -149,9 +151,79 @@ const LUT1912_LOADERS: Record<number, () => RawBook> = {
 	66: () => require("./data/lut1912/66.json") as RawBook,
 };
 
+const ASV_LOADERS: Record<number, () => RawBook> = {
+	1: () => require("./data/asv/01.json") as RawBook,
+	2: () => require("./data/asv/02.json") as RawBook,
+	3: () => require("./data/asv/03.json") as RawBook,
+	4: () => require("./data/asv/04.json") as RawBook,
+	5: () => require("./data/asv/05.json") as RawBook,
+	6: () => require("./data/asv/06.json") as RawBook,
+	7: () => require("./data/asv/07.json") as RawBook,
+	8: () => require("./data/asv/08.json") as RawBook,
+	9: () => require("./data/asv/09.json") as RawBook,
+	10: () => require("./data/asv/10.json") as RawBook,
+	11: () => require("./data/asv/11.json") as RawBook,
+	12: () => require("./data/asv/12.json") as RawBook,
+	13: () => require("./data/asv/13.json") as RawBook,
+	14: () => require("./data/asv/14.json") as RawBook,
+	15: () => require("./data/asv/15.json") as RawBook,
+	16: () => require("./data/asv/16.json") as RawBook,
+	17: () => require("./data/asv/17.json") as RawBook,
+	18: () => require("./data/asv/18.json") as RawBook,
+	19: () => require("./data/asv/19.json") as RawBook,
+	20: () => require("./data/asv/20.json") as RawBook,
+	21: () => require("./data/asv/21.json") as RawBook,
+	22: () => require("./data/asv/22.json") as RawBook,
+	23: () => require("./data/asv/23.json") as RawBook,
+	24: () => require("./data/asv/24.json") as RawBook,
+	25: () => require("./data/asv/25.json") as RawBook,
+	26: () => require("./data/asv/26.json") as RawBook,
+	27: () => require("./data/asv/27.json") as RawBook,
+	28: () => require("./data/asv/28.json") as RawBook,
+	29: () => require("./data/asv/29.json") as RawBook,
+	30: () => require("./data/asv/30.json") as RawBook,
+	31: () => require("./data/asv/31.json") as RawBook,
+	32: () => require("./data/asv/32.json") as RawBook,
+	33: () => require("./data/asv/33.json") as RawBook,
+	34: () => require("./data/asv/34.json") as RawBook,
+	35: () => require("./data/asv/35.json") as RawBook,
+	36: () => require("./data/asv/36.json") as RawBook,
+	37: () => require("./data/asv/37.json") as RawBook,
+	38: () => require("./data/asv/38.json") as RawBook,
+	39: () => require("./data/asv/39.json") as RawBook,
+	40: () => require("./data/asv/40.json") as RawBook,
+	41: () => require("./data/asv/41.json") as RawBook,
+	42: () => require("./data/asv/42.json") as RawBook,
+	43: () => require("./data/asv/43.json") as RawBook,
+	44: () => require("./data/asv/44.json") as RawBook,
+	45: () => require("./data/asv/45.json") as RawBook,
+	46: () => require("./data/asv/46.json") as RawBook,
+	47: () => require("./data/asv/47.json") as RawBook,
+	48: () => require("./data/asv/48.json") as RawBook,
+	49: () => require("./data/asv/49.json") as RawBook,
+	50: () => require("./data/asv/50.json") as RawBook,
+	51: () => require("./data/asv/51.json") as RawBook,
+	52: () => require("./data/asv/52.json") as RawBook,
+	53: () => require("./data/asv/53.json") as RawBook,
+	54: () => require("./data/asv/54.json") as RawBook,
+	55: () => require("./data/asv/55.json") as RawBook,
+	56: () => require("./data/asv/56.json") as RawBook,
+	57: () => require("./data/asv/57.json") as RawBook,
+	58: () => require("./data/asv/58.json") as RawBook,
+	59: () => require("./data/asv/59.json") as RawBook,
+	60: () => require("./data/asv/60.json") as RawBook,
+	61: () => require("./data/asv/61.json") as RawBook,
+	62: () => require("./data/asv/62.json") as RawBook,
+	63: () => require("./data/asv/63.json") as RawBook,
+	64: () => require("./data/asv/64.json") as RawBook,
+	65: () => require("./data/asv/65.json") as RawBook,
+	66: () => require("./data/asv/66.json") as RawBook,
+};
+
 const LOADERS: Record<BundledForeignBible, Record<number, () => RawBook>> = {
 	RV1909: RV1909_LOADERS,
 	LUT1912: LUT1912_LOADERS,
+	ASV: ASV_LOADERS,
 };
 
 const bookCache = new Map<string, RawBook>();

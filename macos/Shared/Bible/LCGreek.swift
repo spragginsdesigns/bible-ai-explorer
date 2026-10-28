@@ -1,23 +1,27 @@
 import Foundation
 
 /// The LC Greek (LC-15842): SureWord's own modern-English translation of the
-/// Textus Receptus, the text every Alive recording reads. The reader offers it
-/// beside its translations on a book that has it, verse for verse in the
-/// KJV's numbering. It is a reading text only: highlights, Explain, Learn and
+/// Textus Receptus, Matthew to John only. The reader offers it beside its
+/// translations on those books, verse for verse in the KJV's numbering. It is a reading text only: highlights, Explain, Learn and
 /// Ask AI keep working on the KJV verse with the same number.
 ///
-/// Same names, wording and parse rule as `LC_GREEK`, `hasLcGreek` and
-/// `parseLcGreek` in src/lib/bible/audioBible.ts.
+/// Same names, wording and parse rule as `LC_GREEK`, `hasLcGreek`,
+/// `lcGreekNote` and `parseLcGreek` in src/lib/bible/audioBible.ts.
 enum LCGreek {
     static let label = "LC Greek"
-    static let note = "Our own translation of the Greek · the text Alive reads"
+    static let note = "Our own translation of the Greek"
+    /// `lcGreekNote`: says Alive reads it only while the chapter's Alive
+    /// recording still does (`ChapterAudioModel.aliveText`).
+    static func note(aliveText: String?) -> String {
+        aliveText == "LC Greek" ? "\(note) · the text Alive reads" : note
+    }
     static let copyright = "SureWord's own translation of the Textus Receptus"
     /// The reader's on/off choice, kept on this device only (web's
     /// `LC_GREEK_PREF_KEY`). Default off.
     static let preferenceKey = "sureword-lc-greek"
 
-    /// Every book with an Alive recording has its LC Greek text.
-    static func has(_ book: Int) -> Bool { ChapterAudio.hasAlive(book) }
+    /// `LC_GREEK_ALIVE_BOOKS`: Matthew to John.
+    static func has(_ book: Int) -> Bool { (40...43).contains(book) }
 
     static func path(book: Int, chapter: Int) -> String {
         "/api/bible/lc-greek?book=\(book)&chapter=\(chapter)"

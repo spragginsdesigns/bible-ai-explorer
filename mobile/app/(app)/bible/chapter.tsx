@@ -21,8 +21,10 @@ import {
 	LC_GREEK,
 	RECOMMENDED_EDITION,
 	RECOMMENDED_LABEL,
+	editionDetail,
 	hasLcGreek,
 	hasNarration,
+	lcGreekNote,
 	type AudioEdition,
 } from "@/features/bible/audioBible";
 import { getChapterTexts } from "@/features/bible/lcGreek";
@@ -217,7 +219,7 @@ const VerseRow = React.memo(function VerseRow({
 						{hasNote ? " ✎" : ""}
 						{"\u2002"}
 					</ScriptureText>
-					{formatted?.omitted ? (
+					{formatted?.omitted || markup === "" ? (
 						<ScriptureText style={styles.omittedVerse}>
 							Not included in this edition’s main text.
 						</ScriptureText>
@@ -555,15 +557,15 @@ export default function BibleChapterScreen() {
 	// first, recommending Alive (LC-15842): the message lists the recordings in
 	// LISTEN_ORDER, and the recommended one is the last button, which Android
 	// makes the positive (primary) action, on top when the buttons stack.
-	const { play: playChapter, editions: listenEditions } = chapterAudio;
+	const { play: playChapter, editions: listenEditions, aliveText } = chapterAudio;
 	const listen = useCallback((fromVerse = 0) => {
 		if (listenEditions.length < 2) { void playChapter(fromVerse); return; }
 		const label = (edition: AudioEdition) => edition === RECOMMENDED_EDITION ? `${EDITION_CHOICES[edition].label} (${RECOMMENDED_LABEL})` : EDITION_CHOICES[edition].label;
 		const choice = (edition: AudioEdition) => ({ text: label(edition), onPress: () => void playChapter(fromVerse, edition) });
 		Alert.alert(`Listen to ${reference}`,
-			listenEditions.map(edition => `${label(edition)}: ${EDITION_CHOICES[edition].detail}.`).join("\n"),
+			listenEditions.map(edition => `${label(edition)}: ${editionDetail(edition, aliveText)}.`).join("\n"),
 			[{ text: "Cancel", style: "cancel" }, ...[...listenEditions].reverse().map(choice)]);
-	}, [listenEditions, playChapter, reference]);
+	}, [aliveText, listenEditions, playChapter, reference]);
 	const lastManualScroll = useRef(0);
 	useEffect(() => {
 		if (!chapterAudio.playing || !chapterAudio.verse || loadedKey !== chapterKey || (selection !== null && sheetTier === "expanded")) return;
@@ -1126,13 +1128,15 @@ export default function BibleChapterScreen() {
 				</View>
 				<Text style={styles.optionsLabel}>
 					{lcGreek
-						? LC_GREEK.note
+						? lcGreekNote(aliveText)
 						: translation === "KJV"
 							? "KJV words of Jesus · eBible edition. Editorial headings · BSB."
 							: translation === "BSB"
 								? "Section headings and words of Jesus · Berean Standard Bible"
-								: TRANSLATIONS[translation].language !== "en"
-									? `${translationPickerLabel(translation)}. Red letters and section headings are not available in this edition yet.`
+								: translation === "ASV"
+									? `${TRANSLATIONS.ASV.label}. Red letters and section headings are not available in this edition yet.`
+									: TRANSLATIONS[translation].language !== "en"
+										? `${translationPickerLabel(translation)}. Red letters and section headings are not available in this edition yet.`
 									: "Red letters aren't available from our NKJV text provider yet."}
 				</Text>
 			</BottomSheet>
@@ -1463,6 +1467,8 @@ const createStyles = (c: Colors) =>
 		fontControls: { flexDirection: "row", gap: spacing.sm },
 		translationRow: {
 			flexDirection: "row",
+			// Six translations plus the LC Greek outgrow a phone's width.
+			flexWrap: "wrap",
 			justifyContent: "flex-start",
 			gap: 8,
 			paddingHorizontal: spacing.lg,

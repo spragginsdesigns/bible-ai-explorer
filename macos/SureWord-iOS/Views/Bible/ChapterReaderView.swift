@@ -209,7 +209,7 @@ struct ChapterReaderView: View {
             // The line under the chips on web and in Android's reader options:
             // what the LC Greek is, or where the red letters and headings
             // come from.
-            Text(lcGreek ? LCGreek.note : ReaderAnnotations.sourceNote(translation))
+            Text(lcGreek ? LCGreek.note(aliveText: app.chapterAudio.aliveText) : ReaderAnnotations.sourceNote(translation))
                 .appFont(.system(size: 11))
                 .foregroundStyle(theme.textMuted)
                 .multilineTextAlignment(.trailing)
@@ -276,7 +276,7 @@ struct ChapterReaderView: View {
                                 app.chapterAudio.start(edition: edition)
                             } label: {
                                 Text(edition.label)
-                                Text(edition.isRecommended ? "\(AudioEdition.recommendedLabel) · \(edition.detail)" : edition.detail)
+                                Text(edition.isRecommended ? "\(AudioEdition.recommendedLabel) · \(edition.detail(aliveText: app.chapterAudio.aliveText))" : edition.detail(aliveText: app.chapterAudio.aliveText))
                                 if edition.isRecommended { Image(systemName: "star.fill") }
                             }
                         }

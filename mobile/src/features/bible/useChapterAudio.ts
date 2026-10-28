@@ -3,7 +3,7 @@ import { createAudioPlayer, setAudioModeAsync, type AudioPlayer, type AudioStatu
 import { API_URL } from "@/lib/api";
 import { setListenRate, useSettings } from "@/features/settings/settingsStore";
 import { nextListenRate } from "@/features/cross/listen";
-import { LISTEN_ORDER, hasAlive, hasNarration, needsStillListening, verseAt, verseStart, type AudioEdition, type ChapterAudio } from "./audioBible";
+import { LISTEN_ORDER, adjacentVerse, hasNarration, needsStillListening, verseAt, verseStart, type AudioEdition, type ChapterAudio } from "./audioBible";
 
 type Recordings = Partial<Record<AudioEdition, ChapterAudio>>;
 
@@ -124,9 +124,10 @@ export function useChapterAudio(options: {
       pendingPlay.current = null; sessionOpen.current = false; setOpen(false);
       return () => controller.abort();
     }
-    // Every recording of the chapter (the narration, and Mark's Alive one), so
-    // the Listen choice can play either; a missing Alive recording is skipped.
-    const editions: AudioEdition[] = hasAlive(options.book) ? ["regular", "alive"] : ["regular"];
+    // Every recording of the chapter (the narration, and its Alive one), so the
+    // Listen choice can play either. Any chapter may have Alive; the API knows
+    // (LC-17800), and a missing Alive recording is skipped.
+    const editions: AudioEdition[] = ["regular", "alive"];
     void Promise.all(editions.map(edition => edition === "regular"
       ? readRecording(options.book, options.chapter, edition, controller.signal)
       : readRecording(options.book, options.chapter, edition, controller.signal).catch(() => null)))
@@ -192,11 +193,13 @@ export function useChapterAudio(options: {
     /** The recordings this chapter has, in LISTEN_ORDER (Alive first); two means Listen asks which. */
     editions,
     edition: (audio?.edition ?? "regular") as AudioEdition,
+    /** The text this chapter's Alive recording reads; null when it has none. */
+    aliveText: recordings.alive ? recordings.alive.text ?? "LC Greek" : null,
     play, stop, toggle, seek, markAction,
     retryLoad: () => setRetry(count => count + 1),
     skipVerse: (delta: -1 | 1) => {
-      if (!audio) return;
-      seek(verseStart(audio.verses, Math.max(1, Math.min(audio.verses.length, (verse ?? 1) + delta))));
+      const target = audio ? adjacentVerse(audio.verses, verse, delta) : null;
+      if (audio && target !== null) seek(verseStart(audio.verses, target));
     },
     cycleRate: () => { markAction(); setListenRate(nextListenRate(rate)); },
     keepListening: () => { markAction(); setStillListeningPrompt(false); if (player.current?.isLoaded) player.current.play(); },

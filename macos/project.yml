@@ -50,19 +50,24 @@ targets:
     sources:
       - path: SureWord
       - path: Shared
-        # The Spanish and German Bibles both name their books 01.json ...
+        # The Spanish, German and ASV Bibles all name their books 01.json ...
         # 66.json, so they cannot join the flat copy the rest of Bible/Data/
         # gets. They ship as folder references instead (Resources/rv1909/,
-        # Resources/lut1912/), read by `BundledBibleLibrary`.
+        # Resources/lut1912/, Resources/asv/), read by `BundledBibleLibrary`.
         excludes:
           - "Bible/Data/rv1909"
           - "Bible/Data/rv1909/**"
           - "Bible/Data/lut1912"
           - "Bible/Data/lut1912/**"
+          - "Bible/Data/asv"
+          - "Bible/Data/asv/**"
       - path: Shared/Bible/Data/rv1909
         type: folder
         buildPhase: resources
       - path: Shared/Bible/Data/lut1912
+        type: folder
+        buildPhase: resources
+      - path: Shared/Bible/Data/asv
         type: folder
         buildPhase: resources
       # "Share into SureWord": the Services menu entry and drops on the window
@@ -204,19 +209,24 @@ targets:
     platform: iOS
     sources:
       - path: Shared
-        # The Spanish and German Bibles both name their books 01.json ...
+        # The Spanish, German and ASV Bibles all name their books 01.json ...
         # 66.json, so they cannot join the flat copy the rest of Bible/Data/
         # gets. They ship as folder references instead (Resources/rv1909/,
-        # Resources/lut1912/), read by `BundledBibleLibrary`.
+        # Resources/lut1912/, Resources/asv/), read by `BundledBibleLibrary`.
         excludes:
           - "Bible/Data/rv1909"
           - "Bible/Data/rv1909/**"
           - "Bible/Data/lut1912"
           - "Bible/Data/lut1912/**"
+          - "Bible/Data/asv"
+          - "Bible/Data/asv/**"
       - path: Shared/Bible/Data/rv1909
         type: folder
         buildPhase: resources
       - path: Shared/Bible/Data/lut1912
+        type: folder
+        buildPhase: resources
+      - path: Shared/Bible/Data/asv
         type: folder
         buildPhase: resources
       - path: SureWord-iOS

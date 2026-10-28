@@ -1,7 +1,7 @@
 import Foundation
 
-/// Chapter loading for the Bible reader. KJV, BSB, Reina-Valera 1909 and
-/// Lutherbibel 1912 are bundled; NKJV is fetched from bolls.life per chapter
+/// Chapter loading for the Bible reader. KJV, BSB, the American Standard
+/// Version, Reina-Valera 1909 and Lutherbibel 1912 are bundled; NKJV is fetched from bolls.life per chapter
 /// with a timeout and cached in memory for the session.
 ///
 /// Port of `mobile/src/features/bible/translations.ts`. `TranslationID` itself
@@ -36,7 +36,7 @@ enum BibleTranslations {
             } catch {
                 throw BibleError(message: chapterLoadError)
             }
-        case .rv1909, .lut1912:
+        case .asv, .rv1909, .lut1912:
             guard let library = BundledBible.library(translation) else {
                 throw BibleError(message: chapterLoadError)
             }
@@ -50,16 +50,19 @@ enum BibleTranslations {
 }
 
 /// The plain-text Bibles bundled as `[[String]]` per book, the KJV shape:
-/// `Bible/Data/rv1909/NN.json` and `Bible/Data/lut1912/NN.json`, written by
+/// `Bible/Data/rv1909/NN.json`, `Bible/Data/lut1912/NN.json` and
+/// `Bible/Data/asv/NN.json` (16 verses left empty), written by
 /// `scripts/bible/build-ebible.py`. Port of `src/lib/bible/ebible.ts`.
 enum BundledBible {
     static let rv1909 = BundledBibleLibrary(directory: "rv1909")
     static let lut1912 = BundledBibleLibrary(directory: "lut1912")
+    static let asv = BundledBibleLibrary(directory: "asv")
 
     static func library(_ translation: TranslationID) -> BundledBibleLibrary? {
         switch translation {
         case .rv1909: rv1909
         case .lut1912: lut1912
+        case .asv: asv
         case .kjv, .nkjv, .bsb: nil
         }
     }
@@ -68,8 +71,8 @@ enum BundledBible {
 /// Lazy, cached access to one bundled plain-text Bible - a book is parsed on
 /// first use, like `KJVLibrary`, and for the same off-main-actor reason.
 ///
-/// The two folders are folder references in `project.yml`, so they keep their
-/// directory in the bundle: both hold `01.json` ... `66.json`, which the flat
+/// The folders are folder references in `project.yml`, so they keep their
+/// directory in the bundle: each holds `01.json` ... `66.json`, which the flat
 /// copy the rest of `Bible/Data/` gets would collide.
 actor BundledBibleLibrary {
     private let directory: String

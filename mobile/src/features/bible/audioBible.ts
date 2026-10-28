@@ -38,26 +38,56 @@ export const DRAMATIZED_BOOKS: ReadonlySet<number> = new Set([40]);
  * Which recording of a chapter to play. "regular" is the book's usual one
  * above (the narrated KJV, or Matthew's full cast). "alive" is a second
  * recording offered beside it on Listen (LC-15532): a full-cast production
- * with no outside narrator, the evangelist telling it, in SureWord's own
- * modern-English translation of the Textus Receptus (the Greek the KJV was
- * translated from). It keeps the KJV's verse numbering, so the read-along
- * highlight follows it verse for verse while the KJV stays on screen.
+ * with no outside narrator. It keeps the KJV's verse numbering, so the
+ * read-along highlight follows it verse for verse while the KJV stays on
+ * screen.
  */
 export type AudioEdition = "regular" | "alive";
+
+/**
+ * The text an Alive recording reads. "ASV" is the American Standard Version
+ * (LC-17797), the text every Alive book is recorded on. "LC Greek" is
+ * SureWord's own translation of the Textus Receptus, which the first four
+ * Alive books read (Mark LC-15532, Matthew LC-15843, Luke LC-15844, John
+ * LC-15845) until their ASV recordings replace them.
+ */
+export type AliveText = "ASV" | "LC Greek";
+
+/** The ASV Alive recordings, `<base>/<book>/<chapter>.mp3|json` (LC-17800). */
+export const ALIVE_ASV_BASE_URL =
+  "https://contextproai-storage.s3.us-east-1.amazonaws.com/Audio/sureword-bible/alive-asv/v1";
+/** The LC Greek Alive recordings of Matthew to John. */
 export const ALIVE_BASE_URL =
   "https://contextproai-storage.s3.us-east-1.amazonaws.com/Audio/sureword-bible/alive/v1";
+export const LC_GREEK_ALIVE_BOOKS: ReadonlySet<number> = new Set([40, 41, 42, 43]);
+
 /**
- * Books with an Alive recording: Mark since LC-15532, Matthew since LC-15843,
- * Luke since LC-15844, John since LC-15845. Each one also has its LC Greek text
- * (below), so a book is added here together with its text.
+ * Where `/api/bible/audio?edition=alive` looks for a chapter, in order: the
+ * ASV folder, then the LC Greek folder for Matthew to John. There is no list
+ * of books: a chapter has Alive when its recording is uploaded, and clients
+ * ask the API rather than deciding per book (LC-17800).
  */
-export const ALIVE_BOOKS: ReadonlySet<number> = new Set([40, 41, 42, 43]);
+export function aliveSources(book: number): AliveText[] {
+  return LC_GREEK_ALIVE_BOOKS.has(book) ? ["ASV", "LC Greek"] : ["ASV"];
+}
 
 /** How each recording is named in the Listen choice, the same on every client. */
-export const EDITION_CHOICES: Record<AudioEdition, { label: string; detail: string }> = {
-  regular: { label: "Regular", detail: "The King James Version, read aloud" },
-  alive: { label: "Alive", detail: "Full cast, in our LC Greek translation" },
+export const EDITION_CHOICES: Record<AudioEdition, { label: string }> = {
+  regular: { label: "Regular" },
+  alive: { label: "Alive" },
 };
+
+/** The line under each recording in the Listen choice, naming the text it reads. */
+export const EDITION_DETAILS = {
+  regular: "The King James Version, read aloud",
+  ASV: "Full cast, in the American Standard Version",
+  "LC Greek": "Full cast, in our LC Greek translation",
+} as const;
+
+/** A recording's Listen detail. An Alive answer without `text` predates LC-17800 and reads the LC Greek. */
+export function editionDetail(edition: AudioEdition, text?: AliveText | null): string {
+  return edition === "alive" ? EDITION_DETAILS[text ?? "LC Greek"] : EDITION_DETAILS.regular;
+}
 
 /**
  * Listen recommends Alive wherever a book has it (LC-15842): the choice lists
@@ -68,26 +98,29 @@ export const RECOMMENDED_LABEL = "Recommended";
 /** The order every client lists the recordings in: the recommended one first. */
 export const LISTEN_ORDER: readonly AudioEdition[] = ["alive", "regular"];
 
-export function hasAlive(book: number): boolean {
-  return ALIVE_BOOKS.has(book);
-}
-
 /**
  * The LC Greek (LC-15842): SureWord's own modern-English translation of the
- * Textus Receptus, the text every Alive recording reads. The reader offers it
- * beside its translations on a book that has it, verse for verse in the KJV's
- * numbering. It is a reading text only: highlights, Explain, Learn and Ask AI
- * keep working on the KJV verse with the same number. The source of each book
- * is Context-Pro-AI's docs/creative/sureword-audio-bible/<book>-alive/.
+ * Textus Receptus, Matthew to John only. The reader offers it beside its
+ * translations on those books, verse for verse in the KJV's numbering. It is
+ * a reading text only: highlights, Explain, Learn and Ask AI keep working on
+ * the KJV verse with the same number. The source of each book is
+ * Context-Pro-AI's docs/creative/sureword-audio-bible/<book>-alive/.
  */
 export const LC_GREEK = {
   label: "LC Greek",
-  note: "Our own translation of the Greek · the text Alive reads",
+  note: "Our own translation of the Greek",
+  /** Appended to the note while the chapter's Alive recording still reads the LC Greek. */
+  aliveNote: "the text Alive reads",
   copyright: "SureWord's own translation of the Textus Receptus",
 } as const;
 
 export function hasLcGreek(book: number): boolean {
-  return hasAlive(book);
+  return LC_GREEK_ALIVE_BOOKS.has(book);
+}
+
+/** The note under the LC Greek chip, given the text this chapter's Alive recording reads (if any). */
+export function lcGreekNote(aliveText: AliveText | null | undefined): string {
+  return aliveText === "LC Greek" ? `${LC_GREEK.note} · ${LC_GREEK.aliveNote}` : LC_GREEK.note;
 }
 
 export type LcGreekResponse =
@@ -111,8 +144,8 @@ export function parseEdition(raw: string | null): AudioEdition | null {
   return raw === "alive" ? "alive" : null;
 }
 
-function bookBaseUrl(book: number, edition: AudioEdition): string {
-  if (edition === "alive") return ALIVE_BASE_URL;
+function bookBaseUrl(book: number, edition: AudioEdition, text: AliveText): string {
+  if (edition === "alive") return text === "ASV" ? ALIVE_ASV_BASE_URL : ALIVE_BASE_URL;
   return DRAMATIZED_BOOKS.has(book) ? DRAMATIZED_BASE_URL : AUDIO_BIBLE_BASE_URL;
 }
 
@@ -136,9 +169,15 @@ export interface ChapterAudio {
   chapter: number;
   /** Which recording this is (absent from servers before LC-15532: regular). */
   edition?: AudioEdition;
+  /** The text an Alive recording reads (absent on regular, and from servers before LC-17800: the LC Greek). */
+  text?: AliveText;
   audioUrl: string;
   /** Length of the MP3 in seconds. */
   duration: number;
+  /**
+   * One entry per verse read, in order. A verse the text leaves empty (the
+   * ASV omits 16, e.g. Matthew 17:21) has no entry, so numbers can skip.
+   */
   verses: VerseTiming[];
 }
 
@@ -148,12 +187,22 @@ export function hasNarration(book: number): boolean {
   return book >= NARRATED_BOOKS.first && book <= NARRATED_BOOKS.last;
 }
 
-export function chapterAudioUrl(book: number, chapter: number, edition: AudioEdition = "regular"): string {
-  return `${bookBaseUrl(book, edition)}/${book}/${chapter}.mp3`;
+export function chapterAudioUrl(
+  book: number,
+  chapter: number,
+  edition: AudioEdition = "regular",
+  text: AliveText = "LC Greek"
+): string {
+  return `${bookBaseUrl(book, edition, text)}/${book}/${chapter}.mp3`;
 }
 
-export function chapterTimingUrl(book: number, chapter: number, edition: AudioEdition = "regular"): string {
-  return `${bookBaseUrl(book, edition)}/${book}/${chapter}.json`;
+export function chapterTimingUrl(
+  book: number,
+  chapter: number,
+  edition: AudioEdition = "regular",
+  text: AliveText = "LC Greek"
+): string {
+  return `${bookBaseUrl(book, edition, text)}/${book}/${chapter}.json`;
 }
 
 /**
@@ -169,9 +218,27 @@ export function verseAt(verses: readonly VerseTiming[], seconds: number): number
   return current;
 }
 
-/** Where to seek to start reading at `verse`; the chapter start if unknown. */
+/**
+ * Where to seek to start reading at `verse`: its start, or the next verse
+ * read when this one has no timing (a verse the text omits); the chapter
+ * start if there is none.
+ */
 export function verseStart(verses: readonly VerseTiming[], verse: number): number {
-  return verses.find((timing) => timing.verse === verse)?.start ?? 0;
+  return verses.find((timing) => timing.verse >= verse)?.start ?? 0;
+}
+
+/**
+ * The verse a "previous/next verse" control moves to from `verse`: the
+ * neighbouring timing entry, so it steps over a verse with no timing and
+ * still reaches the chapter's last verse. Before the first verse (null) both
+ * directions go to the first verse. Null when there are no timings.
+ */
+export function adjacentVerse(verses: readonly VerseTiming[], verse: number | null, delta: 1 | -1): number | null {
+  if (verses.length === 0) return null;
+  if (verse === null) return verses[0].verse;
+  const index = verses.findIndex((timing) => timing.verse === verse);
+  const target = Math.max(0, Math.min(verses.length - 1, (index < 0 ? 0 : index) + delta));
+  return verses[target].verse;
 }
 
 /** Whether a playing session has gone an hour without the listener doing anything. */
@@ -182,13 +249,15 @@ export function needsStillListening(lastActionAt: number, now: number): boolean 
 /**
  * Validate the timing file the render writes, so a malformed or mismatched
  * file reads as "no narration" rather than a player that highlights the wrong
- * verse.
+ * verse. Verse numbers must rise from 1 or later; they may skip a verse the
+ * text leaves empty (LC-17800). `text` names the Alive folder it came from.
  */
 export function parseChapterTiming(
   raw: unknown,
   book: number,
   chapter: number,
-  edition: AudioEdition = "regular"
+  edition: AudioEdition = "regular",
+  text: AliveText = "LC Greek"
 ): ChapterAudio | null {
   if (!raw || typeof raw !== "object") return null;
   const value = raw as Record<string, unknown>;
@@ -196,17 +265,21 @@ export function parseChapterTiming(
   if (typeof value.duration !== "number" || !(value.duration > 0)) return null;
   if (!Array.isArray(value.verses) || value.verses.length === 0) return null;
   const verses: VerseTiming[] = [];
-  for (const [index, entry] of value.verses.entries()) {
+  let previous = 0;
+  for (const entry of value.verses) {
     const timing = entry as Record<string, unknown> | null;
     if (
       !timing ||
-      timing.verse !== index + 1 ||
+      typeof timing.verse !== "number" ||
+      !Number.isInteger(timing.verse) ||
+      timing.verse <= previous ||
       typeof timing.start !== "number" ||
       typeof timing.end !== "number" ||
       timing.end < timing.start
     ) {
       return null;
     }
+    previous = timing.verse;
     verses.push({ verse: timing.verse, start: timing.start, end: timing.end });
   }
   return {
@@ -214,7 +287,8 @@ export function parseChapterTiming(
     book,
     chapter,
     edition,
-    audioUrl: chapterAudioUrl(book, chapter, edition),
+    ...(edition === "alive" ? { text } : {}),
+    audioUrl: chapterAudioUrl(book, chapter, edition, text),
     duration: value.duration,
     verses,
   };

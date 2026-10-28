@@ -42,7 +42,7 @@ const NextResponse = {
 // The route only asks TRANSLATIONS which ids exist; the drift guard below pins
 // that list to the union translations.ts actually declares.
 const TRANSLATIONS = {
-	BSB: { id: "BSB" }, KJV: { id: "KJV" }, NKJV: { id: "NKJV" },
+	BSB: { id: "BSB" }, KJV: { id: "KJV" }, NKJV: { id: "NKJV" }, ASV: { id: "ASV" },
 	RV1909: { id: "RV1909" }, LUT1912: { id: "LUT1912" } };
 
 const CACHE_CONTROL =
@@ -95,8 +95,8 @@ test("the translation ids the route accepts are the ones the reader declares", (
 		/export type TranslationId = ([^;]+);/
 	);
 	assert.ok(union, "translations.ts still declares a TranslationId union");
-	assert.equal(union[1].trim(), '"KJV" | "NKJV" | "BSB" | "RV1909" | "LUT1912"');
-	assert.deepEqual(Object.keys(TRANSLATIONS).sort(), ["BSB", "KJV", "LUT1912", "NKJV", "RV1909"]);
+	assert.equal(union[1].trim(), '"KJV" | "NKJV" | "BSB" | "ASV" | "RV1909" | "LUT1912"');
+	assert.deepEqual(Object.keys(TRANSLATIONS).sort(), ["ASV", "BSB", "KJV", "LUT1912", "NKJV", "RV1909"]);
 });
 
 test("a reference that does not name a verse is rejected", async () => {

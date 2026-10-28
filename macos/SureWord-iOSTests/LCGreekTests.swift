@@ -8,15 +8,17 @@ final class LCGreekTests: XCTestCase {
 
     func testNamesTheTextLikeWeb() {
         XCTAssertEqual(LCGreek.label, "LC Greek")
-        XCTAssertEqual(LCGreek.note, "Our own translation of the Greek · the text Alive reads")
+        XCTAssertEqual(LCGreek.note, "Our own translation of the Greek")
+        XCTAssertEqual(LCGreek.note(aliveText: "LC Greek"), "Our own translation of the Greek · the text Alive reads")
+        XCTAssertEqual(LCGreek.note(aliveText: "ASV"), "Our own translation of the Greek", "an ASV re-recording replaced it")
+        XCTAssertEqual(LCGreek.note(aliveText: nil), "Our own translation of the Greek")
         XCTAssertEqual(LCGreek.copyright, "SureWord's own translation of the Textus Receptus")
         XCTAssertEqual(LCGreek.preferenceKey, "sureword-lc-greek")
         XCTAssertEqual(LCGreek.path(book: 41, chapter: 1), "/api/bible/lc-greek?book=41&chapter=1")
     }
 
-    func testEveryAliveBookHasItsLCGreek() {
-        XCTAssertTrue(LCGreek.has(41)); XCTAssertTrue(LCGreek.has(40)); XCTAssertTrue(LCGreek.has(42)); XCTAssertTrue(LCGreek.has(43)); XCTAssertFalse(LCGreek.has(44))
-        for book in 1...66 { XCTAssertEqual(LCGreek.has(book), ChapterAudio.hasAlive(book)) }
+    func testTheLCGreekIsMatthewToJohnOnly() {
+        for book in 1...66 { XCTAssertEqual(LCGreek.has(book), (40...43).contains(book), "\(book)") }
     }
 
     func testAcceptsOnlyAReadyChapterForTheAskedReference() {

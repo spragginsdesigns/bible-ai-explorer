@@ -1,12 +1,13 @@
 /**
- * Lazy access to the bundled Reina-Valera 1909 and Lutherbibel 1912
- * (data/{rv1909,lut1912}/NN.json, chapters of verses, the KJV shape). Built by
+ * Lazy access to the bundled Reina-Valera 1909, Lutherbibel 1912 and American
+ * Standard Version (data/{rv1909,lut1912,asv}/NN.json, chapters of verses, the
+ * KJV shape; the ASV leaves the 16 verses it omits as empty strings). Built by
  * scripts/bible/build-ebible.py. Webpack needs literal import paths, so every
  * book is listed by hand; a book is parsed on first access and cached.
  */
 type RawBook = string[][];
 
-export type EbibleId = "RV1909" | "LUT1912";
+export type EbibleId = "RV1909" | "LUT1912" | "ASV";
 
 const RV1909_LOADERS: Record<number, () => Promise<RawBook>> = {
 	1: async () => (await import("@/data/rv1909/01.json")).default as RawBook,
@@ -146,9 +147,79 @@ const LUT1912_LOADERS: Record<number, () => Promise<RawBook>> = {
 	66: async () => (await import("@/data/lut1912/66.json")).default as RawBook,
 };
 
+const ASV_LOADERS: Record<number, () => Promise<RawBook>> = {
+	1: async () => (await import("@/data/asv/01.json")).default as RawBook,
+	2: async () => (await import("@/data/asv/02.json")).default as RawBook,
+	3: async () => (await import("@/data/asv/03.json")).default as RawBook,
+	4: async () => (await import("@/data/asv/04.json")).default as RawBook,
+	5: async () => (await import("@/data/asv/05.json")).default as RawBook,
+	6: async () => (await import("@/data/asv/06.json")).default as RawBook,
+	7: async () => (await import("@/data/asv/07.json")).default as RawBook,
+	8: async () => (await import("@/data/asv/08.json")).default as RawBook,
+	9: async () => (await import("@/data/asv/09.json")).default as RawBook,
+	10: async () => (await import("@/data/asv/10.json")).default as RawBook,
+	11: async () => (await import("@/data/asv/11.json")).default as RawBook,
+	12: async () => (await import("@/data/asv/12.json")).default as RawBook,
+	13: async () => (await import("@/data/asv/13.json")).default as RawBook,
+	14: async () => (await import("@/data/asv/14.json")).default as RawBook,
+	15: async () => (await import("@/data/asv/15.json")).default as RawBook,
+	16: async () => (await import("@/data/asv/16.json")).default as RawBook,
+	17: async () => (await import("@/data/asv/17.json")).default as RawBook,
+	18: async () => (await import("@/data/asv/18.json")).default as RawBook,
+	19: async () => (await import("@/data/asv/19.json")).default as RawBook,
+	20: async () => (await import("@/data/asv/20.json")).default as RawBook,
+	21: async () => (await import("@/data/asv/21.json")).default as RawBook,
+	22: async () => (await import("@/data/asv/22.json")).default as RawBook,
+	23: async () => (await import("@/data/asv/23.json")).default as RawBook,
+	24: async () => (await import("@/data/asv/24.json")).default as RawBook,
+	25: async () => (await import("@/data/asv/25.json")).default as RawBook,
+	26: async () => (await import("@/data/asv/26.json")).default as RawBook,
+	27: async () => (await import("@/data/asv/27.json")).default as RawBook,
+	28: async () => (await import("@/data/asv/28.json")).default as RawBook,
+	29: async () => (await import("@/data/asv/29.json")).default as RawBook,
+	30: async () => (await import("@/data/asv/30.json")).default as RawBook,
+	31: async () => (await import("@/data/asv/31.json")).default as RawBook,
+	32: async () => (await import("@/data/asv/32.json")).default as RawBook,
+	33: async () => (await import("@/data/asv/33.json")).default as RawBook,
+	34: async () => (await import("@/data/asv/34.json")).default as RawBook,
+	35: async () => (await import("@/data/asv/35.json")).default as RawBook,
+	36: async () => (await import("@/data/asv/36.json")).default as RawBook,
+	37: async () => (await import("@/data/asv/37.json")).default as RawBook,
+	38: async () => (await import("@/data/asv/38.json")).default as RawBook,
+	39: async () => (await import("@/data/asv/39.json")).default as RawBook,
+	40: async () => (await import("@/data/asv/40.json")).default as RawBook,
+	41: async () => (await import("@/data/asv/41.json")).default as RawBook,
+	42: async () => (await import("@/data/asv/42.json")).default as RawBook,
+	43: async () => (await import("@/data/asv/43.json")).default as RawBook,
+	44: async () => (await import("@/data/asv/44.json")).default as RawBook,
+	45: async () => (await import("@/data/asv/45.json")).default as RawBook,
+	46: async () => (await import("@/data/asv/46.json")).default as RawBook,
+	47: async () => (await import("@/data/asv/47.json")).default as RawBook,
+	48: async () => (await import("@/data/asv/48.json")).default as RawBook,
+	49: async () => (await import("@/data/asv/49.json")).default as RawBook,
+	50: async () => (await import("@/data/asv/50.json")).default as RawBook,
+	51: async () => (await import("@/data/asv/51.json")).default as RawBook,
+	52: async () => (await import("@/data/asv/52.json")).default as RawBook,
+	53: async () => (await import("@/data/asv/53.json")).default as RawBook,
+	54: async () => (await import("@/data/asv/54.json")).default as RawBook,
+	55: async () => (await import("@/data/asv/55.json")).default as RawBook,
+	56: async () => (await import("@/data/asv/56.json")).default as RawBook,
+	57: async () => (await import("@/data/asv/57.json")).default as RawBook,
+	58: async () => (await import("@/data/asv/58.json")).default as RawBook,
+	59: async () => (await import("@/data/asv/59.json")).default as RawBook,
+	60: async () => (await import("@/data/asv/60.json")).default as RawBook,
+	61: async () => (await import("@/data/asv/61.json")).default as RawBook,
+	62: async () => (await import("@/data/asv/62.json")).default as RawBook,
+	63: async () => (await import("@/data/asv/63.json")).default as RawBook,
+	64: async () => (await import("@/data/asv/64.json")).default as RawBook,
+	65: async () => (await import("@/data/asv/65.json")).default as RawBook,
+	66: async () => (await import("@/data/asv/66.json")).default as RawBook,
+};
+
 const LOADERS: Record<EbibleId, Record<number, () => Promise<RawBook>>> = {
 	RV1909: RV1909_LOADERS,
 	LUT1912: LUT1912_LOADERS,
+	ASV: ASV_LOADERS,
 };
 
 const cache = new Map<string, RawBook>();

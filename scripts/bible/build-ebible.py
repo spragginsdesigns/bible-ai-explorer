@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Build SureWord's bundled Reina-Valera 1909 (Spanish) and Lutherbibel 1912
-(German) from eBible.org's public-domain VPL exports.
+"""Build SureWord's bundled Reina-Valera 1909 (Spanish), Lutherbibel 1912
+(German) and American Standard Version 1901 (English) from eBible.org's
+public-domain VPL exports.
 
 Usage (from the repository root):
 
@@ -8,11 +9,13 @@ Usage (from the repository root):
     curl --fail --location https://ebible.org/Scriptures/deu1912_vpl.zip -o /tmp/deu1912_vpl.zip
     python3 scripts/bible/build-ebible.py RV1909 /tmp/spaRV1909_vpl.zip
     python3 scripts/bible/build-ebible.py LUT1912 /tmp/deu1912_vpl.zip
+    curl --fail --location https://ebible.org/Scriptures/eng-asv_vpl.zip -o /tmp/eng-asv_vpl.zip
+    python3 scripts/bible/build-ebible.py ASV /tmp/eng-asv_vpl.zip
 
 Every verse is the edition's own wording; nothing is translated or
 paraphrased. The only changes are mechanical, and each one is listed here:
 
-- Both: eBible's supplied-word brackets ("se [le] reunió") are dropped and the
+- All: eBible's supplied-word brackets ("se [le] reunió") are dropped and the
   word kept, the same way the KJV carries its italic words as plain text.
 - German: eBible already places Luther's text in KJV verse slots and marks
   Luther's own number in front of a moved verse ("[2:1] Aber der HERR...").
@@ -36,7 +39,14 @@ Known textual difference, not a build defect: Luther 1912 has no Comma
 Johanneum at 1 John 5:7 ("three that bear record in heaven"); Luther
 translated without it. RV1909 has it, as the KJV does.
 
-Nothing is written unless all 31,102 KJV verse slots are filled. Writes the
+English: eBible's ASV is already in KJV verse slots and needs no other change.
+It writes the divine name as "Jehovah", as the 1901 edition does. It leaves 16
+slots empty because the ASV omits those verses as later additions (EMPTY_SLOTS
+below, LC-17800); they stay empty strings, and the reader shows them the way
+it shows a verse a translation lacks.
+
+Nothing is written unless all 31,102 KJV verse slots are filled, apart from
+exactly the edition's EMPTY_SLOTS. Writes the
 same per-book JSON (string[][], chapters of verses, like the KJV) to:
 
     mobile/src/features/bible/data/<id>/<NN>.json   Android
@@ -69,6 +79,25 @@ EDITIONS = {
         "title": "Lutherbibel 1912",
         "url": "https://ebible.org/Scriptures/deu1912_vpl.zip",
     },
+    "ASV": {
+        "dir": "asv",
+        "vpl": "eng-asv_vpl.txt",
+        "title": "American Standard Version (1901)",
+        "url": "https://ebible.org/Scriptures/eng-asv_vpl.zip",
+    },
+}
+
+# Slots an edition leaves empty on purpose. The build refuses any other empty
+# slot, and refuses a listed slot that has text, so the list stays exact.
+EMPTY_SLOTS = {
+    "ASV": [
+        "MAT 17:21", "MAT 18:11", "MAT 23:14",
+        "MAR 7:16", "MAR 9:44", "MAR 9:46", "MAR 11:26", "MAR 15:28",
+        "LUK 17:36", "LUK 23:17",
+        "JOH 5:4",
+        "ACT 8:37", "ACT 15:34", "ACT 24:7", "ACT 28:29",
+        "ROM 16:24",
+    ],
 }
 
 UPPER = "A-ZÁÉÍÓÚÑÜÂÊÎÔÛ"
@@ -233,8 +262,14 @@ def build(edition_id: str, archive: Path) -> None:
         books.append(out)
     extra = [slot for slot in rows if slot[1] > len(kjv[slot[0] - 1]) or slot[2] > kjv[slot[0] - 1][slot[1] - 1]]
     extra = [slot for slot in extra if rows[slot]]
-    if missing or extra:
-        die(f"{edition_id}: empty KJV slots {missing[:20]} / text outside KJV slots {extra[:20]}")
+    allowed = EMPTY_SLOTS.get(edition_id, [])
+    if missing != allowed or extra:
+        unexpected = [ref for ref in missing if ref not in allowed]
+        filled = [ref for ref in allowed if ref not in missing]
+        die(
+            f"{edition_id}: empty KJV slots {unexpected[:20]} / allowed-empty slots with text {filled}"
+            f" / text outside KJV slots {extra[:20]}"
+        )
     total = sum(len(chapter) for book in books for chapter in book)
     if total != 31102:
         die(f"{edition_id}: {total} verses, expected 31102")
@@ -250,11 +285,13 @@ def build(edition_id: str, archive: Path) -> None:
                 json.dumps(book, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8"
             )
     manifest = {"id": edition_id, "title": edition["title"], "source": edition["url"], "sha256": digest, "verses": total}
+    if allowed:
+        manifest["empty"] = allowed
     (ROOT / "src/data" / f"{edition['dir']}-source.json").write_text(json.dumps(manifest, indent=2) + "\n")
     print(json.dumps(manifest, indent=2))
 
 
 if __name__ == "__main__":
     if len(sys.argv) != 3 or sys.argv[1] not in EDITIONS:
-        die("usage: build-ebible.py RV1909|LUT1912 <vpl.zip>")
+        die("usage: build-ebible.py RV1909|LUT1912|ASV <vpl.zip>")
     build(sys.argv[1], Path(sys.argv[2]))

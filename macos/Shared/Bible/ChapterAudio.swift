@@ -3,8 +3,9 @@ import AVFoundation
 import MediaPlayer
 
 /// Which recording of a chapter to play: the book's usual one, or the Alive
-/// production (full cast, the LC Greek text) offered beside it on Listen. Same
-/// names and wording as `EDITION_CHOICES` in src/lib/bible/audioBible.ts (LC-15532).
+/// production (full cast, on the ASV or the LC Greek) offered beside it on
+/// Listen. Same names and wording as `EDITION_CHOICES` and `EDITION_DETAILS` in
+/// src/lib/bible/audioBible.ts (LC-15532, LC-17800).
 enum AudioEdition: String, CaseIterable, Sendable {
     case regular, alive
     /// Listen recommends Alive wherever a book has it (LC-15842): the choice
@@ -14,7 +15,12 @@ enum AudioEdition: String, CaseIterable, Sendable {
     static let recommendedLabel = "Recommended"
     static let listenOrder: [AudioEdition] = [.alive, .regular]
     var label: String { self == .alive ? "Alive" : "Regular" }
-    var detail: String { self == .alive ? "Full cast, in our LC Greek translation" : "The King James Version, read aloud" }
+    /// `editionDetail`: Alive names the text it reads (`ChapterAudio.text`);
+    /// nil is a server before LC-17800, which only had the LC Greek.
+    func detail(aliveText: String?) -> String {
+        guard self == .alive else { return "The King James Version, read aloud" }
+        return aliveText == "ASV" ? "Full cast, in the American Standard Version" : "Full cast, in our LC Greek translation"
+    }
     var isRecommended: Bool { self == Self.recommended }
 }
 
@@ -26,23 +32,37 @@ struct ChapterAudio: Decodable, Sendable, Equatable {
     let chapter: Int?
     /// "alive" for an Alive recording; absent (regular) from servers before LC-15532.
     let edition: String?
+    /// The text an Alive recording reads, "ASV" or "LC Greek" (`AliveText`);
+    /// absent on regular, and from servers before LC-17800 (the LC Greek).
+    let text: String?
     let audioUrl: String?
     let duration: Double?
+    /// One entry per verse read; a verse the text leaves empty (the ASV omits
+    /// 16) has none, so the numbers can skip.
     let verses: [Timing]?
 
     static func hasNarration(_ book: Int) -> Bool { (1...66).contains(book) }
-    /// Books with an Alive recording (`ALIVE_BOOKS`): the four Gospels.
-    static func hasAlive(_ book: Int) -> Bool { (40...43).contains(book) }
     var kind: AudioEdition { edition == AudioEdition.alive.rawValue ? .alive : .regular }
     func verse(at seconds: Double) -> Int? { verses?.last(where: { $0.start <= seconds })?.verse }
-    func start(of verse: Int) -> Double { verses?.first(where: { $0.verse == verse })?.start ?? 0 }
+    /// `verseStart`: a verse with no timing starts where the next verse read does.
+    func start(of verse: Int) -> Double { verses?.first(where: { $0.verse >= verse })?.start ?? 0 }
+    /// `adjacentVerse`: the neighbouring timing entry, so skipping steps over
+    /// a verse with no timing; before the first verse, the first verse.
+    func adjacent(to verse: Int?, by delta: Int) -> Int? {
+        guard let verses, let first = verses.first else { return nil }
+        guard let verse else { return first.verse }
+        let index = verses.firstIndex(where: { $0.verse == verse }) ?? 0
+        return verses[max(0, min(verses.count - 1, index + delta))].verse
+    }
     func valid(book: Int, chapter: Int) -> Bool {
         guard status == "ready", self.book == book, self.chapter == chapter,
               let duration, duration.isFinite, duration > 0,
               let audioUrl, let url = URL(string: audioUrl), url.scheme == "https",
               let verses, !verses.isEmpty else { return false }
-        return verses.enumerated().allSatisfy { index, t in
-            t.verse == index + 1 && t.start.isFinite && t.end.isFinite && t.start >= 0 && t.end >= t.start && t.end <= duration + 1
+        var previous = 0
+        return verses.allSatisfy { t in
+            defer { previous = t.verse }
+            return t.verse > previous && t.start.isFinite && t.end.isFinite && t.start >= 0 && t.end >= t.start && t.end <= duration + 1
         }
     }
 }
@@ -65,6 +85,8 @@ final class ChapterAudioModel {
     /// The chapter's recordings in `listenOrder`, the recommended one first.
     var editions: [AudioEdition] { AudioEdition.listenOrder.filter { recordings[$0] != nil } }
     var edition: AudioEdition { audio?.kind ?? .regular }
+    /// The text this chapter's Alive recording reads; nil when it has none.
+    var aliveText: String? { recordings[.alive].map { $0.text ?? "LC Greek" } }
     @ObservationIgnored private let api: APIClient
     @ObservationIgnored private let settings: SettingsStore
     @ObservationIgnored private var player = AVPlayer()
@@ -98,8 +120,8 @@ final class ChapterAudioModel {
             let response = try await api.json("/api/bible/audio?book=\(book)&chapter=\(chapter)", as: ChapterAudio.self)
             var found: [AudioEdition: ChapterAudio] = [:]
             if response.valid(book: book, chapter: chapter) { found[.regular] = response }
-            if ChapterAudio.hasAlive(book),
-               let alive = try? await api.json("/api/bible/audio?book=\(book)&chapter=\(chapter)&edition=alive", as: ChapterAudio.self),
+            // Any chapter may have Alive; the API knows (LC-17800).
+            if let alive = try? await api.json("/api/bible/audio?book=\(book)&chapter=\(chapter)&edition=alive", as: ChapterAudio.self),
                alive.valid(book: book, chapter: chapter) {
                 found[.alive] = alive
             }
@@ -199,8 +221,7 @@ final class ChapterAudioModel {
         markAction(); player.seek(to: CMTime(seconds: max(0, min(duration, seconds)), preferredTimescale: 600))
     }
     func skipVerse(_ delta: Int) {
-        guard let audio, let verses = audio.verses else { return }
-        let target = max(1, min(verses.count, (verse ?? 1) + delta))
+        guard let audio, let target = audio.adjacent(to: verse, by: delta) else { return }
         seek(to: audio.start(of: target))
     }
     func cycleRate() { markAction(); settings.listenRate = Listen.nextRate(settings.listenRate); if isPlaying { player.rate = Float(settings.listenRate) }; updateNowPlaying() }

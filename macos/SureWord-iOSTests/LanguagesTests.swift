@@ -11,7 +11,13 @@ final class LanguagesTests: XCTestCase {
     // MARK: - Translations
 
     func testTheNewBiblesCarryTheirLanguageAndNames() {
-        XCTAssertEqual(TranslationID.allCases, [.kjv, .nkjv, .bsb, .rv1909, .lut1912])
+        XCTAssertEqual(TranslationID.allCases, [.kjv, .nkjv, .bsb, .asv, .rv1909, .lut1912])
+        XCTAssertEqual(TranslationID(rawValue: "ASV"), .asv)
+        XCTAssertEqual(TranslationID.asv.name, "American Standard Version")
+        XCTAssertEqual(TranslationID.asv.copyright, "Public domain")
+        XCTAssertEqual(TranslationID.asv.language, .en)
+        XCTAssertEqual(TranslationID.asv.pickerLabel, "ASV")
+        XCTAssertFalse(TranslationID.asv.hasSectionHeadings)
         XCTAssertEqual(TranslationID(rawValue: "RV1909"), .rv1909)
         XCTAssertEqual(TranslationID(rawValue: "LUT1912"), .lut1912)
         XCTAssertEqual(TranslationID.rv1909.name, "Reina-Valera 1909")
@@ -40,6 +46,18 @@ final class LanguagesTests: XCTestCase {
         // Every chapter of a book is there, in the KJV's numbering.
         let psalms = try await BibleTranslations.chapter(.lut1912, order: 19, chapter: 150)
         XCTAssertEqual(psalms.count, 6)
+    }
+
+    func testTheASVLeavesTheVersesItOmitsEmptyInTheKJVSlots() async throws {
+        // LC-17800: the ASV fills the KJV's slots except the 16 it omits.
+        let genesis = try await BundledBible.asv.chapter(order: 1, chapter: 1)
+        XCTAssertEqual(genesis.first, "In the beginning God created the heavens and the earth.")
+        let matthew = try await BundledBible.asv.chapter(order: 40, chapter: 17)
+        XCTAssertEqual(matthew.count, 27)
+        XCTAssertEqual(matthew[20], "", "Matthew 17:21")
+        XCTAssertTrue(matthew[21].hasPrefix("And while they abode in Galilee"), matthew[21])
+        let hits = try await BundledBible.asv.search("jairus", limit: 3)
+        XCTAssertEqual(hits.first.map { "\($0.order) \($0.chapter):\($0.verse)" }, "41 5:22", "accent folding finds Ja\u{00EF}rus")
     }
 
     func testAnUnknownChapterIsTheReaderError() async {
