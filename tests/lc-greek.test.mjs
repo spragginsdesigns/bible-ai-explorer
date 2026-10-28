@@ -4,13 +4,13 @@ import { readFileSync, readdirSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { fileURLToPath } from "node:url";
 import {
-	ALIVE_BOOKS,
-	EDITION_CHOICES,
 	LC_GREEK,
+	LC_GREEK_ALIVE_BOOKS,
 	LISTEN_ORDER,
 	RECOMMENDED_EDITION,
-	hasAlive,
+	editionDetail,
 	hasLcGreek,
+	lcGreekNote,
 	parseLcGreek,
 } from "../src/lib/bible/audioBible.ts";
 
@@ -26,26 +26,28 @@ test("Listen lists Alive first and recommends it (LC-15842)", () => {
 	assert.equal(RECOMMENDED_EDITION, "alive");
 	assert.equal(LISTEN_ORDER[0], RECOMMENDED_EDITION);
 	assert.deepEqual([...LISTEN_ORDER].sort(), ["alive", "regular"]);
-	assert.match(EDITION_CHOICES.alive.detail, /LC Greek/);
+	assert.match(editionDetail("alive", "LC Greek"), /LC Greek/);
 });
 
-test("every Alive book has its LC Greek text, and only those", () => {
-	assert.equal(hasLcGreek(41), true);
-	assert.equal(hasLcGreek(40), true);
-	assert.equal(hasLcGreek(42), true);
-	assert.equal(hasLcGreek(43), true);
-	assert.equal(hasLcGreek(44), false);
-	for (const order of [1, 39, 40, 41, 42, 43, 44, 66]) assert.equal(hasLcGreek(order), hasAlive(order));
+test("the LC Greek is a reading text for Matthew to John only (LC-17800)", () => {
+	for (const order of [40, 41, 42, 43]) assert.equal(hasLcGreek(order), true, String(order));
+	for (const order of [1, 39, 44, 66]) assert.equal(hasLcGreek(order), false, String(order));
 	assert.equal(LC_GREEK.label, "LC Greek");
-	// The web loader names every book literally (webpack), so pin it to ALIVE_BOOKS.
+	// The web loader names every book literally (webpack), so pin it to the LC Greek books.
 	const loaderBooks = [...read("../src/lib/bible/lcGreek.ts").matchAll(/^\s*(\d+): async \(\) =>/gm)]
 		.map((match) => Number(match[1]))
 		.sort((a, b) => a - b);
-	assert.deepEqual(loaderBooks, [...ALIVE_BOOKS].sort((a, b) => a - b));
+	assert.deepEqual(loaderBooks, [...LC_GREEK_ALIVE_BOOKS].sort((a, b) => a - b));
+});
+
+test("the LC Greek note says Alive reads it only while the chapter's Alive recording does", () => {
+	assert.equal(lcGreekNote("LC Greek"), "Our own translation of the Greek · the text Alive reads");
+	assert.equal(lcGreekNote("ASV"), "Our own translation of the Greek", "an ASV re-recording replaced it");
+	assert.equal(lcGreekNote(null), "Our own translation of the Greek");
 });
 
 test("each LC Greek book matches the KJV's chapters and verse numbering", () => {
-	for (const order of ALIVE_BOOKS) {
+	for (const order of LC_GREEK_ALIVE_BOOKS) {
 		const text = JSON.parse(read(`../src/data/lc-greek/${order}.json`));
 		const kjv = JSON.parse(read(`../src/data/kjv/${kjvFile(order)}`));
 		const book = books.find((b) => b.order === order);

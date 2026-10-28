@@ -118,6 +118,7 @@ const BibleSearch: React.FC = () => {
             <option value="KJV">KJV</option>
             <option value="NKJV">NKJV</option>
             <option value="BSB">BSB</option>
+            <option value="ASV">American Standard Version</option>
             <option value="RV1909">Reina-Valera 1909</option>
             <option value="LUT1912">Lutherbibel 1912</option>
           </select>

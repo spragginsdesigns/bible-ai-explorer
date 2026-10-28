@@ -3,7 +3,7 @@
  * book, chapters → verses in the KJV's numbering, the same text its Alive
  * recording reads. The web reader imports it directly and
  * GET /api/bible/lc-greek serves it to Android and Apple. Webpack needs
- * literal import paths, so a book is listed here when it joins ALIVE_BOOKS.
+ * literal import paths, so every book in LC_GREEK_ALIVE_BOOKS is listed here.
  */
 import { hasLcGreek } from "./audioBible";
 
@@ -30,5 +30,5 @@ export async function loadLcGreekChapter(book: number, chapter: number): Promise
   return text[chapter - 1] ?? null;
 }
 
-/** Every book the loaders list, for the test that pins them to ALIVE_BOOKS. */
+/** Every book the loaders list, for the test that pins them to LC_GREEK_ALIVE_BOOKS. */
 export const LC_GREEK_BOOKS: readonly number[] = Object.keys(loaders).map(Number);

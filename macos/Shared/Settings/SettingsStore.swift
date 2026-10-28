@@ -11,6 +11,9 @@ enum TranslationID: String, CaseIterable, Sendable, Codable {
     /// Berean Standard Bible, bundled for offline reading (Android 1.60.0).
     /// The server accepts it on every route that takes a translation.
     case bsb = "BSB"
+    /// American Standard Version (1901), bundled like BSB; the text the Alive
+    /// recordings read (LC-17800). It leaves 16 verses empty.
+    case asv = "ASV"
     /// Reina-Valera 1909, the Spanish Bible, bundled like BSB
     /// (docs/languages/PLAN.md).
     case rv1909 = "RV1909"
@@ -26,6 +29,7 @@ enum TranslationID: String, CaseIterable, Sendable, Codable {
     var name: String {
         switch self {
         case .bsb: "Berean Standard Bible"
+        case .asv: "American Standard Version"
         case .rv1909: "Reina-Valera 1909"
         case .lut1912: "Lutherbibel 1912"
         case .kjv, .nkjv: rawValue
@@ -34,7 +38,7 @@ enum TranslationID: String, CaseIterable, Sendable, Codable {
 
     var copyright: String {
         switch self {
-        case .kjv, .rv1909, .lut1912: "Public domain"
+        case .kjv, .asv, .rv1909, .lut1912: "Public domain"
         case .nkjv: "© Thomas Nelson - text via bolls.life"
         case .bsb: "Public domain · BSB Publishing"
         }
@@ -43,7 +47,7 @@ enum TranslationID: String, CaseIterable, Sendable, Codable {
     /// The language the edition is written in - `TRANSLATIONS[id].language`.
     var language: AnswerLanguage {
         switch self {
-        case .kjv, .nkjv, .bsb: .en
+        case .kjv, .nkjv, .bsb, .asv: .en
         case .rv1909: .es
         case .lut1912: .de
         }

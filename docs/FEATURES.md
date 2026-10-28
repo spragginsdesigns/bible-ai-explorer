@@ -1577,6 +1577,25 @@ its loader line and its number in `ALIVE_BOOKS` together;
 `tests/lc-greek.test.mjs` fails if they disagree or the verse counts differ
 from the KJV.
 
+**The ASV, and Alive by upload (LC-17800).** The American Standard Version
+(1901, public domain) is a reader translation on every client: an **ASV** chip,
+the Settings picker and search, bundled like the Spanish and German Bibles
+(`scripts/bible/build-ebible.py ASV`, KJV verse slots). The ASV leaves out 16
+verses the KJV has (Matthew 17:21, 18:11, 23:14; Mark 7:16, 9:44, 9:46, 11:26,
+15:28; Luke 17:36, 23:17; John 5:4; Acts 8:37, 15:34, 24:7, 28:29; Romans
+16:24); they stay empty and the reader shows "Not included in this edition's
+main text.", as it does for the BSB. The ASV is the text every new Alive
+recording reads (Context-Pro-AI LC-17797). Alive no longer has a list of
+books: every client asks `GET /api/bible/audio?edition=alive` for every
+chapter, and the route answers from `Audio/sureword-bible/alive-asv/v1/` when
+the chapter is uploaded there, else from the LC Greek `alive/v1/` for Matthew
+to John, else `unavailable`, with `text: "ASV"` or `"LC Greek"`. Listen's
+Alive line names that text, and the LC Greek note adds "the text Alive reads"
+only while the chapter's Alive recording reads it. The LC Greek stays a
+reading text for Matthew to John (`LC_GREEK_ALIVE_BOOKS`). A timing file may
+skip a verse the text omits; playing from that verse starts at the next one,
+and next/previous verse steps over it.
+
 **Scope.** The whole KJV is narrated: the New Testament (books 40-66, 260
 chapters, about 15 hours, 2026-10-08) and the Old Testament (books 1-39, 929
 chapters, about 54 hours, 2026-10-09). Matthew plays the full-cast production

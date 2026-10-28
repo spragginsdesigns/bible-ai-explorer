@@ -1,6 +1,6 @@
 /**
- * Chapter loading for the Bible reader. KJV, BSB, Reina-Valera 1909 and
- * Lutherbibel 1912 are bundled with the app; NKJV is fetched from bolls.life
+ * Chapter loading for the Bible reader. KJV, BSB, the American Standard
+ * Version, Reina-Valera 1909 and Lutherbibel 1912 are bundled with the app; NKJV is fetched from bolls.life
  * per chapter with a timeout and cached in memory for the session. Ported from
  * mobile/src/features/bible/translations.ts.
  */
@@ -8,7 +8,7 @@ import { loadBsbChapter } from "./bsb";
 import { getEbibleChapter } from "./ebible";
 import { getKjvChapter } from "./kjv";
 
-export type TranslationId = "KJV" | "NKJV" | "BSB" | "RV1909" | "LUT1912";
+export type TranslationId = "KJV" | "NKJV" | "BSB" | "ASV" | "RV1909" | "LUT1912";
 
 /** The languages SureWord answers in. */
 export type AnswerLanguage = "en" | "es" | "de";
@@ -28,6 +28,7 @@ export const TRANSLATIONS: Record<
   BSB: { id: "BSB", label: "Berean Standard Bible", copyright: "Public domain · BSB Publishing", language: "en" },
   KJV: { id: "KJV", label: "KJV", copyright: "Public domain", language: "en" },
   NKJV: { id: "NKJV", label: "NKJV", copyright: "© Thomas Nelson - text via bolls.life", language: "en" },
+  ASV: { id: "ASV", label: "American Standard Version", copyright: "Public domain", language: "en" },
   RV1909: { id: "RV1909", label: "Reina-Valera 1909", copyright: "Public domain", language: "es" },
   LUT1912: { id: "LUT1912", label: "Lutherbibel 1912", copyright: "Public domain", language: "de" },
 };
@@ -126,7 +127,7 @@ export async function getChapter(
   chapter: number
 ): Promise<string[]> {
   if (translation === "BSB") return (await loadBsbChapter(order, chapter)).map(verse => verse.text);
-  if (translation === "RV1909" || translation === "LUT1912") {
+  if (translation === "ASV" || translation === "RV1909" || translation === "LUT1912") {
     try {
       return await getEbibleChapter(translation, order, chapter);
     } catch {

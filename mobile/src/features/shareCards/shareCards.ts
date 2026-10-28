@@ -54,7 +54,7 @@ export type ShareCardTarget =
 	  };
 
 /** The translations the server can look up and draw: every one we serve. */
-const CARD_TRANSLATIONS = ["KJV", "BSB", "NKJV", "RV1909", "LUT1912"] as const;
+const CARD_TRANSLATIONS = ["KJV", "BSB", "NKJV", "ASV", "RV1909", "LUT1912"] as const;
 export type CardTranslation = (typeof CARD_TRANSLATIONS)[number];
 
 export function cardTranslation(label: string): CardTranslation | null {

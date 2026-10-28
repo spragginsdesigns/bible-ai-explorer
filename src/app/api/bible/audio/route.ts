@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { bookByOrder } from "@/lib/bible/books";
 import {
+	aliveSources,
 	chapterTimingUrl,
-	hasAlive,
 	hasNarration,
 	parseChapterTiming,
 	parseEdition,
+	type AliveText,
+	type AudioEdition,
+	type ChapterAudio,
 	type ChapterAudioResponse,
 } from "@/lib/bible/audioBible";
 
@@ -25,9 +28,12 @@ const UNAVAILABLE: ChapterAudioResponse = { status: "unavailable" };
  * control at all. The timing file is read from our media bucket and cached
  * for a day, so the bucket sees about one request per chapter per day.
  *
- * `edition=alive` asks for the book's Alive recording instead (LC-15532);
- * a book without one answers unavailable, so clients offer only the Listen
- * choices that exist.
+ * `edition=alive` asks for the chapter's Alive recording instead (LC-15532):
+ * the ASV recording when one is uploaded, else the LC Greek one for Matthew
+ * to John (`aliveSources`), else unavailable, so clients offer only the
+ * Listen choices that exist. There is no list of Alive books (LC-17800): a
+ * chapter uploaded to the ASV folder answers here once the unavailable
+ * answer's few-minute cache runs out, and `text` says which one it reads.
  */
 export async function GET(request: Request) {
 	const params = new URL(request.url).searchParams;
@@ -48,16 +54,16 @@ export async function GET(request: Request) {
 			{ status: 400 }
 		);
 	}
-	if (!hasNarration(book) || (edition === "alive" && !hasAlive(book))) {
+	if (!hasNarration(book)) {
 		return NextResponse.json(UNAVAILABLE, { headers: { "Cache-Control": CACHE_CONTROL } });
 	}
 	try {
-		const response = await fetch(chapterTimingUrl(book, chapter, edition), {
-			next: { revalidate: 86400 },
-			signal: AbortSignal.timeout(10_000),
-		});
-		// The bucket answers 403 (not 404) for a key that does not exist yet.
-		const audio = response.ok ? parseChapterTiming(await response.json(), book, chapter, edition) : null;
+		let audio: ChapterAudio | null = null;
+		const texts: (AliveText | undefined)[] = edition === "alive" ? aliveSources(book) : [undefined];
+		for (const text of texts) {
+			audio = await readTiming(book, chapter, edition, text);
+			if (audio) break;
+		}
 		return NextResponse.json(audio ?? UNAVAILABLE, {
 			headers: { "Cache-Control": audio ? CACHE_CONTROL : UNAVAILABLE_CACHE_CONTROL },
 		});
@@ -66,4 +72,22 @@ export async function GET(request: Request) {
 		// Not cached: a blip at the bucket should not hide Listen for a day.
 		return NextResponse.json(UNAVAILABLE, { headers: { "Cache-Control": "no-store" } });
 	}
+}
+
+/**
+ * One folder's timing file for the chapter, or null when it has none. Only a
+ * 200 is kept in Next's fetch cache (a day); the bucket answers 403 (not 404)
+ * for a key that does not exist yet, and that is never cached here.
+ */
+async function readTiming(
+	book: number,
+	chapter: number,
+	edition: AudioEdition,
+	text: AliveText | undefined
+): Promise<ChapterAudio | null> {
+	const response = await fetch(chapterTimingUrl(book, chapter, edition, text), {
+		next: { revalidate: 86400 },
+		signal: AbortSignal.timeout(10_000),
+	});
+	return response.ok ? parseChapterTiming(await response.json(), book, chapter, edition, text) : null;
 }

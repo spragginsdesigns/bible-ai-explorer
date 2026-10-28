@@ -1,0 +1,25 @@
+{
+  "id": "ASV",
+  "title": "American Standard Version (1901)",
+  "source": "https://ebible.org/Scriptures/eng-asv_vpl.zip",
+  "sha256": "8924ef74086d572425b1e335f531c7c529a561969e5c851e456b84c2ce6ad858",
+  "verses": 31102,
+  "empty": [
+    "MAT 17:21",
+    "MAT 18:11",
+    "MAT 23:14",
+    "MAR 7:16",
+    "MAR 9:44",
+    "MAR 9:46",
+    "MAR 11:26",
+    "MAR 15:28",
+    "LUK 17:36",
+    "LUK 23:17",
+    "JOH 5:4",
+    "ACT 8:37",
+    "ACT 15:34",
+    "ACT 24:7",
+    "ACT 28:29",
+    "ROM 16:24"
+  ]
+}

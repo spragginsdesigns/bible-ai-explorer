@@ -1,7 +1,7 @@
 /**
- * Chapter loading for the Bible reader. KJV, BSB and the Bibles in other
- * languages (Reina-Valera 1909, Lutherbibel 1912) are bundled with the app and
- * resolve synchronously; NKJV is fetched from bolls.life per chapter with a
+ * Chapter loading for the Bible reader. KJV, BSB, the American Standard
+ * Version and the Bibles in other languages (Reina-Valera 1909, Lutherbibel
+ * 1912) are bundled with the app and resolve synchronously; NKJV is fetched from bolls.life per chapter with a
  * timeout and cached in memory for the session.
  */
 import { getBsbChapter } from "./bsb";
@@ -20,7 +20,7 @@ export const BIBLE_LANGUAGE_NAMES: Readonly<Record<BibleLanguage, string>> = {
 };
 
 /** Every translation id this build reads. The one list; parse anything else through it. */
-export const TRANSLATION_IDS = ["KJV", "NKJV", "BSB", "RV1909", "LUT1912"] as const;
+export const TRANSLATION_IDS = ["KJV", "NKJV", "BSB", "ASV", "RV1909", "LUT1912"] as const;
 export type TranslationId = (typeof TRANSLATION_IDS)[number];
 
 export interface TranslationInfo {
@@ -34,6 +34,7 @@ export const TRANSLATIONS: Record<TranslationId, TranslationInfo> = {
 	BSB: { id: "BSB", label: "Berean Standard Bible", copyright: "Public domain · BSB Publishing", language: "en" },
 	KJV: { id: "KJV", label: "KJV", copyright: "Public domain", language: "en" },
 	NKJV: { id: "NKJV", label: "NKJV", copyright: "© Thomas Nelson — text via bolls.life", language: "en" },
+	ASV: { id: "ASV", label: "American Standard Version", copyright: "Public domain", language: "en" },
 	RV1909: { id: "RV1909", label: "Reina-Valera 1909", copyright: "Public domain", language: "es" },
 	LUT1912: { id: "LUT1912", label: "Lutherbibel 1912", copyright: "Public domain", language: "de" },
 };
@@ -118,7 +119,7 @@ export async function getChapter(
 	chapter: number
 ): Promise<string[]> {
 	if (translation === "BSB") return getBsbChapter(order, chapter).map(verse => verse.text);
-	if (translation === "RV1909" || translation === "LUT1912") {
+	if (translation === "ASV" || translation === "RV1909" || translation === "LUT1912") {
 		try {
 			return getForeignBibleChapter(translation, order, chapter);
 		} catch {

@@ -1,5 +1,5 @@
 // Inline rather than imported: node tests load this file directly, without the @/ alias.
-const TRANSLATION_IDS = ["KJV", "NKJV", "BSB", "RV1909", "LUT1912"] as const;
+const TRANSLATION_IDS = ["KJV", "NKJV", "BSB", "ASV", "RV1909", "LUT1912"] as const;
 export type TranslationId = (typeof TRANSLATION_IDS)[number];
 
 function isTranslationId(value: unknown): value is TranslationId {

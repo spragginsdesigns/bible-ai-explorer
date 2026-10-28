@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { Headphones } from "lucide-react";
-import { EDITION_CHOICES, RECOMMENDED_EDITION, RECOMMENDED_LABEL } from "@/lib/bible/audioBible";
+import { EDITION_CHOICES, editionDetail, RECOMMENDED_EDITION, RECOMMENDED_LABEL } from "@/lib/bible/audioBible";
 import type { ChapterAudioPlayer } from "./useChapterAudio";
 
 const BUTTON =
@@ -105,7 +105,7 @@ export default function ListenButton({ player, reference }: { player: ChapterAud
                     </span>
                   ) : null}
                 </span>
-                <span className="text-xs text-neutral-500 dark:text-neutral-400">{EDITION_CHOICES[edition].detail}</span>
+                <span className="text-xs text-neutral-500 dark:text-neutral-400">{editionDetail(edition, player.aliveText)}</span>
               </button>
             );
           })}

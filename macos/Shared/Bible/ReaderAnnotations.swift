@@ -58,7 +58,8 @@ actor ReaderAnnotations {
                     verse: number,
                     bsb: formatted
                 ),
-                omitted: formatted?.omitted ?? false
+                // BSB marks its omitted verses; the ASV leaves its 16 empty.
+                omitted: (formatted?.omitted ?? false) || markup.isEmpty
             )
         }
     }
@@ -71,7 +72,7 @@ actor ReaderAnnotations {
         case .kjv: "KJV words of Jesus · eBible edition. Editorial headings · BSB."
         case .bsb: "Section headings and words of Jesus · Berean Standard Bible"
         case .nkjv: "Red letters aren't available from our NKJV text provider yet."
-        case .rv1909, .lut1912: "Plain text · \(translation.name), public domain."
+        case .asv, .rv1909, .lut1912: "Plain text · \(translation.name), public domain."
         }
     }
 
@@ -98,7 +99,7 @@ actor ReaderAnnotations {
         case .bsb:
             guard let bsb, bsb.text == markup else { return parsed }
             return bsb.segments
-        case .nkjv, .rv1909, .lut1912:
+        case .nkjv, .asv, .rv1909, .lut1912:
             return parsed
         case .kjv:
             guard let entry = loadSpeech()["\(order):\(chapter):\(verse)"] else { return parsed }

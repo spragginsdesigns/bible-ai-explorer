@@ -24,7 +24,7 @@ import type { ReasoningEffort, ReasoningMode, Speed, Verbosity } from "./ai/mode
  * `src/lib/bible/translations.ts` (this module holds no runtime imports; the
  * test asserts the two lists match).
  */
-export const TRANSLATION_IDS: readonly TranslationId[] = ["KJV", "NKJV", "BSB", "RV1909", "LUT1912"];
+export const TRANSLATION_IDS: readonly TranslationId[] = ["KJV", "NKJV", "BSB", "ASV", "RV1909", "LUT1912"];
 
 /**
  * The language SureWord answers in (docs/languages/PLAN.md). "auto" follows the

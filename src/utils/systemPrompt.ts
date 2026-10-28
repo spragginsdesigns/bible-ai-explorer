@@ -394,6 +394,7 @@ const TRANSLATION_FULL_NAMES: Record<TranslationId, string> = {
 	BSB: "Berean Standard Bible",
 	KJV: "King James Version",
 	NKJV: "New King James Version",
+	ASV: "American Standard Version",
 	RV1909: "Reina-Valera 1909",
 	LUT1912: "Lutherbibel 1912",
 };
@@ -403,6 +404,7 @@ const TRANSLATION_LANGUAGES: Record<TranslationId, AnswerLanguage> = {
 	BSB: "en",
 	KJV: "en",
 	NKJV: "en",
+	ASV: "en",
 	RV1909: "es",
 	LUT1912: "de",
 };

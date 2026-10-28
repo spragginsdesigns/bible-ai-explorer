@@ -9,7 +9,7 @@ import { useBrowserReading } from "./useBrowserReading";
 import { useReadingLogStatus } from "./readingLogClient";
 import { ChevronDown, Copy, GraduationCap, Headphones, Network, NotebookPen, Share2, Sparkles, Users } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
-import { EDITION_CHOICES, hasLcGreek, hasNarration, LC_GREEK } from "@/lib/bible/audioBible";
+import { EDITION_CHOICES, hasLcGreek, hasNarration, LC_GREEK, lcGreekNote } from "@/lib/bible/audioBible";
 import { bookByOrder } from "@/lib/bible/books";
 import { loadLcGreekChapter } from "@/lib/bible/lcGreek";
 import { CHAPTER_LOAD_ERROR, getChapter, isTranslationId, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
@@ -73,6 +73,7 @@ const TRANSLATION_NOTES: Record<TranslationId, string> = {
   KJV: "KJV words of Jesus · eBible edition. Editorial headings · BSB.",
   BSB: "Section headings and words of Jesus · Berean Standard Bible",
   NKJV: "Red letters aren't available from our NKJV text provider yet.",
+  ASV: "American Standard Version. Red letters and section headings are not available in this edition yet.",
   RV1909: "Reina-Valera 1909 · Español. Red letters and section headings are not available in this edition yet.",
   LUT1912: "Lutherbibel 1912 · Deutsch. Red letters and section headings are not available in this edition yet.",
 };
@@ -867,8 +868,9 @@ const ChapterReader: React.FC = () => {
         </div>
 
         {/* Translation chips: centred under the title so the header reads as
-            one balanced block rather than a right-hung second row. */}
-        <div className="flex justify-center gap-1 pb-2">
+            one balanced block rather than a right-hung second row. They wrap
+            on a phone, where six translations and the LC Greek outgrow 375px. */}
+        <div className="flex flex-wrap justify-center gap-1 pb-2">
           {[
             ...(Object.keys(TRANSLATIONS) as TranslationId[]).map((id) => ({
               key: id,
@@ -897,7 +899,7 @@ const ChapterReader: React.FC = () => {
           ))}
         </div>
         <p className="pb-2 text-center text-metadata text-neutral-500 dark:text-neutral-400">
-          {lcGreek ? LC_GREEK.note : TRANSLATION_NOTES[translation]}
+          {lcGreek ? lcGreekNote(player.aliveText) : TRANSLATION_NOTES[translation]}
         </p>
         <Link href={`/connections?book=${order}&chapter=${chapter}&translation=${translation}`} className="mx-auto mb-2 flex min-h-11 w-fit items-center gap-2 rounded-full px-4 text-sm font-bold text-amber-700 hover:bg-amber-500/5 dark:text-amber-300"><Network size={17} aria-hidden />Connections for this chapter</Link>
 
@@ -1018,7 +1020,7 @@ const ChapterReader: React.FC = () => {
                           {segment.text}
                         </span>
                       ))}
-                      {formatted?.omitted ? <span className="text-sm text-neutral-500">Not included in this edition’s main text.</span> : null}
+                      {formatted?.omitted || text === "" ? <span className="text-sm text-neutral-500">Not included in this edition’s main text.</span> : null}
                     </span>
                     <span className="block h-4" aria-hidden />
                   </button>

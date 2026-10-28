@@ -1,0 +1,125 @@
+<report type="brief" name="SureWord Connector Research" date="2026-10-28"
+ title="Start with Calendar, Notion, and selected Drive files"
+ author="Codex"
+ scope="Provider documentation and local main 17b7edc6. No OAuth or runtime tests.">
+ <why>Connect Bible study to daily routines and existing notes; prioritize useful workflows, narrow access, and a shared backend across every SureWord client.</why>
+ <summary>
+  <fixes label="Next steps">
+   <fix where="Priorities">Validate Calendar, Notion, and Drive with current users</fix>
+   <fix where="First release">Build scheduling and selected-note access through shared provider adapters</fix>
+   <fix where="YouVersion">Resolve written AI approval before promising highlights integration</fix>
+  </fixes>
+  <verdict status="neutral" chip="Recommendation">Start with curated connections. Treat Gmail as later work and YouVersion as dependent on permission.</verdict>
+ </summary>
+ <tab label="Findings" intro="Ranked by product fit, access control, and implementation constraints.">
+  <finding tag="First choice" title="Google Calendar turns reading goals into scheduled time" basis="Official scopes; local calendar code">
+   <part label="User benefit">“Find a free 15 minutes for my Bible reading this week.” Suggest a schedule, then let the person approve it. Church gatherings and prayer time can use the same flow, with private event titles by default.</part>
+   <part label="Feasibility">Google documents availability scopes and <code>calendar.app.created</code>, which manages secondary calendars created by the app. Start with busy intervals and a SureWord calendar. Event titles and descriptions require broader event access, so request that only for a concrete feature.</part>
+   <part label="Existing foundation">SureWord already creates Google Calendar template links and ICS downloads for church announcements. That is a user-controlled handoff, not authenticated calendar reading or ongoing synchronization. Add reading-plan handoffs before introducing automatic scheduling.</part>
+   <evidence label="Provider and repository evidence">
+    <p><a href="https://developers.google.com/workspace/calendar/api/auth">Google Calendar scope documentation</a> distinguishes availability, event reading, and app-created calendar management. Scope classification and production verification must be checked against the final requested scope set.</p>
+    <p><code>src/lib/church-events-rules.ts:298</code> builds the Google TEMPLATE URL; line 348 builds ICS. <code>docs/FEATURES.md:2481</code> documents the announcement workflow. These paths were read in this investigation; no device behavior was tested.</p>
+    <p>Calendar access does not authorize scheduling at any time the model chooses. A proposed implementation should bind an approved event payload to an idempotent server operation and return the actual provider event identifier.</p>
+   </evidence>
+  </finding>
+  <finding tag="First choice" title="Notion gives existing study notebooks an AI companion" basis="OAuth and capability documentation">
+   <part label="User benefit">“Compare my Romans notes with Sunday's sermon.” “Save this study in my Notion Bible notebook.” This helps people who want SureWord's study assistance while continuing to write in their existing notebook.</part>
+   <part label="Feasibility">Public OAuth connections let users select pages. Notion separates Read content, Insert content, and Update content. Start by reading shared study pages. Offer creating a new study page as an explicit write feature; defer rewriting existing pages and two-way conflict resolution.</part>
+   <part label="Permission detail">Read access and new-page creation need distinct configured capabilities. Do not describe a connection as read-only if Insert or Update is enabled. Page selection includes inherited access behavior that needs a real workspace test before release.</part>
+   <evidence label="Official access model">
+    <p><a href="https://developers.notion.com/guides/get-started/authorization">Notion authorization</a> documents the public OAuth flow and page picker. <a href="https://developers.notion.com/reference/capabilities">Notion capabilities</a> distinguishes reading, inserting, and updating content. Use a public connection for customers, rather than asking them to paste personal API tokens.</p>
+    <p>API availability establishes feasibility, not proven demand or SureWord authorization success. Workspace installation, page discovery, child-page access, moved pages, and revoked pages remain prototype checks.</p>
+   </evidence>
+  </finding>
+  <finding tag="First choice" title="Selected Drive files cover sermon and lesson documents" basis="Official Drive scope documentation">
+   <part label="User benefit">“Use this Google Doc of sermon notes when we study James.” A selected lesson outline, journal, or uploaded document becomes a cited source for the current question. Keep the file's title, source link, and revision information visible.</part>
+   <part label="Feasibility">Google recommends <code>drive.file</code> with Google Picker for per-file access. It is non-sensitive and narrower than whole-Drive scopes. It covers files users share with the app; it does not grant search across all their Drive documents.</part>
+   <part label="Permission detail"><code>drive.file</code> permits modifications to eligible files, so it is not a provider-enforced read-only grant. The first SureWord adapter can expose reads only, explain the actual OAuth permission, and withhold mutation tools. File parsing and native picker handoff still need prototype proof.</part>
+   <evidence label="Official access and AI policy">
+    <p><a href="https://developers.google.com/workspace/drive/api/guides/api-specific-auth">Google Drive authorization</a> recommends selected-file access and labels broad Drive reading as restricted. Avoid upgrading to whole-Drive indexing just to make discovery easier.</p>
+    <p><a href="https://developers.google.com/workspace/workspace-api-user-data-developer-policy">Workspace user data policy</a> governs access, transparency, transfers, and AI use. Validate the exact processing path and retention terms before launch. Broad model training with connected personal data is outside the proposed feature.</p>
+   </evidence>
+  </finding>
+  <finding tag="Later cohort" title="Outlook and OneNote serve the Microsoft study workflow" basis="Official Microsoft Graph documentation">
+   <part label="User benefit">Offer the same scheduling and study-note workflows for people already using Outlook and OneNote. Move these ahead of Notion if interviews show that Microsoft notebooks are common among SureWord readers and teachers.</part>
+   <part label="Feasibility">Microsoft Graph supports Outlook calendars for personal and work accounts. OneNote page listing documents delegated <code>Notes.Read</code> for both account types. The OneNote overview says app-only authentication is no longer supported, while an endpoint table still lists application permissions; use delegated access and verify the discrepancy in a prototype.</part>
+   <evidence label="Official Microsoft sources">
+    <p><a href="https://learn.microsoft.com/en-us/graph/outlook-calendar-concept-overview">Outlook calendar overview</a> describes calendar access and account coverage. <a href="https://learn.microsoft.com/en-us/graph/api/onenote-list-pages?view=graph-rest-1.0">OneNote list pages</a> gives delegated permissions and pagination. <a href="https://learn.microsoft.com/en-us/graph/integrate-with-onenote">OneNote overview</a> states the app-only authentication change.</p>
+    <p>A SureWord notebook selector is a product filter. It should not be represented as provider-enforced notebook-only authorization if the granted Graph permission covers more content.</p>
+   </evidence>
+  </finding>
+  <finding tag="Permission gate" title="YouVersion supports highlights, with an AI approval constraint" basis="Official API, sign-in, and terms">
+   <part label="User benefit">“Help me study the verses I marked in YouVersion.” This is a close fit for Bible readers and could become a strong connection if YouVersion approves the intended AI use and passage retrieval meets the product need.</part>
+   <part label="Actual access">The sign-in docs support <code>requested_permissions[]=highlights</code> separately from identity scopes, and explicitly exclude notes and bookmarks. The highlights GET endpoint requires a Bible identifier and passage identifier. A complete library import and reading-plan history are not established by the documentation reviewed.</part>
+   <part label="Constraint">The published terms restrict using the tools with open-ended AI chat, except accurate verbatim Scripture retrieval, and require prior written approval for other cases. Treat SureWord's proposed highlight-based AI study as requiring that approval before implementation or a promise to customers.</part>
+   <evidence label="Exact provider distinctions">
+    <p><a href="https://developers.youversion.com/sign-in-apis">YouVersion sign-in APIs</a> distinguishes identity scopes from user-data permission. <a href="https://developers.youversion.com/api/highlights">Highlights API</a> documents reads and mutations for passages. The permission is not documented here as a separate read-only grant; SureWord should initially expose no highlight mutations.</p>
+    <p><a href="https://platform.youversion.com/terms">Platform terms, Artificial Intelligence section</a> is the basis for the approval gate. This is a product planning interpretation of the published text, not a provider decision about SureWord. Registration, approved use, publisher licensing, and any bulk retrieval approach remain unresolved.</p>
+    <p>Do not conflate passage footnotes in the Bible-content API with someone's private notes. Do not use undocumented account endpoints or scrape their library to fill the gaps. Bring verse references into SureWord's existing Scripture tools only after the intended use is cleared.</p>
+   </evidence>
+  </finding>
+  <finding tag="Later work" title="Gmail adds substantial access requirements for narrower study value" basis="Official Gmail scope documentation">
+   <part label="User benefit">Church newsletters and a specific devotional email can help with study. For an initial release, let a person deliberately share the message or paste its relevant text into SureWord. That makes selection obvious and avoids requiring a mailbox connection for this use.</part>
+   <part label="Constraint">Google classifies <code>gmail.readonly</code>, <code>gmail.metadata</code>, and <code>gmail.compose</code> as restricted. Draft management includes send permission. Server storage or transmission of restricted data requires a security assessment under the scope guide. A read-only label does not make mailbox access a light integration.</part>
+   <evidence label="Official Gmail requirements">
+    <p><a href="https://developers.google.com/workspace/gmail/api/auth/scopes">Gmail scope guide</a> lists these classifications and the assessment requirement. <a href="https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification">Restricted-scope verification</a> explains production review and assessment obligations, including applicable exceptions. No assessment price or approval timeline was established.</p>
+    <p>A label filter limits SureWord's behavior, not the OAuth grant's mailbox access. Gmail add-on current-message scopes are a different product surface, not interchangeable with a normal SureWord server connector.</p>
+    <p>Before choosing Gmail, confirm that SureWord's exact use qualifies under Google's appropriate-use policy. An OAuth integration vendor cannot remove that obligation.</p>
+   </evidence>
+  </finding>
+  <finding tag="Useful bridge" title="Files and sharing support Obsidian and Apple Notes" basis="Local export code; Obsidian documentation">
+   <part label="User benefit">Offer clear Import, Export, and Share actions for notes. SureWord already has Markdown export helpers on web and Android. A file bridge can serve people using Obsidian and other note apps before maintaining another live connection.</part>
+   <part label="Scope">Obsidian documents Markdown files as its note format. Test actual import/export fidelity before advertising compatibility. Treat Apple Notes as an explicit share or file workflow until a cross-platform integration is validated. Neither path should be labeled continuous sync.</part>
+   <evidence label="Evidence and remaining limits">
+    <p><a href="https://obsidian.md/help/import/markdown">Obsidian Markdown import</a> documents file and folder import. <code>src/components/notes/noteMarkdownExport.ts:22</code> and <code>mobile/src/features/notes/noteMarkdownExport.ts:54</code> contain SureWord's serializers, including an unsupported-content failure path on Android. They were inspected, not exercised.</p>
+    <p><a href="https://developer.apple.com/documentation/eventkit/accessing-calendar-using-eventkit-and-eventkitui">Apple EventKit and EventKitUI</a> separately supports a user-controlled calendar event editor without broad calendar reading. Native calendar handoff complements Google OAuth; it does not give the backend ongoing calendar visibility.</p>
+    <p>Logos, Readwise, Evernote, and Apple Notes cloud access were not validated as live connector candidates. Their user-selected exports can be evaluated through the same file path, subject to actual export formats and content rights. No automatic compatibility is claimed.</p>
+   </evidence>
+  </finding>
+  <finding tag="Later cohort" title="Task apps can carry an explicit study commitment" basis="Official Todoist authorization documentation">
+   <part label="User benefit">“Remind me to call Dad and pray with him Friday.” A person may prefer their existing task list for commitments arising from a study. Ask which task app they actually use before building multiple adapters.</part>
+   <part label="Feasibility">Todoist documents an add-only <code>task:add</code> scope, which fits creating a requested reminder without reading an existing task list. Evaluate TickTick and Microsoft To Do separately if user demand points there. Their customer-facing integration requirements were not validated in this research.</part>
+   <evidence label="Source and privacy choice">
+    <p><a href="https://developer.todoist.com/api/v1/#tag/Authorization/OAuth">Todoist OAuth</a> documents add-only and broader data scopes. Use a generic reminder title unless the person explicitly chooses to include sensitive prayer details in an external service.</p>
+   </evidence>
+  </finding>
+ </tab>
+ <tab label="Decisions" intro="A proposed sequence; audience demand still needs validation.">
+  <entries>
+   <table>
+    <thead><tr><th>Phase</th><th>Deliver</th><th>What proves value</th></tr></thead>
+    <tbody>
+     <tr><td>Validate</td><td>Ask where study notes and calendars live.</td><td>A recurring task and representative example.</td></tr>
+     <tr><td>Foundation</td><td>Files, source links, calendar handoffs.</td><td>A cited answer and an approved calendar event.</td></tr>
+     <tr><td>First connectors</td><td>Google Calendar and Notion.</td><td>Repeat use; revocation and isolation pass.</td></tr>
+     <tr><td>Documents</td><td>Picker-selected Drive files.</td><td>Cites current content from selected files.</td></tr>
+     <tr><td>Next cohort</td><td>Outlook, OneNote, or a task app.</td><td>Measured demand justifies another adapter.</td></tr>
+     <tr><td>Conditional</td><td>YouVersion highlights; Gmail later.</td><td>Provider permission and access requirements are resolved for the intended feature.</td></tr>
+    </tbody>
+   </table>
+  </entries>
+  <fold label="Product shape and implementation boundaries">
+   <p><strong>Settings → Connections</strong> should show a short curated catalog. Each entry explains a concrete use, available actions, and the exact selected sources. Connected entries show the linked account, access mode, last successful retrieval or sync, reconnect state, and Disconnect. Connection is account-scoped; platform presentation adapts to Android, web, macOS, and iOS.</p>
+   <p><strong>Keep one backend.</strong> Add provider adapters behind the existing authenticated AI tool registry. The current entry is <code>src/app/api/ask-question/route.ts:733</code>; <code>src/lib/ai-tools.ts:1667</code> returns memory, notes, Scripture, church, and reading tools. <code>src/lib/notes-io.ts:265</code> demonstrates server-owned per-user note access. No external connector store or adapter registry was found in the searched application code and Prisma schema.</p>
+   <p>A proposed connection record needs owner, provider account identifier, granted scopes, encrypted server-held credentials, state, and revocation status. A source record needs connection owner, provider object identifier, version, link, and permitted retrieval policy. These are design requirements, not existing schema or implemented code.</p>
+   <p>Authenticate OAuth initiation and bind the callback state to that account and intended provider. Use PKCE where supported, never use email alone to bind accounts, and never accept a client-supplied owner identifier. Keep provider credentials outside chat messages and model context. Retry reads with bounds and backoff; retry writes only with a stable idempotency key and a recorded outcome.</p>
+   <p><strong>Separate reading from acting.</strong> Start with on-demand source retrieval. Re-check source authorization and revision before reading cached or embedded material. Handle pagination and removed pages explicitly. Avoid unbounded whole-account indexing, and do not copy external notes into SureWord Notes unless the person chooses Import. Creating a new external page is simpler than maintaining two editable copies of an existing page.</p>
+   <p><strong>Keep doctrine and attribution intact.</strong> A connected document is personal study material. Cite its title and source link, distinguish its claims from Scripture, and use SureWord's existing Bible retrieval for verse quotations. Imported content cannot change the KJV doctrinal foundation, request secrets, authorize tools, or grant itself permissions. Test malicious instructions inside notes and calendar descriptions.</p>
+   <p><strong>Preserve the existing AI choice.</strong> <code>src/lib/ai-consent.ts:14</code> and <code>prisma/schema.prisma:69</code> preserve agreement or refusal once per account. Connecting a provider is a separate, user-initiated permission flow with a clear AI-use disclosure. It must not re-prompt the old global consent or turn AI on after refusal. Provider access alone does not authorize using its content in AI.</p>
+   <p><strong>Make removal honest.</strong> Disconnect stops reads, pending work, and provider access; revoke tokens where supported. Delete connector caches and derived embeddings according to the disclosed retention policy. Explain that copies deliberately imported into Notes or already quoted in saved conversations are separate saved content, with their own delete controls. Do not promise disconnect erases all prior answers.</p>
+   <p><strong>Release proof.</strong> Test real connect, cancel, expired token, reconnect, revoked source, disconnect during a request, duplicate write retry, cross-account isolation, and prompt injection. Android leads, with matching capabilities on web, macOS, and iOS in the same cycle under <code>CLAUDE.md</code>. Apple file access or event handoffs need native proof; a web demonstration does not establish it.</p>
+   <p><strong>Scope decision.</strong> Curated provider adapters fit this first release. A public plugin marketplace or arbitrary user-supplied MCP servers would add a separate trust, review, and execution system. Nothing in the researched user workflows requires that system to launch.</p>
+  </fold>
+  <fold label="Validation questions and useful measurements">
+   <p>Ask current readers and a mix of regular Bible readers, sermon note takers, and study leaders: Where are your study notes today? Which calendar do you rely on? What did you last copy between apps? What exact question would you ask SureWord about that content? Which information would you avoid connecting? Would a share action solve it as well as a permanent connection?</p>
+   <p>Use representative samples that participants choose, not a general invitation to browse their accounts. Let evidence reorder Notion versus OneNote, Google versus Outlook, and connectors versus file sharing. The shortlist is based on workflow fit and documented API constraints, not measured SureWord audience adoption.</p>
+   <p>Measure connection completion, successful first cited answer or approved event, repeat use, useful retrievals, disconnect reasons, provider failures, and cost per successful workflow. Set pilot success criteria before collection. Do not report connection count alone as evidence that the feature improves Bible study. No adoption, conversion, retention, engineering-duration, or dollar-cost estimates were established.</p>
+  </fold>
+  <fold label="Method, evidence limits, and source freshness">
+   <p>Researched October 28, 2026 through Firecrawl search and live page retrieval. Used official Google, Notion, Microsoft, YouVersion, Apple, Todoist, and Obsidian documentation for material API claims. The YouVersion overview was marked modified October 23, 2026; sign-in documentation explicitly describes changes from July 2026. Provider policies and scopes can change, so recheck them before registration and launch.</p>
+   <p>Inspected local main at <code>17b7edc6</code>, including the AI tool registry, authenticated notes, memory tools, Markdown serializers, calendar helpers, account consent, and Prisma schema. Existing unrelated edits to feature and parity documents were left intact. Existing code was inspected statically, without a new application runtime or production-data test.</p>
+   <p>No SureWord users were interviewed; no production usage data was queried; no OAuth clients were created; no external accounts were connected; no provider token or API call was tested. Published capability does not establish that SureWord will pass provider review. Full YouVersion history, Apple Notes cloud sync, Logos library access, and Readwise API integration remain unverified. This report proposes a direction; it does not announce a shipped feature.</p>
+  </fold>
+  <note>User demand and real OAuth behavior remain untested.</note>
+ </tab>
+</report>

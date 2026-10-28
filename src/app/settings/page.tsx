@@ -71,6 +71,7 @@ const TRANSLATION_DETAILS: Record<TranslationId, { badge: string; name: string; 
 	KJV: { badge: "KJV", name: "King James Version", note: "Public domain · works offline" },
 	BSB: { badge: "BSB", name: "Berean Standard Bible", note: "Public domain · works offline" },
 	NKJV: { badge: "NKJV", name: "New King James Version", note: "© Thomas Nelson · fetched when needed" },
+	ASV: { badge: "ASV", name: "American Standard Version", note: "Public domain · works offline" },
 	RV1909: { badge: "RV", name: "Reina-Valera 1909 · Español", note: "Public domain · works offline" },
 	LUT1912: { badge: "LUT", name: "Lutherbibel 1912 · Deutsch", note: "Public domain · works offline" },
 };

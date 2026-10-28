@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>SureWord Connector Research</title>
+<style>
+/* Glass tabs report. Dark only: the page is a dark glass surface by design, so there is no light theme
+   outside print. Tab selection is pure CSS (radio inputs + :checked) so it works with scripts off. */
+:root{
+  color-scheme:dark;
+  --bg:#09090b;
+  --solid:#131317;
+  --glass-top:rgba(255,255,255,.065);
+  --glass-bot:rgba(255,255,255,.028);
+  --raise:rgba(255,255,255,.11);
+  --line:rgba(255,255,255,.08);
+  --line-2:rgba(255,255,255,.14);
+  --spec:rgba(255,255,255,.10);
+  --band:rgba(9,9,11,.62);
+  --fg:#fafafa;
+  --fg-2:#d4d4d8;
+  --muted:#a1a1aa;
+  --accent:#3b82f6;
+  --accent-2:#22d3ee;
+  --glow-a:rgba(34,211,238,.16);
+  --glow-b:rgba(59,130,246,.14);
+  --ok:#4ade80;
+  --warn:#fbbf24;
+  --bad:#f87171;
+  --neutral:#a1a1aa;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 18px 40px -18px rgba(0,0,0,.75);
+  --r:12px;--r-lg:16px;--r-xl:20px;
+  --font:"Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --gut:16px;
+}
+body{margin:0;background-color:var(--bg)}
+.page *,.page *::before,.page *::after{box-sizing:border-box}
+.page{
+  min-height:100%;min-height:100dvh;overflow-x:clip;
+  padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);
+  background-color:var(--bg);
+  background-image:
+    radial-gradient(520px 300px at 50% -60px,var(--glow-a),transparent 70%),
+    radial-gradient(420px 280px at 100% 40px,var(--glow-b),transparent 70%),
+    radial-gradient(380px 260px at 0% 420px,rgba(59,130,246,.07),transparent 70%);
+  background-repeat:no-repeat;
+  color:var(--fg);font:15px/1.5 var(--font);letter-spacing:-.005em;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{width:min(100% - 2*var(--gut),1040px);margin-inline:auto;padding-bottom:40px}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+.page a{color:var(--accent-2);text-underline-offset:2px}
+.page :focus-visible{outline:2px solid var(--accent-2);outline-offset:2px}
+.page code{font-family:var(--mono)}
+
+/* glass surface: frosted fill, hairline, specular top edge */
+.glass{
+  position:relative;
+  background:linear-gradient(180deg,var(--glass-top),var(--glass-bot));
+  border:1px solid var(--line);border-radius:var(--r-xl);
+  box-shadow:inset 0 1px 0 var(--spec),var(--shadow);
+  -webkit-backdrop-filter:blur(22px) saturate(150%);backdrop-filter:blur(22px) saturate(150%);
+}
+.glass::before{content:"";position:absolute;top:-1px;left:14%;right:14%;height:1px;pointer-events:none;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.34),transparent)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .glass{background:var(--solid)}
+  .bar{background:var(--bg)}
+}
+
+/* hero */
+.hero{padding:26px 0 16px}
+.kicker{margin:0;font-size:13px;font-weight:500;color:var(--muted)}
+.kicker span{color:var(--accent-2)}
+.hero h1{margin:8px 0 8px;font-size:25px;line-height:1.16;font-weight:600;letter-spacing:-.028em;max-width:22ch;text-wrap:balance}
+.why{margin:0;font-size:15px;color:var(--fg-2);max-width:52ch}
+
+/* segmented tab control; tabs are matched by position so the same CSS serves any 2 to 4 tabs */
+.tab-input{position:absolute;width:1px;height:1px;margin:0;clip-path:inset(50%);overflow:hidden;appearance:none}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;margin:0 calc(-1*var(--gut));padding:8px var(--gut);
+  background:var(--band);-webkit-backdrop-filter:blur(18px) saturate(160%);backdrop-filter:blur(18px) saturate(160%);
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 var(--gut),#000 calc(100% - var(--gut)),transparent);
+  mask-image:linear-gradient(90deg,transparent,#000 var(--gut),#000 calc(100% - var(--gut)),transparent)}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:2px;padding:4px;border-radius:999px}
+.seg::before{left:20%;right:20%}
+.seg label{display:flex;align-items:center;justify-content:center;gap:5px;min-height:40px;min-width:0;padding:0 6px;overflow:hidden;
+  border-radius:999px;font-size:14px;font-weight:500;color:var(--muted);cursor:pointer;white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;transition:background-color .18s,color .18s}
+.seg label:hover{color:var(--fg)}
+.seg .n{font:500 12px/1 var(--mono);color:var(--muted)}
+.tab-input:nth-of-type(1):checked~.bar label:nth-child(1),
+.tab-input:nth-of-type(2):checked~.bar label:nth-child(2),
+.tab-input:nth-of-type(3):checked~.bar label:nth-child(3),
+.tab-input:nth-of-type(4):checked~.bar label:nth-child(4){
+  color:var(--fg);background:var(--raise);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 1px 3px rgba(0,0,0,.55),0 6px 16px -6px rgba(0,0,0,.6)}
+.tab-input:nth-of-type(1):checked~.bar label:nth-child(1) .n,
+.tab-input:nth-of-type(2):checked~.bar label:nth-child(2) .n,
+.tab-input:nth-of-type(3):checked~.bar label:nth-child(3) .n,
+.tab-input:nth-of-type(4):checked~.bar label:nth-child(4) .n{color:var(--accent-2)}
+.tab-input:nth-of-type(1):focus-visible~.bar label:nth-child(1),
+.tab-input:nth-of-type(2):focus-visible~.bar label:nth-child(2),
+.tab-input:nth-of-type(3):focus-visible~.bar label:nth-child(3),
+.tab-input:nth-of-type(4):focus-visible~.bar label:nth-child(4){outline:2px solid var(--accent-2);outline-offset:1px}
+
+/* panels */
+.panel{display:none;padding-top:10px}
+.tab-input:nth-of-type(1):checked~main>.panel:nth-of-type(1),
+.tab-input:nth-of-type(2):checked~main>.panel:nth-of-type(2),
+.tab-input:nth-of-type(3):checked~main>.panel:nth-of-type(3),
+.tab-input:nth-of-type(4):checked~main>.panel:nth-of-type(4){display:block}
+.stack{display:grid;gap:12px;min-width:0}
+.stack>*{min-width:0}
+.cap{margin:2px 4px 10px;font-size:13px;color:var(--muted)}
+.stack>.cap{margin:0 4px}
+.cap p{margin:0}
+.txt{margin:0 4px;font-size:15px;color:var(--fg-2);max-width:62ch}
+
+/* status chips: flat tint, colored word */
+.chip{display:inline-flex;align-items:center;justify-content:center;gap:4px;height:22px;padding:0 8px;border-radius:999px;
+  font-size:12px;font-weight:600;line-height:1;white-space:nowrap;color:var(--c);background:color-mix(in srgb,var(--c) 11%,transparent)}
+.chip b{font:500 12px/1 var(--mono)}
+.bad{--c:var(--bad)}.warn{--c:var(--warn)}.ok{--c:var(--ok)}.neu{--c:var(--neutral)}.acc{--c:var(--accent-2)}
+
+/* summary */
+.ph{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px 6px}
+.ph h2{margin:0;font-size:13px;font-weight:600;color:var(--muted);letter-spacing:0}
+.fixes{list-style:none;margin:0;padding:0 16px 6px;counter-reset:f}
+.fixes li{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:11px 0;border-top:1px solid var(--line);
+  font-size:15px;font-weight:500;color:var(--fg)}
+.fixes li:first-child{border-top:0}
+.fixes li::before{counter-increment:f;content:counter(f);font:500 13px var(--mono);color:var(--accent-2)}
+.fixes .pf{font-size:12px;font-weight:500;color:var(--muted)}
+.fixes .pf code{font:500 12px var(--mono)}
+.fmore{margin:0 16px;border-top:1px solid var(--line)}
+.fmore>summary{display:flex;align-items:center;gap:10px;min-height:44px;list-style:none;cursor:pointer;
+  font-size:13px;font-weight:500;color:var(--accent-2);-webkit-tap-highlight-color:transparent}
+.fmore>summary::-webkit-details-marker{display:none}
+.fmore .fixes{padding:0 0 6px;counter-reset:f 3}
+.fmore .fixes li:first-child{border-top:1px solid var(--line)}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.tile{padding:14px 16px 13px;border-radius:var(--r-lg)}
+.tile .v{display:block;font:500 28px/1.05 var(--mono);letter-spacing:-.04em;color:var(--fg)}
+.tile .l{display:block;margin-top:6px;font-size:13px;color:var(--muted);line-height:1.3}
+.status{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:var(--r-lg);font-size:14px;color:var(--fg-2)}
+.status p{margin:0;min-width:0}
+
+/* rows: native details inside one glass panel, hairline dividers */
+.rows{padding:2px 0}
+.row{border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row>summary{display:grid;grid-template-columns:minmax(78px,max-content) minmax(0,1fr) 14px;gap:12px;align-items:center;min-height:56px;padding:10px 16px;
+  list-style:none;cursor:pointer;-webkit-tap-highlight-color:transparent;border-radius:var(--r)}
+.row>summary::-webkit-details-marker{display:none}
+.row>summary:focus-visible{outline:2px solid var(--accent-2);outline-offset:-2px}
+.row>summary .chip{justify-self:start}
+.row .t{display:block;min-width:0;font-size:15px;font-weight:500;line-height:1.3;color:var(--fg)}
+.row .m{display:block;margin-top:2px;font-size:12px;color:var(--muted)}
+.row .m code{font:500 12px var(--mono);color:var(--muted)}
+.chev{width:8px;height:8px;justify-self:center;flex:none;border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);transform:rotate(-45deg);transition:transform .18s}
+.row[open]>summary .chev,.ev[open]>summary .chev,.fmore[open]>summary .chev{transform:rotate(45deg)}
+.row[open]>summary{background:rgba(255,255,255,.03)}
+.body{min-width:0;padding:4px 16px 16px 106px;font-size:14px;line-height:1.45;color:var(--fg-2);overflow-wrap:anywhere}
+.body dl{margin:0;display:grid;gap:8px}
+.body dt{font-size:12px;font-weight:500;color:var(--muted)}
+.body dd{margin:1px 0 0}
+.body code{font:13px var(--mono);color:var(--fg)}
+.body p,.body ul,.body ol{margin:0 0 8px}
+.body ul,.body ol{padding-left:20px}
+.body dd>:last-child,.ev-body>:last-child,.how .body>:last-child{margin-bottom:0}
+.body pre{margin:0 0 8px;max-width:100%;overflow-x:auto;padding:10px 12px;border-radius:var(--r);background:rgba(0,0,0,.35);
+  border:1px solid var(--line);font:12px/1.5 var(--mono);color:var(--fg-2);white-space:pre;overflow-wrap:normal}
+.body pre code{font:inherit;color:inherit}
+.shot{margin:12px 0 0}
+.shot img{display:block;width:auto;max-width:min(100%,300px);max-height:420px;height:auto;object-fit:contain;border-radius:var(--r);
+  border:1px solid var(--line-2);background:#000}
+.shot figcaption{margin-top:6px;font-size:12px;color:var(--muted)}
+.more>summary .t{color:var(--accent-2)}
+.more>.rows,.more>.scroll{border-top:1px solid var(--line)}
+
+/* evidence: a second fold inside the row body, set off by a hairline rather than a nested box */
+.ev{margin-top:12px;border-top:1px solid var(--line)}
+.ev>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:8px 0;list-style:none;cursor:pointer;
+  font-size:13px;font-weight:500;color:var(--fg-2);-webkit-tap-highlight-color:transparent}
+.ev>summary::-webkit-details-marker{display:none}
+.ev-body{padding:2px 0 4px}
+
+/* tab-level fold */
+.how{border-radius:var(--r-lg)}
+.how>summary{grid-template-columns:minmax(0,1fr) 14px}
+.how .body{padding-left:16px}
+
+/* tables: entries stack on a phone; evidence and fold tables scroll sideways */
+.scroll{max-width:100%;overflow-x:auto}
+.page table{width:100%;border-collapse:collapse;font-size:13px}
+.page th{text-align:left;vertical-align:bottom;padding:8px 12px 6px 0;font-size:12px;font-weight:500;color:var(--muted)}
+.page td{text-align:left;vertical-align:top;padding:8px 12px 8px 0;border-top:1px solid var(--line);color:var(--fg-2)}
+.page td.num,.page th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.page td p{margin:0}
+.entries th{padding:12px 16px 8px}
+.entries td{padding:10px 16px;font-size:14px}
+.entries td:first-child{color:var(--fg);font-weight:500}
+.entries td .chip,.body td .chip{vertical-align:middle}
+
+/* bars */
+.bars{list-style:none;margin:0;padding:6px 16px}
+.bars li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:baseline;padding:9px 0;border-top:1px solid var(--line)}
+.bars li:first-child{border-top:0}
+.bars .bl{min-width:0;font-size:14px;color:var(--fg-2);overflow-wrap:anywhere}
+.bars .bv{font:500 13px var(--mono);color:var(--fg);white-space:nowrap}
+.bars .bt{grid-column:1/-1;display:block;height:6px;border-radius:999px;background:rgba(255,255,255,.07);overflow:hidden}
+.bars .bf{display:block;height:100%;width:var(--w);border-radius:inherit;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+
+@media (min-width:720px){
+  .hero{padding:44px 0 20px}
+  .hero h1{font-size:34px}
+  .why{font-size:16px}
+  .seg{max-width:520px}
+  .bar{padding-block:10px}
+  .tiles.n3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .tiles.n4{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .body dl{max-width:72ch}
+}
+@media (max-width:540px){
+  .body{padding-left:16px}
+  .row>summary{grid-template-columns:auto minmax(0,1fr) 14px;grid-template-areas:"t t v" "c m v";gap:6px 8px;padding:11px 16px}
+  .row>summary>.tx{display:contents}
+  .row>summary>.chip,.row>summary>.nochip{grid-area:c}
+  .row .t{grid-area:t}
+  .row .m{grid-area:m;margin:0;align-self:center}
+  .row>summary>.nochip~.tx .m{grid-column:1/3}
+  .row>summary>.chev{grid-area:v}
+  .how>summary{grid-template-areas:"t v" "m v";grid-template-columns:minmax(0,1fr) 14px}
+}
+@media (max-width:560px){
+  .entries thead{display:none}
+  .entries table,.entries tbody,.entries tr,.entries td{display:block;width:auto}
+  .entries tr{padding:12px 16px;border-top:1px solid var(--line)}
+  .entries tbody tr:first-child{border-top:0}
+  .entries td{padding:0;border:0;margin-top:3px;font-size:13px}
+  .entries td.num{text-align:left}
+  .entries td:first-child{margin:0 0 7px;font-size:15px;line-height:1.3}
+  /* A blank cell would otherwise show as a label with nothing after it. */
+  .entries td:not(:first-child):empty{display:none}
+  .entries td:not(:first-child)::before{content:attr(data-label) ": ";color:var(--muted);font-family:var(--font);font-weight:400}
+}
+@media (prefers-reduced-motion:reduce){
+  .seg label,.chev{transition:none}
+}
+
+/* print: every tab one after another on white, with folds open */
+@media print{
+  :root{--fg:#111;--fg-2:#222;--muted:#555;--line:#d4d4d8;--line-2:#d4d4d8;--accent-2:#0e7490;
+    --ok:#166534;--warn:#92400e;--bad:#b91c1c;--neutral:#52525b}
+  body{background:#fff}
+  .page{background:#fff;color:var(--fg);min-height:0}
+  .bar,.tab-input,.chev{display:none}
+  .panel{display:block!important;padding-top:20px}
+  .panel::before{content:attr(aria-label);display:block;margin:0 4px 10px;font-size:18px;font-weight:600;color:var(--fg)}
+  .glass{background:#fff;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;border-color:var(--line)}
+  .glass::before{display:none}
+  .row[open]>summary{background:none}
+  .row,.tile,.status,.bars li,.entries tr{break-inside:avoid}
+  .body pre{background:#f4f4f5;white-space:pre-wrap}
+  .scroll{overflow:visible}
+}
+@media print{
+  details::details-content{content-visibility:visible;display:block}
+}
+</style>
+</head>
+<body>
+<div class="page">
+<div class="wrap">
+<header class="hero"><p class="kicker"><span>SureWord Connector Research</span> &middot; Oct 28, 2026</p><h1>Start with Calendar, Notion, and selected Drive files</h1><p class="why">Connect Bible study to daily routines and existing notes; prioritize useful workflows, narrow access, and a shared backend across every SureWord client.</p></header>
+<h2 class="sr" id="tabs-h">Report sections</h2>
+<input class="tab-input" type="radio" name="tab" id="t-summary" value="summary" aria-controls="p-summary" checked>
+<input class="tab-input" type="radio" name="tab" id="t-findings" value="findings" aria-controls="p-findings">
+<input class="tab-input" type="radio" name="tab" id="t-decisions" value="decisions" aria-controls="p-decisions">
+<nav class="bar" aria-labelledby="tabs-h"><div class="seg glass"><label for="t-summary">Summary</label><label for="t-findings">Findings <span class="n">8</span></label><label for="t-decisions">Decisions</label></div></nav>
+<main>
+<section class="panel" id="p-summary" aria-label="Summary"><div class="stack"><div class="glass"><div class="ph"><h2>Next steps</h2></div><ol class="fixes"><li><span>Validate Calendar, Notion, and Drive with current users</span><span class="pf">Priorities</span></li><li><span>Build scheduling and selected-note access through shared provider adapters</span><span class="pf">First release</span></li><li><span>Resolve written AI approval before promising highlights integration</span><span class="pf">YouVersion</span></li></ol></div><div class="status glass"><span class="chip neu">Recommendation</span><p>Start with curated connections. Treat Gmail as later work and YouVersion as dependent on permission.</p></div></div></section>
+<section class="panel" id="p-findings" aria-label="Findings"><p class="cap">Ranked by product fit, access control, and implementation constraints.</p><div class="stack"><div class="glass rows"><details class="row"><summary><span class="chip neu">First choice</span><span class="tx"><span class="t">Google Calendar turns reading goals into scheduled time</span><span class="m">Official scopes; local calendar code</span></span><i class="chev" aria-hidden="true"></i></summary><div class="body"><dl><dt>User benefit</dt><dd>“Find a free 15 minutes for my Bible reading this week.” Suggest a schedule, then let the person approve it. Church gatherings and prayer time can use the same flow, with private event titles by default.</dd><dt>Feasibility</dt><dd>Google documents availability scopes and <code>calendar.app.created</code>, which manages secondary calendars created by the app. Start with busy intervals and a SureWord calendar. Event titles and descriptions require broader event access, so request that only for a concrete feature.</dd><dt>Existing foundation</dt><dd>SureWord already creates Google Calendar template links and ICS downloads for church announcements. That is a user-controlled handoff, not authenticated calendar reading or ongoing synchronization. Add reading-plan handoffs before introducing automatic scheduling.</dd></dl><details class="ev"><summary><span>Provider and repository evidence</span><i class="chev" aria-hidden="true"></i></summary><div class="ev-body">
+    <p><a href="https://developers.google.com/workspace/calendar/api/auth" rel="noopener">Google Calendar scope documentation</a> distinguishes availability, event reading, and app-created calendar management. Scope classification and production verification must be checked against the final requested scope set.</p>
+    <p><code>src/lib/church-events-rules.ts:298</code> builds the Google TEMPLATE URL; line 348 builds ICS. <code>docs/FEATURES.md:2481</code> documents the announcement workflow. These paths were read in this investigation; no device behavior was tested.</p>
+    <p>Calendar access does not authorize scheduling at any time the model chooses. A proposed implementation should bind an approved event payload to an idempotent server operation and return the actual provider event identifier.</p>
+   </div></details></div></details><details class="row"><summary><span class="chip neu">First choice</span><span class="tx"><span class="t">Notion gives existing study notebooks an AI companion</span><span class="m">OAuth and capability documentation</span></span><i class="chev" aria-hidden="true"></i></summary><div class="body"><dl><dt>User benefit</dt><dd>“Compare my Romans notes with Sunday's sermon.” “Save this study in my Notion Bible notebook.” This helps people who want SureWord's study assistance while continuing to write in their existing notebook.</dd><dt>Feasibility</dt><dd>Public OAuth connections let users select pages. Notion separates Read content, Insert content, and Update content. Start by reading shared study pages. Offer creating a new study page as an explicit write feature; defer rewriting existing pages and two-way conflict resolution.</dd><dt>Permission detail</dt><dd>Read access and new-page creation need distinct configured capabilities. Do not describe a connection as read-only if Insert or Update is enabled. Page selection includes inherited access behavior that needs a real workspace test before release.</dd></dl><details class="ev"><summary><span>Official access model</span><i class="chev" aria-hidden="true"></i></summary><div class="ev-body">
+    <p><a href="https://developers.notion.com/guides/get-started/authorization" rel="noopener">Notion authorization</a> documents the public OAuth flow and page picker. <a href="https://developers.notion.com/reference/capabilities" rel="noopener">Notion capabilities</a> distinguishes reading, inserting, and updating content. Use a public connection for customers, rather than asking them to paste personal API tokens.</p>
+    <p>API availability establishes feasibility, not proven demand or SureWord authorization success. Workspace installation, page discovery, child-page access, moved pages, and revoked pages remain prototype checks.</p>
+   </div></details></div></details><details class="row"><summary><span class="chip neu">First choice</span><span class="tx"><span class="t">Selected Drive files cover sermon and lesson documents</span><span class="m">Official Drive scope documentation</span></span><i class="chev" aria-hidden="true"></i></summary><div class="body"><dl><dt>User benefit</dt><dd>“Use this Google Doc of sermon notes when we study James.” A selected lesson outline, journal, or uploaded document becomes a cited source for the current question. Keep the file's title, source link, and revision information visible.</dd><dt>Feasibility</dt><dd>Google recommends <code>drive.file</code> with Google Picker for per-file access. It is non-sensitive and narrower than whole-Drive scopes. It covers files users share with the app; it does not grant search across all their Drive documents.</dd><dt>Permission detail</dt><dd><code>drive.file</code> permits modifications to eligible files, so it is not a provider-enforced read-only grant. The first SureWord adapter can expose reads only, explain the actual OAuth permission, and withhold mutation tools. File parsing and native picker handoff still need prototype proof.</dd></dl><details class="ev"><summary><span>Official access and AI policy</span><i class="chev" aria-hidden="true"></i></summary><div class="ev-body">
+    <p><a href="https://developers.google.com/workspace/drive/api/guides/api-specific-auth" rel="noopener">Google Drive authorization</a> recommends selected-file access and labels broad Drive reading as restricted. Avoid upgrading to whole-Drive indexing just to make discovery easier.</p>
+    <p><a href="https://developers.google.com/workspace/workspace-api-user-data-developer-policy" rel="noopener">Workspace user data policy</a> governs access, transparency, transfers, and AI use. Validate the exact processing path and retention terms before launch. Broad model training with connected personal data is outside the proposed feature.</p>
+   </div></details></div></details><details class="row"><summary><span class="chip neu">Later cohort</span><span class="tx"><span class="t">Outlook and OneNote serve the Microsoft study workflow</span><span class="m">Official Microsoft Graph documentation</span></span><i class="chev" aria-hidden="true"></i></summary><div class="body"><dl><dt>User benefit</dt><dd>Offer the same scheduling and study-note workflows for people already using Outlook and OneNote. Move these ahead of Notion if interviews show that Microsoft notebooks are common among SureWord readers and teachers.</dd><dt>Feasibility</dt><dd>Microsoft Graph supports Outlook calendars for personal and work accounts. OneNote page listing documents delegated <code>Notes.Read</code> for both account types. The OneNote overview says app-only authentication is no longer supported, while an endpoint table still lists application permissions; use delegated access and verify the discrepancy in a prototype.</dd></dl><details class="ev"><summary><span>Official Microsoft sources</span><i class="chev" aria-hidden="true"></i></summary><div class="ev-body">
+    <p><a href="https://learn.microsoft.com/en-us/graph/outlook-calendar-concept-overview" rel="noopener">Outlook calendar overview</a> describes calendar access and account coverage. <a href="https://learn.microsoft.com/en-us/graph/api/onenote-list-pages?view=graph-rest-1.0" rel="noopener">OneNote list pages</a> gives delegated permissions and pagination. <a href="https://learn.microsoft.com/en-us/graph/integrate-with-onenote" rel="noopener">OneNote overview</a> states the app-only authentication change.</p>
+    <p>A SureWord notebook selector is a product filter. It should not be represented as provider-enforced notebook-only authorization if the granted Graph permission covers more content.</p>
+   </div></details></div></details><details class="row"><summary><span class="chip neu">Permission gate</span><span class="tx"><span class="t">YouVersion supports highlights, with an AI approval constraint</span><span class="m">Official API, sign-in, and terms</span></span><i class="chev" aria-hidden="true"></i></summary><div class="body"><dl><dt>User benefit</dt><dd>“Help me study the verses I marked in YouVersion.” This is a close fit for Bible readers and could become a strong connection if YouVersion approves the intended AI use and passage retrieval meets the product need.</dd><dt>Actual access</dt><dd>The sign-in docs support <code>requested_permissions[]=highlights</code> separately from identity scopes, and explicitly exclude notes and bookmarks. The highlights GET endpoint requires a Bible identifier and passage identifier. A complete library import and reading-plan history are not established by the documentation reviewed.</dd><dt>Constraint</dt><dd>The published terms restrict using the tools with open-ended AI chat, except accurate verbatim Scripture retrieval, and require prior written approval for other cases. Treat SureWord's proposed highlight-based AI study as requiring that approval before implementation or a promise to customers.</dd></dl><details class="ev"><summary><span>Exact provider distinctions</span><i class="chev" aria-hidden="true"></i></summary><div class="ev-body">
+    <p><a href="https://developers.youversion.com/sign-in-apis" rel="noopener">YouVersion sign-in APIs</a> distinguishes identity scopes from user-data permission. <a href="https://developers.youversion.com/api/highlights" rel="noopener">Highlights API</a> documents reads and mutations for passages. The permission is not documented here as a separate read-only grant; SureWord should initially expose no highlight mutations.</p>
+    <p><a href="https://platform.youversion.com/terms" rel="noopener">Platform terms, Artificial Intelligence section</a> is the basis for the approval gate. This is a product planning interpretation of the published text, not a provider decision about SureWord. Registration, approved use, publisher licensing, and any bulk retrieval approach remain unresolved.</p>
+    <p>Do not conflate passage footnotes in the Bible-content API with someone's private notes. Do not use undocumented account endpoints or scrape their library to fill the gaps. Bring verse references into SureWord's existing Scripture tools only after the intended use is cleared.</p>
+   </div></details></div></details><details class="row"><summary><span class="chip neu">Later work</span><span class="tx"><span class="t">Gmail adds substantial access requirements for narrower study value</span><span class="m">Official Gmail scope documentation</span></span><i class="chev" aria-hidden="true"></i></summary><div class="body"><dl><dt>User benefit</dt><dd>Church newsletters and a specific devotional email can help with study. For an initial release, let a person deliberately share the message or paste its relevant text into SureWord. That makes selection obvious and avoids requiring a mailbox connection for this use.</dd><dt>Constraint</dt><dd>Google classifies <code>gmail.readonly</code>, <code>gmail.metadata</code>, and <code>gmail.compose</code> as restricted. Draft management includes send permission. Server storage or transmission of restricted data requires a security assessment under the scope guide. A read-only label does not make mailbox access a light integration.</dd></dl><details class="ev"><summary><span>Official Gmail requirements</span><i class="chev" aria-hidden="true"></i></summary><div class="ev-body">
+    <p><a href="https://developers.google.com/workspace/gmail/api/auth/scopes" rel="noopener">Gmail scope guide</a> lists these classifications and the assessment requirement. <a href="https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification" rel="noopener">Restricted-scope verification</a> explains production review and assessment obligations, including applicable exceptions. No assessment price or approval timeline was established.</p>
+    <p>A label filter limits SureWord's behavior, not the OAuth grant's mailbox access. Gmail add-on current-message scopes are a different product surface, not interchangeable with a normal SureWord server connector.</p>
+    <p>Before choosing Gmail, confirm that SureWord's exact use qualifies under Google's appropriate-use policy. An OAuth integration vendor cannot remove that obligation.</p>
+   </div></details></div></details><details class="row"><summary><span class="chip neu">Useful bridge</span><span class="tx"><span class="t">Files and sharing support Obsidian and Apple Notes</span><span class="m">Local export code; Obsidian documentation</span></span><i class="chev" aria-hidden="true"></i></summary><div class="body"><dl><dt>User benefit</dt><dd>Offer clear Import, Export, and Share actions for notes. SureWord already has Markdown export helpers on web and Android. A file bridge can serve people using Obsidian and other note apps before maintaining another live connection.</dd><dt>Scope</dt><dd>Obsidian documents Markdown files as its note format. Test actual import/export fidelity before advertising compatibility. Treat Apple Notes as an explicit share or file workflow until a cross-platform integration is validated. Neither path should be labeled continuous sync.</dd></dl><details class="ev"><summary><span>Evidence and remaining limits</span><i class="chev" aria-hidden="true"></i></summary><div class="ev-body">
+    <p><a href="https://obsidian.md/help/import/markdown" rel="noopener">Obsidian Markdown import</a> documents file and folder import. <code>src/components/notes/noteMarkdownExport.ts:22</code> and <code>mobile/src/features/notes/noteMarkdownExport.ts:54</code> contain SureWord's serializers, including an unsupported-content failure path on Android. They were inspected, not exercised.</p>
+    <p><a href="https://developer.apple.com/documentation/eventkit/accessing-calendar-using-eventkit-and-eventkitui" rel="noopener">Apple EventKit and EventKitUI</a> separately supports a user-controlled calendar event editor without broad calendar reading. Native calendar handoff complements Google OAuth; it does not give the backend ongoing calendar visibility.</p>
+    <p>Logos, Readwise, Evernote, and Apple Notes cloud access were not validated as live connector candidates. Their user-selected exports can be evaluated through the same file path, subject to actual export formats and content rights. No automatic compatibility is claimed.</p>
+   </div></details></div></details><details class="row"><summary><span class="chip neu">Later cohort</span><span class="tx"><span class="t">Task apps can carry an explicit study commitment</span><span class="m">Official Todoist authorization documentation</span></span><i class="chev" aria-hidden="true"></i></summary><div class="body"><dl><dt>User benefit</dt><dd>“Remind me to call Dad and pray with him Friday.” A person may prefer their existing task list for commitments arising from a study. Ask which task app they actually use before building multiple adapters.</dd><dt>Feasibility</dt><dd>Todoist documents an add-only <code>task:add</code> scope, which fits creating a requested reminder without reading an existing task list. Evaluate TickTick and Microsoft To Do separately if user demand points there. Their customer-facing integration requirements were not validated in this research.</dd></dl><details class="ev"><summary><span>Source and privacy choice</span><i class="chev" aria-hidden="true"></i></summary><div class="ev-body">
+    <p><a href="https://developer.todoist.com/api/v1/#tag/Authorization/OAuth" rel="noopener">Todoist OAuth</a> documents add-only and broader data scopes. Use a generic reminder title unless the person explicitly chooses to include sensitive prayer details in an external service.</p>
+   </div></details></div></details></div></div></section>
+<section class="panel" id="p-decisions" aria-label="Decisions"><p class="cap">A proposed sequence; audience demand still needs validation.</p><div class="stack"><div class="glass entries"><div class="scroll" tabindex="0" role="region" aria-label="Phase table"><table><thead><tr><th>Phase</th><th>Deliver</th><th>What proves value</th></tr></thead><tbody><tr><td data-label="Phase">Validate</td><td data-label="Deliver">Ask where study notes and calendars live.</td><td data-label="What proves value">A recurring task and representative example.</td></tr><tr><td data-label="Phase">Foundation</td><td data-label="Deliver">Files, source links, calendar handoffs.</td><td data-label="What proves value">A cited answer and an approved calendar event.</td></tr><tr><td data-label="Phase">First connectors</td><td data-label="Deliver">Google Calendar and Notion.</td><td data-label="What proves value">Repeat use; revocation and isolation pass.</td></tr><tr><td data-label="Phase">Documents</td><td data-label="Deliver">Picker-selected Drive files.</td><td data-label="What proves value">Cites current content from selected files.</td></tr><tr><td data-label="Phase">Next cohort</td><td data-label="Deliver">Outlook, OneNote, or a task app.</td><td data-label="What proves value">Measured demand justifies another adapter.</td></tr></tbody></table></div><details class="row more"><summary><span class="tx"><span class="t">Show all 6</span></span><i class="chev" aria-hidden="true"></i></summary><div class="scroll" tabindex="0" role="region" aria-label="Phase table"><table><thead><tr><th>Phase</th><th>Deliver</th><th>What proves value</th></tr></thead><tbody><tr><td data-label="Phase">Conditional</td><td data-label="Deliver">YouVersion highlights; Gmail later.</td><td data-label="What proves value">Provider permission and access requirements are resolved for the intended feature.</td></tr></tbody></table></div></details></div><details class="row how glass"><summary><span class="tx"><span class="t">Product shape and implementation boundaries</span></span><i class="chev" aria-hidden="true"></i></summary><div class="body">
+   <p><strong>Settings → Connections</strong> should show a short curated catalog. Each entry explains a concrete use, available actions, and the exact selected sources. Connected entries show the linked account, access mode, last successful retrieval or sync, reconnect state, and Disconnect. Connection is account-scoped; platform presentation adapts to Android, web, macOS, and iOS.</p>
+   <p><strong>Keep one backend.</strong> Add provider adapters behind the existing authenticated AI tool registry. The current entry is <code>src/app/api/ask-question/route.ts:733</code>; <code>src/lib/ai-tools.ts:1667</code> returns memory, notes, Scripture, church, and reading tools. <code>src/lib/notes-io.ts:265</code> demonstrates server-owned per-user note access. No external connector store or adapter registry was found in the searched application code and Prisma schema.</p>
+   <p>A proposed connection record needs owner, provider account identifier, granted scopes, encrypted server-held credentials, state, and revocation status. A source record needs connection owner, provider object identifier, version, link, and permitted retrieval policy. These are design requirements, not existing schema or implemented code.</p>
+   <p>Authenticate OAuth initiation and bind the callback state to that account and intended provider. Use PKCE where supported, never use email alone to bind accounts, and never accept a client-supplied owner identifier. Keep provider credentials outside chat messages and model context. Retry reads with bounds and backoff; retry writes only with a stable idempotency key and a recorded outcome.</p>
+   <p><strong>Separate reading from acting.</strong> Start with on-demand source retrieval. Re-check source authorization and revision before reading cached or embedded material. Handle pagination and removed pages explicitly. Avoid unbounded whole-account indexing, and do not copy external notes into SureWord Notes unless the person chooses Import. Creating a new external page is simpler than maintaining two editable copies of an existing page.</p>
+   <p><strong>Keep doctrine and attribution intact.</strong> A connected document is personal study material. Cite its title and source link, distinguish its claims from Scripture, and use SureWord's existing Bible retrieval for verse quotations. Imported content cannot change the KJV doctrinal foundation, request secrets, authorize tools, or grant itself permissions. Test malicious instructions inside notes and calendar descriptions.</p>
+   <p><strong>Preserve the existing AI choice.</strong> <code>src/lib/ai-consent.ts:14</code> and <code>prisma/schema.prisma:69</code> preserve agreement or refusal once per account. Connecting a provider is a separate, user-initiated permission flow with a clear AI-use disclosure. It must not re-prompt the old global consent or turn AI on after refusal. Provider access alone does not authorize using its content in AI.</p>
+   <p><strong>Make removal honest.</strong> Disconnect stops reads, pending work, and provider access; revoke tokens where supported. Delete connector caches and derived embeddings according to the disclosed retention policy. Explain that copies deliberately imported into Notes or already quoted in saved conversations are separate saved content, with their own delete controls. Do not promise disconnect erases all prior answers.</p>
+   <p><strong>Release proof.</strong> Test real connect, cancel, expired token, reconnect, revoked source, disconnect during a request, duplicate write retry, cross-account isolation, and prompt injection. Android leads, with matching capabilities on web, macOS, and iOS in the same cycle under <code>CLAUDE.md</code>. Apple file access or event handoffs need native proof; a web demonstration does not establish it.</p>
+   <p><strong>Scope decision.</strong> Curated provider adapters fit this first release. A public plugin marketplace or arbitrary user-supplied MCP servers would add a separate trust, review, and execution system. Nothing in the researched user workflows requires that system to launch.</p>
+  </div></details><details class="row how glass"><summary><span class="tx"><span class="t">Validation questions and useful measurements</span></span><i class="chev" aria-hidden="true"></i></summary><div class="body">
+   <p>Ask current readers and a mix of regular Bible readers, sermon note takers, and study leaders: Where are your study notes today? Which calendar do you rely on? What did you last copy between apps? What exact question would you ask SureWord about that content? Which information would you avoid connecting? Would a share action solve it as well as a permanent connection?</p>
+   <p>Use representative samples that participants choose, not a general invitation to browse their accounts. Let evidence reorder Notion versus OneNote, Google versus Outlook, and connectors versus file sharing. The shortlist is based on workflow fit and documented API constraints, not measured SureWord audience adoption.</p>
+   <p>Measure connection completion, successful first cited answer or approved event, repeat use, useful retrievals, disconnect reasons, provider failures, and cost per successful workflow. Set pilot success criteria before collection. Do not report connection count alone as evidence that the feature improves Bible study. No adoption, conversion, retention, engineering-duration, or dollar-cost estimates were established.</p>
+  </div></details><details class="row how glass"><summary><span class="tx"><span class="t">Method, evidence limits, and source freshness</span></span><i class="chev" aria-hidden="true"></i></summary><div class="body">
+   <p>Researched October 28, 2026 through Firecrawl search and live page retrieval. Used official Google, Notion, Microsoft, YouVersion, Apple, Todoist, and Obsidian documentation for material API claims. The YouVersion overview was marked modified October 23, 2026; sign-in documentation explicitly describes changes from July 2026. Provider policies and scopes can change, so recheck them before registration and launch.</p>
+   <p>Inspected local main at <code>17b7edc6</code>, including the AI tool registry, authenticated notes, memory tools, Markdown serializers, calendar helpers, account consent, and Prisma schema. Existing unrelated edits to feature and parity documents were left intact. Existing code was inspected statically, without a new application runtime or production-data test.</p>
+   <p>No SureWord users were interviewed; no production usage data was queried; no OAuth clients were created; no external accounts were connected; no provider token or API call was tested. Published capability does not establish that SureWord will pass provider review. Full YouVersion history, Apple Notes cloud sync, Logos library access, and Readwise API integration remain unverified. This report proposes a direction; it does not announce a shipped feature.</p>
+  </div></details><div class="cap">User demand and real OAuth behavior remain untested.</div><p class="cap">Provider documentation and local main 17b7edc6. No OAuth or runtime tests. Written by Codex on October 28, 2026.</p></div></section>
+</main>
+</div>
+</div>
+<script>
+(function(){
+  var ins=[].slice.call(document.querySelectorAll('.tab-input')),hero=document.querySelector('.hero'),shut=[];
+  function pick(name,focus){
+    var el=document.getElementById('t-'+name);if(!el)return;
+    el.checked=true;if(focus)el.focus({preventScroll:true});
+  }
+  function fromHash(focus){
+    var h=location.hash.slice(1);
+    if(/^[a-z]+$/.test(h))pick(h,focus);
+  }
+  fromHash(false);
+  addEventListener('hashchange',function(){fromHash(true);});
+  ins.forEach(function(el){
+    el.addEventListener('change',function(){
+      try{history.replaceState(null,'','#'+el.value);}catch(e){}
+      var top=hero.getBoundingClientRect().bottom+scrollY;
+      if(scrollY>top)scrollTo(0,top);
+    });
+  });
+  addEventListener('beforeprint',function(){
+    shut=[].filter.call(document.querySelectorAll('.page details'),function(d){return !d.open;});
+    shut.forEach(function(d){d.open=true;});
+  });
+  addEventListener('afterprint',function(){shut.forEach(function(d){d.open=false;});});
+})();
+</script>
+</body>
+</html>

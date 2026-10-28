@@ -619,18 +619,22 @@ const ChatInput: React.FC<ChatInputProps> = ({
 						</div>
 					</div>
 				</div>
-				<p data-chat-disclaimer className="text-center text-metadata text-neutral-400 dark:text-neutral-700 mt-1.5 sm:mt-2">
-					{/* The long form needs three lines at 390 and pushed the bottom
-					    chrome past a quarter of the viewport. */}
+				<div data-chat-disclaimer className="text-center text-metadata leading-relaxed text-neutral-500 dark:text-neutral-500 mt-1.5 sm:mt-2">
+					<p>
 					<span className="hidden sm:inline">
 						SureWord uses AI grounded in Scripture and the Bible translation you select.{" "}
 					</span>
 					<span className="sm:hidden">AI grounded in Scripture. </span>
-					Use with discernment. Created by{" "}
-					<a href="https://www.spragginsdesigns.xyz" target="_blank" rel="noopener noreferrer" className="text-neutral-500 dark:text-neutral-600 hover:text-neutral-700 dark:hover:text-neutral-400 transition-colors">
+					Use with discernment.
+					</p>
+					<p className="mt-0.5 text-balance">
+					Created by{" "}
+					<a href="https://www.spragginsdesigns.xyz/#faith" target="_blank" rel="noopener noreferrer" className="font-medium text-neutral-600 dark:text-neutral-400 underline decoration-neutral-300 dark:decoration-neutral-700 underline-offset-2 hover:text-neutral-900 dark:hover:text-neutral-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500 rounded-sm transition-colors">
 						Austin Spraggins
 					</a>
-				</p>
+					, a follower of Jesus Christ.
+					</p>
+				</div>
 			</div>
 		</div>
 	);

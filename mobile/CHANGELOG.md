@@ -2,6 +2,15 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.109.0 (versionCode 128) - 2026-10-28 - internal and closed testing
+
+**What's new (Play):**
+
+IMPROVED
+- A small creator credit below the message box links to Austin's story of faith in Jesus Christ.
+
+**Dev notes:** Added the approved creator credit, "Created by Austin Spraggins, a follower of Jesus Christ.", beneath the chat composer. Only the creator's name links to the portfolio's faith section. Web, Android, macOS and iOS use the same wording and destination, with native text wrapping and accessible links. No native dependency or doctrine changes.
+
 ## 1.108.1 (versionCode 127) - 2026-10-28 - internal and closed testing
 
 **What's new (Play):**

@@ -14,7 +14,7 @@ export interface BibleSearchResult {
 }
 
 /** The translations phrase search covers: every one the reader offers. */
-export const SEARCH_TRANSLATIONS = ["KJV", "NKJV", "BSB", "RV1909", "LUT1912"] as const;
+export const SEARCH_TRANSLATIONS = ["KJV", "NKJV", "BSB", "ASV", "RV1909", "LUT1912"] as const;
 export type SearchTranslationId = (typeof SEARCH_TRANSLATIONS)[number];
 
 export function searchTranslationFor(translation: TranslationId): SearchTranslationId {
@@ -54,7 +54,7 @@ async function searchTranslation(query: string, translation: SearchTranslationId
   if (translation === "KJV") {
     return (await searchKjv(query, limit)).map((hit) => ({ ...hit, translation }));
   }
-  if (translation === "RV1909" || translation === "LUT1912") {
+  if (translation === "ASV" || translation === "RV1909" || translation === "LUT1912") {
     // Accent-insensitive, so "jehova" finds "Jehová" as typed on any keyboard.
     const fold = (text: string) => foldAccents(text.toLowerCase());
     const needle = fold(query);

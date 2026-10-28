@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_LISTEN_RATE, nextListenRate } from "@/components/cross/listen";
 import {
-  hasAlive,
+  adjacentVerse,
   hasNarration,
   LISTEN_ORDER,
   needsStillListening,
   verseAt,
   verseStart,
+  type AliveText,
   type AudioEdition,
   type ChapterAudio,
   type ChapterAudioResponse,
@@ -50,6 +51,8 @@ export interface ChapterAudioPlayer {
   editions: AudioEdition[];
   /** The recording playing, or the one the next Listen continues with. */
   edition: AudioEdition;
+  /** The text this chapter's Alive recording reads; null when it has none. */
+  aliveText: AliveText | null;
   rate: number;
   elementRef: React.MutableRefObject<HTMLAudioElement | null>;
   /**
@@ -94,10 +97,11 @@ type Recordings = Partial<Record<AudioEdition, ChapterAudio>>;
 /**
  * Every recording of the chapter, fetched together so choosing one on Listen
  * plays inside the tap (iOS Safari refuses a play() that waits on a fetch).
- * A missing Alive recording leaves just the regular one.
+ * Any chapter may have an Alive recording (the API knows, LC-17800); a
+ * missing one leaves just the regular one.
  */
 async function readRecordings(book: number, chapter: number, signal: AbortSignal): Promise<Recordings> {
-  const editions: AudioEdition[] = hasAlive(book) ? ["regular", "alive"] : ["regular"];
+  const editions: AudioEdition[] = ["regular", "alive"];
   const found = await Promise.all(
     editions.map((edition) => readChapterAudio(book, chapter, edition, signal).catch(() => null))
   );
@@ -300,8 +304,8 @@ export function useChapterAudio({
       const current = audioRef.current;
       if (!element || !current) return;
       markAction();
-      const at = verseAt(current.verses, element.currentTime) ?? 0;
-      const target = Math.min(current.verses.length, Math.max(1, at + delta));
+      const target = adjacentVerse(current.verses, verseAt(current.verses, element.currentTime), delta);
+      if (target === null) return;
       element.currentTime = verseStart(current.verses, target);
       setVerse(target);
     },
@@ -405,6 +409,7 @@ export function useChapterAudio({
     audio,
     editions,
     edition: playingEdition,
+    aliveText: recordings.alive ? recordings.alive.text ?? "LC Greek" : null,
     rate,
     elementRef,
     play,
