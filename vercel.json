@@ -2,7 +2,8 @@
 	"regions": ["pdx1"],
 	"functions": {
 		"src/app/api/ask-question/route.ts": {
-			"maxDuration": 300
+			"maxDuration": 300,
+			"supportsCancellation": true
 		},
 		"src/app/api/note-ai/route.ts": {
 			"maxDuration": 300

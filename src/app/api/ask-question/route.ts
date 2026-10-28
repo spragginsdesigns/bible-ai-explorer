@@ -28,7 +28,7 @@ import { createAttachmentPreviewUrl } from "@/lib/chat-attachments.server";
 import { audioTranscriptText } from "@/lib/audio-transcription-rules";
 import { prisma } from "@/lib/prisma";
 import { notifyChatAnswerReady } from "@/lib/push";
-import { createChatClientConnection } from "@/lib/chat-client-connection";
+import { withChatClientConnection, type ChatClientConnection } from "@/lib/chat-client-connection";
 import { buildSureWordTools, type SureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
 import { linksInText } from "@/lib/chat/user-links";
 import { resolveModel, aiAccessFor } from "@/lib/ai/provider";
@@ -623,9 +623,9 @@ async function persistAssistantResponse(options: {
 import { meterAsOnboarding, withIncludedAiRequest, reserveIncludedRequest } from "@/lib/billing/usage";
 import { isOnboardingTurn, needsTextInterview } from "@/lib/onboarding";
 import { CARDS_HEADER, CARDS_VERSION, cardEndsMessage, cardForLegacyClient, expectedStep, isOnboardingStep, owedStep, resolveChoiceCard, type OnboardingStep } from "@/lib/onboarding-rules";
-export const POST = withIncludedAiRequest(handlePost, "ask-question");
+export const POST = withChatClientConnection(withIncludedAiRequest(handlePost, "ask-question"));
 
-async function handlePost(req: Request): Promise<Response> {
+async function handlePost(req: Request, clientConnection: ChatClientConnection): Promise<Response> {
 	const readingReceivedAt = new Date();
 	try {
 		const userId = await getAuthUser();
@@ -853,7 +853,6 @@ async function handlePost(req: Request): Promise<Response> {
 			if (welcomeTurn) meterAsOnboarding();
 			await reserveIncludedRequest(userId);
 		}
-		const clientConnection = createChatClientConnection(req.signal);
 		const stream = createUIMessageStream<SureWordUIMessage>({
 			originalMessages: validatedMessages,
 			generateId: () => responseMessageId,
@@ -1285,7 +1284,7 @@ async function handlePost(req: Request): Promise<Response> {
 			},
 		});
 
-		const response = createUIMessageStreamResponse({
+		return createUIMessageStreamResponse({
 			stream,
 			// Tee the SSE stream and drain the copy server-side. Without this a
 			// client disconnect cancels the response stream, which cancels the
@@ -1311,7 +1310,6 @@ async function handlePost(req: Request): Promise<Response> {
 				);
 			},
 		});
-		return clientConnection.trackResponse(response);
 	} catch (error) {
 		if (error instanceof Response) return error;
 		console.error("Error in ask-question route:", error);

@@ -1,5 +1,5 @@
 /**
- * Observe the client-facing body after the SDK has teed off its server drain.
+ * Observe the final client-facing body after all server-side drain branches.
  * Cancelling that branch must record departure without stopping generation.
  */
 export function createChatClientConnection(signal: AbortSignal) {
@@ -74,5 +74,18 @@ export function createChatClientConnection(signal: AbortSignal) {
 				headers: response.headers,
 			});
 		},
+	};
+}
+
+export type ChatClientConnection = ReturnType<typeof createChatClientConnection>;
+
+/** Keep tracking outside middleware that tees or independently drains the body. */
+export function withChatClientConnection(
+	handler: (req: Request, connection: ChatClientConnection) => Promise<Response>,
+) {
+	return async (req: Request): Promise<Response> => {
+		const connection = createChatClientConnection(req.signal);
+		const response = await handler(req, connection);
+		return connection.trackResponse(response);
 	};
 }

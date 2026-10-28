@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { setImmediate as nextTurn } from "node:timers/promises";
+import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import ts from "typescript";
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
-import { createChatClientConnection } from "../src/lib/chat-client-connection.ts";
+import { createChatClientConnection, withChatClientConnection } from "../src/lib/chat-client-connection.ts";
 
 function deferred() {
 	let resolve;
@@ -53,11 +56,32 @@ function answerStream(connection, onEnd = () => {}) {
 		consumeSseStream: ({ stream: copy }) => { drained = collectSse(copy); },
 	});
 	return {
-		response: connection.trackResponse(response),
+		response: connection ? connection.trackResponse(response) : response,
 		generation,
 		ended: ended.promise,
 		drained,
 	};
+}
+
+/** Run the real billing response tee, with no reservation or database/network work. */
+function usageMonitor(background) {
+	const source = readFileSync(new URL("../src/lib/billing/usage.ts", import.meta.url), "utf8");
+	const code = ts.transpileModule(source, {
+		compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+	}).outputText;
+	const localRequire = createRequire(import.meta.url);
+	const module = { exports: {} };
+	new Function("require", "module", "exports", "process", code)((id) => {
+		if (id.startsWith("node:")) return localRequire(id);
+		if (id === "@vercel/functions") return { waitUntil: (work) => { background.push(work); } };
+		if (id === "@/lib/prisma") return { prisma: new Proxy({}, {
+			get() { throw new Error("This streaming regression must not access the database."); },
+		}) };
+		if (id === "./usage-errors") return { IncludedAiLimitError: class extends Error {} };
+		// No inference/reservation is requested, so other imported services are unused.
+		return {};
+	}, module, module.exports, { env: { SUREWORD_USAGE_ENABLED: "true" } });
+	return module.exports.withIncludedAiRequest;
 }
 
 test("response cancellation is synchronous while the SDK drain finishes the whole answer", { timeout: 5000 }, async () => {
@@ -238,6 +262,94 @@ test("persistence first waits for later SDK body cancellation and the actual not
 	sendFinished.resolve();
 	await Promise.all([notificationWork, cancellation]);
 	assert.equal(notifications, 1);
+});
+
+test("the final client remains observable after the real SDK and billing monitors finish", { timeout: 5000 }, async () => {
+	const background = [];
+	const withUsage = usageMonitor(background);
+	const persistenceRegistered = deferred();
+	const sendStarted = deferred();
+	const sendFinished = deferred();
+	const request = new Request("https://example.test/api/ask-question");
+	let connection;
+	let answer;
+	let notificationWork;
+	let notifications = 0;
+	const POST = withChatClientConnection(withUsage(async (req, currentConnection) => {
+		assert.equal(req, request);
+		connection = currentConnection;
+		answer = answerStream(null, () => {
+			notificationWork = Promise.resolve("persisted").then(() => {
+				const work = connection.afterPersistence(async () => {
+					notifications += 1;
+					sendStarted.resolve();
+					await sendFinished.promise;
+				});
+				persistenceRegistered.resolve();
+				return work;
+			});
+		});
+		return answer.response;
+	}, "ask-question"));
+	const response = await POST(request);
+	const reader = response.body.getReader();
+	await reader.read();
+	answer.generation.resolve();
+	const [event, serverSse] = await Promise.all([answer.ended, answer.drained]);
+	assert.equal(background.length, 1, "the actual billing wrapper registered its independent monitor");
+	await Promise.all([...background, persistenceRegistered.promise]);
+	assert.equal(event.isAborted, false);
+	assert.equal(event.responseMessage.parts.find((part) => part.type === "text").text,
+		"The Lord is my shepherd; I shall not want.");
+	assert.match(serverSse, /data: \[DONE\]/);
+	let workSettled = false;
+	void notificationWork.then(() => { workSettled = true; });
+	await nextTurn();
+	assert.equal(connection.disconnected, false);
+	assert.equal(workSettled, false, "billing EOF must not settle the final client's departure decision");
+	assert.equal(notifications, 0);
+
+	const cancellation = reader.cancel("app quit after both monitors drained");
+	assert.equal(connection.disconnected, true);
+	assert.equal(request.signal.aborted, false);
+	await sendStarted.promise;
+	assert.equal(notifications, 1);
+	assert.equal(workSettled, false, "the retained background work includes the actual send");
+	sendFinished.resolve();
+	await Promise.all([notificationWork, cancellation]);
+	await connection.afterPersistence(async () => { notifications += 1; });
+	assert.equal(notifications, 1);
+});
+
+test("the composed billing response's normal client EOF does not notify", { timeout: 5000 }, async () => {
+	const background = [];
+	const withUsage = usageMonitor(background);
+	const requestAbort = new AbortController();
+	const request = new Request("https://example.test/api/ask-question", { signal: requestAbort.signal });
+	let connection;
+	let answer;
+	let notificationWork;
+	let notifications = 0;
+	const POST = withChatClientConnection(withUsage(async (_req, currentConnection) => {
+		connection = currentConnection;
+		answer = answerStream(null, () => {
+			notificationWork = Promise.resolve("persisted").then(() => connection.afterPersistence(async () => {
+				notifications += 1;
+			}));
+		});
+		return answer.response;
+	}, "ask-question"));
+	const response = await POST(request);
+	assert.equal(response.status, 202);
+	assert.equal(response.statusText, "Accepted");
+	assert.equal(response.headers.get("x-qa-header"), "preserved");
+	answer.generation.resolve();
+	const [clientSse, serverSse] = await Promise.all([response.text(), answer.drained]);
+	assert.equal(clientSse, serverSse);
+	await Promise.all([...background, answer.ended, notificationWork]);
+	requestAbort.abort("normal post-EOF teardown");
+	assert.equal(connection.disconnected, false);
+	assert.equal(notifications, 0);
 });
 
 test("upstream stream errors are preserved and do not imply client departure", async () => {
