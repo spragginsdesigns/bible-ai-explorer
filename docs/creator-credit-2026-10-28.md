@@ -75,11 +75,20 @@ TickTick follow-up: `6ae24c9e8f0871a7dbf02efa`.
 
 ### Safe Android resume
 
+Before resuming, inspect current `main`, release ownership, both Play tracks,
+GitHub Releases and `/api/native-releases`. If a newer binary already carries
+this credit, verify that release and close the follow-up. If newer unrelated
+work exists, integrate the credit into the current release source rather
+than publish this older archive over it. The 127 track readback and unused
+128 versionCode are dated evidence from this run, not ongoing permission to
+reuse 128. Recheck the current version and changelog contract before publishing.
+
 Resume only when the host has capacity for the script's 4 GB Java heap and
 one native compiler. The archive's ignored generated Gradle properties now
 retain one worker and parallel disabled. Its ignored React Native default CMake setup retains
 compile/link job pools of one. Do not run a new prebuild that replaces these
-local resource limits. No versionCode bump is needed: Play has not seen 128.
+local resource limits. This archive is the retained build evidence for 128;
+the live checks above decide whether it remains the appropriate release input.
 
 Run in Git Bash:
 
