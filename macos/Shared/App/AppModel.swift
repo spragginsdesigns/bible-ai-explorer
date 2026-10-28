@@ -44,6 +44,16 @@ enum AppSection: String, CaseIterable, Identifiable {
 
 enum DailyWalkDestination: String, Hashable { case plan, learn, history, serve }
 
+/// A page inside the Study hub that another surface asked to open (What's new
+/// "Try it", the Today notes link). Consumed by the Study root on each
+/// platform, which pushes (iOS) or selects (macOS) the page.
+enum StudyHubDestination: String, Hashable { case notes, timeline, people, places, sermons, words }
+
+/// A Settings page another surface asked to open: a chat receipt, the Daily
+/// Cross's AI-off notice, a Pro wall. Consumed by Settings on each platform,
+/// which maps it onto its own pane (macOS) or pushed page (iOS).
+enum SettingsPageRequest: String, Hashable { case account, ai, membership, memory, church, notifications }
+
 /// Root state for a signed-in session: the API client, the shared settings, and
 /// the chat and Bible models. Created once the user is signed in so the API
 /// client's token provider always has a session behind it.
@@ -115,6 +125,19 @@ final class AppModel {
     /// the Mac; consumed by the Bible section, which shows its Learn pane. iOS
     /// pushes `LearnView` from the chat stack instead and never sets it.
     var pendingDailyDestination: DailyWalkDestination?
+    /// Set to open a Study hub page from elsewhere; consumed (and cleared) by
+    /// the Study root once it has shown the page.
+    var pendingStudyDestination: StudyHubDestination?
+    /// Set by `openSettings(_:)`; consumed (and cleared) by Settings once it
+    /// has shown the page.
+    var pendingSettingsPage: SettingsPageRequest?
+
+    /// Opens Settings on `page`. The single entry point for "take me to that
+    /// setting", so every caller lands the same way on both platforms.
+    func openSettings(_ page: SettingsPageRequest) {
+        pendingSettingsPage = page
+        isSettingsPresented = true
+    }
 
     /// `userID` is the Clerk id of the session this model is being built for.
     /// It is what tells the preference sync whether the persisted caches belong
