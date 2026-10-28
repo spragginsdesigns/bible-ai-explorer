@@ -2,6 +2,16 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.107.0 (versionCode 125) - 2026-10-27 - internal and closed testing
+
+**What's new (Play):**
+
+IMPROVED
+- Membership now shows your renewal date, a notice if your subscription is ending, and a message if a payment failed.
+- When you have used today's messages, SureWord says so plainly and tells you when more are available in your own time, instead of saying you are going too fast.
+
+**Dev notes:** Free/Pro audit (2026-10-27). Android: `src/features/settings/membershipView.ts` (pure, tested) drives the Membership card's period end, cancel and lapse notice, failed-payment line and a plain-text note on where an App Store or web subscription is managed (no cross-store link, per Play policy); `src/features/chat/chatErrors.ts` maps the server's daily-allowance 429 to "You've used today's messages" with the reset in local time instead of the raw UTC timestamp under "Too many requests". Server changes shipped to main the same day and reach every client: Pro and the owner's Pro pick stay on high effort when chat sends a stale stored effort (`includedEffortFor`), App Store REFUND_REVERSED reinstates Pro, and the Listen gate is a tested rule (`listenAccess`). Web: `/membership` links App Store subscribers to the App Store instead of the Stripe portal, owner picker hides search. No native changes.
+
 ## 1.106.1 (versionCode 124) - 2026-10-27 - internal and closed testing
 
 **What's new (Play):**

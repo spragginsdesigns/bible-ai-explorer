@@ -14,6 +14,11 @@
 		]
 	},
 	"releases": {
+		"1.107.0": {
+			"title": "Your membership, clearly",
+			"headline": "See where your subscription stands.",
+			"why": "Membership shows when Pro renews or ends and whether a payment needs attention, and the daily message limit now explains itself in your local time."
+		},
 		"1.106.1": {
 			"title": "Room to write",
 			"headline": "The keyboard stays out of your way.",

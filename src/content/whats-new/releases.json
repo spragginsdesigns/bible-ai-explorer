@@ -1,6 +1,20 @@
 {
 	"releases": [
 		{
+			"version": "1.107.0",
+			"versionCode": 125,
+			"date": "2026-10-27",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Membership now shows your renewal date, a notice if your subscription is ending, and a message if a payment failed.",
+						"When you have used today's messages, SureWord says so plainly and tells you when more are available in your own time, instead of saying you are going too fast."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.106.1",
 			"versionCode": 124,
 			"date": "2026-10-27",
