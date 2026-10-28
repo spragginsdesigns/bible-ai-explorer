@@ -179,8 +179,11 @@ function refText(ref) {
 
 /** Whole-word/phrase containment on normalized text: "beer sheba" in "…". */
 function mentions(text, name) {
-	const haystack = ` ${normalize(text)} `;
-	const needle = normalize(name);
+	// KJV hyphenates names such as Bath-sheba, Beth-el and Beer-sheba.
+	// Join only internal letter-to-letter hyphens; retain whole-name boundaries.
+	const spelling = (value) => String(value).replace(/([a-z])-(?=[a-z])/gi, "$1");
+	const haystack = ` ${normalize(spelling(text))} `;
+	const needle = normalize(spelling(name));
 	return needle.length > 0 && haystack.includes(` ${needle} `);
 }
 
@@ -385,19 +388,24 @@ if (errors.length > 0) {
 	process.exit(1);
 }
 
-fs.mkdirSync(mobileDataDir, { recursive: true });
-fs.mkdirSync(path.dirname(mobileCorePath), { recursive: true });
-for (const file of ["events.json", "people.json", "places.json"]) {
-	fs.copyFileSync(path.join(dataDir, file), path.join(mobileDataDir, file));
-}
-if (fs.existsSync(relationsPath)) fs.copyFileSync(relationsPath, path.join(mobileDataDir, "relations.json"));
+// Apple generation reuses this full KJV/reference validation without writing
+// Android files. The normal command still mirrors Android exactly as before.
+const validateOnly = process.argv.includes("--validate-only");
+if (!validateOnly) {
+	fs.mkdirSync(mobileDataDir, { recursive: true });
+	fs.mkdirSync(path.dirname(mobileCorePath), { recursive: true });
+	for (const file of ["events.json", "people.json", "places.json"]) {
+		fs.copyFileSync(path.join(dataDir, file), path.join(mobileDataDir, file));
+	}
+	if (fs.existsSync(relationsPath)) fs.copyFileSync(relationsPath, path.join(mobileDataDir, "relations.json"));
 
-const banner = `// GENERATED FILE - do not edit.
+	const banner = `// GENERATED FILE - do not edit.
 // Copied from src/lib/bible/atlas-core.ts by scripts/build-bible-atlas.mjs so
 // the phone and the server rank, group and resolve the atlas identically.
 // Edit the source file and re-run: node scripts/build-bible-atlas.mjs
 `;
-fs.writeFileSync(mobileCorePath, `${banner}${fs.readFileSync(corePath, "utf8")}`, "utf8");
+	fs.writeFileSync(mobileCorePath, `${banner}${fs.readFileSync(corePath, "utf8")}`, "utf8");
+}
 
 const refCount =
 	events.reduce((total, event) => total + event.refs.length, 0) +
@@ -414,4 +422,4 @@ if (orphanPeople.length > 0) {
 if (orphanPlaces.length > 0) {
 	console.log(`  note: ${orphanPlaces.length} places are in no event (${orphanPlaces.join(", ")})`);
 }
-console.log(`  mirrored to ${path.relative(root, mobileDataDir)} and ${path.relative(root, mobileCorePath)}`);
+if (!validateOnly) console.log(`  mirrored to ${path.relative(root, mobileDataDir)} and ${path.relative(root, mobileCorePath)}`);

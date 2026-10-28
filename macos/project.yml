@@ -55,12 +55,17 @@ targets:
         # gets. They ship as folder references instead (Resources/rv1909/,
         # Resources/lut1912/, Resources/asv/), read by `BundledBibleLibrary`.
         excludes:
+          - "Atlas/AtlasData"
+          - "Atlas/AtlasData/**"
           - "Bible/Data/rv1909"
           - "Bible/Data/rv1909/**"
           - "Bible/Data/lut1912"
           - "Bible/Data/lut1912/**"
           - "Bible/Data/asv"
           - "Bible/Data/asv/**"
+      - path: Shared/Atlas/AtlasData
+        type: folder
+        buildPhase: resources
       - path: Shared/Bible/Data/rv1909
         type: folder
         buildPhase: resources
@@ -297,12 +302,17 @@ targets:
         # gets. They ship as folder references instead (Resources/rv1909/,
         # Resources/lut1912/, Resources/asv/), read by `BundledBibleLibrary`.
         excludes:
+          - "Atlas/AtlasData"
+          - "Atlas/AtlasData/**"
           - "Bible/Data/rv1909"
           - "Bible/Data/rv1909/**"
           - "Bible/Data/lut1912"
           - "Bible/Data/lut1912/**"
           - "Bible/Data/asv"
           - "Bible/Data/asv/**"
+      - path: Shared/Atlas/AtlasData
+        type: folder
+        buildPhase: resources
       - path: Shared/Bible/Data/rv1909
         type: folder
         buildPhase: resources

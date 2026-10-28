@@ -16,6 +16,10 @@ enum AtlasLoadState: Equatable {
 enum AtlasAPI {
     static let defaultSearchLimit = 12
 
+    // Keep native Codable responses and call sites, but query the same bundled
+    // core as Android. APIClient is retained for source compatibility only;
+    // no Atlas operation needs authentication or a network connection.
+
     /// URLComponents performs percent encoding for every query value, including
     /// spaces, ampersands, slashes, and non-ASCII names.
     static func path(_ endpoint: String, query: [URLQueryItem] = []) -> String {
@@ -41,12 +45,11 @@ enum AtlasAPI {
         chapter: Int? = nil,
         personID: String? = nil
     ) async throws -> AtlasTimelineResponse {
-        var query: [URLQueryItem] = []
-        if let era { query.append(URLQueryItem(name: "era", value: era.rawValue)) }
-        if let book { query.append(URLQueryItem(name: "book", value: String(book))) }
-        if let chapter { query.append(URLQueryItem(name: "chapter", value: String(chapter))) }
-        if let personID { query.append(URLQueryItem(name: "personId", value: personID)) }
-        return try await api.json(path("/api/bible/atlas/timeline", query: query), as: AtlasTimelineResponse.self)
+        try await BundledAtlas.shared.query(
+            .timeline,
+            parameters: .init(era: era?.rawValue, book: book, chapter: chapter, personID: personID),
+            as: AtlasTimelineResponse.self
+        )
     }
 
     static func entities(
@@ -56,18 +59,17 @@ enum AtlasAPI {
         cursor: String? = nil,
         limit: Int = 24
     ) async throws -> AtlasEntityListResponse {
-        var query = [URLQueryItem(name: "kind", value: kind.rawValue), URLQueryItem(name: "limit", value: String(limit))]
-        if let era { query.append(URLQueryItem(name: "era", value: era.rawValue)) }
-        if let cursor { query.append(URLQueryItem(name: "cursor", value: cursor)) }
-        return try await api.json(path("/api/bible/atlas", query: query), as: AtlasEntityListResponse.self)
+        try await BundledAtlas.shared.query(
+            .entities,
+            parameters: .init(era: era?.rawValue, kind: kind.rawValue, cursor: cursor, limit: limit),
+            as: AtlasEntityListResponse.self
+        )
     }
 
     static func search(api: APIClient, query: String, limit: Int = defaultSearchLimit) async throws -> AtlasSearchResponse {
-        try await api.json(
-            path("/api/bible/atlas", query: [
-                URLQueryItem(name: "q", value: query),
-                URLQueryItem(name: "limit", value: String(limit)),
-            ]),
+        try await BundledAtlas.shared.query(
+            .search,
+            parameters: .init(limit: limit, query: query),
             as: AtlasSearchResponse.self
         )
     }
@@ -75,41 +77,36 @@ enum AtlasAPI {
     /// Who and where a chapter is about (`?book=&chapter=`), the same
     /// `whoIsInChapter` answer Android computes locally.
     static func chapter(api: APIClient, book: Int, chapter: Int) async throws -> AtlasChapterView {
-        try await api.json(
-            path("/api/bible/atlas", query: [
-                URLQueryItem(name: "book", value: String(book)),
-                URLQueryItem(name: "chapter", value: String(chapter)),
-            ]),
+        try await BundledAtlas.shared.query(
+            .chapter,
+            parameters: .init(book: book, chapter: chapter),
             as: AtlasChapterView.self
         )
     }
 
     static func entity(api: APIClient, id: String) async throws -> AtlasEntityView {
-        struct Response: Decodable { let entity: AtlasEntityView }
-        return try await api.json(
-            path("/api/bible/atlas", query: [URLQueryItem(name: "id", value: id)]),
+        struct Response: Decodable, Sendable { let entity: AtlasEntityView }
+        return try await BundledAtlas.shared.query(
+            .entity, parameters: .init(id: id),
             as: Response.self
         ).entity
     }
 
     static func event(api: APIClient, id: String) async throws -> AtlasEventView {
-        struct Response: Decodable { let event: AtlasEventView }
-        return try await api.json(
-            path("/api/bible/atlas/event", query: [URLQueryItem(name: "id", value: id)]),
+        struct Response: Decodable, Sendable { let event: AtlasEventView }
+        return try await BundledAtlas.shared.query(
+            .event, parameters: .init(id: id),
             as: Response.self
         ).event
     }
 
     static func connection(api: APIClient, from: String, to: String) async throws -> AtlasPersonConnectionPath {
-        let response = try await api.json(
-            path("/api/bible/atlas/connection", query: [
-                URLQueryItem(name: "from", value: from),
-                URLQueryItem(name: "to", value: to),
-            ]),
+        let response = try await BundledAtlas.shared.query(
+            .connection, parameters: .init(from: from, to: to),
             as: AtlasConnectionResponse.self
         )
         guard let path = response.path else {
-            throw APIError(message: "The server sent no connection path.")
+            throw APIError(message: "No reviewed connection was found.", status: 404)
         }
         return path
     }

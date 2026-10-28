@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "inputSha256": "0716df202f6de7dff3494e8c58ef92470d5fc9603105257c1f2191a2e4c77c99",
+  "scriptSha256": "23684f4e93ba1bf52b405f834d22517d7a7a9719a0bb2f9093b6c3256ce2afb2",
+  "counts": {
+    "events": 220,
+    "people": 186,
+    "places": 93,
+    "relations": 83
+  },
+  "sourceFiles": [
+    {
+      "path": "src/lib/bible/atlas-core.ts",
+      "sha256": "7b72e40b01d29c383f556eb071de5abf81138fa045d570a54328e3766a5dde48"
+    },
+    {
+      "path": "src/data/books.json",
+      "sha256": "da14fab0a0a32c046ccf0555c2bda62a44de070d8e67444fe797884452b4f8b6"
+    },
+    {
+      "path": "src/data/bible-atlas/events.json",
+      "sha256": "b22b4efc58247defb6b184d3f9254773797e803d90b433e79b886a63d304fc0b"
+    },
+    {
+      "path": "src/data/bible-atlas/people.json",
+      "sha256": "3435242b669776fc0d8c335f899116f27ee7c3ee02ece3badee97f1c82d20f44"
+    },
+    {
+      "path": "src/data/bible-atlas/places.json",
+      "sha256": "d673b05ebb74b8c0684ac284977d663741f25b76faad92390116c3080d364028"
+    },
+    {
+      "path": "src/data/bible-atlas/relations.json",
+      "sha256": "ccfef94421ba578851409684a58f17f0ebb3a42229cdc2a0d61591bdc8afb162"
+    }
+  ],
+  "typescriptVersion": "5.6.2"
+}
