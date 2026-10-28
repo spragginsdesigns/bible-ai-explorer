@@ -2599,10 +2599,15 @@ How it works, and the decisions that shaped it:
   bundle cannot take extra ProseMirror plugins, so the note editor loads a
   custom bundle (TenTap's advanced setup): sources in `mobile/editor-web/`,
   built with `cd mobile && node scripts/build-editor-web.mjs` into the
-  committed `editor-web/build/editorHtml.js` and passed to `useEditorBridge`
+  committed `editor-web/generated/editorHtml.js` and passed to `useEditorBridge`
   as `customSource`. **Rebuild and commit that file after changing anything
   in `editor-web/`, `wikilinks.ts` or `wikilinkBridgeProtocol.ts`** - Metro
-  bundles the generated file, not the sources. Away from the caret the
+  bundles the generated file, not the sources. The output lives in
+  `generated/`, never a `build/` folder: React Native's Gradle plugin
+  excludes `**/build/**` from the JS bundle task's inputs, so a changed
+  editor there ships stale. The build script also refuses a bundle that
+  mixes TenTap's nested react-dom 18 with the app's React 19 (that renders a
+  blank editor on the device and works nowhere). Away from the caret the
   brackets collapse (font-size 0) and the label reads as a gold chip with a
   note glyph; with the caret inside or touching the link the raw text comes
   back so it can be edited (Obsidian's live preview). Unresolved targets draw

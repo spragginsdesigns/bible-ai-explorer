@@ -27,7 +27,7 @@ import { noteDocumentToMarkdown } from "../noteMarkdownExport";
 import Link from "lucide-react-native/icons/link";
 import { GlyphButton } from "./primitives";
 import { createWikilinkBridge, type WikilinkEditorInstance } from "./wikilinkBridge";
-import { editorHtml } from "../../../../editor-web/build/editorHtml";
+import { editorHtml } from "../../../../editor-web/generated/editorHtml";
 
 const AUTOSAVE_DELAY = 1500;
 const BRIDGE_TIMEOUT = 1200;
