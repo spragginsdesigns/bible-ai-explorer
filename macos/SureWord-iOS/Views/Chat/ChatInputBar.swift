@@ -142,6 +142,15 @@ struct ChatInputBar: View {
                     .strokeBorder(isFocused ? theme.accentBorder : theme.border, lineWidth: 1)
             }
         }
+        .safeAreaInset(edge: .bottom, spacing: Spacing.xs) {
+            Text("Created by [Austin Spraggins](https://www.spragginsdesigns.xyz/#faith), a follower of Jesus Christ.")
+                .appFont(.caption2)
+                .foregroundStyle(theme.textMuted)
+                .tint(theme.text)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .fixedSize(horizontal: false, vertical: true)
+        }
         // Walk with me's "Type my own".
         .onChange(of: app.onboarding.composerFocusRequest) { isFocused = true }
         .sheet(isPresented: $isSourceSheetPresented, onDismiss: presentPendingSource) {

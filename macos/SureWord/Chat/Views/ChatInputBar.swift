@@ -98,6 +98,15 @@ struct ChatInputBar: View {
                     )
             }
         }
+        .safeAreaInset(edge: .bottom, spacing: Spacing.xs) {
+            Text("Created by [Austin Spraggins](https://www.spragginsdesigns.xyz/#faith), a follower of Jesus Christ.")
+                .appFont(.caption2)
+                .foregroundStyle(theme.textMuted)
+                .tint(theme.text)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .fixedSize(horizontal: false, vertical: true)
+        }
         .onAppear {
             isFocused = true
             installPasteMonitor()

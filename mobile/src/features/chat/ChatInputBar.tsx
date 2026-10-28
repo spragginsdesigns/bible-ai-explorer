@@ -8,6 +8,7 @@ import React, {
 import {
 	ActivityIndicator,
 	Keyboard,
+	Linking,
 	Pressable,
 	ScrollView,
 	StyleSheet,
@@ -380,6 +381,18 @@ export function ChatInputBar({
 					</Pressable>
 				)}
 			</View>
+			<Text style={styles.creatorCredit}>
+				Created by{" "}
+				<Text
+					accessibilityRole="link"
+					accessibilityHint="Read Austin's faith story on his website"
+					style={styles.creatorLink}
+					onPress={() => void Linking.openURL("https://www.spragginsdesigns.xyz/#faith")}
+				>
+					Austin Spraggins
+				</Text>
+				, a follower of Jesus Christ.
+			</Text>
 		</View>
 	);
 }
@@ -388,6 +401,8 @@ const createStyles = (theme: Colors) => {
 	const c = chatColors(theme);
 	return StyleSheet.create({
 		wrap: { position: "relative" },
+		creatorCredit: { ...typography.meta, color: c.textMuted, textAlign: "center", marginTop: spacing.xs },
+		creatorLink: { color: c.textSecondary, textDecorationLine: "underline" },
 		pill: {
 			flexDirection: "row",
 			alignItems: "center",

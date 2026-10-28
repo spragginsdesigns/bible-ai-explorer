@@ -7,6 +7,12 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
+**2026-10-28 creator credit:** Web, Android and both Apple composer sources
+now say "Created by Austin Spraggins, a follower of Jesus Christ." The name
+links to `https://www.spragginsdesigns.xyz/#faith`. The existing web AI
+discernment note stays above the credit. Android 1.109.0 (128) and Apple
+1.29.0 (38) are prepared; build, runtime and release proof is pending.
+
 **2026-10-28 upgrade-button billing investigation:** authenticated production
 `GET /api/billing/status` reported `enabled=true`,
 `playCheckoutAvailable=false`, and `appStoreCheckoutAvailable=true`.
