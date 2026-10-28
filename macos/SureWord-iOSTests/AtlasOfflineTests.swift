@@ -162,4 +162,3 @@ final class AtlasOfflineTests: XCTestCase {
         }
     }
 }
-

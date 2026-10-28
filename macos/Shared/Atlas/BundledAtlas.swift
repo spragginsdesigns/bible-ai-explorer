@@ -120,4 +120,3 @@ actor BundledAtlas {
         APIError(message: "The offline Bible atlas is unavailable. Reinstall or update SureWord.", code: "atlas_bundle_unavailable")
     }
 }
-

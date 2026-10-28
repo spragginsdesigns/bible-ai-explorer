@@ -60,4 +60,3 @@ test("queries remain JSON arguments, never code or network access", () => {
 	assert.equal(context.require, undefined);
 	assert.equal(query("event", { id: attemptedCode }).status, 404);
 });
-
