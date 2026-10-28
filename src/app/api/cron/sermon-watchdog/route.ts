@@ -71,6 +71,7 @@ export async function GET(request: Request) {
 
 		const days = Math.floor((Date.now() - last.getTime()) / (24 * 60 * 60 * 1000));
 		messages.push({
+			userId: church.userId,
 			recipients,
 			title: "No sermon study yet",
 			body: `The last study from ${church.name} was ${days} days ago. The service may not have been processed.`,

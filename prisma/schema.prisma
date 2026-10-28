@@ -730,6 +730,9 @@ model PushToken {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   token       String   @unique // Expo push token, or the Web Push endpoint URL
   platform    String // "ios" | "android" | "web"
+  /// Trusted Clerk session from raw Apple registration. Delivery verifies its
+  /// user and this installation's active session before sending private text.
+  clerkSessionId String?
   /// Web Push subscription keys (platform "web" only). A browser subscription
   /// is the endpoint (stored in `token`) plus these two; Expo rows leave them null.
   webP256dh   String?

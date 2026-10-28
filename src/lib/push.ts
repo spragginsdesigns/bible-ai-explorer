@@ -1,5 +1,7 @@
 import webpush, { WebPushError } from "web-push";
-import { apnsRecipientsOf, sendApnsJobs, type ApnsJob } from "@/lib/apns";
+import { clerkClient } from "@clerk/nextjs/server";
+import { apnsRecipientsOf, sendApnsJobs } from "@/lib/apns";
+import { authorizeApplePushJobs, type OwnedApplePushJob } from "@/lib/apple-push-session";
 import { prisma } from "@/lib/prisma";
 import {
 	chatReplyRecipientWhere,
@@ -52,6 +54,8 @@ export function webPushConfig(): { publicKey: string; privateKey: string; subjec
  * its row id so a dead token can be retired.
  */
 export interface PendingPush {
+	/** Owner of the message when its audience was selected. Never inferred from a later token row. */
+	userId: string;
 	recipients: DeliveryRecipient[];
 	title: string;
 	/** iOS-only second line; Android carries the same context inside `body`. */
@@ -75,7 +79,7 @@ export interface PendingPush {
 export async function sendPushMessages(messages: PendingPush[], label: string): Promise<number> {
 	const expoMessages: PendingPush[] = [];
 	const webJobs: Array<{ message: PendingPush; recipients: WebRecipient[] }> = [];
-	const apnsJobs: ApnsJob[] = [];
+	const apnsJobs: OwnedApplePushJob[] = [];
 	for (const message of messages) {
 		// APNs tokens are neither Expo tokens nor browser subscriptions, so the
 		// split drops them; the Macs are picked out of the same list separately.
@@ -83,7 +87,7 @@ export async function sendPushMessages(messages: PendingPush[], label: string): 
 		if (expo.length > 0) expoMessages.push({ ...message, recipients: expo });
 		if (web.length > 0) webJobs.push({ message, recipients: web });
 		const apns = apnsRecipientsOf(message.recipients);
-		if (apns.length > 0) apnsJobs.push({ message, recipients: apns });
+		if (apns.length > 0) apnsJobs.push({ message, recipients: apns, userId: message.userId });
 	}
 	const [expoRetired, webRetired, apnsRetired] = await Promise.all([
 		sendViaExpo(expoMessages, label),
@@ -97,9 +101,23 @@ export async function sendPushMessages(messages: PendingPush[], label: string): 
  * The Macs. sendApnsJobs never throws and skips quietly (one log line) when
  * no APNs key is configured; only the dead tokens it reports are deleted here.
  */
-async function sendViaApns(jobs: ApnsJob[], label: string): Promise<number> {
+async function sendViaApns(jobs: OwnedApplePushJob[], label: string): Promise<number> {
 	if (jobs.length === 0) return 0;
-	const { sent, failed, retiredTokenIds } = await sendApnsJobs(jobs, label);
+	let clerk: ReturnType<typeof clerkClient> | undefined;
+	const getClerk = () => clerk ??= clerkClient();
+	const authorized = await authorizeApplePushJobs(jobs, {
+		loadBindings: (ids) => prisma.pushToken.findMany({
+			where: { id: { in: ids } },
+			select: { id: true, token: true, userId: true, clerkSessionId: true },
+		}),
+		getSession: async (id) => (await getClerk()).sessions.getSession(id),
+		getClient: async (id) => (await getClerk()).clients.getClient(id),
+	});
+	const { sent, failed, retiredTokenIds } = await sendApnsJobs(authorized.jobs, label);
+	console.info(`[${label}] apns-session`, JSON.stringify({
+		recipients: jobs.reduce((count, job) => count + job.recipients.length, 0),
+		skipped: authorized.skipped,
+	}));
 	if (label === "chat-reply-push") {
 		const recipients = jobs.reduce((count, job) => count + job.recipients.length, 0);
 		console.info("[chat-reply-push] apns", JSON.stringify({
@@ -110,10 +128,15 @@ async function sendViaApns(jobs: ApnsJob[], label: string): Promise<number> {
 			retired: retiredTokenIds.length,
 		}));
 	}
+	let retired = 0;
 	for (const tokenId of retiredTokenIds) {
-		await prisma.pushToken.delete({ where: { id: tokenId } }).catch(() => {});
+		const binding = authorized.bindings.find((row) => row.id === tokenId);
+		if (binding) {
+			const deleted = await prisma.pushToken.deleteMany({ where: binding }).catch(() => null);
+			retired += deleted?.count ?? 0;
+		}
 	}
-	return retiredTokenIds.length;
+	return retired;
 }
 
 /**
@@ -262,6 +285,7 @@ export async function notifyChatAnswerReady(options: {
 		await sendPushMessages(
 			[
 				{
+					userId: options.userId,
 					recipients: tokens.map(recipientFromRow),
 					title: "Your answer is ready",
 					body: preview,

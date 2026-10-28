@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { Prisma } from "@prisma/client";
 import { ANALYTICS_EVENTS, platformFromHeaders } from "@/lib/analytics/events";
 import { captureServerEvent } from "@/lib/analytics/server";
 import { z } from "zod";
 import { APNS_ENVIRONMENTS, apnsConfig, apnsStoredToken, isApnsDeviceToken, isApnsStoredToken } from "@/lib/apns";
 import { getAuthUser } from "@/lib/auth";
+import { applePushSessionId } from "@/lib/apple-push-session";
 import { prisma } from "@/lib/prisma";
 import { webPushConfig } from "@/lib/push";
 import { isAllowedWebPushEndpoint, isExpoPushToken, mayRegisterExistingPushToken } from "@/lib/push-routing";
@@ -115,6 +117,7 @@ export async function POST(req: Request) {
 		if (isApnsStoredToken(parsed.data.token)) return invalidSubscription();
 		if (isApnsDeviceToken(parsed.data.token) && platform !== "ios" && platform !== "macos") return invalidSubscription();
 		let token = parsed.data.token;
+		let clerkSessionId: string | null = null;
 		if (platform === "macos" || (platform === "ios" && !isExpoPushToken(token))) {
 			const stored = apnsStoredToken(token, parsed.data.apnsEnvironment);
 			if (!stored) return invalidSubscription();
@@ -123,6 +126,10 @@ export async function POST(req: Request) {
 			// nothing. Refused, so the app keeps its local notifications.
 			if (!apnsConfig(undefined, parsed.data.apnsEnvironment)) {
 				return NextResponse.json({ status: "unavailable", error: "Apple push is not configured for this environment." }, { status: 503 });
+			}
+			clerkSessionId = applePushSessionId(await auth(), userId);
+			if (!clerkSessionId) {
+				return NextResponse.json({ error: "An authenticated Apple session is required." }, { status: 401 });
 			}
 			token = stored;
 		}
@@ -137,6 +144,7 @@ export async function POST(req: Request) {
 				: { webP256dh: null, webAuth: null };
 		const settings = {
 			platform,
+			clerkSessionId,
 			...webKeys,
 			timezone,
 			...(notifyHour !== undefined ? { notifyHour } : {}),
@@ -161,6 +169,7 @@ export async function POST(req: Request) {
 					webAuth: true,
 					deviceBound: true,
 					proofNonce: true,
+					clerkSessionId: true,
 				},
 			});
 			const proofValid = proofSecret
@@ -218,6 +227,7 @@ export async function POST(req: Request) {
 					webAuth: stored.webAuth,
 					deviceBound: stored.deviceBound,
 					proofNonce: stored.proofNonce,
+					clerkSessionId: stored.clerkSessionId,
 				},
 				data: {
 					userId,
@@ -241,9 +251,10 @@ export async function POST(req: Request) {
 			// is theirs now, there is nothing to refuse: answer with it as it is.
 			const current = await prisma.pushToken.findUnique({
 				where: { token },
-				select: { id: true, userId: true, proofNonce: true },
+				select: { id: true, userId: true, proofNonce: true, clerkSessionId: true },
 			});
 			if (current?.userId !== userId) return invalidSubscription();
+			if (clerkSessionId && current.clerkSessionId !== clerkSessionId) return invalidSubscription();
 			saved = { id: current.id, proofNonce: current.proofNonce };
 		}
 

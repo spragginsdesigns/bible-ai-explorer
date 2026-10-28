@@ -11,6 +11,7 @@ import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import { applePushSessionId } from "../src/lib/apple-push-session.ts";
 
 import {
 	createPushTokenNonce,
@@ -41,7 +42,7 @@ class PrismaClientKnownRequestError extends Error {
  * before the write, to simulate another request landing in between.
  */
 function loadRoute({ row = null, userId = "user_new", afterRead } = {}) {
-	const table = { row: row ? { id: "row-1", ...row } : null };
+	const table = { row: row ? { id: "row-1", clerkSessionId: null, ...row } : null };
 	const calls = [];
 	let reads = 0;
 	const matches = (where, current) =>
@@ -79,6 +80,8 @@ function loadRoute({ row = null, userId = "user_new", afterRead } = {}) {
 		captureServerEvent: () => {},
 		z,
 		getAuthUser: async () => userId,
+		auth: async () => ({ userId, sessionId: "sess_proof" }),
+		applePushSessionId,
 		prisma,
 		webPushConfig: () => null,
 		isAllowedWebPushEndpoint,

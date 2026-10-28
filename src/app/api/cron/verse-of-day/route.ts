@@ -211,6 +211,7 @@ export async function GET(request: Request) {
 
 			const reference = `${cross.book} ${cross.chapter}:${cross.verse}`;
 			const push: PendingPush = {
+				userId,
 				recipients: recipients.map((recipient) => {
 					const row = tokenRows.get(recipient.tokenId);
 					return row ? recipientFromRow(row) : recipient;

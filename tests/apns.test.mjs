@@ -14,6 +14,7 @@ import { createServer } from "node:http2";
 import { stripTypeScriptTypes } from "node:module";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import { applePushSessionId } from "../src/lib/apple-push-session.ts";
 
 import {
 	APNS_ENVIRONMENTS,
@@ -542,7 +543,7 @@ test("push.ts sends Macs to APNs beside Expo and Web Push, and retires what APNs
 	assert.match(push, /const \{ expo, web \} = splitRecipients\(message\.recipients\);/);
 	assert.match(push, /apnsRecipientsOf\(message\.recipients\)/);
 	assert.match(push, /sendViaExpo\(expoMessages, label\),\s*sendViaWebPush\(webJobs, label\),\s*sendViaApns\(apnsJobs, label\)/);
-	assert.match(push, /retiredTokenIds[\s\S]*prisma\.pushToken\.delete\(\{ where: \{ id: tokenId \} \}\)/);
+	assert.match(push, /retiredTokenIds[\s\S]*prisma\.pushToken\.deleteMany\(\{ where: binding \}\)/);
 	// The cron and the answer-ready push need no Mac-specific code: the token
 	// they already select carries everything.
 	const cron = read("../src/app/api/cron/verse-of-day/route.ts");
@@ -561,8 +562,8 @@ class PrismaClientKnownRequestError extends Error {
 }
 
 /** The route against a table of rows, honouring its conditional writes. */
-function loadRoute({ rows = [], userId = "user_mac", env = BOTH_ENV } = {}) {
-	const table = rows.map((row, index) => ({ id: `row-${index}`, ...row }));
+function loadRoute({ rows = [], userId = "user_mac", sessionId = "sess_mac", authenticatedUserId = userId, env = BOTH_ENV } = {}) {
+	const table = rows.map((row, index) => ({ id: `row-${index}`, clerkSessionId: null, ...row }));
 	const deletes = [];
 	const matches = (where, current) =>
 		Object.entries(where).every(([key, value]) =>
@@ -606,6 +607,8 @@ function loadRoute({ rows = [], userId = "user_mac", env = BOTH_ENV } = {}) {
 		captureServerEvent: () => {},
 		z,
 		getAuthUser: async () => userId,
+		auth: async () => ({ userId: authenticatedUserId, sessionId }),
+		applePushSessionId,
 		prisma,
 		webPushConfig: () => null,
 		isAllowedWebPushEndpoint,
@@ -662,6 +665,33 @@ async function withSecret(secret, fn) {
 }
 
 const SECRET = "test-proof-secret";
+
+test("raw Apple registration binds the trusted SID and ignores a body-supplied SID", async () => {
+	for (const platform of ["macos", "ios"]) {
+		const route = loadRoute({ sessionId: "sess_trusted" });
+		assert.equal((await route.register({ platform, clerkSessionId: "sess_forged" })).status, 200);
+		assert.equal(route.table[0].clerkSessionId, "sess_trusted");
+	}
+});
+
+test("raw Apple registration refuses absent/mismatched authenticated sessions without a row write", async () => {
+	for (const options of [{ sessionId: null }, { sessionId: "" }, { authenticatedUserId: "user_other" }]) {
+		const route = loadRoute(options);
+		assert.equal((await route.register()).status, 401);
+		assert.deepEqual(route.table, []);
+	}
+	const legacy = loadRoute({ sessionId: null });
+	assert.equal((await legacy.register({ platform: "ios", token: "ExponentPushToken[legacy]" })).status, 200);
+	assert.equal(legacy.table[0].clerkSessionId, null);
+});
+
+test("refreshing an older raw Apple row attaches the current trusted session", async () => {
+	const first = loadRoute({ sessionId: "sess_old" });
+	assert.equal((await first.register()).status, 200);
+	const refresh = loadRoute({ rows: [{ ...first.table[0], clerkSessionId: null }], sessionId: "sess_current" });
+	assert.equal((await refresh.register()).status, 200);
+	assert.equal(refresh.table[0].clerkSessionId, "sess_current");
+});
 
 test("a Mac registers its hex token under its environment and gets a device proof", async () => {
 	await withSecret(SECRET, async () => {
