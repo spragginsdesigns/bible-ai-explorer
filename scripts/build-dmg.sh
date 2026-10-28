@@ -21,6 +21,8 @@
 # built from; otherwise nothing is packaged. The record is carried forward
 # into <output.dmg>.provenance and <output.dmg>.sources, which release-dmg.sh
 # checks before publishing. See scripts/lib/release-provenance.sh.
+# Packaging alone is not publishable: macos/notarize-mac.sh signs/notarizes/
+# staples the container, then replaces its hash in this same provenance record.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -64,7 +66,7 @@ create-dmg \
 esac
 
 cp "$APP.sources" "$OUT.sources"
-printf 'version=%s\ndmgSha256=%s\nappCdhash=%s\nsourceCommit=%s\nsourceDirtyFiles=%s\nsourceSha256=%s\n' \
+printf 'version=%s\ndmgSha256=%s\nappCdhash=%s\nsourceCommit=%s\nsourceDirtyFiles=%s\nsourceSha256=%s\nnotarized=false\n' \
   "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")" \
   "$(release_sha256 "$OUT")" \
   "$(release_app_build_value "$APP" cdhash)" \

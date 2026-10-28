@@ -4,7 +4,7 @@
 # should be a SureWord.app that Spotlight can find.
 #
 #   bash macos/install-mac.sh            # build Release → replace /Applications/SureWord.app → launch
-#   bash macos/install-mac.sh --release  # …then build the DMG and publish macos-v<version> on GitHub
+#   bash macos/install-mac.sh --release  # …then notarize the app/DMG and publish macos-v<version> on GitHub
 #   bash macos/install-mac.sh --no-launch
 #
 # This is the mandatory last step of any macOS parity work (see CLAUDE.md →
@@ -91,9 +91,19 @@ trap 'rm -f "$build_sources"' EXIT
 release_source_listing "$repo_root" macos >"$build_sources"
 build_commit="$(git -C "$repo_root" rev-parse HEAD)"
 build_dirty="$(release_source_dirty_count "$repo_root" macos)"
+# Keep the host's push profile/entitlements target-specific: a global
+# CODE_SIGN_ENTITLEMENTS or profile override would also re-sign the embedded
+# Share extension with the host's incompatible capabilities and identifier.
+push_settings=()
+if [ -n "${SUREWORD_MAC_PUSH_PROFILE:-}" ]; then
+	push_settings+=("SUREWORD_MAC_PUSH_PROFILE=$SUREWORD_MAC_PUSH_PROFILE")
+	push_settings+=("SUREWORD_MAC_ENTITLEMENTS=SureWord/SureWordPush.entitlements")
+	push_settings+=("SUREWORD_APS_ENVIRONMENT=${SUREWORD_MAC_PUSH_ENVIRONMENT:-production}")
+	push_settings+=("CODE_SIGN_IDENTITY=${SUREWORD_MAC_PUSH_IDENTITY:-Developer ID Application}")
+fi
 (cd -- "$script_dir" && xcodebuild -project SureWord.xcodeproj -scheme SureWord \
 	-configuration Release -destination 'platform=macOS' \
-	-derivedDataPath "$build_dir" build -quiet) || die "xcodebuild failed"
+	-derivedDataPath "$build_dir" ${push_settings[@]+"${push_settings[@]}"} build -quiet) || die "xcodebuild failed"
 [ -d "$built_app" ] || die "build produced no app at $built_app"
 
 built_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$built_app/Contents/Info.plist")"
@@ -121,8 +131,8 @@ fi
 rm -rf "$installed_app"
 ditto "$built_app" "$installed_app"
 xattr -dr com.apple.quarantine "$installed_app" 2>/dev/null || true
-codesign --verify --deep --strict "$installed_app" 2>/dev/null ||
-	printf '  note: codesign --verify did not pass (local Development signing; app still launches)\n'
+codesign --verify --deep --strict "$installed_app" ||
+	die "installed app failed signature verification"
 
 installed_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$installed_app/Contents/Info.plist")"
 installed_build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$installed_app/Contents/Info.plist")"
@@ -143,9 +153,8 @@ fi
 
 # ---------------------------------------------------------------------------
 if [ "$do_release" = 1 ]; then
-	step "Publishing DMG for macOS $version"
-	command -v create-dmg >/dev/null 2>&1 || die "create-dmg is required for --release (brew install create-dmg)"
-	bash "$repo_root/scripts/build-dmg.sh" "$built_app" "$script_dir/SureWord.dmg"
+	step "Notarizing and publishing DMG for macOS $version"
+	bash "$script_dir/notarize-mac.sh"
 	bash "$script_dir/release-dmg.sh"
 fi
 

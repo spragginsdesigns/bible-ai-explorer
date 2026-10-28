@@ -49,13 +49,21 @@ printf '%s\n' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)
 # with no record, a different hash, or source that changed since is refused.
 # shellcheck source=../scripts/lib/release-provenance.sh
 . "$repo_root/scripts/lib/release-provenance.sh"
+# Sourcing defines checks only; it never submits or changes an artifact.
+. "$script_dir/notarize-mac.sh"
 [ -f "$provenance_file" ] ||
-	die "missing $provenance_file; rebuild the DMG with scripts/build-dmg.sh (install-mac.sh --release does this)"
+	die "missing $provenance_file; build/install, then run bash macos/notarize-mac.sh"
 provenance_value() {
 	awk -F= -v key="$1" '$1 == key { sub(/^[^=]*=/, ""); print; exit }' "$provenance_file"
 }
 [ "$(provenance_value dmgSha256)" = "$(release_sha256 "$dmg_file")" ] ||
-	die "SureWord.dmg does not match the hash build-dmg.sh recorded; rebuild it"
+	die "SureWord.dmg does not match its final provenance hash; run bash macos/notarize-mac.sh"
+[ "$(provenance_value notarized)" = true ] ||
+	die "SureWord.dmg has no completed notarization record; run bash macos/notarize-mac.sh"
+for submission_key in appNotarySubmission dmgNotarySubmission; do
+	printf '%s\n' "$(provenance_value "$submission_key")" | grep -Eq '^[0-9a-fA-F-]{36}$' ||
+		die "missing $submission_key notarization receipt"
+done
 [ "$(provenance_value version)" = "$version" ] ||
 	die "SureWord.dmg was built as $(provenance_value version), but project.yml declares $version; rebuild it"
 release_require_unchanged_source "$(provenance_value sourceSha256)" "$dmg_file.sources" "$repo_root" macos ||
@@ -64,6 +72,7 @@ release_require_unchanged_source "$(provenance_value sourceSha256)" "$dmg_file.s
 command -v hdiutil >/dev/null 2>&1 || die "hdiutil is required to verify the DMG"
 command -v codesign >/dev/null 2>&1 || die "codesign is required to verify the DMG"
 [ -x /usr/libexec/PlistBuddy ] || die "PlistBuddy is required to verify the app version"
+sureword_verify_distribution_dmg "$dmg_file" || die "DMG signature, ticket or Gatekeeper verification failed"
 mount_dir="$(mktemp -d)"
 hdiutil attach -nobrowse -readonly -mountpoint "$mount_dir" "$dmg_file" -quiet ||
 	die "could not mount $dmg_file for version verification"
@@ -75,6 +84,8 @@ built_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' 
 	die "DMG contains SureWord $built_version, but project.yml declares $version"
 codesign --verify --deep --strict "$mount_dir/SureWord.app" ||
 	die "SureWord.app in the DMG fails codesign --verify --deep --strict"
+sureword_verify_distribution_app "$mount_dir/SureWord.app" ||
+	die "bundled app/Share extension distribution signing, entitlements or notarization failed"
 signature="$(codesign -dv "$mount_dir/SureWord.app" 2>&1)" ||
 	die "could not read the code signature of SureWord.app in the DMG"
 signed_team="$(printf '%s\n' "$signature" | sed -n 's/^TeamIdentifier=//p')"
@@ -123,7 +134,7 @@ assets=("$dmg_file#SureWord.dmg")
 
 tag="macos-v$version"
 title="SureWord for macOS $version"
-notes="SureWord for macOS $version. This build is distributed as an unsigned, unnotarized DMG. macOS may require Open Anyway in Privacy & Security on first launch."
+notes="SureWord for macOS $version. The app and installer are signed with Developer ID Application, notarized by Apple, and include stapled notarization tickets. Open the DMG and drag SureWord to Applications."
 commit="$(git -C "$repo_root" rev-parse HEAD)"
 
 # The tag and release are deliberately mutable only when this script is run.
