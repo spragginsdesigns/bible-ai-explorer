@@ -1,6 +1,19 @@
 {
 	"releases": [
 		{
+			"version": "1.109.0",
+			"versionCode": 128,
+			"date": "2026-10-28",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"A small creator credit below the message box links to Austin's story of faith in Jesus Christ."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.108.1",
 			"versionCode": 127,
 			"date": "2026-10-28",
