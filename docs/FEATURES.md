@@ -2685,8 +2685,38 @@ shared device that cache may not even be this user's). **Auto is null on
 the wire** - the auto reasoning chip encodes as `chat.effort: null`, which
 clears the stored default instead of filling it back in.
 
-Device-only by decision: theme, reader font step, and the notification hour and
-switch, which was already stored per push token and so already per device.
+Device-only by decision: theme, reader font step, which reading page
+(below), and the notification hour and switch, which was already stored per
+push token and so already per device.
+
+## Reading pages
+
+*Web, founders beta (`founders-beta`, beta.sureword.app), LC-17770, 2026-10-28*
+
+Jay asked for a choice of pages to read on, the way Chessmaster 9000 offered a
+shelf of boards, and said the parchment was hard to read in light mode.
+Settings → Appearance & reading → **Reading page** is now a gallery of eight:
+Parchment, Vellum, Paper, Linen, Olive Grove, Jerusalem Stone, Twilight and
+Plain. Each swatch is drawn with the reader's own page classes, so it shows the
+real page in the current theme with a verse number, ink and the red of Jesus'
+words on it. The end of every chapter says which page is on and links back to
+the gallery ("Reading page: Parchment · Change").
+
+- **Every page has a light and a dark side** that follow the site theme, so
+  the reader's other light/dark colours stay right on all of them. A page is a
+  `.reader-page-<id>` block in `src/app/globals.css` that sets
+  `--reader-ink`, and where the defaults do not fit, `--reader-number` and
+  `--reader-red`; `src/lib/reader-surfaces.ts` is the list.
+  `tests/reader-surfaces.test.mjs` fails when a page lacks either side or an ink.
+- **Light parchment is washed.** The photo's saturated amber left the ink at
+  2.2:1 and Jesus' words at 1.1:1 against its darkest 5%. A 58% cream wash and
+  darker red and numbers bring every page's ink to at least 7.5:1 and its red
+  and numbers to at least 4.5:1 against the darkest 5% of the page.
+- **Only "Plain" is synced.** The account keeps its one `parchment` switch, so
+  Android and Apple, which draw only parchment, still follow it: Plain turns it
+  off, any other page turns it on. Which page is kept on this device
+  (`sureword-reader-page` in localStorage), like the theme, so no column or
+  migration was needed.
 
 ---
 

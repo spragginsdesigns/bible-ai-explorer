@@ -29,7 +29,8 @@ import {
   toggleVerse,
   type VerseSelection,
 } from "@/lib/bible/verseSelection";
-import { readLcGreekPref, readParchmentPref, readTranslationPref, writeLcGreekPref } from "@/lib/preferences";
+import { readLcGreekPref, readParchmentPref, readReaderSurfacePref, readTranslationPref, writeLcGreekPref } from "@/lib/preferences";
+import { DEFAULT_READER_SURFACE, readerPageChoice, readerPageLabel } from "@/lib/reader-surfaces";
 import {
   highlightLabelFor,
   notifyPreferencesChanged,
@@ -189,7 +190,10 @@ const ChapterReader: React.FC = () => {
       : accountTranslation;
   /** What copied, shared and saved verses are labelled: the words on screen. */
   const textLabel = lcGreek ? LC_GREEK.label : translation;
+  // `parchment` is the synced "page on" switch; `surface` is which page
+  // (LC-17770), chosen in Settings → Appearance and kept on this device.
   const parchment = usePreference(readParchmentPref, true);
+  const surface = usePreference(readReaderSurfacePref, DEFAULT_READER_SURFACE);
   const highlightLabels = useHighlightLabels();
   const [verses, setVerses] = useState<string[]>([]);
   const [studyVerses, setStudyVerses] = useState<string[]>([]);
@@ -933,13 +937,14 @@ const ChapterReader: React.FC = () => {
           </div>
         ) : (
           <>
-            {/* The scroll: a parchment sheet on the dark shell; verse ink
-                inherits from .parchment-page (globals.css). Settings ->
-                Appearance can switch it off, restoring the plain reader. */}
+            {/* The page: the reader's chosen sheet (parchment, vellum,
+                paper...) on the dark shell; verse ink inherits from
+                .reader-page (globals.css). Settings -> Appearance picks the
+                page, or Plain for none. */}
             <div
               className={
                 parchment
-                  ? "parchment-page mt-1 rounded-2xl px-5 py-6 shadow-xl ring-1 ring-black/25 dark:ring-white/10 sm:px-8"
+                  ? `reader-page reader-page-${surface} mt-1 rounded-2xl px-5 py-6 shadow-xl ring-1 ring-black/25 dark:ring-white/10 sm:px-8`
                   : "pt-2"
               }
             >
@@ -993,7 +998,7 @@ const ChapterReader: React.FC = () => {
                           selected
                             ? "text-amber-600 dark:text-amber-400"
                             : parchment
-                              ? "text-amber-900/70 dark:text-amber-400/80"
+                              ? "text-[color:var(--reader-number)]"
                               : "text-amber-700/60 dark:text-amber-500/50"
                         }`}
                       >
@@ -1011,7 +1016,13 @@ const ChapterReader: React.FC = () => {
                       {segments.map((segment, i) => (
                         <span
                           key={i}
-                          className={segment.jesusSpeech ? "text-[#a12e2a] dark:text-[#ef8a83]" : undefined}
+                          className={
+                            segment.jesusSpeech
+                              ? parchment
+                                ? "text-[color:var(--reader-red)]"
+                                : "text-[#a12e2a] dark:text-[#ef8a83]"
+                              : undefined
+                          }
                           style={{
                             fontStyle: segment.italic ? "italic" : undefined,
                             backgroundColor: verseColor ? highlightWash(verseColor) : undefined,
@@ -1053,6 +1064,18 @@ const ChapterReader: React.FC = () => {
                   : `${TRANSLATIONS[translation].label} - ${TRANSLATIONS[translation].copyright}`}
                 {!lcGreek && translation === "KJV" ? " · Editorial headings: BSB" : ""}
               </p>
+              {user ? (
+                <p className="mt-1 text-center text-xs">
+                  <Link
+                    href="/settings#appearance"
+                    className={`inline-flex min-h-11 items-center px-2 underline-offset-2 hover:underline ${
+                      parchment ? "opacity-70 hover:opacity-100" : "text-neutral-500 dark:text-neutral-400"
+                    }`}
+                  >
+                    Reading page: {readerPageLabel(readerPageChoice(parchment, surface))} · Change
+                  </Link>
+                </p>
+              ) : null}
               <div className="mt-6 flex gap-4">
                 {neighbors.prev ? (
                   <Link

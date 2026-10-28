@@ -14,6 +14,7 @@ import {
 	isAnswerLanguagePref,
 	type AnswerLanguagePref,
 } from "@/lib/preferences-contract";
+import { parseReaderSurface, type ReaderSurfaceId } from "@/lib/reader-surfaces";
 import {
 	DEFAULT_TEXT_SCALE,
 	TEXT_SCALE_PREF_KEY,
@@ -304,6 +305,24 @@ export function readParchmentPref(): boolean {
 export function writeParchmentPref(enabled: boolean) {
 	if (typeof window === "undefined") return;
 	window.localStorage.setItem(PARCHMENT_PREF_KEY, String(enabled));
+}
+
+/**
+ * Which page the reader's sheet is (LC-17770): Parchment, Vellum, Paper and
+ * the rest in `src/lib/reader-surfaces.ts`. Kept on this device only, like the
+ * theme; the account document holds just the parchment switch above, which
+ * "Plain" turns off. Default parchment.
+ */
+export const READER_SURFACE_PREF_KEY = "sureword-reader-page";
+
+export function readReaderSurfacePref(): ReaderSurfaceId {
+	if (typeof window === "undefined") return parseReaderSurface(null);
+	return parseReaderSurface(window.localStorage.getItem(READER_SURFACE_PREF_KEY));
+}
+
+export function writeReaderSurfacePref(surface: ReaderSurfaceId) {
+	if (typeof window === "undefined") return;
+	window.localStorage.setItem(READER_SURFACE_PREF_KEY, surface);
 }
 
 /**

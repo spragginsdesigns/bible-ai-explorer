@@ -18,6 +18,7 @@ import { LANGUAGE_NAMES, TRANSLATIONS, type TranslationId } from "@/lib/bible/tr
 import { ANSWER_LANGUAGE_PREFS, type AnswerLanguagePref } from "@/lib/preferences-contract";
 import {
 	readParchmentPref,
+	readReaderSurfacePref,
 	readQuizOfferPref,
 	writeQuizOfferPref,
 	readTranslationPref,
@@ -31,12 +32,20 @@ import {
 	chooseAnswerLanguage,
 	hydratePreferences,
 	notifyPreferencesChanged,
-	setParchmentPreference,
+	setReaderPagePreference,
 	setTranslationPreference,
 	setWebSearchPreference,
 	usePreference,
 } from "@/lib/preferencesSync";
 import { fetchMemories, setMemoryEnabled } from "@/lib/memories";
+import {
+	DEFAULT_READER_SURFACE,
+	PLAIN_READER_PAGE,
+	READER_SURFACES,
+	readerPageChoice,
+	readerPageLabel,
+	type ReaderPageChoice,
+} from "@/lib/reader-surfaces";
 import MemoryManager from "@/components/MemoryManager";
 import AboutMeSection from "@/components/settings/AboutMeSection";
 import TestimonySection from "@/components/settings/TestimonySection";
@@ -100,6 +109,42 @@ function ThemePreview({ id }: { id: (typeof THEME_OPTIONS)[number]["id"] }) {
 	);
 }
 
+const READER_PAGE_OPTIONS: readonly { id: ReaderPageChoice; label: string; note: string }[] = [
+	...READER_SURFACES,
+	PLAIN_READER_PAGE,
+];
+
+/**
+ * A corner of the reading page it names, drawn with the reader's own page
+ * classes (globals.css) so the swatch is the real page in the current theme,
+ * with a verse number, ink and the red of Jesus' words on it.
+ */
+function ReaderPagePreview({ id }: { id: ReaderPageChoice }) {
+	const sheet = id !== "plain";
+	return (
+		<div
+			aria-hidden
+			className={`flex h-16 w-full flex-col justify-center overflow-hidden rounded-lg px-2.5 text-left font-[family-name:var(--font-cormorant)] text-[15px] leading-tight ${
+				sheet
+					? `reader-page reader-page-${id} ring-1 ring-black/15 dark:ring-white/10`
+					: "border border-dashed border-black/15 dark:border-white/15 text-neutral-700 dark:text-neutral-300"
+			}`}
+		>
+			<span>
+				<span
+					className={`mr-0.5 align-super font-sans text-xs font-bold ${
+						sheet ? "text-[color:var(--reader-number)]" : "text-amber-700/60 dark:text-amber-500/50"
+					}`}
+				>
+					35
+				</span>
+				<span className={sheet ? "text-[color:var(--reader-red)]" : "text-[#a12e2a] dark:text-[#ef8a83]"}>Jesus wept.</span>
+			</span>
+			<span className="truncate">In the beginning was the Word</span>
+		</div>
+	);
+}
+
 /**
  * Settings, organised the way the apps are: on a phone a hub of categories
  * (Android's settings hub), each opening its own page; on a desktop the
@@ -119,6 +164,8 @@ export default function SettingsPage() {
 	// soon as the account document is hydrated.
 	const translation = usePreference<TranslationId>(readTranslationPref, "KJV");
 	const parchmentEnabled = usePreference(readParchmentPref, true);
+	const readerSurface = usePreference(readReaderSurfacePref, DEFAULT_READER_SURFACE);
+	const readerPage = readerPageChoice(parchmentEnabled, readerSurface);
 	const answerLanguage = usePreference<AnswerLanguagePref>(readAnswerLanguagePref, "auto");
 	// Device-only (never synced): whether the reader offers a quiz at a chapter's end.
 	const quizOfferEnabled = usePreference(readQuizOfferPref, true);
@@ -224,7 +271,7 @@ export default function SettingsPage() {
 	const hubSubtitles: Partial<Record<SettingsPaneId, string>> = {
 		appearance: [
 			themeLabel,
-			parchmentEnabled ? "Parchment" : "Plain reader",
+			parchmentEnabled ? readerPageLabel(readerPage) : "Plain reader",
 			translation,
 			...(mounted && answerLanguage !== "auto" ? [LANGUAGE_NAMES[answerLanguage]] : []),
 		].join(" · "),
@@ -397,19 +444,39 @@ export default function SettingsPage() {
 							<TextSizeControl mounted={mounted} />
 						</SettingsGroup>
 
+						<SettingsGroup
+							label="Reading page"
+							footer="The page the Bible is read on. Each one has a light and a dark side that follow your theme."
+						>
+							<div className="grid grid-cols-2 gap-2.5 p-3 sm:grid-cols-4 sm:gap-3 sm:p-4">
+								{READER_PAGE_OPTIONS.map(({ id, label, note }) => {
+									const active = mounted && readerPage === id;
+									return (
+										<button
+											key={id}
+											type="button"
+											aria-pressed={active}
+											disabled={!mounted}
+											onClick={() => void setReaderPagePreference(id)}
+											className={`flex flex-col gap-1.5 rounded-xl border p-2 text-left transition-colors ${
+												active
+													? "border-amber-500/60 dark:border-amber-400/50 bg-amber-500/10 dark:bg-amber-400/10 ring-2 ring-amber-500/20"
+													: "border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.02] hover:bg-black/[0.05] dark:hover:bg-white/[0.05]"
+											}`}
+										>
+											<ReaderPagePreview id={id} />
+											<span className="flex items-center gap-1 px-0.5 text-[13px] font-bold text-neutral-800 dark:text-neutral-200">
+												{label}
+												{active ? <Check className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" aria-hidden /> : null}
+											</span>
+											<span className="px-0.5 pb-0.5 text-[13px] leading-snug text-neutral-500 dark:text-neutral-400">{note}</span>
+										</button>
+									);
+								})}
+							</div>
+						</SettingsGroup>
+
 						<SettingsGroup label="Reading">
-							<SettingsRow
-								title="Parchment reader"
-								description="Read the Bible on aged scroll paper. Off returns the plain reader."
-								control={
-									<Switch
-										checked={parchmentEnabled}
-										label="Parchment reader"
-										disabled={!mounted}
-										onChange={(next) => void setParchmentPreference(next)}
-									/>
-								}
-							/>
 							<SettingsRow
 								title="Offer a quiz after each chapter"
 								description="A short, optional quiz at the end of each chapter. Every answer comes with its verse."

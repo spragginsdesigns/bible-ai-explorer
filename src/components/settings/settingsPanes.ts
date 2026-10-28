@@ -71,10 +71,10 @@ export const SETTINGS_PANES: SettingsPane[] = [
 		id: "appearance",
 		group: "study",
 		title: "Appearance & reading",
-		summary: "Theme, the parchment page, and your default Bible translation.",
+		summary: "Theme, the page you read on, and your default Bible translation.",
 		Icon: Palette,
 		tile: "from-indigo-400 to-indigo-600",
-		keywords: ["theme", "dark", "light", "parchment", "translation", "kjv", "nkjv", "bsb", "bible", "quiz", "text size", "font", "larger"],
+		keywords: ["theme", "dark", "light", "parchment", "page", "background", "paper", "reading page", "translation", "kjv", "nkjv", "bsb", "bible", "quiz", "text size", "font", "larger"],
 	},
 	{
 		id: "highlights",

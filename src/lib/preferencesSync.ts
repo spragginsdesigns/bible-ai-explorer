@@ -61,6 +61,7 @@ import {
 	writeModelPref,
 	writeMemoryEnabledPref,
 	writeParchmentPref,
+	writeReaderSurfacePref,
 	writeSpeedPref,
 	writeTestimonyPref,
 	writeTextScalePref,
@@ -72,6 +73,7 @@ import {
 	type HighlightLabels,
 	type HighlightMeanings,
 } from "@/lib/preferences";
+import type { ReaderPageChoice } from "@/lib/reader-surfaces";
 
 /**
  * Account preference sync for the web client.
@@ -775,6 +777,19 @@ export function setParchmentPreference(
 		"Couldn't save the reader style.",
 		options
 	);
+}
+
+/**
+ * Settings → Appearance → Reading page (LC-17770). "Plain" turns the synced
+ * parchment switch off; any other page turns it on and remembers which page on
+ * this device only, so the apps, which draw only parchment, still follow the
+ * switch.
+ */
+export function setReaderPagePreference(choice: ReaderPageChoice): Promise<string | null> {
+	if (choice === "plain") return setParchmentPreference(false);
+	writeReaderSurfacePref(choice);
+	notifyPreferencesChanged();
+	return readParchmentPref() ? Promise.resolve(null) : setParchmentPreference(true);
 }
 
 export function setListenRatePreference(
