@@ -33,6 +33,31 @@ test("a used-up allowance reads in local time under its own title", () => {
 	assert.equal(classifyChatError({ message: "[rate_limited] Slow down." }).title, "Slow down a moment");
 });
 
+test("only a Free reader's used-up allowance offers the upgrade", () => {
+	const error = "You've used your included AI allowance. More messages are available at 2026-10-28T00:00:00.000Z. You can keep reading and revisit saved study.";
+	const free = classifyChatError({ status: 429, bodyText: JSON.stringify({ code: "rate_limited", error, plan: "free" }) });
+	assert.equal(free.upgrade, true);
+	// The AI SDK transport throws the raw body as the message.
+	assert.equal(classifyChatError({ message: JSON.stringify({ code: "rate_limited", error, plan: "free" }) }).upgrade, true);
+	assert.equal(classifyChatError({ status: 429, bodyText: JSON.stringify({ code: "rate_limited", error, plan: "pro" }) }).upgrade, undefined);
+	// A burst limit or an older server that sends no plan never offers it.
+	assert.equal(classifyChatError({ status: 429, bodyText: JSON.stringify({ code: "rate_limited", error: "Slow down." }) }).upgrade, undefined);
+	assert.equal(classifyChatError({ message: "[rate_limited] Slow down." }).upgrade, undefined);
+	assert.equal(classifyChatError({ bodyText: JSON.stringify({ code: "internal", error: "x", plan: "free" }) }).upgrade, undefined);
+});
+
+test("the refused-request body carries the plan only for a used-up allowance", async () => {
+	const { IncludedAiLimitError, includedLimitBody } = await import("../src/lib/billing/usage-errors.ts");
+	const reset = new Date("2026-10-28T00:00:00.000Z");
+	assert.deepEqual(includedLimitBody(new IncludedAiLimitError("used", 429, reset, "free")), {
+		error: "used",
+		code: "rate_limited",
+		resetAt: reset.toISOString(),
+		plan: "free",
+	});
+	assert.equal("plan" in includedLimitBody(new IncludedAiLimitError("Too many AI attempts today.", 429, reset)), false);
+});
+
 test("classifies by the code in a JSON error body", () => {
 	const result = classifyChatError({
 		status: 429,

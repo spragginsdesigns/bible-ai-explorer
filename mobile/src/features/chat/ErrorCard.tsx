@@ -11,6 +11,7 @@ export function ErrorCard({
 	code,
 	retryLabel = "Retry",
 	onRetry,
+	action,
 }: {
 	title?: string;
 	message: string;
@@ -19,6 +20,8 @@ export function ErrorCard({
 	retryLabel?: string;
 	/** Omit for failures retrying cannot fix (bad input, expired session). */
 	onRetry?: () => void;
+	/** A second way forward, e.g. "See SureWord Pro" for a used-up allowance. */
+	action?: { label: string; onPress: () => void };
 }) {
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
@@ -34,6 +37,15 @@ export function ErrorCard({
 					style={({ pressed }) => [styles.button, pressed && { backgroundColor: colors.surfacePressed }]}
 				>
 					<Text style={styles.buttonLabel}>{retryLabel}</Text>
+				</Pressable>
+			) : null}
+			{action ? (
+				<Pressable
+					accessibilityRole="button"
+					onPress={action.onPress}
+					style={({ pressed }) => [styles.action, pressed && { backgroundColor: colors.accentPressed }]}
+				>
+					<Text style={styles.actionLabel}>{action.label}</Text>
 				</Pressable>
 			) : null}
 		</View>
@@ -64,4 +76,14 @@ const createStyles = (c: Colors) =>
 			backgroundColor: c.surface,
 		},
 		buttonLabel: { color: c.danger, fontSize: 13, fontWeight: "600" },
+		action: {
+			alignSelf: "flex-start",
+			paddingHorizontal: spacing.lg,
+			paddingVertical: spacing.sm,
+			borderRadius: radius.full,
+			borderWidth: 1,
+			borderColor: c.accentBorder,
+			backgroundColor: c.accentSoft,
+		},
+		actionLabel: { color: c.accent, fontSize: 13, fontWeight: "700" },
 	});

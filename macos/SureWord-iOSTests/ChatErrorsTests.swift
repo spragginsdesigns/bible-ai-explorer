@@ -75,6 +75,15 @@ struct ChatErrorsTests {
         #expect(classified.retryable)
     }
 
+    @Test("Only a Free reader's used-up allowance offers SureWord Pro")
+    func upgradeOnlyForFreeAllowance() {
+        let message = "You've used your included AI allowance."
+        #expect(ChatErrors.classify(APIError.server(status: 429, message: message, code: "rate_limited", plan: "free")).upgrade)
+        #expect(!ChatErrors.classify(APIError.server(status: 429, message: message, code: "rate_limited", plan: "pro")).upgrade)
+        #expect(!ChatErrors.classify(APIError.server(status: 429, message: "Slow down.", code: "rate_limited")).upgrade)
+        #expect(!ChatErrors.classify(APIError.server(status: 500, message: "boom", code: "internal", plan: "free")).upgrade)
+    }
+
     @Test("Maps a 500 to internal")
     func internalError() {
         let classified = ChatErrors.classify(APIError.server(status: 500, message: "boom"))

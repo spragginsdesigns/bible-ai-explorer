@@ -21,6 +21,7 @@ import {
 	audioTranscriptText,
 	formatAudioDuration,
 	freeDailyAudioSeconds,
+	mentionsProFor,
 } from "../src/lib/audio-transcription-rules.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -79,7 +80,7 @@ test("the whole message has to fit the free allowance; Pro is never capped", () 
 	assert.equal(audioQuotaDecision({ plan: "free", usedSeconds: 0, newSeconds: 5, capSeconds: 0 }).ok, false);
 });
 
-test("the iOS copy never mentions SureWord Pro (App Review 3.1.1)", () => {
+test("iOS copy mentions SureWord Pro only while App Store checkout is on (App Review 3.1.1)", () => {
 	const cap = 600;
 	const over = audioQuotaDecision({ plan: "free", usedSeconds: 332.5, newSeconds: 375.3, capSeconds: cap, mentionPro: false });
 	assert.equal(over.ok, false);
@@ -88,7 +89,13 @@ test("the iOS copy never mentions SureWord Pro (App Review 3.1.1)", () => {
 	const off = audioQuotaDecision({ plan: "free", usedSeconds: 0, newSeconds: 5, capSeconds: 0, mentionPro: false });
 	assert.doesNotMatch(off.message, /Pro/);
 	const complete = read("src/app/api/chat/attachments/[id]/complete/route.ts");
-	assert.match(complete, /platformFromHeaders\(request\.headers\) !== "ios"/);
+	assert.match(complete, /mentionsProFor\(platformFromHeaders\(request\.headers\), appStoreBillingAvailable\(\)\)/);
+	assert.equal(mentionsProFor("ios", false), false);
+	assert.equal(mentionsProFor("ios", true), true);
+	assert.equal(mentionsProFor("android", false), true);
+	assert.equal(mentionsProFor("web", false), true);
+	const sold = audioQuotaDecision({ plan: "free", usedSeconds: 332.5, newSeconds: 375.3, capSeconds: cap, mentionPro: mentionsProFor("ios", true) });
+	assert.match(sold.message, /SureWord Pro has no limit\.$/);
 });
 
 test("durations print as m:ss", () => {

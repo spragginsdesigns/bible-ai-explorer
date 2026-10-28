@@ -67,6 +67,17 @@ describe("classifyChatError", () => {
 		);
 	});
 
+	it("marks only a Free reader's used-up allowance for the upgrade", () => {
+		const error = "You've used your included AI allowance. More messages are available at 2026-10-28T00:00:00.000Z. You can keep reading and revisit saved study.";
+		const body = (extra: Record<string, unknown>) => new Error(JSON.stringify({ code: "rate_limited", error, ...extra }));
+		expect(classifyChatError(body({ plan: "free" })).upgrade).toBe(true);
+		expect(classifyChatError(body({ plan: "pro" })).upgrade).toBeUndefined();
+		// An older server sends no plan; a burst limit never carries one.
+		expect(classifyChatError(body({})).upgrade).toBeUndefined();
+		expect(classifyChatError("[rate_limited] Slow down.").upgrade).toBeUndefined();
+		expect(classifyChatError(new Error(JSON.stringify({ code: "internal", error: "x", plan: "free" }))).upgrade).toBeUndefined();
+	});
+
 	it("keeps the burst-limit title for an ordinary 429", () => {
 		expect(classifyChatError(new ApiError("Too many questions today.", { status: 429 })).title).toBe("Too many requests");
 	});

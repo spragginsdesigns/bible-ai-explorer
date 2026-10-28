@@ -21,6 +21,10 @@ struct ChatMessageList: View {
     var onFeedback: (ChatViewMessage, AnswerFeedback?, AnswerFeedbackDetails?) -> Void
     /// Open the Share sheet for one answer; the tab owns it.
     var onShare: (ChatViewMessage) -> Void
+    /// A Free reader out of today's messages opens the in-app purchase screen
+    /// from the error card (StoreKit only, never a web link), as the locked
+    /// Listen panel does.
+    @State private var showingPro = false
 
     var body: some View {
         // The newest question shows Copy / Edit under it; only the newest
@@ -65,7 +69,11 @@ struct ChatMessageList: View {
                     }
 
                     if let sendError = chat.sendError {
-                        ChatErrorCard(error: sendError, actionTitle: "Try again") {
+                        ChatErrorCard(
+                            error: sendError,
+                            actionTitle: "Try again",
+                            onSeePro: sendError.upgrade ? { showingPro = true } : nil
+                        ) {
                             Task { await chat.retrySend() }
                         }
                     }
@@ -76,6 +84,18 @@ struct ChatMessageList: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .guideVoice(chat: chat, app: app)
+            // On the list, not the card: the sheet must outlive the error it came from.
+            .sheet(isPresented: $showingPro) {
+                NavigationStack {
+                    ProMembershipView()
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Done") { showingPro = false }
+                            }
+                        }
+                }
+                .environment(app)
+            }
             // Follow the answer as it streams.
             .onChange(of: chat.messages.last?.content) {
                 guard let id = chat.messages.last?.id else { return }
@@ -112,6 +132,8 @@ struct ChatErrorCard: View {
     var actionTitle: String = "Retry"
     /// Nil hides the button - Android offers none when retrying cannot help.
     var action: (() -> Void)?
+    /// "See SureWord Pro", for a Free reader's used-up allowance. Nil hides it.
+    var onSeePro: (() -> Void)? = nil
 
     init(
         title: String? = nil,
@@ -130,7 +152,13 @@ struct ChatErrorCard: View {
     /// A classified chat error: its title, message and code, and the action
     /// only when the error says retrying can help (`onRetry={error.retryable ?
     /// retrySend : undefined}` on Android).
-    init(error: ClassifiedChatError, actionTitle: String, alwaysRetry: Bool = false, action: @escaping () -> Void) {
+    init(
+        error: ClassifiedChatError,
+        actionTitle: String,
+        alwaysRetry: Bool = false,
+        onSeePro: (() -> Void)? = nil,
+        action: @escaping () -> Void
+    ) {
         self.init(
             title: error.title,
             message: error.message,
@@ -138,6 +166,7 @@ struct ChatErrorCard: View {
             actionTitle: actionTitle,
             action: (error.retryable || alwaysRetry) ? action : nil
         )
+        self.onSeePro = onSeePro
     }
 
     var body: some View {
@@ -160,6 +189,10 @@ struct ChatErrorCard: View {
             if let action {
                 Button(actionTitle, action: action)
                     .buttonStyle(AccentButtonStyle())
+            }
+            if let onSeePro {
+                Button("See SureWord Pro", action: onSeePro)
+                    .buttonStyle(.bordered)
             }
         }
         .padding(Spacing.lg)

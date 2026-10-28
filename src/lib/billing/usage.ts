@@ -6,7 +6,7 @@ import { wrapLanguageModel, type LanguageModel } from "ai";
 import { prisma } from "@/lib/prisma";
 import { getUserPlan, type UserPlan } from "@/lib/entitlements";
 import { calendarMonthWindow, quotaDecision, utcDayWindow } from "./plans";
-import { IncludedAiLimitError } from "./usage-errors";
+import { IncludedAiLimitError, includedLimitBody } from "./usage-errors";
 import type { AiAccess } from "@/lib/ai/access";
 import { accountSubscription } from "./subscription";
 import { DEFAULT_ONBOARDING_TURN_CEILING, readCeiling } from "@/lib/onboarding-rules";
@@ -244,6 +244,7 @@ async function reserve(scope: Scope, userId: string) {
               : `You've used your included AI allowance. More messages are available at ${reset.toISOString()}. You can keep reading and revisit saved study.`,
             429,
             reset,
+            pro ? "pro" : "free",
           );
         }
         await tx.aiUsageRequest.create({
@@ -312,14 +313,9 @@ export function withIncludedAiRequest<T extends unknown[]>(
       try {
         const response = await handler(...args);
         if (scope.denied && response.status >= 400) {
-          return Response.json(
-            {
-              error: scope.denied.message,
-              code: "rate_limited",
-              resetAt: scope.denied.resetAt?.toISOString(),
-            },
-            { status: scope.denied.status },
-          );
+          return Response.json(includedLimitBody(scope.denied), {
+            status: scope.denied.status,
+          });
         }
         if (
           response.ok &&
@@ -352,14 +348,9 @@ export function withIncludedAiRequest<T extends unknown[]>(
       } catch (error) {
         await finish(scope);
         if (error instanceof IncludedAiLimitError)
-          return Response.json(
-            {
-              error: error.message,
-              code: "rate_limited",
-              resetAt: error.resetAt?.toISOString(),
-            },
-            { status: error.status },
-          );
+          return Response.json(includedLimitBody(error), {
+            status: error.status,
+          });
         throw error;
       }
     });

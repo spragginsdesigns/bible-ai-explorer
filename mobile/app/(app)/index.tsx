@@ -18,6 +18,7 @@ import { composerChip } from "@/features/chat/modelPickerRules";
 import { useAiModels } from "@/features/chat/useAiModels";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { ErrorCard } from "@/features/chat/ErrorCard";
+import { usePlayUpgrade } from "@/features/settings/usePlayUpgrade";
 import { HistoryModal } from "@/features/chat/HistoryModal";
 import { MessageList } from "@/features/chat/MessageList";
 import { SanctuaryBackdrop, WelcomeState } from "@/features/chat/WelcomeState";
@@ -279,6 +280,8 @@ export default function ChatScreen() {
 		newConversation,
 	} = chat;
 	const busy = loading || isStreaming;
+	// A Free reader out of today's messages can buy Pro on the Membership card.
+	const offerPro = usePlayUpgrade(getToken, Boolean(error?.upgrade));
 
 	const startEdit = useCallback(
 		(message: ChatViewMessage) => {
@@ -533,6 +536,7 @@ export default function ChatScreen() {
 								code={error.code}
 								retryLabel="Try again"
 								onRetry={error.retryable ? retrySend : undefined}
+								action={offerPro && error.upgrade ? { label: "See SureWord Pro", onPress: () => router.push("/settings/ai") } : undefined}
 							/>
 						)}
 					</MessageList>

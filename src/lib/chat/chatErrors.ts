@@ -34,6 +34,13 @@ export interface ClassifiedChatError {
 	title: string;
 	message: string;
 	retryable: boolean;
+	/**
+	 * A Free reader who has used today's included messages: the server marks
+	 * that refusal with `plan: "free"` (src/lib/billing/usage-errors.ts), and
+	 * the chat offers SureWord Pro beside it. Absent everywhere else, Pro
+	 * included.
+	 */
+	upgrade?: boolean;
 }
 
 export interface ClassifyChatErrorInput {
@@ -69,7 +76,7 @@ export function extractCodePrefix(text: string): { code: ChatErrorCode | null; m
 }
 
 /** Parse a server JSON error body ({ error, code }) if the text looks like one. */
-function parseJsonErrorBody(text: string): { code: ChatErrorCode | null; message: string | null } {
+function parseJsonErrorBody(text: string): { code: ChatErrorCode | null; message: string | null; freePlan?: boolean } {
 	const trimmed = text.trim();
 	if (!trimmed.startsWith("{")) return { code: null, message: null };
 	try {
@@ -79,6 +86,7 @@ function parseJsonErrorBody(text: string): { code: ChatErrorCode | null; message
 		return {
 			code: isChatErrorCode(record.code) ? record.code : null,
 			message: typeof record.error === "string" ? record.error : null,
+			freePlan: record.plan === "free",
 		};
 	} catch {
 		return { code: null, message: null };
@@ -203,7 +211,10 @@ export function classifyChatError(input: ClassifyChatErrorInput): ClassifiedChat
 	);
 	for (const candidate of candidates) {
 		const body = parseJsonErrorBody(candidate);
-		if (body.code) return copyFor(body.code, body.message);
+		if (body.code) {
+			const classified = copyFor(body.code, body.message);
+			return body.code === "rate_limited" && body.freePlan ? { ...classified, upgrade: true } : classified;
+		}
 	}
 
 	// (b) A mid-stream "[code] message" error chunk.

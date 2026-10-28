@@ -10,7 +10,8 @@ import {
   UploadedAttachmentValidationError,
   verifyUploadedAttachment,
 } from "@/lib/chat-attachments.server";
-import { freeDailyAudioSeconds } from "@/lib/audio-transcription-rules";
+import { freeDailyAudioSeconds, mentionsProFor } from "@/lib/audio-transcription-rules";
+import { appStoreBillingAvailable } from "@/lib/billing/subscription";
 import { releaseAudioReservation, reserveAudioSeconds } from "@/lib/audio-transcription-usage";
 import { AudioTranscriptionUnavailableError, transcribeAudio } from "@/lib/audio-transcription";
 import { platformFromHeaders } from "@/lib/analytics/events";
@@ -171,7 +172,7 @@ async function finishClaimedAttachment(
           attachment.id,
           bytes,
           attachment.mediaType,
-          platformFromHeaders(request.headers) !== "ios",
+          mentionsProFor(platformFromHeaders(request.headers), appStoreBillingAvailable()),
         )
       : null;
     const ready = await prisma.chatAttachment.update({

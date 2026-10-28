@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import {
 	Camera,
 	ClipboardPaste,
@@ -435,6 +436,15 @@ const ChatInput: React.FC<ChatInputProps> = ({
 								<p className="mt-1 text-xs leading-4 text-neutral-400 dark:text-neutral-600">
 									ref: {shownError.code}
 								</p>
+								{/* A Free reader out of messages can upgrade instead of waiting for the reset. */}
+								{shownError.upgrade && (
+									<Link
+										href="/membership"
+										className="mt-2 inline-flex items-center rounded-lg border border-amber-500/30 bg-amber-500/[0.08] px-2.5 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-500/[0.14] dark:text-amber-400"
+									>
+										See SureWord Pro
+									</Link>
+								)}
 							</div>
 							{shownError.retryable && onRetry && (
 								<button

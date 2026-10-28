@@ -13,6 +13,9 @@ struct APIError: Error, Equatable {
     /// The server's contract code (`rate_limited`, `invalid_input`, ...) when
     /// the error body carried one. `ChatErrors.classify` reads it.
     var code: String? = nil
+    /// The body's `plan` (`free` / `pro`), sent only with a used-up daily
+    /// allowance so a Free reader can be offered SureWord Pro there.
+    var plan: String? = nil
 
     /// True when the failure is the connection rather than the server.
     var isOffline: Bool { isNetworkError || isTimeout }
@@ -27,8 +30,8 @@ struct APIError: Error, Equatable {
         isNetworkError: true
     )
 
-    static func server(status: Int, message: String? = nil, code: String? = nil) -> APIError {
-        APIError(message: message ?? "Request failed: \(status)", status: status, code: code)
+    static func server(status: Int, message: String? = nil, code: String? = nil, plan: String? = nil) -> APIError {
+        APIError(message: message ?? "Request failed: \(status)", status: status, code: code, plan: plan)
     }
 }
 

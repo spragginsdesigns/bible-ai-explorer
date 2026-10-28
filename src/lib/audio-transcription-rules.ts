@@ -29,9 +29,9 @@ export type AudioQuotaDecision = { ok: true } | { ok: false; message: string };
  * Whether one more voice message of `newSeconds` fits. Pro is never capped. The
  * whole file has to fit: transcribing half a message would answer half a claim.
  *
- * `mentionPro: false` drops every reference to SureWord Pro. The iOS app sells
- * nothing, and App Review (3.1.1/3.1.3) rejects copy that points at a tier the
- * app cannot sell, so the route passes it for `x-sureword-client: ios`.
+ * `mentionPro: false` drops every reference to SureWord Pro, for an app that
+ * cannot sell it: App Review (3.1.1/3.1.3) rejects copy that points at a tier
+ * the app cannot sell. The route decides with `mentionsProFor`.
  */
 export function audioQuotaDecision(input: {
 	plan: UserPlan;
@@ -61,6 +61,17 @@ export function audioQuotaDecision(input: {
 			`today's ${capMinutes} free minutes. They refresh over the next 24 hours` +
 			(mentionPro ? ", and SureWord Pro has no limit." : "."),
 	};
+}
+
+/**
+ * Whether the quota copy may name SureWord Pro for this client. iOS sells Pro
+ * through StoreKit, but only while the server can verify App Store purchases
+ * (`appStoreBillingAvailable`, the same switch behind the iOS Subscribe
+ * button); with that off the iOS app sells nothing, so its copy stays silent.
+ * Every other client keeps the mention.
+ */
+export function mentionsProFor(platform: string, appStoreCheckoutAvailable: boolean): boolean {
+	return platform !== "ios" || appStoreCheckoutAvailable;
 }
 
 /** "5:32" for 332.5 seconds; hours never occur (a file is capped at 15 minutes). */

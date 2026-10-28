@@ -34,6 +34,13 @@ export interface ClassifiedChatError {
 	title: string;
 	message: string;
 	retryable: boolean;
+	/**
+	 * A Free reader who has used today's included messages: the server marks
+	 * that refusal with `plan: "free"` (src/lib/billing/usage-errors.ts). The
+	 * chat offers SureWord Pro beside it when Play checkout is on
+	 * (usePlayUpgrade). Absent everywhere else, Pro included.
+	 */
+	upgrade?: boolean;
 }
 
 const SERVER_CODES: readonly ChatErrorCode[] = [
@@ -123,7 +130,7 @@ export function parseErrorCodePrefix(text: string): { code: ChatErrorCode; rest:
  * transport throws non-OK responses with the raw body text as the error
  * message, so this is what keeps literal JSON off the screen.
  */
-function parseJsonErrorBody(text: string): { code?: ChatErrorCode; message?: string } | null {
+function parseJsonErrorBody(text: string): { code?: ChatErrorCode; message?: string; freePlan?: boolean } | null {
 	const trimmed = text.trim();
 	if (!trimmed.startsWith("{")) return null;
 	try {
@@ -135,7 +142,7 @@ function parseJsonErrorBody(text: string): { code?: ChatErrorCode; message?: str
 				: undefined;
 		const message = typeof data.error === "string" ? data.error : undefined;
 		if (!code && !message) return null;
-		return { code, message };
+		return { code, message, freePlan: data.plan === "free" };
 	} catch {
 		return null;
 	}
@@ -206,7 +213,10 @@ export function classifyChatError(error: unknown, opts?: { message?: string }): 
 
 	// (a) A parsed JSON body with a contract code wins over everything else.
 	const json = parseJsonErrorBody(raw);
-	if (json?.code) return build(json.code, json.message, opts?.message);
+	if (json?.code) {
+		const classified = build(json.code, json.message, opts?.message);
+		return json.code === "rate_limited" && json.freePlan ? { ...classified, upgrade: true } : classified;
+	}
 
 	// (b) Mid-stream SSE error chunk: `[code] message`.
 	const prefixed = parseErrorCodePrefix(json?.message ?? raw);

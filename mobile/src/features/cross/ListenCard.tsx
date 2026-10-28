@@ -18,6 +18,7 @@ import {
 	type AudioMetadata,
 	type AudioSource,
 } from "expo-audio";
+import { useRouter } from "expo-router";
 import { GlassCard } from "@/components/ui";
 import { NarrationSetup } from "@/features/cross/NarrationSetup";
 import type { NarrationOptions } from "@/features/cross/narrationOptions";
@@ -28,6 +29,7 @@ import {
 	type DailyCrossAudio,
 } from "@/features/notifications/api";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
+import { usePlayUpgrade } from "@/features/settings/usePlayUpgrade";
 import { API_URL, boundedToken } from "@/lib/api";
 import { radius, spacing, typography, type Colors } from "@/theme";
 import {
@@ -183,6 +185,9 @@ export function ListenCard({ reference }: { reference?: string | null }) {
 	const currentTimeRef = useRef(0);
 
 	const phase = requesting ? "preparing" : failureText ? "failed" : listenPhase(audio);
+	const router = useRouter();
+	// Free readers see the way to Pro only where Google Play can sell it.
+	const offerPro = usePlayUpgrade(getToken, phase === "locked");
 
 	const streamUrl = audio?.streamUrl ?? null;
 	const [source, setSource] = useState<AudioSource | null>(null);
@@ -494,8 +499,9 @@ export function ListenCard({ reference }: { reference?: string | null }) {
 	return (
 		<TimelineStop glyph="♪" label="LISTEN">
 			<GlassCard style={styles.card}>
-				{/* A locked benefit is shown, not hidden - but with no button, because
-				    there is nowhere for one to go until billing exists. */}
+				{/* A locked benefit is shown, not hidden. "See SureWord Pro" opens the
+				    Membership card (Settings -> AI), and only when Play checkout is
+				    on there; otherwise the panel carries no button. */}
 				{phase === "locked" ? (
 					<>
 						<Text style={styles.lockGlyph}>🔒</Text>
@@ -504,6 +510,15 @@ export function ListenCard({ reference }: { reference?: string | null }) {
 							A spoken devotional for today&apos;s word, made when you choose.
 							Listen is included with SureWord Pro.
 						</Text>
+						{offerPro ? (
+							<Pressable
+								accessibilityRole="button"
+								onPress={() => router.push("/settings/ai")}
+								style={({ pressed }) => [styles.primaryButton, pressed && { backgroundColor: colors.accentPressed }]}
+							>
+								<Text style={styles.primaryButtonLabel}>See SureWord Pro</Text>
+							</Pressable>
+						) : null}
 					</>
 				) : phase === "loading" ? (
 					<Text accessibilityLiveRegion="polite" style={styles.preparingText}>Loading audio…</Text>

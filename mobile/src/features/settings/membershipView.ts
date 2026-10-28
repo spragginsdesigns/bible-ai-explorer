@@ -49,3 +49,21 @@ export function externalManagementLine(
 		return "This subscription was bought on sureword.app. Manage it there under Membership.";
 	return null;
 }
+
+/** The /api/billing/status fields the upgrade decision reads. */
+export type UpgradeStatus = {
+	plan: "free" | "pro";
+	owner: boolean;
+	playCheckoutAvailable?: boolean;
+};
+
+/**
+ * Whether a Pro wall (the locked Listen panel, a used-up daily allowance) may
+ * offer "See SureWord Pro". Only on Android, only where the Membership card
+ * would itself offer "Start Pro" (Play checkout on, not the owner, not already
+ * Pro), so the button never leads to a card with nothing to buy. Play billing
+ * rules also keep it from pointing anywhere but the in-app purchase.
+ */
+export function canOfferPlayUpgrade(os: string, status: UpgradeStatus | null | undefined): boolean {
+	return os === "android" && Boolean(status?.playCheckoutAvailable) && !status?.owner && status?.plan !== "pro";
+}

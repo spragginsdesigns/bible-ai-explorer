@@ -46,6 +46,10 @@ struct ClassifiedChatError: Sendable, Equatable {
     /// Whether "Try again" is offered. Retrying a refused sign-in or an
     /// invalid message would only fail the same way.
     var retryable: Bool
+    /// A Free reader who has used today's included messages (the server's
+    /// `plan: "free"`); iOS offers SureWord Pro beside it. False everywhere
+    /// else, Pro included - Android's `upgrade`.
+    var upgrade = false
 }
 
 enum ChatErrors {
@@ -186,7 +190,9 @@ enum ChatErrors {
         // by APIClient, or still inside a raw JSON string.
         let json = parseJSONBody(raw)
         if let code = apiError?.code.flatMap(ChatErrorCode.init(serverCode:)) ?? json?.code {
-            return build(code, serverMessage: json?.message ?? raw, override: override)
+            var classified = build(code, serverMessage: json?.message ?? raw, override: override)
+            classified.upgrade = code == .rateLimited && apiError?.plan == "free"
+            return classified
         }
 
         // (b) Mid-stream SSE error chunk: `[code] message`.

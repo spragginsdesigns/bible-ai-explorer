@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { externalManagementLine, subscriptionStatusLine } from "./membershipView";
+import { canOfferPlayUpgrade, externalManagementLine, subscriptionStatusLine } from "./membershipView";
 
 const fmt = (date: Date) => date.toISOString().slice(0, 10);
 const periodEnd = "2026-11-27T00:00:00.000Z";
@@ -50,5 +50,22 @@ describe("externalManagementLine", () => {
 	it("never points a lapsed subscriber at another store", () => {
 		expect(externalManagementLine("free", { provider: "stripe", status: "canceled" })).toBeNull();
 		expect(externalManagementLine("free", { provider: "stripe", status: "past_due" })).toContain("sureword.app");
+	});
+});
+
+describe("canOfferPlayUpgrade", () => {
+	const free = { plan: "free" as const, owner: false, playCheckoutAvailable: true };
+
+	it("offers Pro to a Free Android reader when Play checkout is on", () => {
+		expect(canOfferPlayUpgrade("android", free)).toBe(true);
+	});
+
+	it("never offers it without Play checkout, to Pro, to the owner, or off Android", () => {
+		expect(canOfferPlayUpgrade("android", { ...free, playCheckoutAvailable: false })).toBe(false);
+		expect(canOfferPlayUpgrade("android", { plan: "free", owner: false })).toBe(false);
+		expect(canOfferPlayUpgrade("android", { ...free, plan: "pro" })).toBe(false);
+		expect(canOfferPlayUpgrade("android", { ...free, owner: true })).toBe(false);
+		expect(canOfferPlayUpgrade("ios", free)).toBe(false);
+		expect(canOfferPlayUpgrade("android", null)).toBe(false);
 	});
 });

@@ -3,6 +3,7 @@ import { consentFetch } from "@/lib/ai-consent-gate";
 
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import NarrationSetup from "@/components/cross/NarrationSetup";
 import type { NarrationOptions } from "@/lib/daily-cross-audio-options";
 import TimelineStop from "@/components/cross/TimelineStop";
@@ -272,8 +273,8 @@ export default function ListenCard({ reference }: { reference?: string | null })
 	// An unconfigured server offers nothing here - not even the rail node.
 	if (phase === "hidden") return null;
 
-	// A locked benefit is shown, not hidden - but with no button, because there
-	// is nowhere for one to go until billing exists.
+	// A locked benefit is shown, not hidden, with the way to unlock it:
+	// /membership is where web sells Pro (and says so when checkout is off).
 	if (phase === "locked") {
 		return (
 			<TimelineStop glyph="♪" label="LISTEN">
@@ -288,6 +289,12 @@ export default function ListenCard({ reference }: { reference?: string | null })
 						A spoken devotional for today&apos;s word, made when you choose.
 						Listen is included with SureWord Pro.
 					</p>
+					<Link
+						href="/membership"
+						className="mt-1 inline-flex min-h-11 items-center rounded-full border border-amber-500/30 bg-amber-500/[0.08] px-4 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-500/[0.14] sm:min-h-0 sm:py-1.5 dark:text-amber-400"
+					>
+						See SureWord Pro
+					</Link>
 				</div>
 			</TimelineStop>
 		);

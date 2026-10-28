@@ -90,7 +90,8 @@ final class APIClient: Sendable {
             throw APIError.server(
                 status: result.status,
                 message: Self.errorMessage(in: result.data),
-                code: Self.errorCode(in: result.data)
+                code: Self.errorCode(in: result.data),
+                plan: Self.errorPlan(in: result.data)
             )
         }
         return result.data
@@ -210,7 +211,8 @@ final class APIClient: Sendable {
             throw APIError.server(
                 status: response.statusCode,
                 message: Self.errorMessage(in: payload),
-                code: Self.errorCode(in: payload)
+                code: Self.errorCode(in: payload),
+                plan: Self.errorPlan(in: payload)
             )
         }
         return bytes
@@ -321,6 +323,12 @@ final class APIClient: Sendable {
     private static func errorCode(in data: Data) -> String? {
         struct Payload: Decodable { let code: String? }
         return try? JSONDecoder().decode(Payload.self, from: data).code
+    }
+
+    /// The `plan` a used-up allowance refusal carries (`src/lib/billing/usage-errors.ts`).
+    private static func errorPlan(in data: Data) -> String? {
+        struct Payload: Decodable { let plan: String? }
+        return try? JSONDecoder().decode(Payload.self, from: data).plan
     }
 
     /// `request_failed` for a non-2xx answer, as `apiJson` reports it on

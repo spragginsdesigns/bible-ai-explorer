@@ -3998,6 +3998,12 @@ clients show verbatim, before any spend: "This voice message is 6:15 and you
 have 4 min left of today's 10 free minutes. They refresh over the next 24
 hours, and SureWord Pro has no limit."
 
+The iOS app hears the same sentence only while it can sell Pro: the route
+asks `mentionsProFor(platform, appStoreBillingAvailable())`
+(`src/lib/audio-transcription-rules.ts`), so with App Store verification
+switched off the iOS copy ends at "...over the next 24 hours." and names no
+tier it cannot sell (App Review 3.1.1). Every other client keeps the mention.
+
 The allowance is counted from the `AudioTranscriptionUsage` ledger, not from
 the attachments (security scan 2026-10-09; it used to sum
 `ChatAttachment.durationSeconds`, so deleting a transcribed attachment, or the
@@ -4205,6 +4211,32 @@ purchase button. The locked Listen panel on iOS offers "See SureWord Pro",
 which opens that screen (in-app purchase only, never a web link). macOS
 compiles the shared code but shows no purchase UI (the Mac App Store is not a
 distribution channel).
+
+### Upgrade from a Pro wall
+
+Added 2026-10-28. Where a Free reader runs into a Pro limit, the client that
+can sell Pro offers "See SureWord Pro" right there:
+
+| Wall | Web | Android | iOS | macOS |
+| --- | --- | --- | --- | --- |
+| Locked Listen panel | Link to `/membership` | Opens Settings > AI (Membership card) when Play checkout is on | Opens `ProMembershipView` | No button |
+| Daily AI allowance used up | Link to `/membership` in the composer's error card | Same as Listen, in the chat `ErrorCard` | `ChatErrorCard` opens `ProMembershipView` | No button |
+
+The allowance refusal tells the client which plan hit it: the 429 body is
+`{ error, code: "rate_limited", resetAt, plan }` (`includedLimitBody` in
+`src/lib/billing/usage-errors.ts`), with `plan` set only on the used-up
+daily or monthly allowance. The message text is unchanged. The burst limiter,
+the daily attempt cap, a duplicate send and older servers carry no plan, so
+none of them shows the button, and a Pro reader at the monthly cap never sees
+one. Each client's chat error classifier sets `upgrade` only for
+`rate_limited` with `plan: "free"`.
+
+Android follows Play's rules: the button appears only when
+`/api/billing/status` reports `playCheckoutAvailable` and the account is
+neither Pro nor the owner (`canOfferPlayUpgrade` in
+`mobile/src/features/settings/membershipView.ts`, read on demand by
+`usePlayUpgrade` only while a wall is showing), and it never points outside
+the app. Status read failures show no button.
 
 **Local testing.** `macos/StoreKit/SureWord.storekit` holds the product for
 the simulator and is the SureWord-iOS scheme's run-action StoreKit
