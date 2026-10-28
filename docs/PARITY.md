@@ -7,6 +7,25 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
+**2026-10-28 upgrade-button billing investigation:** authenticated production
+`GET /api/billing/status` reported `enabled=true`,
+`playCheckoutAvailable=false`, and `appStoreCheckoutAvailable=true`.
+The Android gate intentionally follows effective Play availability, which
+requires both enable flags and the verification credential, and also hides
+the CTA for Pro/owner accounts or a failed status read. iOS intentionally
+opens Pro details from chat and Listen, while `ProMembershipView` gates the
+actual Subscribe section on server availability. No client code change was
+needed for either policy. Google's live subscription GET returned 404 for
+`sureword_pro`; created the missing product and a US-only `monthly` draft
+at exactly USD 15.00. Publisher GET then returned 200 with `state=DRAFT`,
+`billingPeriodDuration=P1M`, and the US USD 15 price. The base plan was not
+activated and production checkout remains unavailable. This is product
+configuration progress, not native purchase proof. Focused backend/web tests
+passed 42/42 and Android membership/error tests passed 31/31. No Android or
+iOS purchase/runtime acceptance was performed; the shared Android emulator
+was claimed by another session. The lifecycle gate remains open in
+`PARITY-TODO.md` section 1.1 and TickTick task `6ae2157e8f089b81ed18c7e0`.
+
 > **Actionable checklist:** see [PARITY-TODO.md](PARITY-TODO.md) for the
 > requested web/Android/iOS inventory of remaining capability gaps, release
 > blockers, runtime proof, and deliberate platform differences. This file

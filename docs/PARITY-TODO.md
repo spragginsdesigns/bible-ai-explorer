@@ -34,8 +34,9 @@ A row is done for this checklist only when the behavior is correct on web, Andro
 ### 1.1 Native purchases and store access
 
 - [ ] **Android: make Google Play Pro purchase available and prove the complete purchase lifecycle.**
-  - Current state: native purchase/restore code exists, but production checkout remains disabled pending merchant/product configuration and a real store purchase. Web Stripe is the proven purchase path.
-  - Remaining work: finish the Play merchant and `sureword_pro` setup, enable checkout only when the backend can verify it, then prove purchase, restore, renewal, cancellation, and account-deletion cancellation with test purchases.
+  - Current state, checked live 2026-10-28: production `/api/billing/status` reports `enabled=true`, `playCheckoutAvailable=false`, and `appStoreCheckoutAvailable=true`. Google initially returned 404 for `sureword_pro`. Created that product with the implemented Pro benefits and saved its `monthly` auto-renewing base plan as `DRAFT`: US only, exactly USD 15.00/month, Google's default 7-day grace period and automatic account hold. Read-back through the Publisher API returned 200 and the same draft configuration. No base plan activation, checkout flag change, or purchase occurred. Creation succeeded, but merchant payout readiness was not independently verified. Web Stripe remains the previously proven purchase path.
+  - Remaining work: verify merchant/payout readiness and backend purchase-verification credentials, activate the prepared base plan for a controlled license-test run, then prove purchase, restore, renewal, cancellation, and account-deletion cancellation before leaving checkout enabled. Expand regional availability only after choosing the intended launch markets.
+  - Follow-up: [SureWord: prove Google Play Pro purchase lifecycle and enable checkout](https://ticktick.com/webapp/#p/6a6cf86e8f08eca156943243/tasks/6ae2157e8f089b81ed18c7e0).
   - Evidence: `mobile/src/features/settings/MembershipSection.tsx`, `src/lib/billing/google-play.ts`, `docs/PARITY.md` subscription rows.
   - Done when: a real Play test purchase becomes Pro, survives restore/reinstall, renews and cancels correctly, and the server remains authoritative.
 

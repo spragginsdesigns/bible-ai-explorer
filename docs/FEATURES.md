@@ -4214,8 +4214,8 @@ distribution channel).
 
 ### Upgrade from a Pro wall
 
-Added 2026-10-28. Where a Free reader runs into a Pro limit, the client that
-can sell Pro offers "See SureWord Pro" right there:
+Added 2026-10-28. Where a Free reader runs into a Pro limit, these entry
+points lead to the platform's membership screen:
 
 | Wall | Web | Android | iOS | macOS |
 | --- | --- | --- | --- | --- |
@@ -4237,6 +4237,29 @@ neither Pro nor the owner (`canOfferPlayUpgrade` in
 `mobile/src/features/settings/membershipView.ts`, read on demand by
 `usePlayUpgrade` only while a wall is showing), and it never points outside
 the app. Status read failures show no button.
+
+`playCheckoutAvailable` requires all three server conditions: exact
+`SUREWORD_USAGE_ENABLED=true`, exact `SUREWORD_PLAY_BILLING_ENABLED=true`,
+and a nonempty `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`
+(`src/lib/billing/subscription.ts`). A missing Android button does not by
+itself identify which condition failed. Owner/Pro accounts and status-read
+failures also hide it. Read authenticated `GET /api/billing/status` for the
+deployed result, even when Vercel stores the flag as an unreadable Secret.
+
+iOS deliberately keeps the chat and Listen entry points available without
+checking checkout first. `ProMembershipView` reads membership itself:
+Free plus `appStoreCheckoutAvailable=true` exposes its StoreKit purchase
+section; false or an omitted field shows the unavailable explanation, and
+an initial request failure shows a retry. Opening Pro details does not
+authorize a purchase. Settings retains that entry for recovery too.
+
+**2026-10-28 live check:** production reported `enabled=true`,
+`playCheckoutAvailable=false`, and `appStoreCheckoutAvailable=true`.
+Google's subscription GET initially returned 404 for `sureword_pro`.
+The product and its `monthly` base plan now exist in Play Console, with
+the existing benefits and an exact USD 15.00 US price. The plan remains
+`DRAFT`; checkout remains unavailable pending a controlled license-test
+purchase and lifecycle verification. See `docs/PARITY-TODO.md` section 1.1.
 
 **Local testing.** `macos/StoreKit/SureWord.storekit` holds the product for
 the simulator and is the SureWord-iOS scheme's run-action StoreKit
