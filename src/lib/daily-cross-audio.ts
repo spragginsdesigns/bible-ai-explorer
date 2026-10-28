@@ -6,9 +6,8 @@ import { get, head, put } from "@vercel/blob";
 import { z } from "zod";
 import { narrationSettings, type NarrationOptions } from "@/lib/daily-cross-audio-options";
 import { defaultNarrationVoiceId, readNarrationVoices } from "@/lib/daily-cross-voices";
-import { isProUser } from "@/lib/entitlements";
-import type { UserPlan } from "@/lib/entitlements-rules";
-import { parseUserIdAllowlist } from "@/lib/entitlements-rules";
+import { getUserPlan } from "@/lib/entitlements";
+import { listenAccess, type UserPlan } from "@/lib/entitlements-rules";
 import { prisma } from "@/lib/prisma";
 import { builtInDailyCrossModel } from "@/lib/ai/built-in-openai";
 import {
@@ -410,12 +409,18 @@ function speechAvailable(): boolean {
  * Returns the payload to hand straight back, or null to carry on.
  */
 async function refuseAudio(userId: string): Promise<DailyCrossAudio | null> {
+	// The key check needs no query, so it runs before the plan lookup.
 	if (!speechAvailable()) return UNAVAILABLE_AUDIO;
-	if (!(await isProUser(userId))) return LOCKED_AUDIO;
-	// Preserve existing complimentary access. Subscription audio opens separately
-	// once its synthesis costs have been measured; buying chat must not start an unpriced voice workload.
-	const existingGrant = [...parseUserIdAllowlist(process.env.PRO_USER_IDS), ...parseUserIdAllowlist(process.env.SERVER_CREDENTIAL_USER_IDS)].includes(userId);
-	if (process.env.SUREWORD_USAGE_ENABLED === "true" && !existingGrant && process.env.SUREWORD_PRO_AUDIO_ENABLED !== "true") return UNAVAILABLE_AUDIO;
+	const access = listenAccess({
+		speechConfigured: true,
+		plan: await getUserPlan(userId),
+		userId,
+		env: process.env,
+	});
+	if (access === "locked") return LOCKED_AUDIO;
+	// A subscriber whose audio is held (see `listenAccess`) still sees no card,
+	// but is reported as Pro so the listen_requested event counts them honestly.
+	if (access === "held") return { ...UNAVAILABLE_AUDIO, plan: "pro" };
 	return null;
 }
 

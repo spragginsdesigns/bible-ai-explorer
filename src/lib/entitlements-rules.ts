@@ -39,3 +39,37 @@ export function resolvePlan({ plan, userId, allowlist }: PlanInput): UserPlan {
 	if (allowlist.includes(userId)) return "pro";
 	return plan === "pro" ? "pro" : "free";
 }
+
+/**
+ * Who may have today's devotional narrated (Listen), decided before any
+ * database write, model call or ElevenLabs request.
+ *
+ * - "unavailable": this deployment has no ElevenLabs key.
+ * - "locked": the account is on Free.
+ * - "held": the account is Pro through a paid subscription, but subscription
+ *   audio is still closed. Listen predates billing and went only to comped
+ *   accounts (`PRO_USER_IDS`) and the owner (`SERVER_CREDENTIAL_USER_IDS`);
+ *   with billing on (`SUREWORD_USAGE_ENABLED=true`) a subscriber hears it only
+ *   when `SUREWORD_PRO_AUDIO_ENABLED=true`, so buying chat cannot start an
+ *   unpriced voice workload. Clients are told "unavailable" (no card) for it.
+ * - "allowed": narrate.
+ */
+export type ListenAccess = "unavailable" | "locked" | "held" | "allowed";
+
+export function listenAccess(input: {
+	speechConfigured: boolean;
+	plan: UserPlan;
+	userId: string;
+	env: Record<string, string | undefined>;
+}): ListenAccess {
+	if (!input.speechConfigured) return "unavailable";
+	if (input.plan !== "pro") return "locked";
+	const existingGrant = [
+		...parseUserIdAllowlist(input.env.PRO_USER_IDS),
+		...parseUserIdAllowlist(input.env.SERVER_CREDENTIAL_USER_IDS),
+	].includes(input.userId);
+	if (input.env.SUREWORD_USAGE_ENABLED === "true" && !existingGrant && input.env.SUREWORD_PRO_AUDIO_ENABLED !== "true") {
+		return "held";
+	}
+	return "allowed";
+}

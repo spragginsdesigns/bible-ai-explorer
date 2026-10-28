@@ -1277,13 +1277,14 @@ carries no audio, so the old narration is unreachable anyway.
 ### API
 
 `GET /api/verse-of-day/audio` reports state without doing work (what a client
-polls every 3s while scheduled generation is preparing). `POST` is reserved for
-an explicit retry after a failed generation, or returns what is already
-prepared. Both answer:
+polls every 3s while a generation it asked for is preparing). `POST` (optional
+body `{ voiceId?, style? }`) is the only entry point that can buy a narration:
+it starts one, or returns what is already prepared. Both answer with
+`Cache-Control: private, no-store`:
 
 ```
-{ status: "unavailable" | "none" | "pending" | "ready" | "failed",
-  url, streamUrl, title, script, durationSec, generatedAt }
+{ status: "unavailable" | "locked" | "none" | "pending" | "ready" | "failed",
+  url, streamUrl, title, script, durationSec, generatedAt, plan: "free" | "pro" }
 ```
 
 `streamUrl` is what clients play; `url` is the signed blob URL and is only
@@ -1306,37 +1307,40 @@ generation is assumed dead and starts again. `durationSec` is estimated from
 the word count at 150 wpm - every client replaces it with the file's real
 duration once the audio loads.
 
-### Made with the day, and gated behind Pro
+### Made on request, and gated behind Pro
 
-*Changed 2026-08-26*
+*Changed 2026-10-01 (on demand); 2026-10-27 (subscriber hold documented)*
 
-Audio is generated **once per day, alongside the cross itself** - not on a tap.
-`scheduleDailyCrossAudio()` runs at every point a cross is stored: the
-on-demand `GET /api/verse-of-day/today`, `replaceDailyCross()` (hooked inside
-the lib, so the "a different word for today" control and the `setDailyCross`
-chat tool both get it), and the morning cron. It marks nothing itself - it
-defers to `getOrCreateDailyCrossAudio()` behind `waitUntil`, so the HTTP
-response never waits on a ~30-60s narration. Opening Pick Up Your Cross now
-finds the devotional ready, or watches it finish within a minute.
+Audio is generated **only when a Pro reader asks to hear it** (`POST
+/api/verse-of-day/audio`). Opening, replacing or discussing the day, and the
+morning cron, never narrate (`tests/daily-cross-on-demand.test.mjs` and
+`tests/cron-audience.test.mjs` pin that no other path calls
+`getOrCreateDailyCrossAudio`). The 2026-08-26 design that narrated alongside
+every stored cross and in the cron (`scheduleDailyCrossAudio`,
+`MAX_AUDIO_PER_RUN`) is gone.
 
 **The once-per-day guarantee is structural, not a flag.** Audio hangs off the
 `VerseOfDay` row, and `getOrCreateDailyCrossAudio()` reuses a ready row and a
-pending row under three minutes old - so the scheduled generation, a client
-polling mid-flight, and the manual retry buy exactly one narration between
-them. A replaced day is a new row, and gets exactly one more.
+pending row under three minutes old, claiming the row with one conditional
+update - so double taps and a client polling mid-flight buy exactly one
+narration between them. A replaced day is a new row, and gets exactly one more.
 
-The cron narrates **after** the pushes are away, sequentially, capped at
-`MAX_AUDIO_PER_RUN` (60) and bounded by `AUDIO_BUDGET_MS` (240s of the 300s
-function). A slow narration must never cost someone their morning
-notification, and whoever the budget skips is picked up the moment they open
-the screen - the on-demand path schedules audio too.
+**Listen is a SureWord Pro benefit.** `readDailyCrossAudio`,
+`getOrCreateDailyCrossAudio`, the voices route and the stream route all run
+`refuseAudio` first, which answers *before* any database write, model call or
+ElevenLabs request: `"unavailable"` with no key, `"locked"` for Free, so a free
+account costs nothing and cannot reach a narration by calling the routes
+directly (the stream route answers 404). The plan is read fresh on every
+request (no memo, no shared cache), so an upgrade or a lapse applies on the
+next call.
 
-What keeps the bill honest is no longer the tap, it is the tier: **Listen is a
-SureWord Pro benefit.** `readDailyCrossAudio`, `getOrCreateDailyCrossAudio`,
-`scheduleDailyCrossAudio` and the stream route all answer `"locked"` *before*
-any database write, model call or ElevenLabs request, and the cron only
-narrates for Pro accounts - so a free account costs nothing at all, and cannot
-reach a narration by calling the routes directly either.
+**Paid subscribers are held for now.** With billing on, a subscriber's Listen
+is `"unavailable"` (no card, `plan: "pro"`) until `SUREWORD_PRO_AUDIO_ENABLED=true`,
+because subscription narration has not been priced; comps (`PRO_USER_IDS`) and
+the owner (`SERVER_CREDENTIAL_USER_IDS`) keep it. The rule is `listenAccess`
+in `src/lib/entitlements-rules.ts`, tested in `tests/daily-cross-audio.test.mjs`.
+Note that the iOS Pro screen lists Listen as a Pro benefit, so a buyer there
+does not get it while this switch is off.
 
 **Flagging a user as Pro**, either way works:
 
@@ -1429,6 +1433,7 @@ are what keep playback going on each platform.
 | `ELEVENLABS_API_KEY` | yes | Without it the routes answer `status: "unavailable"` and every client hides the feature entirely. `synthesizeSpeech` still throws `ELEVENLABS_API_KEY is not set` if it is ever reached, so the failure is never a silent no-op |
 | `ELEVENLABS_VOICE_ID` | no | Overrides the default voice per environment. Default `UgBBYS2sOqTuMpoF3BR0` ("Mark - Natural Conversations") - casual, natural American conversational delivery |
 | `PRO_USER_IDS` | no | Comma-separated Clerk ids granted SureWord Pro without a `User.plan` write. Wins over the column. With neither set, every account is free and Listen renders the locked panel for everyone |
+| `SUREWORD_PRO_AUDIO_ENABLED` | no | Only matters when `SUREWORD_USAGE_ENABLED=true`. Unless it is exactly `true`, an account that is Pro through a paid subscription (Stripe, Google Play, App Store) gets `status: "unavailable"` with `plan: "pro"`, so no Listen card at all. Only `PRO_USER_IDS` and `SERVER_CREDENTIAL_USER_IDS` keep it; a hand-written `User.plan = 'pro'` is held the same way once billing is on. Rule: `listenAccess` in `src/lib/entitlements-rules.ts`. Unset in production as of 2026-10-27 |
 
 ### Surfaces
 
