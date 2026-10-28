@@ -9,6 +9,11 @@ import { apiJson, type GetToken } from "@/lib/api";
 import { useThemedStyles } from "./settingsStore";
 import { spacing, radius, typography, type Colors } from "@/theme";
 import { completePlayPurchase } from "./googlePlayPurchase";
+import {
+  externalManagementLine,
+  subscriptionStatusLine,
+  type MembershipSubscription,
+} from "./membershipView";
 
 type Membership = {
   plan: "free" | "pro";
@@ -16,7 +21,7 @@ type Membership = {
   enabled: boolean;
   playCheckoutAvailable?: boolean;
   playSubscriptionManagementUrl?: string | null;
-  subscription?: { provider?: string; status?: string; cancelAtPeriodEnd?: boolean } | null;
+  subscription?: MembershipSubscription | null;
   usage: {
     dailyRemaining: number;
     monthlyRemaining: number | null;
@@ -86,6 +91,12 @@ export function MembershipSection({ getToken }: { getToken: GetToken }) {
               : "Loading membership…"}
           </Text>
         )}
+        {data && !data.owner && subscriptionStatusLine(data.plan, data.subscription) ? (
+          <Text style={styles.body}>{subscriptionStatusLine(data.plan, data.subscription)}</Text>
+        ) : null}
+        {data && !data.owner && externalManagementLine(data.plan, data.subscription) ? (
+          <Text style={styles.body}>{externalManagementLine(data.plan, data.subscription)}</Text>
+        ) : null}
         {Platform.OS === "android" && data?.playCheckoutAvailable && !data.owner ? (
           <AndroidPlayBilling getToken={getToken} canBuy={data.plan !== "pro"} onVerified={() => {
             const current = generation.current;

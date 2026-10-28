@@ -54,6 +54,23 @@ describe("classifyChatError", () => {
 		expect(classified.retryable).toBe(true);
 	});
 
+	it("shows a used-up allowance in local time under its own title", () => {
+		const reset = "2026-10-28T00:00:00.000Z";
+		const classified = classifyChatError(
+			`[rate_limited] You've used your included AI allowance. More messages are available at ${reset}. You can keep reading and revisit saved study.`,
+		);
+		expect(classified.code).toBe("rate_limited");
+		expect(classified.title).toBe("You've used today's messages");
+		expect(classified.message).not.toContain(reset);
+		expect(classified.message).toContain(
+			new Date(reset).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" }),
+		);
+	});
+
+	it("keeps the burst-limit title for an ordinary 429", () => {
+		expect(classifyChatError(new ApiError("Too many questions today.", { status: 429 })).title).toBe("Too many requests");
+	});
+
 	it("maps a 500 ApiError to internal", () => {
 		const classified = classifyChatError(new ApiError("Request failed: 500", { status: 500 }));
 		expect(classified.code).toBe("internal");

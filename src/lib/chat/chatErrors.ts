@@ -85,6 +85,23 @@ function parseJsonErrorBody(text: string): { code: ChatErrorCode | null; message
 	}
 }
 
+/** The included-allowance refusal (src/lib/billing/usage.ts), as opposed to a burst limit. */
+const ALLOWANCE_PATTERN = /included AI allowance|free messages/i;
+const ISO_TIMESTAMP = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})\b/g;
+
+/**
+ * The server names the reset time as a UTC ISO string because it cannot know
+ * the reader's time zone; show it in local time instead of
+ * "2026-10-28T00:00:00.000Z".
+ */
+export function localizeTimestamps(text: string, locale?: string): string {
+	return text.replace(ISO_TIMESTAMP, (iso) => {
+		const date = new Date(iso);
+		if (Number.isNaN(date.getTime())) return iso;
+		return date.toLocaleString(locale, { weekday: "short", hour: "numeric", minute: "2-digit" });
+	});
+}
+
 function copyFor(code: ChatErrorCode, serverMessage: string | null): ClassifiedChatError {
 	switch (code) {
 		case "unauthorized":
@@ -136,15 +153,18 @@ function copyFor(code: ChatErrorCode, serverMessage: string | null): ClassifiedC
 					"The AI provider could not complete this request. Try again, or pick a different model from the model picker.",
 				retryable: true,
 			};
-		case "rate_limited":
+		case "rate_limited": {
+			const message = serverMessage === null ? null : localizeTimestamps(serverMessage);
 			return {
 				code,
-				title: "Slow down a moment",
+				// A used-up allowance is not "too fast": waiting a moment changes nothing.
+				title: message && ALLOWANCE_PATTERN.test(message) ? "You've used today's messages" : "Slow down a moment",
 				message:
-					serverMessage ??
+					message ??
 					"You're sending messages faster than we can keep up. Try again in a moment.",
 				retryable: true,
 			};
+		}
 		case "internal":
 			return {
 				code,

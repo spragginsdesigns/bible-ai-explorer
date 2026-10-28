@@ -18,6 +18,21 @@ test("stale edits tell the client to reload and an old replaced answer cannot sa
 	assert.equal(completedHistory(history,["old"]),null);assert.deepEqual(completedHistory(history,[]),history.messages);
 });
 
+test("a used-up allowance reads in local time under its own title", () => {
+	const reset = "2026-10-28T00:00:00.000Z";
+	const result = classifyChatError({
+		status: 429,
+		bodyText: JSON.stringify({
+			code: "rate_limited",
+			error: `You've used your included AI allowance. More messages are available at ${reset}. You can keep reading and revisit saved study.`,
+		}),
+	});
+	assert.equal(result.title, "You've used today's messages");
+	assert.ok(!result.message.includes(reset));
+	assert.ok(result.message.includes(new Date(reset).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" })));
+	assert.equal(classifyChatError({ message: "[rate_limited] Slow down." }).title, "Slow down a moment");
+});
+
 test("classifies by the code in a JSON error body", () => {
 	const result = classifyChatError({
 		status: 429,

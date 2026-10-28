@@ -415,6 +415,9 @@ export const SEARCH_THRESHOLD = 1;
 
 export function shouldShowSearch(models: PickerModel[] | null | undefined): boolean {
 	if (!models) return false;
+	// The owner's SureWord plan rows are a short fixed list, searched on no
+	// client (Android and Apple `ownerPlansOnly`).
+	if (models.length > 0 && models.every((model) => model.provider === "sureword")) return false;
 	return models.filter((model) => model.available).length > SEARCH_THRESHOLD;
 }
 

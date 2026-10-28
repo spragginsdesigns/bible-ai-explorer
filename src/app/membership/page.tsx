@@ -15,7 +15,7 @@ type Membership = {
   enabled: boolean;
   checkoutAvailable: boolean;
   subscription: {
-    provider: "stripe" | "google-play";
+    provider: "stripe" | "google-play" | "app_store";
     status: string;
     periodEnd: string;
     cancelAtPeriodEnd: boolean;
@@ -212,6 +212,10 @@ export default function MembershipPage() {
                   </p>
                   {data.subscription.provider === "google-play" ? (
                     <a href="https://play.google.com/store/account/subscriptions?sku=sureword_pro&package=com.spragginsdesigns.sureword" className="mt-4 inline-block rounded-lg border border-black/[0.12] dark:border-white/20 px-4 py-3 text-sm">Manage in Google Play</a>
+                  ) : data.subscription.provider === "app_store" ? (
+                    // An App Store subscription has no Stripe customer, so the
+                    // portal would only answer "No billing account exists yet."
+                    <a href="https://apps.apple.com/account/subscriptions" className="mt-4 inline-block rounded-lg border border-black/[0.12] dark:border-white/20 px-4 py-3 text-sm">Manage in the App Store</a>
                   ) : <button
                     disabled={busy}
                     onClick={() => void openBilling("portal")}

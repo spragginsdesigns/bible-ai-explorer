@@ -158,12 +158,40 @@ function build(
 	overrideMessage?: string
 ): ClassifiedChatError {
 	const copy = COPY[code];
+	const friendly = looksFriendly(serverMessage) ? serverMessage.trim() : null;
+	if (code === "rate_limited" && friendly) {
+		const message = localizeTimestamps(friendly);
+		return {
+			code,
+			// A used-up allowance is not "too many requests": waiting a moment changes nothing.
+			title: ALLOWANCE_PATTERN.test(message) ? "You've used today's messages" : copy.title,
+			message: overrideMessage ?? message,
+			retryable: copy.retryable,
+		};
+	}
 	return {
 		code,
 		title: copy.title,
-		message: overrideMessage ?? (looksFriendly(serverMessage) ? serverMessage.trim() : copy.message),
+		message: overrideMessage ?? friendly ?? copy.message,
 		retryable: copy.retryable,
 	};
+}
+
+/** The included-allowance refusal (src/lib/billing/usage.ts), as opposed to a burst limit. */
+const ALLOWANCE_PATTERN = /included AI allowance|free messages/i;
+const ISO_TIMESTAMP = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})\b/g;
+
+/**
+ * The server names the reset time as a UTC ISO string because it cannot know
+ * the reader's time zone; show it in local time instead of
+ * "2026-10-28T00:00:00.000Z". Mirrors src/lib/chat/chatErrors.ts.
+ */
+export function localizeTimestamps(text: string, locale?: string): string {
+	return text.replace(ISO_TIMESTAMP, (iso) => {
+		const date = new Date(iso);
+		if (Number.isNaN(date.getTime())) return iso;
+		return date.toLocaleString(locale, { weekday: "short", hour: "numeric", minute: "2-digit" });
+	});
 }
 
 /**

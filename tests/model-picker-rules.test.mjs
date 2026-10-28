@@ -293,6 +293,11 @@ test("search appears whenever there is more than one model to pick from", () => 
 	assert.equal(shouldShowSearch(many), true);
 	assert.equal(shouldShowSearch(many.slice(0, 2)), true);
 	assert.equal(shouldShowSearch(many.slice(0, 1)), false);
+	// The owner's plan rows (Free, Pro, Sol) are never searched.
+	assert.equal(
+		shouldShowSearch(["sureword/free", "sureword/pro", "openai/gpt-6.1-sol"].map((id) => model({ id, provider: "sureword" }))),
+		false,
+	);
 	// A revoked model is not a reason to show a search box.
 	assert.equal(
 		shouldShowSearch([many[0], model({ id: "x", available: false })]),
