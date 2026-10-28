@@ -111,6 +111,8 @@ final class ChatViewModel {
     /// is the server's push. Never called for a stopped or failed answer.
     @ObservationIgnored var onAnswerReady: (@MainActor (_ conversationID: String, _ title: String?, _ recovered: Bool) -> Void)?
     private var streamTask: Task<Void, Never>?
+    private var streamGeneration: UUID?
+    private var notificationAttempt: ChatNotificationAttempt?
     /// Text of a send that failed before the stream opened (the conversation
     /// could not be created), so Retry can send it again - Android's
     /// `lastFailedSendRef`.
@@ -932,7 +934,8 @@ final class ChatViewModel {
             verbosity: settings.chatVerbosity,
             mode: settings.chatMode,
             replaces: replaces,
-            language: settings.effectiveAnswerLanguage.rawValue
+            language: settings.effectiveAnswerLanguage.rawValue,
+            notificationAttemptId: notificationAttempt?.attemptId
         )
     }
 
@@ -991,20 +994,41 @@ final class ChatViewModel {
     /// Stopping is deliberate: the user no longer wants this answer, so the
     /// recovery poll must not go and fetch it behind their back.
     ///
-    /// Also covers starting a new chat and switching conversations, which both
-    /// stop first. The server still finishes and saves the answer and sends
-    /// "Your answer is ready" for the dropped connection, so the walk-away is
-    /// recorded for the notification handler to suppress (Android's
-    /// `abandonPendingAnswer` → `markConversationStopped`).
+    /// Also covers starting a new chat and switching conversations. Abandon
+    /// visible rendering immediately, but acknowledge the per-attempt server
+    /// Stop before dropping its transport. The server still finishes/saves.
     func stop() {
         if let conversationID = pendingAnswerConversationID {
             stopSignals.markStopped(conversationID)
         }
-        cancelStream()
+        let abandonedTask = streamTask
+        let abandonedAttempt = notificationAttempt
+        streamTask = nil
+        streamGeneration = nil
+        notificationAttempt = nil
+        if status != .idle { status = .idle }
         cancelRecovery()
+        guard let abandonedAttempt else {
+            abandonedTask?.cancel()
+            return
+        }
+        let api = api
+        Task {
+            await abandonedAttempt.stop(
+                acknowledge: { attempt in
+                    let acknowledgement = try await api.json(
+                        "/api/chat-notifications/stop", method: "POST", body: attempt, timeout: 5,
+                        as: ChatNotificationAttempt.Acknowledgement.self
+                    )
+                    guard acknowledgement.stopped else { throw APIError(message: "Stop was not acknowledged.") }
+                },
+                depart: { abandonedTask?.cancel() }
+            )
+        }
     }
 
     private func cancelStream() {
+        streamGeneration = nil
         streamTask?.cancel()
         streamTask = nil
         if status != .idle { status = .idle }
@@ -1050,6 +1074,9 @@ final class ChatViewModel {
     ///   dropped after the re-sent user message; nil for an ordinary send.
     private func startStream(replaces: [String]? = nil) {
         streamTask?.cancel()
+        let generation = UUID()
+        streamGeneration = generation
+        notificationAttempt = activeConversationID.map { ChatNotificationAttempt(conversationID: $0) }
         markAnswerPending()
         // Until the server deletes them, the replaced answers still end the
         // stored thread; recovery must never collect one as this turn's answer.
@@ -1063,11 +1090,12 @@ final class ChatViewModel {
                 // Deliberately NOT `bytes.lines` — Foundation drops the blank
                 // lines that terminate each SSE event, which silently reduces the
                 // whole answer to nothing. See `ServerSentEvents.lines(from:)`.
-                await consume(bytes)
+                await consume(bytes, generation: generation)
             } catch {
                 // A cancelled URLSession surfaces as an NSURLError, not a
                 // CancellationError, so catching only the latter would show the
                 // user an error banner every time they pressed Stop.
+                guard streamGeneration == generation else { return }
                 status = .idle
                 if !Task.isCancelled {
                     reportStreamFailure(
@@ -1081,7 +1109,7 @@ final class ChatViewModel {
 
     /// Internal rather than private so the tests can drive it with a recorded or
     /// malformed body directly — `startStream` is the only production caller.
-    func consume(_ bytes: some AsyncSequence<UInt8, any Error> & Sendable) async {
+    func consume(_ bytes: some AsyncSequence<UInt8, any Error> & Sendable, generation: UUID? = nil) async {
         var accumulator = UIMessageAccumulator(id: "assistant-\(UUID().uuidString)")
         var appended = false
         var failure: (error: ClassifiedChatError, recoverable: Bool)?
@@ -1089,6 +1117,9 @@ final class ChatViewModel {
         do {
             for try await chunk in UIMessageChunk.stream(fromBytes: bytes) {
                 try Task.checkCancellation()
+                // A stopped response may be draining while its Stop request
+                // is acknowledged. It must never write into a newer thread.
+                if let generation, streamGeneration != generation { continue }
                 accumulator.apply(chunk)
                 lastStreamActivity = Date()
 
@@ -1103,7 +1134,7 @@ final class ChatViewModel {
         } catch {
             // Same as above: keep whatever streamed in before a stop, and only
             // report failures the user didn't ask for.
-            if !Task.isCancelled {
+            if !Task.isCancelled, generation == nil || streamGeneration == generation {
                 failure = (
                     ChatErrors.classify(error),
                     AnswerRecovery.isTransportFailure(error)
@@ -1111,6 +1142,7 @@ final class ChatViewModel {
             }
         }
 
+        guard generation == nil || streamGeneration == generation else { return }
         status = .idle
 
         if let errorText = accumulator.errorText {
@@ -1144,6 +1176,8 @@ final class ChatViewModel {
         }
         // A stream that finished on its own owes nothing.
         if !Task.isCancelled {
+            notificationAttempt = nil
+            streamGeneration = nil
             let landed = pendingAnswerConversationID
             pendingAnswerConversationID = nil
             // A settled answer is the moment "your answer is ready" makes
