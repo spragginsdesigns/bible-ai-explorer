@@ -44,6 +44,7 @@ import {
 import { createProgressNarration, progressProviderOptions } from "@/lib/ai/progress-narration";
 import { createProgressSummarizer } from "@/lib/ai/progress-summary";
 import { withoutOrphanedOpenAIReferences } from "@/lib/chat/modelHistory";
+import { assistantHistoryIds, HISTORY_EVIDENCE_GUIDANCE, trustedAssistantHistory } from "@/lib/chat/trusted-history";
 import { toolActivityLabel } from "@/lib/tool-activity-labels";
 import { actionDecisionBlock, recordDeliveredActionProposal } from "@/lib/agent-actions";
 import { finishAgentWork, incompleteAgentNotice, mustReadStudy } from "@/lib/ai/agent-loop";
@@ -743,8 +744,19 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 
 		const recentMessages = requestData.messages.slice(-MAX_REQUEST_MESSAGES);
 		const requestMessageCount = requestData.messages.length;
+		const assistantIds = assistantHistoryIds(recentMessages);
+		const storedAssistantTurns = conversationId && assistantIds.length > 0
+			? await prisma.message.findMany({
+				where: {
+					id: { in: assistantIds }, role: "assistant", conversationId,
+					conversation: { userId },
+				},
+				select: { id: true, content: true, metadata: true },
+			})
+			: [];
+		const trustedMessages = trustedAssistantHistory(recentMessages, storedAssistantTurns);
 		const allMessages = await validateUIMessages<SureWordUIMessage>({
-			messages: recentMessages.map((message: UIMessage) => ({
+			messages: trustedMessages.map((message: UIMessage) => ({
 				...message, parts: Array.isArray(message?.parts) ? message.parts.filter((part) => !part.type?.startsWith("data-")) : message?.parts,
 			})),
 			tools,
@@ -1125,6 +1137,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 					// follows the profile blocks it reads from, and the shape hint goes
 					// last, nearest the answer.
 					const volatileSystem = [
+						`\n\n${HISTORY_EVIDENCE_GUIDANCE}`,
 						...turnGuidance.map((block) => `\n\n${block}`),
 						formatUserNameLine(userName),
 						// Their own words come before what was inferred about them.
