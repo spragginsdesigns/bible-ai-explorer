@@ -3,7 +3,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { AiProvider } from "@prisma/client";
-import type { JSONValue, LanguageModel } from "ai";
+import { wrapLanguageModel, type JSONValue, type LanguageModel } from "ai";
 import { parseUserIdAllowlist } from "@/lib/entitlements-rules";
 import { prisma } from "@/lib/prisma";
 import { houseKeyFor } from "./house-key";
@@ -306,6 +306,28 @@ export function resolveGuestModel(): Pick<ResolvedModel, "model" | "providerOpti
 		providerOptions: buildProviderOptions("openai", { ...NO_RUN_OPTIONS, effort }, false, definition),
 		definition,
 	};
+}
+
+/**
+ * Source/claim checks share the answer's model, key, request ledger and price.
+ * They have their own bounded call allowance, so checking an eight-step study
+ * cannot consume the foreground tool-loop allowance or a second user message.
+ */
+export async function resolveVerificationModel(userId: string | null, definition: ModelDefinition): Promise<LanguageModel> {
+	const house = userId ? await aiAccessFor(userId) === "house" : true;
+	const apiKey = house
+		? (definition.id === HOUSE_MODEL_ID ? houseKeyFor(process.env) : serverKeyFor(definition.provider))
+		: await apiKeyFor(userId!, definition.provider);
+	if (!apiKey) throw new HouseModelUnavailableError();
+	const base = buildModel(definition.provider, definition.providerModelId, apiKey, true);
+	const metered = house && userId ? meterIncludedModel(userId, base, true, definition.pricing) : base;
+	let calls = 0;
+	return wrapLanguageModel({ model: metered, middleware: {
+		transformParams: async ({ params }) => {
+			if (++calls > 12) throw new Error("Scripture verification call allowance exhausted");
+			return params;
+		},
+	} });
 }
 
 /**

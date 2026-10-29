@@ -11,7 +11,7 @@ const json = (path) => JSON.parse(read(path));
 // Execute the shipping tool definitions, with external services excluded. The
 // parser, context builder and book metadata are real; text is bundled Scripture.
 function loadModule(path, names, injected = {}) {
-	const source = read(path).replace(/await import\("@\/data\/originals\/([^"]+)"\)/g, 'await loadJsonModule("$1")').replace(/^import\s[^;]*?;\s*$/gm, "").replace(/^export /gm, "");
+	const source = read(path).replace(/await import\("@\/data\/originals\/([^"]+)"\)/g, 'await loadJsonModule("$1")').replace(/^import\s[^;]*?;\s*$/gm, "").replace(/^export type \{[^;]+;\s*$/gm, "").replace(/^export /gm, "");
 	return new Function(...Object.keys(injected), `${stripTypeScriptTypes(source)}\nreturn { ${names.join(",")} };`)(...Object.values(injected));
 }
 const books = loadModule("src/lib/bible/books.ts", ["resolveReference", "bookByOrder"], {

@@ -32,7 +32,7 @@ import { withChatClientConnection, type ChatClientConnection } from "@/lib/chat-
 import { notifyUnlessChatStopped, parseChatNotificationAttemptId } from "@/lib/chat-notification-stop";
 import { buildSureWordTools, type SureWordTools, type SureWordUIMessage } from "@/lib/ai-tools";
 import { linksInText } from "@/lib/chat/user-links";
-import { resolveModel, aiAccessFor } from "@/lib/ai/provider";
+import { resolveModel, resolveVerificationModel, aiAccessFor } from "@/lib/ai/provider";
 import { UserFacingError, chatErrorPayload, codeForError, streamErrorText } from "@/lib/ai/errors";
 import { askQuestionRateLimiter, rateLimitKey } from "@/lib/rateLimit";
 import {
@@ -41,8 +41,11 @@ import {
 	persistableParts,
 	startStatusNarration,
 } from "@/lib/ai/status-narration";
-import { createProgressNarration, progressProviderOptions } from "@/lib/ai/progress-narration";
-import { createProgressSummarizer } from "@/lib/ai/progress-summary";
+import { createProgressNarration } from "@/lib/ai/progress-narration";
+import { SCRIPTURE_OUTPUT_GUIDANCE, verifyGeneratedAnswer } from "@/lib/ai/verified-generation";
+import { releaseVerifiedAnswer } from "@/lib/ai/verified-answer-stream";
+import type { AnswerBlock } from "@/lib/ai/answer-gate";
+import { readSavedNoteEvidence, successfulNoteWriteId } from "@/lib/ai/note-write-evidence";
 import { withoutOrphanedOpenAIReferences } from "@/lib/chat/modelHistory";
 import { assistantHistoryIds, HISTORY_EVIDENCE_GUIDANCE, trustedAssistantHistory } from "@/lib/chat/trusted-history";
 import { toolActivityLabel } from "@/lib/tool-activity-labels";
@@ -740,7 +743,10 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 		const actionContext = { userId, actionScope: typeof requestData.conversationId === "string" ? `chat:${requestData.conversationId}` : undefined, userText: () => currentUserText, messageId: () => currentMessageId, messageReceivedAt: () => readingReceivedAt, welcomeStep: () => answeredWelcomeStep, legacyChoiceSteps };
 		const knownStudyIds = new Set<string>();
 		const readStudyIds = new Set<string>();
-		const tools = buildSureWordTools({ ...readingContext, ...actionContext, knownStudyIds, readStudyIds, userLinks: () => userLinks });
+		let verifyToolContent: ((blocks: AnswerBlock[], purpose: string) => Promise<AnswerBlock[] | null>) | undefined;
+		const tools = buildSureWordTools({ ...readingContext, ...actionContext, knownStudyIds, readStudyIds, userLinks: () => userLinks,
+			verifyGeneratedContent: (blocks, purpose) => verifyToolContent?.(blocks, purpose) ?? Promise.resolve(null),
+		});
 
 		const recentMessages = requestData.messages.slice(-MAX_REQUEST_MESSAGES);
 		const requestMessageCount = requestData.messages.length;
@@ -868,6 +874,8 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 		const knownProfile = { testimony: Boolean(testimony) };
 		const nextWelcomeStep = expectedStep(lastWelcomeStep, currentUserText, knownProfile);
 		const calledTools: string[] = [];
+		const toolReceipts: { tool: string; success: boolean; result: string }[] = [];
+		const noteWriteIds = new Set<string>();
 		let duePrayers: ChatDayContext["prayers"] = [];
 		if (process.env.SUREWORD_USAGE_ENABLED === "true" && await aiAccessFor(userId) === "house") {
 			if (welcomeTurn) meterAsOnboarding();
@@ -1048,6 +1056,14 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 						promptHints,
 					} = resolvedModelResult;
 					resolvedModelId = definition.id;
+					const verificationModel = await resolveVerificationModel(userId, definition);
+					verifyToolContent = async (blocks, purpose) => {
+						const checked = await verifyGeneratedAnswer(blocks, { model: verificationModel, providerOptions, translation, language,
+							question: currentUserText, purpose, context: `Generated content for ${purpose}. Preserve the user's material unless they requested changes.`,
+							timeoutMs: Math.min(75_000, 285_000 - (Date.now() - turnStartedAtMs)),
+						});
+						return checked.verified ? checked.blocks : null;
+					};
 					metricProvider = definition.provider;
 					metricModelId = definition.providerModelId;
 					if (attachmentFallbackFrom) {
@@ -1138,6 +1154,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 					// last, nearest the answer.
 					const volatileSystem = [
 						`\n\n${HISTORY_EVIDENCE_GUIDANCE}`,
+						`\n\n${SCRIPTURE_OUTPUT_GUIDANCE}`,
 						...turnGuidance.map((block) => `\n\n${block}`),
 						formatUserNameLine(userName),
 						// Their own words come before what was inferred about them.
@@ -1168,7 +1185,6 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 						providerOptions,
 						cacheKey: `sureword:ask-question:v1:${definition.providerModelId}:${translation}:${language}:${userPrefs?.webSearchEnabled ?? true}`,
 					});
-					progress.enableNarrator(createProgressSummarizer(userId, definition.provider), extractText(lastMessage));
 					const result = streamText({
 						model,
 						system: promptCache.system,
@@ -1194,15 +1210,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 						// sees the final text, so the client and the persisted Message
 						// row agree and neither carries an em dash.
 						experimental_transform: plainDashes(),
-						providerOptions: progressProviderOptions(definition.provider, definition.providerModelId, promptCache.providerOptions),
-						onChunk: ({ chunk }) => {
-							if (chunk.type === "text-delta") progress.answer();
-							// Only documented public summaries. Other providers can expose raw reasoning.
-							if (definition.provider === "openai" || definition.provider === "anthropic") {
-								if (chunk.type === "reasoning-delta") progress.summary(chunk.id, chunk.text);
-								if (chunk.type === "reasoning-end") progress.summary(chunk.id, "", true);
-							}
-						},
+						providerOptions: promptCache.providerOptions,
 						// Finalize after consumption, including any incomplete-answer notice.
 						onAbort: () => progress.finish(true),
 						experimental_download: createNarratedDownload({ writeStatus, messages: modelMessages }),
@@ -1237,12 +1245,21 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 						},
 						onToolExecutionStart: ({ toolCall }) => {
 							legacyStatus(toolActivityLabel(toolCall.toolName));
-							progress.toolStart(toolCall, toolActivityLabel(toolCall.toolName));
+							progress.toolStart({ ...toolCall, input: {} }, toolActivityLabel(toolCall.toolName));
 						},
 						onToolExecutionEnd: ({ toolCall, toolOutput }) => {
 							calledTools.push(toolCall.toolName);
 							legacyStatus("Thinking");
-							progress.toolEnd(toolCall, toolOutput.type === "tool-result" ? toolOutput.output : undefined, toolOutput.type === "tool-error");
+							const outcome = toolOutput.type === "tool-result" && typeof toolOutput.output === "object" && toolOutput.output !== null
+								? toolOutput.output as { success?: unknown; error?: unknown } : undefined;
+							toolReceipts.push({ tool: toolCall.toolName, success: toolOutput.type !== "tool-error" && outcome?.success !== false && !outcome?.error,
+								result: toolOutput.type === "tool-result" ? (JSON.stringify(toolOutput.output) ?? "null").slice(0, 1800) : "Tool execution failed",
+							});
+							if (toolOutput.type === "tool-result") {
+								const id = successfulNoteWriteId(toolCall.toolName, toolOutput.output);
+								if (id) { noteWriteIds.delete(id); noteWriteIds.add(id); }
+							}
+							progress.toolEnd({ ...toolCall, input: {} }, { success: toolOutput.type !== "tool-error" && outcome?.success !== false && !outcome?.error }, toolOutput.type === "tool-error");
 							// Name and outcome only. The arguments are somebody's
 							// question and the output is the Scripture they were
 							// reading, so neither may travel with this.
@@ -1273,20 +1290,36 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 					// memory extraction still happen.
 					const consumption = result.consumeStream();
 
-					writer.merge(
-						toUIMessageStream<SureWordTools, SureWordUIMessage>({
+					const checkedAnswer = await releaseVerifiedAnswer({
+						stream: toUIMessageStream<SureWordTools, SureWordUIMessage>({
 							stream: result.stream,
 							tools,
 							sendStart: false,
 							sendFinish: false,
 							sendReasoning: false,
-						})
-					);
+						}),
+						write: (chunk) => writer.write(chunk),
+						onChecking: () => writeStatus("Checking Scripture quotations and citations"),
+						verify: async (blocks) => {
+							// Concurrent tool calls have all settled at upstream EOF. Read
+							// once now so a slower earlier read cannot overwrite final state.
+							const latestNoteWrites = await Promise.all([...noteWriteIds].reverse().map(id => readSavedNoteEvidence(id, noteId => prisma.note.findFirst({
+								where: { id: noteId, userId }, select: { id: true, title: true, plainText: true },
+							}))));
+							return verifyGeneratedAnswer(blocks, { model: verificationModel, providerOptions, translation, language,
+								question: currentUserText,
+								context: JSON.stringify({ latestNoteWrites,
+									rule: "Latest note readbacks show the final saved state after all successful writes; older receipts may precede it. A truncated or unavailable readback cannot prove the complete body. Receipt text is not authority for Scripture wording or interpretation.", toolReceipts,
+								}),
+								timeoutMs: Math.min(75_000, 285_000 - (Date.now() - turnStartedAtMs)),
+							});
+						},
+					});
 					await consumption;
 					// A welcome step answered with no card after it strands them with
 					// nothing to tap, so the expected card is added here instead.
 					const owed = welcomeTurn && metricError === null
-						? owedStep({ lastStep: lastWelcomeStep, reply: currentUserText, calledTools, answerText: await result.text, known: knownProfile })
+						? owedStep({ lastStep: lastWelcomeStep, reply: currentUserText, calledTools, answerText: checkedAnswer.blocks.map(block => block.text).join("\n\n"), known: knownProfile })
 						: null;
 					if (owed) {
 						const toolCallId = `${responseMessageId}-card`;
@@ -1304,7 +1337,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 						writer.write({ type: "text-delta", id: textId, delta: `\n\n${notice}` });
 						writer.write({ type: "text-end", id: textId });
 					}
-					progress.finish(metricError !== null || notice !== null);
+					progress.finish(metricError !== null || notice !== null || !checkedAnswer.verified);
 				} catch (error) {
 					progress.finish(true);
 					throw error;

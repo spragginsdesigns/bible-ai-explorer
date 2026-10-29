@@ -5,7 +5,8 @@ import { z } from "zod";
 import { buildReadingTools, type ReadingToolContext } from "@/lib/reading-tools";
 import { buildMemoryTools } from "@/lib/memory-tools";
 import { buildOnboardingTools } from "@/lib/onboarding-tools";
-import { buildStudyTools } from "@/lib/study-tools";
+import { buildStudyTools, GENERATED_WRITE_VERIFICATION_ERROR, verifyGeneratedWriteBlocks, type VerifyGeneratedContent } from "@/lib/study-tools";
+export type { GeneratedContentBlock, VerifyGeneratedContent } from "@/lib/study-tools";
 import { buildActionTools, executeApprovedAction, type AgentActionContext } from "@/lib/agent-actions";
 import {
 	formatVersesForModel,
@@ -516,6 +517,8 @@ export interface HighlightsToolOutput {
 }
 
 export interface SureWordToolContext extends ReadingToolContext, AgentActionContext {
+	/** Check every generated prose field before any note or study write. */
+	verifyGeneratedContent?: VerifyGeneratedContent;
 	/** Discovered server-owned study IDs; never supplied by the client. */
 	knownStudyIds?: Set<string>;
 	/** Full checkpoints successfully read during this server request. */
@@ -1273,11 +1276,16 @@ export function buildSureWordTools(context: SureWordToolContext) {
 			// Models sometimes send noteId as an empty string; treat any blank
 			// value as "not specified" so the open note (defaultNoteId) wins.
 			const targetNoteId = noteId?.trim() || context.defaultNoteId;
+			const verified = await verifyGeneratedWriteBlocks(context.verifyGeneratedContent, [
+				{ id: "markdown", text: markdown },
+				...(title === undefined ? [] : [{ id: "title", text: title }]),
+			], "addToNote");
+			if (!verified) throw new Error(GENERATED_WRITE_VERIFICATION_ERROR);
 			return appendMarkdownToNote({
 				userId: context.userId,
-				markdown,
+				markdown: verified[0].text,
 				noteId: targetNoteId,
-				title,
+				title: verified[1]?.text,
 				// A retried or regenerated "save this" must land in the note the
 				// first attempt created, not in a near-duplicate beside it.
 				matchExistingTitle: true,
@@ -1328,7 +1336,12 @@ export function buildSureWordTools(context: SureWordToolContext) {
 			if (!targetNoteId) {
 				throw new Error("No note specified. Use findNotes first to locate the note.");
 			}
-			return rewriteNote({ userId: context.userId, noteId: targetNoteId, markdown, title });
+			const verified = await verifyGeneratedWriteBlocks(context.verifyGeneratedContent, [
+				{ id: "markdown", text: markdown },
+				...(title === undefined ? [] : [{ id: "title", text: title }]),
+			], "updateNote");
+			if (!verified) throw new Error(GENERATED_WRITE_VERIFICATION_ERROR);
+			return rewriteNote({ userId: context.userId, noteId: targetNoteId, markdown: verified[0].text, title: verified[1]?.text });
 		},
 	});
 
@@ -1668,7 +1681,27 @@ export function buildSureWordTools(context: SureWordToolContext) {
 			if (!targetNoteId) {
 				throw new Error("No note specified. Use findNotes first to locate the note.");
 			}
-			return organizeUserNote({ userId: context.userId, noteId: targetNoteId, title, folderName, tags, pinned });
+			const blocks = [
+				...(title === undefined ? [] : [{ id: "title", text: title }]),
+				...(folderName === undefined ? [] : [{ id: "folderName", text: folderName }]),
+				...(tags ?? []).map((text, index) => ({ id: `tags.${index}`, text })),
+			];
+			// Pinning alone has no generated prose to verify.
+			if (!blocks.length) return organizeUserNote({ userId: context.userId, noteId: targetNoteId, title, folderName, tags, pinned });
+			const verified = await verifyGeneratedWriteBlocks(context.verifyGeneratedContent, blocks, "organizeNote");
+			if (!verified) throw new Error(GENERATED_WRITE_VERIFICATION_ERROR);
+			const text = new Map(verified.map(block => [block.id, block.text]));
+			const checked = z.object({
+				title: z.string().optional(),
+				folderName: z.string().max(MAX_ORGANIZE_NAME_LENGTH).optional(),
+				tags: z.array(z.string().max(MAX_ORGANIZE_NAME_LENGTH)).max(MAX_ORGANIZE_TAGS).optional(),
+			}).safeParse({
+				title: title === undefined ? undefined : text.get("title"),
+				folderName: folderName === undefined ? undefined : text.get("folderName"),
+				tags: tags?.map((_, index) => text.get(`tags.${index}`)),
+			});
+			if (!checked.success) throw new Error(GENERATED_WRITE_VERIFICATION_ERROR);
+			return organizeUserNote({ userId: context.userId, noteId: targetNoteId, ...checked.data, pinned });
 		},
 	});
 

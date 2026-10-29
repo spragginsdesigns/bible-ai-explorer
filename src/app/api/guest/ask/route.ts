@@ -5,8 +5,9 @@ import { checkBotId } from "botid/server";
 import { createTextStreamResponse, streamText, isStepCount, type ModelMessage } from "ai";
 import { prisma } from "@/lib/prisma";
 import { buildSureWordTools } from "@/lib/ai-tools";
-import { resolveGuestModel } from "@/lib/ai/provider";
+import { resolveGuestModel, resolveVerificationModel } from "@/lib/ai/provider";
 import { plainDashes } from "@/lib/ai/plain-dashes";
+import { SCRIPTURE_OUTPUT_GUIDANCE, verifyGeneratedAnswer, verifiedTextStream } from "@/lib/ai/verified-generation";
 import { chatSystemPrompt } from "@/utils/systemPrompt";
 import { stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 import {
@@ -41,7 +42,7 @@ import {
  *     deletes it, so an outage never spends somebody's three answers.
  */
 
-export const maxDuration = 120;
+export const maxDuration = 180;
 
 // Four reads cover every question a first answer needs; each is instant or a
 // vector lookup, and none can touch a user row.
@@ -147,8 +148,10 @@ export async function POST(req: Request) {
 		prisma.guestTurn.delete({ where: { id: reservation.id } }).catch(() => undefined);
 
 	let resolved: ReturnType<typeof resolveGuestModel>;
+	let verificationModel: Awaited<ReturnType<typeof resolveVerificationModel>>;
 	try {
 		resolved = resolveGuestModel();
+		verificationModel = await resolveVerificationModel(null, resolved.definition);
 	} catch (error) {
 		await releaseReservation();
 		console.error("Guest model unavailable:", error);
@@ -160,7 +163,7 @@ export async function POST(req: Request) {
 
 	const result = streamText({
 		model: resolved.model,
-		system: `${chatSystemPrompt("KJV")}\n\n${GUEST_SYSTEM_GUIDANCE}`,
+		system: `${chatSystemPrompt("KJV")}\n\n${GUEST_SYSTEM_GUIDANCE}\n\n${SCRIPTURE_OUTPUT_GUIDANCE}`,
 		messages,
 		tools,
 		stopWhen: isStepCount(GUEST_STEP_LIMIT),
@@ -169,30 +172,33 @@ export async function POST(req: Request) {
 		maxOutputTokens: GUEST_MAX_OUTPUT_TOKENS,
 		experimental_transform: plainDashes(),
 		providerOptions: resolved.providerOptions,
+		abortSignal: AbortSignal.timeout(90_000),
 		onError: ({ error }) => console.error("Guest answer failed:", error),
 	});
 
-	// Settle the reserved row whether or not the browser stays to read it: a
-	// visitor who closes the tab mid-answer has still spent the turn, and the
-	// answer is what they would claim on sign-up.
-	waitUntil(
-		Promise.resolve(result.text)
-			.then(async (text) => {
-				const answer = stripFollowUpMarkers(text, { streaming: false }).trim();
-				if (!answer) {
-					await releaseReservation();
-					return;
-				}
-				await prisma.guestTurn.update({ where: { id: reservation.id }, data: { answer } });
-			})
-			.catch(async (error) => {
-				console.error("Guest answer did not complete:", error);
-				await releaseReservation();
-			}),
-	);
+	// The review covers preambles from every tool step, not just result.text's
+	// final step. One checked result feeds both the browser and the claimed history.
+	const checkedAnswer = (async () => {
+		const steps = await result.steps;
+		const checked = await verifyGeneratedAnswer(
+			steps.map((step, index) => ({ id: `guest-${index}`, text: step.text })),
+			{ model: verificationModel, providerOptions: resolved.providerOptions, translation: "KJV", question },
+		);
+		return { ...checked, answer: stripFollowUpMarkers(checked.blocks.map(block => block.text).join("\n\n"), { streaming: false }).trim() };
+	})();
+	const verifiedAnswer = checkedAnswer.then(checked => checked.answer);
+	// Finish and settle even if the visitor closes the browser. A withheld
+	// answer is not a successful turn and must never become claimable history.
+	waitUntil(checkedAnswer.then(async checked => {
+		if (!checked.verified || !checked.answer) { await releaseReservation(); return; }
+		await prisma.guestTurn.update({ where: { id: reservation.id }, data: { answer: checked.answer } });
+	}).catch(async error => {
+		console.error("Guest answer did not complete:", error);
+		await releaseReservation();
+	}));
 
 	const response = createTextStreamResponse({
-		stream: result.textStream,
+		stream: verifiedTextStream(verifiedAnswer),
 		headers: {
 			"Cache-Control": "no-store",
 			"X-Guest-Remaining": String(quota.remaining),
