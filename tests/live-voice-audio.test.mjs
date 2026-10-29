@@ -153,7 +153,7 @@ function audioHarness() {
 	}
 	const sandbox = {
 		exports: {}, AudioContext: Context, AudioWorkletNode: Worklet,
-		require: name => { assert.equal(name, "./voice-commands"); return { VOICE_PLAYBACK_RATE: 1.15 }; },
+		require: name => { assert.equal(name, "./voice-commands"); return { VOICE_PLAYBACK_RATE: 1.05 }; },
 		navigator: { mediaDevices: { getUserMedia: async options => {
 			assert.equal(options.audio.channelCount, 1);
 			assert.equal(options.audio.echoCancellation, true);
@@ -181,8 +181,8 @@ test("playback decodes PCM16LE and schedules adjacent chunks in order", () => {
 	audio.play(encoded);
 	assert.equal(blocks[0].rate, 24_000);
 	assert.deepEqual(Array.from(blocks[0].samples.slice(0, 5)), [-1, -.5, 0, .5, 32767 / 32768]);
-	assert.equal(sources[0].playbackRate.value, 1.15);
-	assert.ok(Math.abs(sources[1].at - sources[0].at - .02 / 1.15) < 1e-10, "chunks stay adjacent at the accelerated playback rate");
+	assert.equal(sources[0].playbackRate.value, 1.05);
+	assert.ok(Math.abs(sources[1].at - sources[0].at - .02 / 1.05) < 1e-10, "chunks stay adjacent at the accelerated playback rate");
 	audio.flush();
 	assert.ok(sources.every(source => source.stopped && source.disconnected));
 	audio.close();
@@ -192,15 +192,17 @@ test("suspended playback is bounded and resumes queued chunks only once", async 
 	const { audio, pcmToBase64, sources, blocked } = audioHarness();
 	audio.context.state = "suspended";
 	const second = pcmToBase64(new ArrayBuffer(48_000));
-	for (let i = 0; i < 13; i += 1) audio.play(second);
+	// At 1.05x, twelve one-second chunks fit the twelve-second queue cap;
+	// the thirteenth would exceed it.
+	for (let i = 0; i < 12; i += 1) audio.play(second);
 	assert.equal(sources.length, 0);
 	assert.ok(blocked.every(Boolean));
 	assert.throws(() => audio.play(second), /fell behind/);
 	await audio.resume();
-	assert.equal(sources.length, 13);
+	assert.equal(sources.length, 12);
 	assert.equal(blocked.at(-1), false);
 	await audio.resume();
-	assert.equal(sources.length, 13, "resume must not replay already-drained chunks");
+	assert.equal(sources.length, 12, "resume must not replay already-drained chunks");
 	audio.close();
 	assert.ok(sources.every(source => source.stopped));
 });

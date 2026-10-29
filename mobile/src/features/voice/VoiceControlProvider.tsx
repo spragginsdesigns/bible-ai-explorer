@@ -12,7 +12,7 @@ import { useTheme } from "@/features/settings/settingsStore";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { acquireVoiceOutput, registerMicrophonePause, subscribeVoiceFailure, subscribeVoiceOutput, voiceOutputActive } from "./voiceActivity";
 import { VoiceTurnGate, voiceControlsEligible } from "./voiceTurnGate";
-import { resolveVoiceCommand } from "./voiceCommands";
+import { resolveVoiceCommand, VOICE_PLAYBACK_RATE } from "./voiceCommands";
 
 export interface VoiceCard {
 	question: string;
@@ -109,7 +109,7 @@ export function VoiceControlProvider({ children }: { children: React.ReactNode }
 			await new Promise<void>((resolve, reject) => {
 				const timeout = setTimeout(() => { void Speech.stop(); reject(new Error("Spoken guidance did not finish.")); }, 60_000);
 				const finish = () => { clearTimeout(timeout); resolve(); };
-				Speech.speak(text, { rate: 1.15, onDone: finish, onStopped: finish, onError: () => { clearTimeout(timeout); reject(new Error("Could not speak the guidance.")); } });
+			Speech.speak(text, { rate: VOICE_PLAYBACK_RATE, onDone: finish, onStopped: finish, onError: () => { clearTimeout(timeout); reject(new Error("Could not speak the guidance.")); } });
 			});
 		} finally { state.current.cue = false; output.release(); }
 	}

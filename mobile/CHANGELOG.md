@@ -9,7 +9,7 @@ This file is the **single source of truth for Google Play "What's new" release n
 IMPROVED
 - Spoken onboarding guidance now plays a little faster.
 
-**Dev notes:** Adds account-restricted speech controls for the verified owner account only: spoken choices, screen navigation, and normal SureWord chat with its existing tools and saved history. Other accounts do not receive the controls. Playback uses 1.15x speed. Recognition pauses for narration and durable assistant readback; Stop and account/background cleanup fence delayed callbacks. The separate paid GPT-Live relay remains disabled in production. This is release preparation; platform acceptance and distribution receipts determine shipment status. Includes the current notification artwork and Android network security baseline from 1.111.0.
+**Dev notes:** Adds account-restricted speech controls for the verified owner account only: spoken choices, screen navigation, and normal SureWord chat with its existing tools and saved history. Other accounts do not receive the controls. Playback uses 1.05x speed after owner feedback that 1.15x was too fast. Recognition pauses for narration and durable assistant readback; Stop and account/background cleanup fence delayed callbacks. The separate paid GPT-Live relay remains disabled in production. This is release preparation; platform acceptance and distribution receipts determine shipment status. Includes the current notification artwork and Android network security baseline from 1.111.0.
 
 ## 1.111.0 (versionCode 130) - 2026-10-29 - internal and closed testing
 

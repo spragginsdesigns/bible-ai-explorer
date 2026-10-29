@@ -95,7 +95,7 @@ it("stops on a failed canonical send without retrying the question", async () =>
 	controls.registerChat({ busy: false, error: null, send }); await start();
 	await act(async () => { final("What is grace?"); mocks.emit("end"); }); await flush();
 	expect(send).toHaveBeenCalledTimes(1); expect(send).toHaveBeenCalledWith("What is grace?"); expect(controls.enabled).toBe(false);
-	expect(mocks.speak).toHaveBeenCalledWith("I am working on your answer.", 1.15);
+	expect(mocks.speak).toHaveBeenCalledWith("I am working on your answer.", 1.05);
 	await flush(); expect(send).toHaveBeenCalledTimes(1);
 });
 it("sends freeform answers only when the current card allows them", async () => {
@@ -115,6 +115,6 @@ it("speaks a settled canonical answer and numbered choices after its exact saved
 	}
 	await act(async () => { renderer = create(React.createElement(Narrator)); }); await flush();
 	expect(mocks.api).toHaveBeenCalledWith(expect.any(Function), "/api/conversations/conversation");
-	expect(mocks.speak).toHaveBeenCalledExactlyOnceWith("The answer. Option one. Pastor. Option two. Newly saved.", 1.15);
+	expect(mocks.speak).toHaveBeenCalledExactlyOnceWith("The answer. Option one. Pastor. Option two. Newly saved.", 1.05);
 	expect(mocks.api.mock.invocationCallOrder[0]).toBeLessThan(mocks.speak.mock.invocationCallOrder[0]);
 });

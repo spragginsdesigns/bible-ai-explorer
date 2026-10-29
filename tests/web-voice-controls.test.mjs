@@ -147,11 +147,11 @@ test("only an exact persisted assistant row supplies narration, including an int
 	assert.equal(savedVoiceAnswer({ messages: [null, {}] }, "answer"), null);
 });
 
-test("narration pauses capture until all output drains, waits for welcome Audio, and speaks at 1.15x", async () => {
+test("narration pauses capture until all output drains, waits for welcome Audio, and speaks at 1.05x", async () => {
 	const utterances = [];
 	const states = [];
 	const narration = load("web-narration", {
-		require: name => { assert.equal(name, "./voice-commands"); return { VOICE_PLAYBACK_RATE: 1.15 }; },
+		require: name => { assert.equal(name, "./voice-commands"); return { VOICE_PLAYBACK_RATE: 1.05 }; },
 		window: { speechSynthesis: { speak: utterance => utterances.push(utterance), cancel() {} } },
 		SpeechSynthesisUtterance: class { constructor(text) { this.text = text; } },
 	});
@@ -168,7 +168,7 @@ test("narration pauses capture until all output drains, waits for welcome Audio,
 	anotherDone();
 	assert.equal(narration.narrationBusy(), false);
 	const spoken = narration.speakVoiceStatus("Option one. Saved and growing.");
-	assert.equal(utterances[0].rate, 1.15);
+	assert.equal(utterances[0].rate, 1.05);
 	assert.equal(narration.narrationBusy(), true);
 	spoken.cancel(); await spoken.done;
 	assert.equal(narration.narrationBusy(), false);
@@ -191,7 +191,7 @@ test("a failed speech-recognition constructor reports a recoverable failure with
 test("failed speech output releases the narration lock and reports failure to the controller", async () => {
 	const utterances = [];
 	const narration = load("web-narration", {
-		require: () => ({ VOICE_PLAYBACK_RATE: 1.15 }),
+		require: () => ({ VOICE_PLAYBACK_RATE: 1.05 }),
 		window: { speechSynthesis: { speak: utterance => utterances.push(utterance), cancel() {} } },
 		SpeechSynthesisUtterance: class {},
 	});

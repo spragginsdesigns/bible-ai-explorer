@@ -5,7 +5,7 @@ export type VoiceCommand =
 	| { type: "navigate"; destination: VoiceDestination }
 	| { type: "back" | "repeat" | "stop" | "ambiguous" | "unmatched" };
 
-export const VOICE_PLAYBACK_RATE = 1.15;
+export const VOICE_PLAYBACK_RATE = 1.05;
 
 function normalized(text: string): string {
 	return text.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase()

@@ -11,7 +11,7 @@ enum NativeVoiceRules {
             && email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "atmosphere9999@gmail.com"
     }
 
-    static let playbackRate: Float = 1.15
+    static let playbackRate: Float = 1.05
     static let destinations = ["today", "bible", "chat", "connections", "study", "notes", "settings"]
 
     static func normalized(_ text: String) -> String {
