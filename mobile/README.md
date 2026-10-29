@@ -135,9 +135,38 @@ Known Windows gotchas (all pre-solved in the checked-in config):
   notification - **a prebuild is mandatory for that feature to work at all**.
   After one, confirm with:
   `grep -c FOREGROUND_SERVICE_MEDIA_PLAYBACK android/app/src/main/AndroidManifest.xml`
-  (expect `1`). `recordAudioAndroid: false` must stay - SureWord records nothing,
-  and the manifest's `RECORD_AUDIO` line carries `tools:node="remove"`, which is
-  the *removal* directive, not a granted permission.
+  (expect `1`). Voice controls require `recordAudioAndroid: true` and a string
+  `expo-image-picker.microphonePermission`: setting either to `false` removes
+  `RECORD_AUDIO` from the generated manifest, even when the speech recognition
+  plugin requests it. Inspect the final manifest, not only `app.json`.
+
+### Spoken choices and navigation
+
+The authenticated root mounts device speech controls only after a successful
+`GET /api/voice/live` with `pro: true`. The server owns account eligibility;
+the client does not compare email addresses. Relay availability does not gate
+these local controls. Other accounts retain the existing welcome narration.
+
+`expo-speech-recognition` 57.x supplies native speech recognition for Expo SDK
+57. Its config plugin requires a new native build; an old APK reports that
+speech recognition is missing when Start is pressed. The microphone permission
+prompt appears only after Start, and errors stop capture until another Start.
+Finish ends the current utterance; Stop ends the session. Backgrounding and
+account changes also stop it.
+
+Final utterances select the currently visible onboarding label or numbered
+option through its tap callback, including text size, reminder time and tour
+actions. Commands open Today, Bible, Chat, Connections, Study, Notes or Settings,
+go back through the editor's departure guard, repeat options, or stop voice
+controls. Questions use the normal chat sender and tools. A reply's exact saved
+assistant row is checked before narration/listening continues; failed saves
+never trigger an automatic resend. Narration runs at 1.15x, with pitch correction
+for streamed audio. The microphone remains off through spoken cues, save checks,
+network requests and the entire output queue.
+
+Native microphone recognition, speech service availability, TalkBack interaction
+and physical audio routing still need Android device/emulator acceptance. A
+successful Metro export, typecheck or mocked lifecycle test does not prove them.
 
 ### Pushing to the phone
 

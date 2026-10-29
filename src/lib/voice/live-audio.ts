@@ -1,6 +1,9 @@
 /** Browser-only PCM transport. The relay uses PCM16LE, mono, 24 kHz both ways. */
+import { VOICE_PLAYBACK_RATE } from "./voice-commands";
 export const LIVE_SAMPLE_RATE = 24_000;
 const MAX_BUFFERED_SECONDS = 12;
+/** WebAudio PCM playback changes pitch slightly at this faster rate. */
+export const LIVE_PLAYBACK_RATE = VOICE_PLAYBACK_RATE;
 
 export function pcmToBase64(bytes: ArrayBuffer): string {
 	const input = new Uint8Array(bytes);
@@ -80,7 +83,7 @@ export class LiveAudio {
 		const samples = new Float32Array(bytes.length / 2);
 		for (let i = 0; i < samples.length; i += 1) samples[i] = view.getInt16(i * 2, true) / 32768;
 		const queuedSeconds = Math.max(0, this.nextPlaybackAt - this.context.currentTime)
-			+ (this.bufferedSamples + samples.length) / LIVE_SAMPLE_RATE;
+			+ (this.bufferedSamples + samples.length) / LIVE_SAMPLE_RATE / LIVE_PLAYBACK_RATE;
 		if (queuedSeconds > MAX_BUFFERED_SECONDS || this.sources.size > 512) throw new Error("Voice playback fell behind. Start a new session.");
 		if (this.context.state !== "running") {
 			this.buffered.push(samples);
@@ -97,12 +100,13 @@ export class LiveAudio {
 		buffer.getChannelData(0).set(samples);
 		const source = this.context.createBufferSource();
 		source.buffer = buffer;
+		source.playbackRate.value = LIVE_PLAYBACK_RATE;
 		source.connect(this.context.destination);
 		this.sources.add(source);
 		source.onended = () => { this.sources.delete(source); source.disconnect(); };
 		const start = Math.max(this.context.currentTime + 0.015, this.nextPlaybackAt);
 		source.start(start);
-		this.nextPlaybackAt = start + buffer.duration;
+		this.nextPlaybackAt = start + buffer.duration / LIVE_PLAYBACK_RATE;
 	}
 
 	flush(): void {

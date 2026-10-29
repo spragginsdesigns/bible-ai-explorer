@@ -45,7 +45,7 @@
 				{
 					"photosPermission": "Allow SureWord to attach photos to your AI conversations.",
 					"cameraPermission": "Allow SureWord to take photos for your AI conversations.",
-					"microphonePermission": false
+					"microphonePermission": "Allow SureWord to hear your spoken choices and questions when you start voice controls."
 				}
 			],
 			[
@@ -68,7 +68,7 @@
 			[
 				"expo-audio",
 				{
-					"recordAudioAndroid": false,
+					"recordAudioAndroid": true,
 					"enableBackgroundPlayback": true
 				}
 			],
@@ -87,6 +87,16 @@
 						"image/*",
 						"audio/*",
 						"application/pdf"
+					]
+				}
+			],
+			[
+				"expo-speech-recognition",
+				{
+					"microphonePermission": "Allow SureWord to hear your spoken choices and questions when you start voice controls.",
+					"speechRecognitionPermission": "Allow SureWord to recognize spoken choices and questions when you start voice controls.",
+					"androidSpeechServicePackages": [
+						"com.google.android.googlequicksearchbox"
 					]
 				}
 			]

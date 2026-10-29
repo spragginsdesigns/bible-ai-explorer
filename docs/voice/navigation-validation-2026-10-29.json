@@ -1,0 +1,82 @@
+{
+  "verifiedAt": "2026-10-29T18:21:32.453302+00:00",
+  "scope": "isolated codex/sureword-gpt-live-pro worktree; installed apps and production unchanged",
+  "ownerAccount": "atmosphere9999@gmail.com",
+  "playbackRate": 1.15,
+  "sharedCommands": "full current labels or valid option numbers/ordinals; explicit seven-root navigation, back, repeat and stop",
+  "web": {
+    "focusedTests": {
+      "total": 123,
+      "passed": 123,
+      "failed": 0
+    },
+    "typecheck": "passed",
+    "lint": "passed",
+    "productionBuild": "passed with disposable webpack filesystem cache disabled for this verification only",
+    "configurationRestored": true,
+    "browserProof": {
+      "result": "passed",
+      "recognition": "synthetic final/interim browser recognition events; no physical microphone",
+      "chatApi": "fixture canonical stream and saved-history readback; no paid model request",
+      "identity": "real development owner sign-in and server eligibility gate",
+      "interim": {
+        "optionsRead": true,
+        "requests": 0
+      },
+      "ambiguous": {
+        "clarified": true,
+        "requests": 0
+      },
+      "selected": {
+        "answer": "Saved and growing in the Word",
+        "requests": 1
+      },
+      "notes": {
+        "listening": true,
+        "path": "/notes"
+      },
+      "backAndStop": {
+        "activeRecognizers": 0,
+        "path": "/",
+        "rates": [
+          1.149999976158142
+        ],
+        "requests": 1
+      }
+    },
+    "narrowLayout": {
+      "width": 375,
+      "documentWidth": 375,
+      "voiceBarWithinViewport": true
+    }
+  },
+  "android": {
+    "typecheck": "passed",
+    "testFiles": 94,
+    "testsPassed": 1218,
+    "testsFailed": 0,
+    "testCommand": "npm test -- --maxWorkers=2 --testTimeout=30000",
+    "manifestIntrospection": "RECORD_AUDIO present without removal directive; recognition-service queries present",
+    "metroExport": "earlier full Hermes export passed before final small queue/controller fixes; repeat exports stopped, not additional passes",
+    "finalSourceNativeBuild": "not run; google-services.json absent from isolated worktree",
+    "emulatorOrDeviceInstalled": false
+  },
+  "apple": {
+    "macOS": {
+      "testsPassed": 30,
+      "testsFailed": 0,
+      "testResult": "Passed",
+      "receipt": "/tmp/sureword-native-voice.noindex/Logs/Test/Test-SureWord-2026.10.29_11-01-15--0700.xcresult"
+    },
+    "iOS": "final arm64 generic simulator app build passed; no simulator install or launch",
+    "physicalMicrophoneOrPermissionPrompt": "not exercised"
+  },
+  "remainingGates": [
+    "native rebuild/install and deployment to an API serving owner eligibility",
+    "actual microphone, English recognition assets, Bluetooth/speaker routing and echo",
+    "VoiceOver/TalkBack and blind-user acceptance",
+    "arbitrary nested reader/editor controls and native church result picking remain outside implemented navigation"
+  ],
+  "productionDeployed": false,
+  "installedMacAppChanged": false
+}

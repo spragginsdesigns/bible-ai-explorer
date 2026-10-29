@@ -11,10 +11,12 @@ import {
 	type ChoiceCardOutput,
 	type GlossaryTerm,
 } from "@/lib/onboarding-rules";
+import { useVoiceActionScope } from "../voice/VoiceControlProvider";
 import GlossaryDialog from "./GlossaryDialog";
 import type { CardState } from "@/lib/guide-cards";
 import { trackOnboardingStep } from "@/lib/analytics/client";
-import { setTextScalePreference } from "@/lib/preferencesSync";
+import { setTextScalePreference, usePreference } from "@/lib/preferencesSync";
+import { readVoiceModePref } from "@/lib/preferences";
 import { startTour } from "@/lib/spotlight";
 import {
 	getWebNotificationSettings,
@@ -77,20 +79,23 @@ function scheduleDailyWord(hour: number): void {
  */
 export default function ChoiceCard({ card, conversationId, state, onAnswer, onTypeOwn }: ChoiceCardProps) {
 	const [sent, setSent] = useState(false);
+	const sentRef = React.useRef(false);
 	const [picking, setPicking] = useState(false);
 	const [pickHour, setPickHour] = useState(() => getWebNotificationSettings().hour);
 	const [openTerm, setOpenTerm] = useState<GlossaryTerm | null>(null);
 	const live = state.active && !sent;
+	const welcomeNarration = usePreference(readVoiceModePref, false);
 
 	const answer = (text: string, outcome: "answered" | "skipped") => {
-		if (!live) return;
+		if (!live || sentRef.current) return;
+		sentRef.current = true;
 		setSent(true);
 		trackOnboardingStep(card.step, outcome);
 		onAnswer(text);
 	};
 
 	const choose = (option: string) => {
-		if (!live) return;
+		if (!live || sentRef.current) return;
 		if (card.step === "textScale") {
 			const scale = TEXT_SCALE_VALUES[option as keyof typeof TEXT_SCALE_VALUES];
 			if (scale) void setTextScalePreference(scale);
@@ -112,13 +117,27 @@ export default function ChoiceCard({ card, conversationId, state, onAnswer, onTy
 	};
 
 	const confirmPickedHour = () => {
-		if (!live) return;
+		if (!live || sentRef.current) return;
 		scheduleDailyWord(pickHour);
 		answer(formatNotifyHour(pickHour), "answered");
 	};
 
 	const chosen = state.answer;
 	const options = card.step === "church" ? [] : card.options;
+	useVoiceActionScope(live && !openTerm ? {
+		key: `${conversationId ?? "welcome"}:${card.step}:${card.question}`,
+		question: picking ? "Choose the time for your daily word." : card.question,
+		priority: 10,
+		narrateQuestion: !welcomeNarration,
+		...(card.allowOther && !picking ? { onText: (text: string) => answer(text, "answered") } : {}),
+		actions: [
+			...(picking ? HOURS.map(hour => ({ label: formatNotifyHour(hour), run: () => {
+				if (!live || sentRef.current) return;
+				scheduleDailyWord(hour); answer(formatNotifyHour(hour), "answered");
+			} })) : options.map(option => ({ label: option, run: () => choose(option) }))),
+			{ label: card.skipLabel, run: () => answer(card.skipLabel, "skipped") },
+		],
+	} : null);
 
 	return (
 		<div className="mt-4 flex flex-col gap-3" aria-label={card.question} role="group">
@@ -212,6 +231,8 @@ export default function ChoiceCard({ card, conversationId, state, onAnswer, onTy
 				<ChurchSearch
 					onSaved={(name) => answer(`I saved ${name} as my home church.`, "answered")}
 					onUnavailable={onTypeOwn}
+					onSkip={() => answer(card.skipLabel, "skipped")}
+					skipLabel={card.skipLabel}
 				/>
 			)}
 
@@ -248,7 +269,7 @@ function isAbortError(error: unknown): boolean {
  * My church. Saving can take the better part of half a minute (the server
  * reads the church's website for its mission), so the pick says so.
  */
-function ChurchSearch({ onSaved, onUnavailable }: { onSaved: (name: string) => void; onUnavailable: () => void }) {
+function ChurchSearch({ onSaved, onUnavailable, onSkip, skipLabel }: { onSaved: (name: string) => void; onUnavailable: () => void; onSkip: () => void; skipLabel: string }) {
 	const [query, setQuery] = useState("");
 	const [results, setResults] = useState<ChurchSearchResult[]>([]);
 	const [pending, setPending] = useState(false);
@@ -304,6 +325,18 @@ function ChurchSearch({ onSaved, onUnavailable }: { onSaved: (name: string) => v
 			setSavingId(null);
 		}
 	};
+
+	useVoiceActionScope({
+		key: "welcome-church-search",
+		priority: 20,
+		narrateQuestion: true,
+		question: unavailable ? "Church search is unavailable. You can skip this step." : results.length ? "Choose your home church." : "Say your church name and city to search, or say skip for now.",
+		actions: savingId ? [] : [
+			...results.map(result => ({ label: `${result.name}, ${result.address}`, run: () => pick(result) })),
+			{ label: skipLabel, run: onSkip },
+		],
+		...(!savingId && !unavailable ? { onText: (text: string) => setQuery(text) } : {}),
+	});
 
 	if (unavailable) {
 		return (

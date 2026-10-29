@@ -69,6 +69,13 @@ final class OnboardingModel {
     private let api: APIClient
     private let account: String?
     let voice: OnboardingVoice
+    let voiceControls = NativeVoiceSession()
+    private(set) var isSendingAnswer = false
+    private(set) var hourPickerMessageID: String?
+
+    func setHourPicker(messageID: String, open: Bool) {
+        hourPickerMessageID = open ? messageID : nil
+    }
 
     /// The welcome conversation, once `start` has named it this session.
     private(set) var welcomeConversationID: String?
@@ -79,6 +86,7 @@ final class OnboardingModel {
     private(set) var answered: [String: String] = [:]
     private(set) var progress: GettingStartedProgress?
     private(set) var spotlight: SpotlightRequest?
+    private(set) var isSpotlightTransitioning = false
     /// Set while a spotlight's place is on screen, by the host that drew it.
     @ObservationIgnored private var confirmedSpotlight: UUID?
     @ObservationIgnored private var tourStops: [TourStop] = []
@@ -187,8 +195,12 @@ final class OnboardingModel {
     /// Do the step's device action, then send the label as the reader's
     /// answer through the ordinary send path.
     func answer(_ card: OnboardingChoiceCard, with label: String, messageID: String, app: AppModel) {
-        guard answered[messageID] == nil else { return }
+        guard answered[messageID] == nil,
+              cardStates(for: app.chat)[messageID]?.active == true else { return }
+        voiceControls.input.wait()
+        isSendingAnswer = true
         answered[messageID] = label
+        hourPickerMessageID = nil
         Analytics.shared.track(AnalyticsEvents.onboardingStep, [
             "step": .string(card.step.rawValue),
             "outcome": .string(label == card.skipLabel ? "skipped" : "answered"),
@@ -208,6 +220,7 @@ final class OnboardingModel {
         let startsTour = card.step == .tour && label == OnboardingRules.showMeAround
         Task {
             await send(label, chat: app.chat)
+            isSendingAnswer = false
             if startsTour { startTour(OnboardingRules.tourStops, app: app) }
         }
     }
@@ -305,6 +318,7 @@ final class OnboardingModel {
         spotlightTask?.cancel()
         spotlightTask = nil
         spotlight = nil
+        isSpotlightTransitioning = false
         tourStops = []
         spotlightVerse = nil
         pendingSettingsTarget = nil
@@ -331,6 +345,7 @@ final class OnboardingModel {
     private func light(_ target: AppTarget, caption: String, stop: Int?, app: AppModel) {
         spotlightTask?.cancel()
         spotlight = nil
+        isSpotlightTransitioning = true
         confirmedSpotlight = nil
         if let stop { tourStopIndex = stop }
         navigate(to: target, app: app)
@@ -344,6 +359,7 @@ final class OnboardingModel {
             try? await Task.sleep(for: Self.settleDelay)
             guard !Task.isCancelled, let self else { return }
             self.spotlight = request
+            self.isSpotlightTransitioning = false
             try? await Task.sleep(for: Self.missingTimeout)
             guard !Task.isCancelled, self.spotlight?.id == request.id,
                   self.confirmedSpotlight != request.id
@@ -402,6 +418,7 @@ final class OnboardingModel {
 
     func teardown() {
         closeSpotlight()
+        voiceControls.teardown()
         voice.stop()
     }
 }
@@ -425,6 +442,6 @@ extension OnboardingRules {
         return value == 12 ? 12 : value + 12
     }
 
-    /// "Pick a time" offers these, morning first.
-    static let pickableHours = Array(5...22)
+    /// Every local hour, in the same order for touch and numbered voice choices.
+    static let pickableHours = Array(0...23)
 }

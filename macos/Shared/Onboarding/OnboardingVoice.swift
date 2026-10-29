@@ -14,11 +14,17 @@ import Foundation
 final class OnboardingVoice {
     private let api: APIClient
     private(set) var isSpeaking = false
+    /// Includes fetches and every queued utterance, not just audible playback.
+    private(set) var isBusy = false
 
-    @ObservationIgnored private var queue: [OnboardingRules.VoiceItem] = []
+    @ObservationIgnored private var queue: [QueuedItem] = []
+    private enum QueuedItem { case remote(OnboardingRules.VoiceItem), local(String) }
     @ObservationIgnored private var heard: Set<String> = []
     @ObservationIgnored private var started = false
     @ObservationIgnored private var runner: Task<Void, Never>?
+    @ObservationIgnored private var runnerGeneration = UUID()
+    @ObservationIgnored private var playbackGeneration = UUID()
+    @ObservationIgnored private var currentUtterance: AVSpeechUtterance?
     @ObservationIgnored private var player: AVPlayer?
     @ObservationIgnored private var endObservers: [any NSObjectProtocol] = []
     @ObservationIgnored private var statusObservation: NSKeyValueObservation?
@@ -29,7 +35,10 @@ final class OnboardingVoice {
     init(api: APIClient) {
         self.api = api
         synthesizer.delegate = speechDelegate
-        speechDelegate.onFinish = { [weak self] in self?.finishCurrent() }
+        speechDelegate.onFinish = { [weak self] utterance in
+            guard let current = self?.currentUtterance, ObjectIdentifier(current) == utterance else { return }
+            self?.finishCurrent()
+        }
     }
 
     /// Feed the conversation in. The first call after switching on only marks
@@ -43,30 +52,49 @@ final class OnboardingVoice {
         for message in messages where message.role == .assistant && !message.isStreaming {
             guard message.id != "pending-assistant", !heard.contains(message.id) else { continue }
             heard.insert(message.id)
-            queue.append(contentsOf: OnboardingRules.voiceItems(for: message))
+            queue.append(contentsOf: OnboardingRules.voiceItems(for: message).map(QueuedItem.remote))
         }
+        drain()
+    }
+
+    func enqueueLocal(_ text: String) {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        queue.append(.local(text))
         drain()
     }
 
     /// Off: silence now and forget the session, so switching on again starts
     /// from the newest message rather than replaying what was skipped.
     func stop() {
+        runnerGeneration = UUID()
         runner?.cancel()
         runner = nil
         queue = []
         heard = []
         started = false
         stopPlayback()
+        isBusy = false
     }
 
     private func drain() {
         guard runner == nil, !queue.isEmpty else { return }
+        isBusy = true
+        let generation = UUID()
+        runnerGeneration = generation
         runner = Task { [weak self] in
             while let self, !Task.isCancelled, !self.queue.isEmpty {
                 let item = self.queue.removeFirst()
-                await self.read(item)
+                switch item {
+                case .remote(let item): await self.read(item)
+                case .local(let text):
+                    self.isSpeaking = true
+                    await self.speak(text)
+                    self.isSpeaking = false
+                }
             }
+            guard self?.runnerGeneration == generation else { return }
             self?.runner = nil
+            self?.isBusy = false
         }
     }
 
@@ -126,6 +154,8 @@ final class OnboardingVoice {
     // MARK: Playback
 
     private func play(_ url: URL) async {
+        let generation = UUID()
+        playbackGeneration = generation
         activateAudioSession()
         let request = try? await api.makeRequest(url.absoluteString, method: "GET", fresh: true)
         guard !Task.isCancelled else { return }
@@ -134,6 +164,7 @@ final class OnboardingVoice {
             options["AVURLAssetHTTPHeaderFieldsKey"] = ["Authorization": authorization]
         }
         let item = AVPlayerItem(asset: AVURLAsset(url: url, options: options))
+        item.audioTimePitchAlgorithm = .timeDomain
         let player = AVPlayer(playerItem: item)
         self.player = player
         await withTaskCancellationHandler {
@@ -144,31 +175,47 @@ final class OnboardingVoice {
                     endObservers.append(NotificationCenter.default.addObserver(
                         forName: name, object: item, queue: .main
                     ) { [weak self] _ in
-                        MainActor.assumeIsolated { self?.finishCurrent() }
+                        MainActor.assumeIsolated {
+                            if self?.playbackGeneration == generation { self?.finishCurrent() }
+                        }
                     })
                 }
                 statusObservation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
                     guard item.status == .failed else { return }
-                    Task { @MainActor [weak self] in self?.finishCurrent() }
+                    Task { @MainActor [weak self] in
+                        if self?.playbackGeneration == generation { self?.finishCurrent() }
+                    }
                 }
-                player.play()
+                player.playImmediately(atRate: NativeVoiceRules.playbackRate)
             }
         } onCancel: {
-            Task { @MainActor [weak self] in self?.stopPlayback() }
+            Task { @MainActor [weak self] in
+                if self?.playbackGeneration == generation { self?.stopPlayback() }
+            }
         }
-        stopPlayer()
+        if playbackGeneration == generation { stopPlayer() }
     }
 
     private func speak(_ text: String) async {
+        guard !Task.isCancelled else { return }
+        let generation = UUID()
+        playbackGeneration = generation
         activateAudioSession()
         await withTaskCancellationHandler {
             await withCheckedContinuation { continuation in
                 finished = continuation
-                synthesizer.speak(AVSpeechUtterance(string: text))
+                let utterance = AVSpeechUtterance(string: text)
+                currentUtterance = utterance
+                utterance.rate = AVSpeechUtteranceDefaultSpeechRate * NativeVoiceRules.playbackRate
+                utterance.pitchMultiplier = 1
+                synthesizer.speak(utterance)
             }
         } onCancel: {
-            Task { @MainActor [weak self] in self?.stopPlayback() }
+            Task { @MainActor [weak self] in
+                if self?.playbackGeneration == generation { self?.stopPlayback() }
+            }
         }
+        if playbackGeneration == generation { currentUtterance = nil }
     }
 
     private func finishCurrent() {
@@ -186,6 +233,8 @@ final class OnboardingVoice {
     }
 
     private func stopPlayback() {
+        playbackGeneration = UUID()
+        currentUtterance = nil
         stopPlayer()
         if synthesizer.isSpeaking { synthesizer.stopSpeaking(at: .immediate) }
         isSpeaking = false
@@ -204,13 +253,15 @@ final class OnboardingVoice {
 /// The synthesizer's end-of-utterance callbacks, forwarded to the main actor.
 private final class SpeechDelegate: NSObject, AVSpeechSynthesizerDelegate, @unchecked Sendable {
     /// Set once, before the first utterance.
-    @MainActor var onFinish: (@MainActor () -> Void)?
+    @MainActor var onFinish: (@MainActor (ObjectIdentifier) -> Void)?
 
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        Task { @MainActor [weak self] in self?.onFinish?() }
+        let identity = ObjectIdentifier(utterance)
+        Task { @MainActor [weak self] in self?.onFinish?(identity) }
     }
 
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
-        Task { @MainActor [weak self] in self?.onFinish?() }
+        let identity = ObjectIdentifier(utterance)
+        Task { @MainActor [weak self] in self?.onFinish?(identity) }
     }
 }

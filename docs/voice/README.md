@@ -12,6 +12,11 @@ in its own worktree and against a separate Neon branch. It has not been
 deployed to production or shipped in native clients. Pro and time limits
 remain additional requirements for the allowed account.
 
+The [spoken-navigation update](navigation-2026-10-29.md) adds account-restricted
+on-device/browser listening, choice selection and navigation, and 1.15x
+playback. Native verification is separate from the original GPT-Live browser
+connection receipts below.
+
 ## Product contract
 
 - Speech uses the existing `/api/ask-question` backend. Its doctrine, KJV

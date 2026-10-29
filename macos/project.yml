@@ -123,6 +123,8 @@ targets:
         ATSApplicationFontsPath: "."
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         LSApplicationCategoryType: public.app-category.reference
+        NSMicrophoneUsageDescription: "Allow SureWord to hear your spoken choices and navigation commands when you start voice controls."
+        NSSpeechRecognitionUsageDescription: "Allow SureWord to recognize spoken choices and navigation commands on this device."
         NSHumanReadableCopyright: "© 2026 Austin Spraggins"
         # HTTPS (URLSession/TLS) is the only encryption, which is exempt: no
         # export-compliance documentation needed in App Store Connect (PRD A6).
@@ -221,6 +223,7 @@ targets:
       # Walk with me, which the Mac runs too: the rules mirror, the card and
       # tool part parsing, the voice queue rules and the text size mapping.
       - path: SureWord-iOSTests/OnboardingTests.swift
+      - path: SureWord-iOSTests/NativeVoiceTests.swift
       # Spanish and German: the bundled Bibles, their book names, the answer
       # language and the requests that carry it.
       - path: SureWord-iOSTests/LanguagesTests.swift
@@ -393,6 +396,8 @@ targets:
           - CFBundleURLName: com.spragginsdesigns.sureword
             CFBundleURLSchemes: [sureword]
         # Strings match mobile/app.json's expo-image-picker plugin config.
+        NSMicrophoneUsageDescription: "Allow SureWord to hear your spoken choices and navigation commands when you start voice controls."
+        NSSpeechRecognitionUsageDescription: "Allow SureWord to recognize spoken choices and navigation commands on this device."
         NSCameraUsageDescription: "Allow SureWord to take photos for your AI conversations."
         NSPhotoLibraryUsageDescription: "Allow SureWord to attach photos to your AI conversations."
         # Brand fonts from Shared/Resources/Fonts, copied flat into the bundle.

@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChoiceCardOutput } from "@/lib/onboarding-rules";
 import { alreadyHeardOnStart, voiceItemsFor, type VoiceItem } from "@/lib/guide-cards";
+import { beginNarration, WEB_VOICE_RATE } from "@/lib/voice/web-narration";
+import { useVoiceControls, useVoiceControlsActive } from "../voice/VoiceControlProvider";
 import { requestWelcomeVoice, type WelcomeVoiceAnswer } from "@/lib/walk-client";
 
 /** A message is saved right after its stream ends, so a 404 just after is expected. */
@@ -24,11 +26,13 @@ const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, 
  * session gives up the moment it notices.
  */
 class WelcomeVoicePlayer {
+	constructor(private readonly onUnavailable: () => void) {}
 	private heard = new Set<string>();
 	private queue: VoiceItem[] = [];
 	private playing = false;
 	private session = 0;
 	private stopCurrent: (() => void) | null = null;
+	private releaseNarration: (() => void) | null = null;
 
 	start(alreadyHeard: readonly string[]): void {
 		this.stop();
@@ -41,6 +45,8 @@ class WelcomeVoicePlayer {
 		this.playing = false;
 		this.stopCurrent?.();
 		this.stopCurrent = null;
+		this.releaseNarration?.();
+		this.releaseNarration = null;
 	}
 
 	/** Queue every settled message not read yet, and play. */
@@ -58,15 +64,19 @@ class WelcomeVoicePlayer {
 		if (this.playing) return;
 		const session = this.session;
 		this.playing = true;
+		const release = beginNarration("welcome");
+		this.releaseNarration = release;
 		try {
 			while (this.session === session) {
 				const item = this.queue.shift();
 				if (!item) break;
 				const answer = await this.fetchAnswer(item, session);
+				if (!answer && this.session === session && "messageId" in item) { this.stop(); this.onUnavailable(); return; }
 				if (answer && this.session === session) await this.speak(answer, session);
 			}
 		} finally {
-			if (this.session === session) this.playing = false;
+			release();
+			if (this.session === session) { this.playing = false; this.releaseNarration = null; }
 		}
 	}
 
@@ -96,10 +106,16 @@ class WelcomeVoicePlayer {
 				this.stopCurrent = null;
 				resolve();
 			};
+			const failed = () => {
+				done();
+				if (this.session === session) { this.stop(); this.onUnavailable(); }
+			};
 			if (answer.status === "ready") {
 				const audio = new Audio(answer.streamUrl);
+				audio.playbackRate = WEB_VOICE_RATE;
+				audio.preservesPitch = true;
 				audio.onended = done;
-				audio.onerror = done;
+				audio.onerror = failed;
 				this.stopCurrent = () => {
 					audio.pause();
 					audio.removeAttribute("src");
@@ -107,7 +123,7 @@ class WelcomeVoicePlayer {
 					done();
 				};
 				// A browser that refuses to start sound without a tap skips this one.
-				audio.play().catch(done);
+				audio.play().catch(failed);
 				return;
 			}
 			if (!("speechSynthesis" in window) || !answer.text.trim()) {
@@ -115,8 +131,10 @@ class WelcomeVoicePlayer {
 				return;
 			}
 			const utterance = new SpeechSynthesisUtterance(answer.text);
+			utterance.rate = WEB_VOICE_RATE;
+			utterance.pitch = 1;
 			utterance.onend = done;
-			utterance.onerror = done;
+			utterance.onerror = failed;
 			this.stopCurrent = () => {
 				window.speechSynthesis.cancel();
 				done();
@@ -139,7 +157,15 @@ class WelcomeVoicePlayer {
  * conversation stops whatever is playing and drops the queue.
  */
 export function useWelcomeVoice(active: boolean, conversationId: string | null, messages: readonly VoiceMessage[]): void {
-	const [player] = useState(() => new WelcomeVoicePlayer());
+	const controls = useVoiceControls();
+	const controlsActive = useVoiceControlsActive();
+	const unavailable = useRef(() => {});
+	unavailable.current = () => {
+		if (!controlsActive || !controls) return;
+		controls.stop();
+		void controls.speak("I could not read the saved welcome answer. Voice controls stopped. Check Chat before repeating your choice.");
+	};
+	const [player] = useState(() => new WelcomeVoicePlayer(() => unavailable.current()));
 	const messagesRef = useRef(messages);
 	messagesRef.current = messages;
 
@@ -150,6 +176,12 @@ export function useWelcomeVoice(active: boolean, conversationId: string | null, 
 	}, [active, conversationId, player]);
 
 	useEffect(() => {
-		if (active) player.offer(messages);
+		if (active && document.visibilityState === "visible") player.offer(messages);
 	}, [active, messages, player]);
+	useEffect(() => {
+		const hidden = () => { if (document.visibilityState !== "visible") player.stop(); };
+		document.addEventListener("visibilitychange", hidden);
+		window.addEventListener("pagehide", hidden);
+		return () => { document.removeEventListener("visibilitychange", hidden); window.removeEventListener("pagehide", hidden); };
+	}, [player]);
 }

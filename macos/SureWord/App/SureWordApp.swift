@@ -228,6 +228,7 @@ struct RootView: View {
         // remote dispatch independently checks that same server-side session.
         .onChange(of: clerk.session?.id) { previousID, sessionID in
             guard previousID != nil, previousID != sessionID else { return }
+            root.app?.onboarding.teardown()
             AnswerReadyNotifier.invalidateForAccountChange()
             MacPushRegistration.clearLocalDeliveryForAccountChange()
             _ = PendingDeepLinks.shared.drain()

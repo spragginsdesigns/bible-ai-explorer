@@ -16,6 +16,8 @@ import { readTranslationPref, readVoiceModePref } from "@/lib/preferences";
 import { usePreference } from "@/lib/preferencesSync";
 import { HELP_SCREENS, type HelpScreen } from "@/lib/onboarding-rules";
 import VoiceModeToggle from "./walk/VoiceModeToggle";
+import { useCanonicalVoice } from "./voice/useCanonicalVoice";
+import { useVoiceControls } from "./voice/VoiceControlProvider";
 import { useWelcomeVoice } from "./walk/useWelcomeVoice";
 import { claimGuestTurnsOnce, guestClaimOpened, markGuestClaimOpened } from "@/lib/guest-client";
 import { OPEN_CONVERSATION_EVENT } from "@/lib/web-notifications";
@@ -261,11 +263,32 @@ const BibleAIExplorerInner: React.FC = () => {
 
 	const focusComposer = useCallback(() => setFocusSignal((signal) => signal + 1), []);
 
-	// "Read it to me" belongs to the welcome conversation only, which its
-	// seeded first message identifies.
+	// The welcome's own narrator reads its messages; the command session's
+	// ordinary chat reader still verifies every saved row, including welcome.
 	const isWelcome = messages[0]?.welcome === true;
 	const voiceMode = usePreference(readVoiceModePref, false);
+	const voiceBusy = loading || isStreaming || historyLoading || Boolean(error) || Boolean(historyError);
+	const voiceReplyReady = useCanonicalVoice(activeConversationId, messages, voiceBusy, isWelcome);
 	useWelcomeVoice(isWelcome && voiceMode && !historyLoading, activeConversationId, messages);
+	const voiceControls = useVoiceControls();
+	const voiceConversationKey = activeConversationId ?? "new-chat";
+	const voiceSendRef = useRef({ key: voiceConversationKey, send: sendMessage });
+	voiceSendRef.current = { key: voiceConversationKey, send: sendMessage };
+	useEffect(() => {
+		if (!voiceControls) return;
+		const bindingKey = voiceConversationKey;
+		return voiceControls.setChat({
+			key: bindingKey,
+			busy: voiceBusy || !voiceReplyReady,
+			send: async text => {
+				const current = voiceSendRef.current;
+				if (current.key !== bindingKey) { await voiceControls.speak("The conversation changed. Please repeat your question in the current chat."); return; }
+				cancelEditing();
+				await current.send(text);
+			},
+		});
+	}, [voiceControls, voiceConversationKey, voiceBusy, voiceReplyReady, cancelEditing]);
+
 
 	const startEditingRef = useRef(startEditing);
 	startEditingRef.current = startEditing;

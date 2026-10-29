@@ -201,6 +201,7 @@ struct RootView: View {
         .task { await Analytics.shared.observeSignIns() }
         .onChange(of: clerk.session?.id) { previousID, sessionID in
             guard previousID != nil, previousID != sessionID else { return }
+            app?.onboarding.teardown()
             PushRegistration.clearLocalDeliveryForAccountChange()
             _ = PendingDeepLinks.shared.drain()
             if let app, app.userID == clerk.user?.id, sessionID != nil {

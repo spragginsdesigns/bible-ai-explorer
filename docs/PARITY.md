@@ -20,15 +20,24 @@ does not change the released apps or production configuration.
 
 | Client | Trial status |
 | --- | --- |
-| Web | Account-restricted implementation; synthetic real-provider audio round trip and narrow layout checked |
-| Android | Not implemented; Android acceptance remains the first native release gate |
-| iOS | Not implemented or verified |
-| macOS | Not implemented or verified |
+| Web | Account-restricted GPT-Live plus local speech controls; choice/time/tour callbacks, navigation and 1.15x playback implemented |
+| Android | Local speech controls and 1.15x playback implemented; unit/typecheck/bundle proof, native rebuild and device acceptance pending |
+| iOS | Shared Apple local speech controls implemented; build evidence recorded separately, microphone/VoiceOver acceptance pending |
+| macOS | Local speech controls implemented; native build and 30 focused tests pass, microphone/VoiceOver acceptance pending |
 
 This feature has **not** passed native parity, microphone/device acceptance
 or blind-user usability. See [the trial runbook](voice/README.md) for architecture,
 limits, setup, evidence and remaining release gates. The existing released
 voice-message feature and Apple acceptance receipts below are separate work.
+
+The [spoken-navigation update](voice/navigation-2026-10-29.md) covers the Mac
+choice-card problem: labels or option numbers run the same handlers as taps;
+freeform answers, reminder hours and tour controls are spoken. Commands keep
+working across the seven root destinations. New capture remains owner-only;
+ordinary saved chat responses and numbered choices are spoken before capture
+restarts. These local speech controls do not create paid GPT-Live sessions.
+Arbitrary nested reader/editor controls and physical blind-user acceptance
+are not established by this implementation.
 
 ## Apple release submission, 2026-10-29
 
