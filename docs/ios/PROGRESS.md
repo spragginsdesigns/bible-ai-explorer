@@ -31,6 +31,13 @@ No physical-device result is inferred from simulator acceptance.
 [Sanitized Apple submission receipt](evidence/release-1.30.0/submission.json).
 [Automatic-release readback](evidence/release-1.30.0/auto-release.json).
 
+Expedited review was requested at Austin's direction after rechecking build 2
+and the accepted passing simulator receipts. Apple confirmed **"We'll expedite
+review for SureWord: Personal Bible Guide."** The confirmation is an expedite
+acceptance, not app approval. Automatic release after approval remains enabled.
+[Expedite receipt](evidence/release-1.30.0/expedite.json) and
+[confirmation screenshot](evidence/release-1.30.0/expedite-confirmation.jpg).
+
 **2026-10-27 maintenance, bounded text sizing:** Apple 1.28.0 (macOS build 37)
 has the shared Standard / Large / Largest controls and typography changes.
 macOS compiles and its four native sizing tests pass; iOS compiles for both

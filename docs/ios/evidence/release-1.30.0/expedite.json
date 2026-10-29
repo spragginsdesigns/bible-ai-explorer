@@ -1,0 +1,61 @@
+{
+  "checkedUTC": "2026-10-29T13:49:53.575754+00:00",
+  "appId": "6820260211",
+  "appName": "SureWord: Personal Bible Guide",
+  "bundleId": "com.spragginsdesigns.sureword",
+  "platformSelected": "iOS",
+  "version": "1.30.0",
+  "versionId": "17e55dc4-dceb-4fef-ab02-3a4bc20d9625",
+  "buildNumber": "2",
+  "buildId": "2ea4e4cd-35a3-44e0-8220-173d360352a7",
+  "reviewSubmissionId": "cd9519c9-8003-49ca-b543-5faea391ecb9",
+  "reviewState": "WAITING_FOR_REVIEW",
+  "versionState": "WAITING_FOR_REVIEW",
+  "releaseType": "AFTER_APPROVAL",
+  "expedite": {
+    "requestSubmitted": true,
+    "confirmationObserved": true,
+    "confirmationText": "We\u2019ll expedite review for SureWord: Personal Bible Guide.",
+    "confirmationUrl": "https://developer.apple.com/contact/app-store/?topic=expedite",
+    "confirmationScreenshot": "expedite-confirmation.jpg",
+    "screenshotSHA256": "38ab5f23f23eac1886cdfd0790ab965010cc149913e95969e5ef299b8116ed48",
+    "scope": "Apple confirmation names the app; the current pending iOS version and build were independently read from App Store Connect.",
+    "reviewApprovalClaimed": false
+  },
+  "readiness": {
+    "acceptedGate": "simulator/native acceptance, physical hardware not required by user",
+    "suites": {
+      "ios-offline-notification-unit-final-summary.json": {
+        "result": "Passed",
+        "totalTestCount": 962,
+        "passedTests": 961,
+        "failedTests": 0,
+        "skippedTests": 1
+      },
+      "ios-authenticated-translation-final-summary.json": {
+        "result": "Passed",
+        "totalTestCount": 1,
+        "passedTests": 1,
+        "failedTests": 0,
+        "skippedTests": 0
+      },
+      "ios-130-final-ui-verified-summary.json": {
+        "result": "Passed",
+        "totalTestCount": 3,
+        "passedTests": 3,
+        "failedTests": 0,
+        "skippedTests": 0
+      }
+    },
+    "atlasUI": {
+      "receipt": "/tmp/sureword-parity-takeover/ios-atlas-ui-acceptance-6.xcresult",
+      "passedTests": 3,
+      "failedTests": 0,
+      "result": "Passed"
+    },
+    "allFinalUIAcceptanceTestsPassed": 7,
+    "optionalUnitSkip": "opt-in membership screenshot utility",
+    "runtimeWarnings": "audio-session main-thread performance warnings remain; no failed tests"
+  },
+  "nativeProductCodeChangedThisTurn": false
+}

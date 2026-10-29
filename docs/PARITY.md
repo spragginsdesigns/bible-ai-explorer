@@ -37,6 +37,15 @@ records IDs, timestamps, selected build and distribution states without credenti
 The [automatic-release receipt](ios/evidence/release-1.30.0/auto-release.json)
 supersedes the original submission receipt's `MANUAL` release setting.
 
+At Austin's request, expedited review was also requested for this pending iOS
+submission. Apple's confirmation says **"We'll expedite review for SureWord:
+Personal Bible Guide."** The current build and accepted simulator receipts
+were rechecked before sending the request: 961 unit passes, one optional skip,
+and seven final UI acceptance passes. This accelerates review; it does not
+establish approval. Automatic release after approval remains enabled.
+[Expedite receipt](ios/evidence/release-1.30.0/expedite.json) and
+[Apple confirmation](ios/evidence/release-1.30.0/expedite-confirmation.jpg).
+
 ## Accepted simulator gate for this parity goal, 2026-10-29
 
 Austin clarified: **“Goal doesn't need physical real devices just emulators to
