@@ -23,6 +23,7 @@ import { GlassCard } from "@/components/ui";
 import { NarrationSetup } from "@/features/cross/NarrationSetup";
 import type { NarrationOptions } from "@/features/cross/narrationOptions";
 import { TimelineStop } from "@/features/cross/TimelineStop";
+import { useVoiceAudioPlayback } from "@/features/voice/useVoiceAudioPlayback";
 import {
 	fetchTodayCrossAudio,
 	requestTodayCrossAudio,
@@ -222,6 +223,7 @@ export function ListenCard({ reference }: { reference?: string | null }) {
 
 	const player = useAudioPlayer(source, { updateInterval: 250 });
 	const status = useAudioPlayerStatus(player);
+	const { play: playProtected, pause: pauseProtected } = useVoiceAudioPlayback(player, () => setFailureText("Couldn't play audio. Try again."));
 
 	// The audio session is a process-wide setting, so it is claimed here rather
 	// than at app start: this card is the only thing in SureWord that plays
@@ -307,12 +309,12 @@ export function ListenCard({ reference }: { reference?: string | null }) {
 	useEffect(() => {
 		return () => {
 			try {
-				player.pause();
+				pauseProtected();
 			} catch (error) {
 				if (!isReleasedAudioPlayerError(error)) throw error;
 			}
 		};
-	}, [player]);
+	}, [player, pauseProtected]);
 
 	// A finished devotional rewinds, so the play button starts it again rather
 	// than doing nothing at the very end of the track.
@@ -383,6 +385,7 @@ export function ListenCard({ reference }: { reference?: string | null }) {
 	 * opened moments ago that stalls is a real failure and says so.
 	 */
 	const handlePlaybackFailure = useCallback(async () => {
+		pauseProtected();
 		setPlayRequestedAt(null);
 
 		if (!tokenRetriedRef.current && streamUrl) {
@@ -414,7 +417,7 @@ export function ListenCard({ reference }: { reference?: string | null }) {
 		} catch {
 			setFailureText("Couldn't prepare audio - try again");
 		}
-	}, [urlFetchedAt, streamUrl, getToken, applyAudio]);
+	}, [urlFetchedAt, streamUrl, getToken, applyAudio, pauseProtected]);
 
 	// Nothing playing this long after the play button means the source never
 	// loaded; give a stale token, then a stale URL, one silent refresh each
@@ -438,23 +441,28 @@ export function ListenCard({ reference }: { reference?: string | null }) {
 		if (!status.isLoaded || resumeAtRef.current <= 0) return;
 		const resumeAt = resumeAtRef.current;
 		resumeAtRef.current = 0;
-		void player.seekTo(resumeAt).then(() => {
+		let current = true;
+		void player.seekTo(resumeAt).then(async () => {
+			if (!current) return;
 			if (!resumePlayingRef.current) return;
 			resumePlayingRef.current = false;
-			player.play();
-			setPlayRequestedAt(Date.now());
+			const played = await playProtected();
+			if (current && played) setPlayRequestedAt(Date.now());
+		}).catch(() => {
+			if (current) { pauseProtected(); setFailureText("Couldn't play audio. Try again."); }
 		});
-	}, [status.isLoaded, player]);
+		return () => { current = false; };
+	}, [status.isLoaded, player, playProtected, pauseProtected]);
 
 	const togglePlay = useCallback(() => {
 		if (status.playing) {
-			player.pause();
+			pauseProtected();
 			setPlayRequestedAt(null);
 		} else {
-			player.play();
+			void playProtected();
 			setPlayRequestedAt(Date.now());
 		}
-	}, [player, status.playing]);
+	}, [pauseProtected, playProtected, status.playing]);
 
 	const seekToFraction = useCallback(
 		(fraction: number) => {
