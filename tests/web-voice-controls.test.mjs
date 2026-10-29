@@ -219,3 +219,102 @@ test("refreshed handlers cannot retarget a captured label before the registratio
 	]) assert.equal(currentVoiceAction(changed, signature, 0), null);
 	assert.equal(executed, "");
 });
+
+function mediaHarness() {
+	const narration = load("web-narration", { require: () => ({ VOICE_PLAYBACK_RATE: 1.05 }) });
+	const listeners = new Map();
+	const element = {
+		paused: true,
+		ended: false,
+		error: null,
+		addEventListener(name, listener) { if (!listeners.has(name)) listeners.set(name, new Set()); listeners.get(name).add(listener); },
+		removeEventListener(name, listener) { listeners.get(name)?.delete(listener); },
+		emit(name) { for (const listener of [...(listeners.get(name) ?? [])]) listener(); },
+		play() { this.paused = false; this.emit("play"); return Promise.resolve(); },
+		pause() { this.paused = true; this.emit("pause"); },
+	};
+	return { narration, element, listeners };
+}
+
+test("chapter and devotional media exclude capture until all audio stops; late final words and explicit Stop cannot rearm", async () => {
+	const { narration, element: chapter } = mediaHarness();
+	const { element: devotional } = mediaHarness();
+	const h = sessionHarness();
+	const unsubscribe = narration.subscribeNarration(() => h.session.setPaused(narration.narrationBusy()));
+	const chapterOutput = narration.coordinateMediaNarration(chapter);
+	const devotionalOutput = narration.coordinateMediaNarration(devotional);
+	h.session.start();
+	const staleFinal = h.recognitions[0].onresult;
+	const play = chapter.play.bind(chapter);
+	chapter.play = () => { assert.equal(h.recognitions[0].aborted, true, "capture must stop before media.play()"); return play(); };
+	await chapterOutput.play();
+	await devotionalOutput.play();
+	staleFinal(result("open settings"));
+	assert.equal(h.final.length, 0, "audio echo from the aborted capture must not dispatch");
+	chapter.pause(); h.tick();
+	assert.equal(h.recognitions.length, 1, "the other output still owns capture");
+	devotional.paused = true; devotional.emit("ended");
+	assert.equal(h.recognitions.length, 2, "a live session can resume after all audio drains");
+	await chapterOutput.play();
+	h.session.stop();
+	chapter.pause(); h.tick();
+	assert.equal(h.recognitions.length, 2, "releasing audio after explicit Stop must not restart capture");
+	chapterOutput.dispose(); devotionalOutput.dispose(); unsubscribe();
+});
+
+test("native media play also gates capture, buffering keeps the lock, and every terminal event releases it", () => {
+	for (const terminal of ["pause", "ended", "error", "emptied"]) {
+		const { narration, element } = mediaHarness();
+		const output = narration.coordinateMediaNarration(element);
+		element.play(); // OS media controls do not call the programmatic wrapper.
+		assert.equal(narration.narrationBusy(), true);
+		element.emit("waiting"); element.emit("stalled");
+		assert.equal(narration.narrationBusy(), true, "buffering may resume without another play event");
+		element.paused = true;
+		if (terminal === "error") element.error = new Error("media failed");
+		element.emit(terminal);
+		assert.equal(narration.narrationBusy(), false, terminal);
+		output.dispose();
+	}
+});
+
+test("failed or unmounted media releases capture; stale rejected play cannot unlock a newer attempt", async () => {
+	for (const synchronous of [false, true]) {
+		const { narration, element } = mediaHarness();
+		element.play = () => { if (synchronous) throw new Error("blocked"); return Promise.reject(new Error("blocked")); };
+		const output = narration.coordinateMediaNarration(element);
+		await assert.rejects(output.play(), /blocked/);
+		assert.equal(narration.narrationBusy(), false);
+		output.dispose();
+	}
+	const { narration, element, listeners } = mediaHarness();
+	const output = narration.coordinateMediaNarration(element);
+	let rejectOld;
+	element.play = () => new Promise((_, reject) => { rejectOld = reject; });
+	const old = output.play();
+	element.play = () => { element.paused = false; element.emit("play"); return Promise.resolve(); };
+	await output.play();
+	rejectOld(new Error("old request aborted")); await assert.rejects(old, /old request aborted/);
+	assert.equal(narration.narrationBusy(), true);
+	for (const stale of ["pause", "ended", "error", "emptied"]) element.emit(stale);
+	assert.equal(narration.narrationBusy(), true, "queued terminal events from an old source cannot unlock current playback");
+	element.error = new Error("current playback failed"); element.emit("error");
+	assert.equal(narration.narrationBusy(), false);
+	element.error = null;
+	await output.play();
+	output.dispose(); output.dispose();
+	assert.equal(element.paused, true);
+	assert.equal(narration.narrationBusy(), false);
+	assert.ok([...listeners.values()].every(set => set.size === 0));
+	await output.play(); element.emit("play");
+	assert.equal(narration.narrationBusy(), false, "disposed output cannot reclaim capture");
+});
+
+test("media cleanup releases its lock even when browser pause throws", async () => {
+	const { narration, element } = mediaHarness();
+	const output = narration.coordinateMediaNarration(element);
+	await output.play();
+	element.pause = () => { throw new Error("media detached"); };
+	assert.throws(() => output.dispose(), /media detached/);
+	assert.equal(narration.narrationBusy(), false);
+});

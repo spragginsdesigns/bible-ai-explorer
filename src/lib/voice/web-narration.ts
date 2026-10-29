@@ -23,6 +23,40 @@ export function beginNarration(owner?: "welcome"): () => void {
 	};
 }
 
+/** Keep command capture out of existing media players, including OS play controls. */
+export function coordinateMediaNarration(element: HTMLMediaElement): { play: () => Promise<void>; dispose: () => void } {
+	let release: (() => void) | null = null;
+	let disposed = false;
+	let generation = 0;
+	const hold = () => { if (!disposed && !release) release = beginNarration(); };
+	const finish = () => { generation += 1; const done = release; release = null; done?.(); };
+	const onPlay = () => { if (!element.paused) hold(); };
+	const onPause = () => { if (element.paused) finish(); };
+	const onEnded = () => { if (element.ended || element.paused) finish(); };
+	const onError = () => { if (element.error) finish(); };
+	const events = [
+		["play", onPlay], ["pause", onPause], ["ended", onEnded], ["error", onError], ["emptied", onPause],
+	] as const;
+	for (const [event, listener] of events) element.addEventListener(event, listener);
+	if (!element.paused) hold();
+	return {
+		async play() {
+			if (disposed) return;
+			const attempt = ++generation;
+			// Abort recognition before play() can produce any audible output.
+			hold();
+			try { await element.play(); }
+			catch (error) { if (attempt === generation) finish(); throw error; }
+		},
+		dispose() {
+			if (disposed) return;
+			disposed = true;
+			for (const [event, listener] of events) element.removeEventListener(event, listener);
+			try { element.pause(); } finally { finish(); }
+		},
+	};
+}
+
 /** Status/options wait for the existing welcome Audio queue to drain. */
 export function waitForWelcomeNarration(): Promise<void> {
 	if (!welcomeLocks) return Promise.resolve();
