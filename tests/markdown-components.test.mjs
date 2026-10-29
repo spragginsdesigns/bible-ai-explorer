@@ -180,6 +180,13 @@ test("C2: a table scrolls inside its own wrapper and links refs in cells", () =>
 	);
 });
 
+test("source edition identifiers do not become KJV verse links", () => {
+	const html = render("KJV Psalms 51:1 aligns to `WLC 51:3`, not another KJV verse.");
+	assert.match(html, /data-verse="Psalms 51:1"/);
+	assert.match(html, /<code[^>]*>WLC 51:3<\/code>/);
+	assert.ok(!html.includes('data-verse="Psalms 51:3"'));
+});
+
 test("C2: code blocks scroll, inline code gets its own chrome", () => {
 	const block = render(
 		"```js\nconst verylonglineofcodethatkeepsgoingandgoing = 1;\n```"

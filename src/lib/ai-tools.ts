@@ -417,6 +417,8 @@ async function matchedWordsFor(
 
 export interface OriginalTextToolOutput extends KjvOriginalVerse {
 	reference: string;
+	/** Edition identifiers, not KJV references that a reader can open. */
+	sourceIdentifiers: string[];
 	formatted: string;
 }
 
@@ -750,7 +752,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 
 	const getOriginalTextTool = tool({
 		description:
-			"The inspired original-language text of one verse, word by word: Hebrew from the Westminster Leningrad Codex (OT) or Greek from Scrivener's 1894 Textus Receptus, the Greek text underlying the KJV (NT). Each word carries its Strong's number, morphology code, lemma, transliteration, and KJV gloss. Use this whenever you discuss what a word means in the original languages, compare translations, or the user asks about the Hebrew or Greek. Ground every original-language claim in this tool rather than memory.",
+			"The inspired original-language text of one verse, word by word: Hebrew from the Westminster Leningrad Codex (OT) or Greek from Scrivener's 1894 Textus Receptus, the Greek text underlying the KJV (NT). Each word carries its Strong's number, morphology code, lemma, transliteration, and KJV gloss. Use this whenever you discuss what a word means in the original languages, compare translations, or the user asks about the Hebrew or Greek. Ground every original-language claim in this tool rather than memory. Requests use KJV coordinates. When explaining source alignment, copy sourceIdentifiers in inline code, such as `WLC 51:3`; never turn a source coordinate into an unqualified Bible reference such as Psalms 51:3, which opens the different KJV verse.",
 		inputSchema: z.object({
 			book: z.string().describe('Bible book name, e.g. "Genesis", "Psalms", "1 John".'),
 			chapter: z.number().int().min(1),
@@ -769,9 +771,11 @@ export function buildSureWordTools(context: SureWordToolContext) {
 				);
 			}
 			const reference = `${bookName} ${chapter}:${verse}`;
+			const sourceIdentifiers = original.sourceReferences.map(source => `${original.sourceVersification} ${source.chapter}:${source.verse}`);
 			const formatted = [
 				`${reference} (${original.textName}):`,
-				`KJV reference aligned to ${original.sourceVersification}: ${original.sourceReferences.map(source => `${getKjvBookName(source.book)} ${source.chapter}:${source.verse}${source.wordStart !== undefined || source.wordEnd !== undefined ? ` (source word offsets ${source.wordStart ?? 0}-${source.wordEnd ?? "end"}, end exclusive)` : ""}`).join("; ")}.`,
+				`Original edition identifiers in ${bookName} (not KJV citations): ${sourceIdentifiers.map((id, index) => `\`${id}\`${original.sourceReferences[index].wordStart !== undefined || original.sourceReferences[index].wordEnd !== undefined ? " (selected words)" : ""}`).join("; ")}.`,
+				"If explaining the numbering, preserve these edition identifiers in inline code. Cite the requested KJV reference for the Bible quotation; do not present source coordinates as KJV links.",
 				original.words.map((word) => word.text).join(" "),
 				...original.words.map((word) => {
 					const parts = [word.text];
@@ -783,7 +787,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 					return `- ${parts.join(" | ")}`;
 				}),
 			].join("\n");
-			return { reference, ...original, formatted };
+			return { reference, ...original, sourceIdentifiers, formatted };
 		},
 	});
 

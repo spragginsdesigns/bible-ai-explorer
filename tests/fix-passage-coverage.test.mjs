@@ -187,7 +187,7 @@ test("missing quotation text fails explicitly instead of returning a shortened p
 	await assert.rejects(execute(tools.findVerses, { query: "John 3:16-18" }), /unavailable/);
 });
 
-for (const [book, order, chapter, verse] of [["Psalms", 19, 3, 1], ["Joel", 29, 2, 28], ["Isaiah", 23, 64, 1], ["John", 43, 3, 16]]) {
+for (const [book, order, chapter, verse] of [["Psalms", 19, 3, 1], ["Psalms", 19, 51, 1], ["Joel", 29, 2, 28], ["Isaiah", 23, 64, 1], ["John", 43, 3, 16]]) {
 	test(`getOriginalText preserves the KJV-to-source mapping: ${book} ${chapter}:${verse}`, async () => {
 		const { tools } = makeTools();
 		const result = await execute(tools.getOriginalText, { book, chapter, verse });
@@ -197,10 +197,13 @@ for (const [book, order, chapter, verse] of [["Psalms", 19, 3, 1], ["Joel", 29, 
 		assert.deepEqual(result.requestedReference, { book: order, chapter, verse, versification: "KJV" });
 		assert.deepEqual(result.sourceReferences, mapped.sourceReferences);
 		assert.equal(result.sourceVersification, order <= 39 ? "WLC" : "TR");
-		assert.match(result.formatted, /KJV reference aligned to/);
+		assert.deepEqual(result.sourceIdentifiers, mapped.sourceReferences.map(source => `${result.sourceVersification} ${source.chapter}:${source.verse}`));
+		assert.match(result.formatted, /not KJV citations/);
+		assert.match(result.formatted, /preserve these edition identifiers in inline code/);
 		if (order === 19) {
 			assert.notDeepEqual(result.words, (await originals.getOriginalVerse(order, chapter, verse)).words);
-			assert.deepEqual(result.sourceReferences, [{ book: 19, chapter: 3, verse: 2 }]);
+			assert.deepEqual(result.sourceReferences, [{ book: 19, chapter, verse: chapter === 51 ? 3 : 2 }]);
+			assert.ok(!result.formatted.includes(`Psalms ${chapter}:${chapter === 51 ? 3 : 2}`), "source coordinate must not masquerade as a KJV citation");
 		}
 	});
 }
