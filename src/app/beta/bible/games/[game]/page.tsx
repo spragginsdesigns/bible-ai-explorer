@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import PeterWaterWalk from "@/components/beta/games/PeterWaterWalk";
+import ChapterGamePlayer from "@/components/beta/games/ChapterGamePlayer";
 import { betaMetadata, requireBetaPage } from "@/lib/beta/access";
 import { getKjvChapter } from "@/lib/bible/kjv";
 import { listGameAwards } from "@/lib/beta/games/awards";
@@ -25,6 +25,6 @@ export default async function BetaChapterGamePage({ params }: Props) {
 	const [chapter, awards] = await Promise.all([getKjvChapter(game.book, game.chapter), listGameAwards(userId)]);
 	const [from, to] = game.verses;
 	const verses = chapter.slice(from - 1, to).map((text, index) => ({ verse: from + index, text }));
-	// One game today; the next chapter's game adds its own component here.
-	return <PeterWaterWalk game={game} verses={verses} initialAward={awards[game.slug] ?? null} />;
+	// Each game's component is chosen, and loaded on its own, by slug (ChapterGamePlayer).
+	return <ChapterGamePlayer game={game} verses={verses} initialAward={awards[game.slug] ?? null} />;
 }

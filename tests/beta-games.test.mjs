@@ -22,7 +22,8 @@ import {
 } from "../src/lib/beta/games/water-walk-rules.ts";
 import {
 	CHAPTER_GAMES,
-	chapterGameFor,
+	chapterGameGroups,
+	chapterGamesFor,
 	checkGameRun,
 	findChapterGame,
 	gameHref,
@@ -198,23 +199,55 @@ test("a reported run is checked before it counts", () => {
 test("each game belongs to one chapter and opens under the Bible destination", () => {
 	assert.ok(CHAPTER_GAMES.length >= 1);
 	const slugs = new Set();
-	const chapters = new Set();
 	for (const game of CHAPTER_GAMES) {
 		assert.match(game.slug, /^[a-z][a-z0-9-]*$/);
 		assert.equal(slugs.has(game.slug), false, `duplicate game ${game.slug}`);
-		assert.equal(chapters.has(`${game.book}.${game.chapter}`), false, `two games on ${game.book}.${game.chapter}`);
 		slugs.add(game.slug);
-		chapters.add(`${game.book}.${game.chapter}`);
 		assert.ok(game.verses[0] >= 1 && game.verses[0] <= game.verses[1]);
 		assert.equal(findChapterGame(game.slug), game);
-		assert.equal(chapterGameFor(game.book, game.chapter), game);
+		assert.ok(chapterGamesFor(game.book, game.chapter).includes(game));
 		assert.equal(gameHref(game), `/beta/bible/games/${game.slug}`);
 		assert.ok(game.grades.gold && game.grades.silver && game.grades.bronze);
+		assert.ok(game.style && game.measure && game.story && game.topics.length > 0, game.slug);
+		assert.ok(game.emblem === "wave" || game.emblem === "star", game.slug);
 	}
-	assert.equal(chapterGameFor(40, 14)?.slug, "water-walk", "Matthew 14 is Peter's Water Walk");
-	assert.equal(chapterGameFor(40, 13), null);
+	assert.equal(chapterGamesFor(40, 14)[0]?.slug, "water-walk", "Matthew 14 opens with Peter's Water Walk");
+	assert.deepEqual(chapterGamesFor(40, 13), []);
 	assert.equal(findChapterGame("nope"), null);
 	assert.equal(findBetaModule("bible", "games")?.issue, "LC-17850");
+});
+
+test("the ways to play one passage share its passage, story, award and grades, and each tells its style apart", () => {
+	const groups = chapterGameGroups();
+	assert.equal(groups.flat().length, CHAPTER_GAMES.length);
+	assert.deepEqual(
+		groups.map((group) => [group[0].reference, group.map((game) => game.slug)]),
+		[
+			["Matthew 14:22-33", ["water-walk", "through-the-storm", "crest-hopper"]],
+			["Matthew 2:1-12", ["follow-the-star", "the-caravan", "star-chart"]],
+		],
+	);
+	for (const group of groups) {
+		const [first] = group;
+		const styles = new Set();
+		for (const game of group) {
+			for (const field of ["book", "chapter", "reference", "story", "award", "measure", "emblem"]) assert.equal(game[field], first[field], `${game.slug}.${field}`);
+			assert.deepEqual(game.verses, first.verses, game.slug);
+			assert.deepEqual(game.grades, first.grades, game.slug);
+			assert.equal(styles.has(game.style), false, `${game.slug} repeats a style`);
+			styles.add(game.style);
+		}
+	}
+});
+
+test("every game has a component on the game page and a soonest finish for its award", () => {
+	const player = read("src/components/beta/games/ChapterGamePlayer.tsx");
+	const awards = read("src/lib/beta/games/awards.ts");
+	assert.match(player, /^"use client";/, "next/dynamic splits each game's code only from a client component");
+	for (const game of CHAPTER_GAMES) {
+		assert.match(player, new RegExp(`"${game.slug}": dynamic\\(\\(\\) => import\\("\\./[A-Za-z]+"\\)\\)`), `${game.slug} has no component`);
+		assert.match(awards, new RegExp(`"${game.slug}": [A-Z_]+_MIN_SECONDS`), `${game.slug} has no soonest finish`);
+	}
 });
 
 test("the games' pages and award route stay behind the founders-only gate", () => {

@@ -2,11 +2,12 @@ import Link from "next/link";
 import { ArrowLeft, Gamepad2 } from "lucide-react";
 import AwardMedal from "./AwardMedal";
 import { DESTINATION_TILE, IconTile } from "../visuals";
-import { CHAPTER_GAMES, gameHref, type GameAward } from "@/lib/beta/games/games-rules";
+import { CHAPTER_GAMES, chapterGameGroups, gameHref, type GameAward } from "@/lib/beta/games/games-rules";
 
 /**
  * Chapter Games' home (LC-17850, docs/beta/games.md): every chapter with a
- * game, each with the founder's award once it is earned.
+ * game, each with the founder's award once it is earned. A passage played more
+ * than one way (LC-17851) lists its ways together under its reference.
  */
 export default function GamesHome({ awards }: { awards: Record<string, GameAward> }) {
 	const earned = CHAPTER_GAMES.filter((game) => awards[game.slug]).length;
@@ -26,40 +27,51 @@ export default function GamesHome({ awards }: { awards: Record<string, GameAward
 				</div>
 			</header>
 
-			<ul className="mt-7 space-y-3">
-				{CHAPTER_GAMES.map((game) => {
-					const award = awards[game.slug];
-					return (
-						<li key={game.slug}>
-							<Link
-								href={gameHref(game)}
-								className="flex items-center gap-4 rounded-[22px] border border-black/[.09] bg-white/35 p-4 hover:bg-white/60 dark:border-white/[.09] dark:bg-white/[.025] dark:hover:bg-white/[.05]"
-							>
-								{award ? (
-									<AwardMedal grade={award.grade} size={56} title={`${award.grade} medal`} />
-								) : (
-									<span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-black/15 text-xs font-bold text-neutral-500 dark:border-white/15 dark:text-[#9c9586]">
-										Award
-									</span>
-								)}
-								<span className="min-w-0 flex-1">
-									<span className="block text-xs font-bold uppercase tracking-[.16em] text-amber-800 dark:text-[#e5b664]">{game.reference}</span>
-									<span className="mt-0.5 block font-[family-name:var(--font-cormorant)] text-2xl font-semibold leading-tight">{game.title}</span>
-									<span className="mt-0.5 block text-sm text-neutral-700 dark:text-[#d9d1c3]">{game.tagline}</span>
-									<span className="mt-1.5 block text-sm font-semibold text-neutral-600 dark:text-[#bbb3a7]">
-										{award
-											? `${game.award}: ${game.grades[award.grade]} · faith kept ${award.bestFaith}% · best ${award.bestSeconds}s · finished ${award.completions} ${award.completions === 1 ? "time" : "times"}`
-											: `Finish it to earn ${game.award}`}
-									</span>
-								</span>
-								<span aria-hidden className="text-xl text-neutral-400">
-									›
-								</span>
-							</Link>
-						</li>
-					);
-				})}
-			</ul>
+			<div className="mt-7 space-y-8">
+				{chapterGameGroups().map((group) => (
+					<section key={group[0].reference} aria-labelledby={`games-${group[0].slug}`}>
+						<h2 id={`games-${group[0].slug}`} className="flex flex-wrap items-baseline gap-x-2 text-xs font-bold uppercase tracking-[.16em] text-amber-800 dark:text-[#e5b664]">
+							{group[0].reference}
+							<span className="normal-case tracking-normal text-sm font-semibold text-neutral-700 dark:text-[#d9d1c3]">{group[0].story}</span>
+							{group.length > 1 ? <span className="text-neutral-600 dark:text-[#b3ad9e]">· {group.length} ways to play</span> : null}
+						</h2>
+						<ul className="mt-3 space-y-3">
+							{group.map((game) => {
+								const award = awards[game.slug];
+								return (
+									<li key={game.slug}>
+										<Link
+											href={gameHref(game)}
+											className="flex items-center gap-4 rounded-[22px] border border-black/[.09] bg-white/35 p-4 hover:bg-white/60 dark:border-white/[.09] dark:bg-white/[.025] dark:hover:bg-white/[.05]"
+										>
+											{award ? (
+												<AwardMedal grade={award.grade} emblem={game.emblem} size={56} title={`${award.grade} medal`} />
+											) : (
+												<span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-black/15 text-xs font-bold text-neutral-500 dark:border-white/15 dark:text-[#9c9586]">
+													Award
+												</span>
+											)}
+											<span className="min-w-0 flex-1">
+												<span className="block text-xs font-bold uppercase tracking-[.16em] text-neutral-600 dark:text-[#b3ad9e]">{game.style}</span>
+												<span className="mt-0.5 block font-[family-name:var(--font-cormorant)] text-2xl font-semibold leading-tight">{game.title}</span>
+												<span className="mt-0.5 block text-sm text-neutral-700 dark:text-[#d9d1c3]">{game.tagline}</span>
+												<span className="mt-1.5 block text-sm font-semibold text-neutral-600 dark:text-[#bbb3a7]">
+													{award
+														? `${game.award}: ${game.grades[award.grade]} · ${game.measure} ${award.bestFaith}% · best ${award.bestSeconds}s · finished ${award.completions} ${award.completions === 1 ? "time" : "times"}`
+														: `Finish it to earn ${game.award}`}
+												</span>
+											</span>
+											<span aria-hidden className="text-xl text-neutral-400">
+												›
+											</span>
+										</Link>
+									</li>
+								);
+							})}
+						</ul>
+					</section>
+				))}
+			</div>
 			<p className="mt-6 text-sm leading-6 text-neutral-600 dark:text-[#bbb3a7]">
 				More chapters are on the way. Reading a chapter that has a game? Its card is at the end of the chapter.
 			</p>

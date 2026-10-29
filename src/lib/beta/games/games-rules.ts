@@ -1,8 +1,10 @@
 /**
  * Chapter Games (LC-17850, docs/beta/games.md): the chapters of the Bible that
- * have a game, and the award a finished game earns. No imports on purpose: the
- * reader (a client component), the server and the tests all load it, the
- * tests with Node's type stripping.
+ * have a game, and the award a finished game earns. A passage can be played
+ * more than one way (LC-17851): each way is its own game with its own slug and
+ * award item, and the ways of one passage share its award name and grades. No
+ * imports on purpose: the reader (a client component), the server and the
+ * tests all load it, the tests with Node's type stripping.
  */
 
 export type GameGrade = "gold" | "silver" | "bronze";
@@ -12,29 +14,98 @@ export interface ChapterGame {
 	slug: string;
 	title: string;
 	tagline: string;
+	/** How this way of playing the passage plays, told apart from its siblings ("Arcade"). */
+	style: string;
 	/** Canonical book order (Matthew is 40), chapter, and the verses the game plays. */
 	book: number;
 	chapter: number;
 	verses: readonly [number, number];
 	/** "Matthew 14:22-33". */
 	reference: string;
+	/** The passage's story in a few words, shared by every way to play it ("Peter walks on the water"). */
+	story: string;
 	/** What finishing it earns. */
 	award: string;
 	/** The award's three grades, named from the passage. */
 	grades: Record<GameGrade, string>;
+	/** What the run's 0-100 score (`faithKept`) measures, in lower case ("faith kept"). */
+	measure: string;
+	/** The medal's mark, from the passage. */
+	emblem: GameEmblem;
+	/** The award item's study-store topics. */
+	topics: readonly string[];
 }
+
+export type GameEmblem = "wave" | "star";
+
+const WATER_WALK = {
+	book: 40,
+	chapter: 14,
+	verses: [22, 33] as const,
+	reference: "Matthew 14:22-33",
+	story: "Peter walks on the water",
+	award: "Walked on the Water",
+	grades: { gold: "Eyes on Jesus", silver: "Of Good Cheer", bronze: "Be Not Afraid" },
+	measure: "faith kept",
+	emblem: "wave",
+	topics: ["chapter game", "faith"],
+} as const;
+
+const WISE_MEN = {
+	book: 40,
+	chapter: 2,
+	verses: [1, 12] as const,
+	reference: "Matthew 2:1-12",
+	story: "The wise men follow the star",
+	award: "Come to Worship Him",
+	grades: { gold: "Exceeding Great Joy", silver: "The Star Went Before Them", bronze: "We Have Seen His Star" },
+	measure: "kept to the star",
+	emblem: "star",
+	topics: ["chapter game", "worship"],
+} as const;
 
 export const CHAPTER_GAMES: readonly ChapterGame[] = [
 	{
+		...WATER_WALK,
 		slug: "water-walk",
 		title: "Peter's Water Walk",
 		tagline: "Step out of the ship and walk the storm to Jesus",
-		book: 40,
-		chapter: 14,
-		verses: [22, 33],
-		reference: "Matthew 14:22-33",
-		award: "Walked on the Water",
-		grades: { gold: "Eyes on Jesus", silver: "Of Good Cheer", bronze: "Be Not Afraid" },
+		style: "The storm, side on",
+	},
+	{
+		...WATER_WALK,
+		slug: "through-the-storm",
+		title: "Through the Storm",
+		tagline: "See the storm through Peter's eyes, and keep them on Jesus",
+		style: "First person",
+	},
+	{
+		...WATER_WALK,
+		slug: "crest-hopper",
+		title: "Crest Hopper",
+		tagline: "Hop the swells to Jesus, arcade style",
+		style: "Arcade",
+	},
+	{
+		...WISE_MEN,
+		slug: "follow-the-star",
+		title: "Follow the Star",
+		tagline: "Steer by the star through the night to the young child",
+		style: "Night sky",
+	},
+	{
+		...WISE_MEN,
+		slug: "the-caravan",
+		title: "The Caravan",
+		tagline: "Lead the wise men from the east to Bethlehem",
+		style: "Side-scroller",
+	},
+	{
+		...WISE_MEN,
+		slug: "star-chart",
+		title: "Star Chart",
+		tagline: "Chart the way from the east to where the star stood",
+		style: "Puzzle",
 	},
 ];
 
@@ -42,8 +113,19 @@ export function findChapterGame(slug: string): ChapterGame | null {
 	return CHAPTER_GAMES.find((game) => game.slug === slug) ?? null;
 }
 
-export function chapterGameFor(book: number, chapter: number): ChapterGame | null {
-	return CHAPTER_GAMES.find((game) => game.book === book && game.chapter === chapter) ?? null;
+/** Every way to play a chapter, in the registry's order; empty when it has no game. */
+export function chapterGamesFor(book: number, chapter: number): ChapterGame[] {
+	return CHAPTER_GAMES.filter((game) => game.book === book && game.chapter === chapter);
+}
+
+/** The registry's games grouped by chapter, each group in the registry's order. */
+export function chapterGameGroups(): ChapterGame[][] {
+	const groups = new Map<string, ChapterGame[]>();
+	for (const game of CHAPTER_GAMES) {
+		const key = `${game.book}.${game.chapter}`;
+		groups.set(key, [...(groups.get(key) ?? []), game]);
+	}
+	return [...groups.values()];
 }
 
 export function gameHref(game: Pick<ChapterGame, "slug">): string {

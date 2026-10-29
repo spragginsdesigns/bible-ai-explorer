@@ -6,7 +6,34 @@ only, web only), and a card at the end of a chapter that has a game.
 chapter ... start with an example i.e. Matthew 14: Peter's Water Walking
 Simulator ... should feel like a real flash mini-game, should be fun and feel
 immersive and slightly challenging, and get an award when you complete it."
-**Status:** building (one chapter has a game).
+LC-17851 (Jay): "try 2 additional types of flash games for it (so we can try
+different styles - art, theme, feel, vibe, immersiveness, etc) ... and then
+can do another flash game for something in the book of matthew, same thing
+(3 variants, to see which one feels right)."
+**Status:** building (two chapters have games, each three ways to play).
+
+## Ways to play a passage
+
+A passage can be played more than one way (LC-17851), so the founders can
+try styles side by side. Each way is its own game in `CHAPTER_GAMES` with its
+own slug, page, component and award item; the ways of one passage share its
+`reference`, `story`, `award`, `grades`, `measure` and medal `emblem`, and
+`style` tells them apart. The games page groups them under their passage, and
+the reader card at the end of the chapter lists every way with its own Play.
+
+| Passage | Game (slug) | Style |
+|---|---|---|
+| Matthew 14:22-33, Peter walks on the water | Peter's Water Walk (`water-walk`) | The storm, side on |
+| | Through the Storm (`through-the-storm`) | First person |
+| | Crest Hopper (`crest-hopper`) | Arcade |
+| Matthew 2:1-12, the wise men follow the star | Follow the Star (`follow-the-star`) | Night sky |
+| | The Caravan (`the-caravan`) | Side-scroller |
+| | Star Chart (`star-chart`) | Puzzle |
+
+Every game takes the same props (`components/beta/games/types.ts`) and uses
+the shared header, passage card, story screens, mute setting and award save
+in `components/beta/games/shared.tsx`; its stage, controls, art and sound are
+its own.
 
 ## What it does
 
@@ -69,10 +96,10 @@ study store), written only through `src/lib/beta/store.ts`:
 | Field | Value |
 |---|---|
 | `module` / `kind` | `games` / `award` |
-| `title` | `Walked on the Water: Peter's Water Walk` |
-| `body` | the grade, faith kept, best time and finishes, in words the Vault searches |
-| `refs` | `40.14.22`, `40.14.33` (and `40.14`, added by the store) |
-| `topics` | `chapter game`, `faith` |
+| `title` | `<award>: <game title>`, e.g. `Walked on the Water: Peter's Water Walk` |
+| `body` | the grade, the game's measure (faith kept, kept to the star), best time and finishes, in words the Vault searches |
+| `refs` | the passage's first and last verse, e.g. `40.14.22`, `40.14.33` (and `40.14`, added by the store) |
+| `topics` | the passage's, e.g. `chapter game`, `faith` (Matthew 14) or `chapter game`, `worship` (Matthew 2) |
 | `data` | `{ game, grade, bestFaith, bestSeconds, completions, firstAt, lastAt }` |
 
 Once the award exists, its update is conditional on the item's `updatedAt`,
@@ -83,18 +110,23 @@ migration.
 
 | Route | Does |
 |---|---|
-| `POST /api/beta/games/<game>/award` `{ faithKept, seconds, swellsCleared }` | Records a finished game and returns `{ award }`. `faithKept` is a whole number 0-100, `seconds` at least the fastest the game can be walked (26 s for the water walk) and at most an hour, `swellsCleared` a whole number. Anything else is a 400; an unknown game, or anyone off `BETA_USER_IDS`, the ordinary 404. |
+| `POST /api/beta/games/<game>/award` `{ faithKept, seconds, swellsCleared }` | Records a finished game and returns `{ award }`. `faithKept` is the game's 0-100 score as its `measure` names it (faith kept, kept to the star), `seconds` at least the fastest that game can be finished (`GAME_MIN_SECONDS`; 26 s for the water walk) and at most an hour, and `swellsCleared` the game's count of what it clears (swells, crests, legs charted; the name is the first game's), 0-500. Anything else is a 400; an unknown game, or anyone off `BETA_USER_IDS`, the ordinary 404. |
 
 The pages read awards on the server; there is no GET route.
 
 ## Adding the next chapter's game
 
 1. Add its entry to `CHAPTER_GAMES` in `src/lib/beta/games/games-rules.ts`
-   (slug, book, chapter, verses, award and grade names from the passage).
+   (slug, title, style, book, chapter, verses, story, award and grade names
+   from the passage, measure, emblem, topics). Another way to play a passage
+   that already has a game spreads that passage's shared fields.
 2. Write its simulation as a pure `*-rules.ts` beside the water walk's, with
    tests that it can be won, lost and not trivially won.
-3. Add its component and render it from `src/app/beta/bible/games/[game]/page.tsx`
-   for its slug, and its fastest time to `GAME_MIN_SECONDS` in `awards.ts`.
+3. Add its component (taking `ChapterGameProps`, built on `shared.tsx`) to
+   `GAMES` in `src/components/beta/games/ChapterGamePlayer.tsx` for its slug
+   (a client component, so each game's code loads on its own page only), and its
+   fastest time to `GAME_MIN_SECONDS` in `awards.ts`. A test fails when either
+   is missing.
 
 The reader card, the games page and the award store pick it up from the
 registry.
@@ -104,16 +136,17 @@ registry.
 | What | Where |
 |---|---|
 | Pages | `src/app/beta/bible/games/page.tsx`, `src/app/beta/bible/games/[game]/page.tsx` |
-| Game, scene, sound, medal, list, reader card | `src/components/beta/games/` |
+| Games, scenes, sound, medal, list, reader card | `src/components/beta/games/` (`<Game>.tsx`, `<slug>-scene.ts`, `<slug>-audio.ts`) |
+| What every game shares, and its props | `src/components/beta/games/shared.tsx`, `types.ts` |
 | Registry, grades, award rules | `src/lib/beta/games/games-rules.ts` |
-| The water walk's simulation | `src/lib/beta/games/water-walk-rules.ts` |
+| Each game's simulation | `src/lib/beta/games/<slug>-rules.ts` |
 | Awards in the study store | `src/lib/beta/games/awards.ts` |
 | API | `src/app/api/beta/games/[game]/award/route.ts` |
-| Tests | `tests/beta-games.test.mjs` |
+| Tests | `tests/beta-games.test.mjs` (registry, awards, gate, the water walk), `tests/beta-games-<slug>.test.mjs` (each other game) |
 
 ## Proof
 
-See LC-17850: a production build against a throwaway Neon branch, signed in as
+See LC-17850 for the water walk and LC-17851 for the other five: a production build against a throwaway Neon branch, signed in as
 the founder stand-in and the off-list control, the game played to Jesus
 through real keyboard input at 1280 and real touch at 375px, a sink and rescue,
 the award row read back from the database, and the API attacked with bad runs.

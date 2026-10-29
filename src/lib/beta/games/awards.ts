@@ -11,6 +11,11 @@ import {
 	type GameAward,
 	type GameRun,
 } from "@/lib/beta/games/games-rules";
+import { CARAVAN_MIN_SECONDS } from "@/lib/beta/games/the-caravan-rules";
+import { CHART_MIN_SECONDS } from "@/lib/beta/games/star-chart-rules";
+import { HOPPER_MIN_SECONDS } from "@/lib/beta/games/crest-hopper-rules";
+import { STAR_MIN_SECONDS } from "@/lib/beta/games/follow-the-star-rules";
+import { STORM_MIN_SECONDS } from "@/lib/beta/games/through-the-storm-rules";
 import { WALK_MIN_SECONDS } from "@/lib/beta/games/water-walk-rules";
 
 /**
@@ -25,6 +30,11 @@ const KIND = "award";
 /** The soonest each game can be finished; a faster reported time was not played. */
 export const GAME_MIN_SECONDS: Record<string, number> = {
 	"water-walk": WALK_MIN_SECONDS,
+	"through-the-storm": STORM_MIN_SECONDS,
+	"crest-hopper": HOPPER_MIN_SECONDS,
+	"follow-the-star": STAR_MIN_SECONDS,
+	"the-caravan": CARAVAN_MIN_SECONDS,
+	"star-chart": CHART_MIN_SECONDS,
 };
 
 function awardItems(userId: string): Promise<BetaItem[]> {
@@ -45,11 +55,12 @@ export async function listGameAwards(userId: string): Promise<Record<string, Gam
 
 function awardText(game: ChapterGame, award: GameAward) {
 	const grade = game.grades[award.grade];
+	const measure = game.measure.charAt(0).toUpperCase() + game.measure.slice(1);
 	return {
 		title: `${game.award}: ${game.title}`,
-		body: `Finished ${game.title}, the chapter game for ${game.reference}. Best grade: ${grade} (${award.grade}). Faith kept: ${award.bestFaith}%. Best time: ${award.bestSeconds} seconds. Finished ${award.completions} ${award.completions === 1 ? "time" : "times"}.`,
+		body: `Finished ${game.title}, the chapter game for ${game.reference}. Best grade: ${grade} (${award.grade}). ${measure}: ${award.bestFaith}%. Best time: ${award.bestSeconds} seconds. Finished ${award.completions} ${award.completions === 1 ? "time" : "times"}.`,
 		refs: [betaRefKey(game.book, game.chapter, game.verses[0]), betaRefKey(game.book, game.chapter, game.verses[1])],
-		topics: ["chapter game", "faith"],
+		topics: [...game.topics],
 	};
 }
 
