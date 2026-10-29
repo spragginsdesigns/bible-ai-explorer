@@ -27,9 +27,32 @@ enum ClerkAuth {
         { fresh in try await ClerkAuth.token(fresh: fresh) }
     }
 
-    static func signOut() async {
+    /// Capture the session for each logical request, including its retry.
+    /// Future requests may use a replacement session for the same account.
+    static func requestOwner(for account: String?, canSignOut: Bool = true) -> RequestOwnerProvider {
+        return { @MainActor in
+            guard let account else { return RequestOwner(isCurrent: { true }) }
+            let sessionID = Clerk.shared.session?.id
+            var owner = RequestOwner(
+                isCurrent: { @MainActor in
+                    Clerk.shared.user?.id == account && Clerk.shared.session?.id == sessionID
+                }
+            )
+            if canSignOut {
+                owner.onAuthFailure = {
+                    await ClerkAuth.signOut(expectedAccount: account, expectedSession: sessionID)
+                }
+            }
+            return owner
+        }
+    }
+
+    static func signOut(expectedAccount: String? = nil, expectedSession: String? = nil) async {
         let ownerID = Clerk.shared.user?.id
         let sessionID = Clerk.shared.session?.id
+        if let expectedAccount {
+            guard ownerID == expectedAccount, sessionID == expectedSession else { return }
+        }
         #if os(macOS)
         if Clerk.shared.user != nil {
             // Remove the device while its owning session can authenticate.

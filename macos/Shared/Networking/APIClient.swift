@@ -2,6 +2,12 @@ import Foundation
 
 /// Supplies a Clerk session JWT. `fresh` skips Clerk's token cache.
 typealias TokenProvider = @Sendable (_ fresh: Bool) async throws -> String?
+typealias RequestOwnerValidator = @Sendable () async -> Bool
+struct RequestOwner: Sendable {
+    var isCurrent: RequestOwnerValidator
+    var onAuthFailure: (@Sendable () async -> Void)? = nil
+}
+typealias RequestOwnerProvider = @Sendable () async -> RequestOwner
 
 /// HTTP client for the shared SureWord backend — a port of
 /// `mobile/src/lib/api.ts`, including its 401 retry and offline handling.
@@ -24,16 +30,19 @@ final class APIClient: Sendable {
     private let token: TokenProvider
     private let session: URLSession
     private let authFailure: AuthFailureReporter
+    private let requestOwner: RequestOwnerProvider
 
     init(
         baseURL: URL = Config.apiURL,
         token: @escaping TokenProvider,
         onAuthFailure: @escaping @Sendable () async -> Void,
+        requestOwner: @escaping RequestOwnerProvider = { RequestOwner(isCurrent: { true }) },
         session: URLSession? = nil
     ) {
         self.baseURL = baseURL
         self.token = token
         self.authFailure = AuthFailureReporter(handler: onAuthFailure)
+        self.requestOwner = requestOwner
 
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = Self.defaultTimeout
@@ -75,14 +84,15 @@ final class APIClient: Sendable {
         body: (any Encodable)? = nil,
         timeout: TimeInterval = defaultTimeout
     ) async throws -> Data {
-        var result = try await attempt(path, method: method, body: body, timeout: timeout, fresh: false)
+        let owner = await requestOwner()
+        var result = try await attempt(path, method: method, body: body, timeout: timeout, fresh: false, owner: owner)
         var bothHadTokens = result.hadToken
         if result.status == 401 {
-            result = try await attempt(path, method: method, body: body, timeout: timeout, fresh: true)
+            result = try await attempt(path, method: method, body: body, timeout: timeout, fresh: true, owner: owner)
             bothHadTokens = bothHadTokens && result.hadToken
         }
         if result.status == 401 && bothHadTokens {
-            await authFailure.report()
+            await authFailure.report(owner: owner)
         }
 
         guard (200..<300).contains(result.status) else {
@@ -107,14 +117,15 @@ final class APIClient: Sendable {
         body: (any Encodable)? = nil,
         timeout: TimeInterval = defaultTimeout
     ) async throws -> (status: Int, data: Data) {
-        var result = try await attempt(path, method: method, body: body, timeout: timeout, fresh: false)
+        let owner = await requestOwner()
+        var result = try await attempt(path, method: method, body: body, timeout: timeout, fresh: false, owner: owner)
         var bothHadTokens = result.hadToken
         if result.status == 401 {
-            result = try await attempt(path, method: method, body: body, timeout: timeout, fresh: true)
+            result = try await attempt(path, method: method, body: body, timeout: timeout, fresh: true, owner: owner)
             bothHadTokens = bothHadTokens && result.hadToken
         }
         if result.status == 401 && bothHadTokens {
-            await authFailure.report()
+            await authFailure.report(owner: owner)
         }
         return (result.status, result.data)
     }
@@ -153,16 +164,21 @@ final class APIClient: Sendable {
         method: String,
         body: (any Encodable)?,
         timeout: TimeInterval,
-        fresh: Bool
+        fresh: Bool,
+        owner: RequestOwner
     ) async throws -> (status: Int, data: Data, hadToken: Bool) {
+        try await ensureCurrentOwner(owner)
         var request = try await makeRequest(path, method: method, body: body, fresh: fresh)
+        try await ensureCurrentOwner(owner)
         request.timeoutInterval = timeout
         let hadToken = request.value(forHTTPHeaderField: "Authorization") != nil
 
         do {
             let (data, response) = try await session.data(for: request)
+            try await ensureCurrentOwner(owner)
             return ((response as? HTTPURLResponse)?.statusCode ?? 0, data, hadToken)
         } catch {
+            try await ensureCurrentOwner(owner)
             throw Self.translate(error, reportingFor: path)
         }
     }
@@ -178,8 +194,11 @@ final class APIClient: Sendable {
         _ path: String,
         body: some Encodable
     ) async throws -> URLSession.AsyncBytes {
+        let owner = await requestOwner()
         func open(fresh: Bool) async throws -> (URLSession.AsyncBytes, HTTPURLResponse, Bool) {
+            try await ensureCurrentOwner(owner)
             var request = try await makeRequest(path, method: "POST", fresh: fresh)
+            try await ensureCurrentOwner(owner)
             let hadToken = request.value(forHTTPHeaderField: "Authorization") != nil
             request.timeoutInterval = Self.streamTimeout
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -187,8 +206,10 @@ final class APIClient: Sendable {
             request.httpBody = try JSONEncoder().encode(body)
             do {
                 let (bytes, response) = try await session.bytes(for: request)
+                try await ensureCurrentOwner(owner)
                 return (bytes, (response as? HTTPURLResponse) ?? HTTPURLResponse(), hadToken)
             } catch {
+                try await ensureCurrentOwner(owner)
                 throw Self.translate(error, reportingFor: path)
             }
         }
@@ -200,7 +221,7 @@ final class APIClient: Sendable {
             bothHadTokens = bothHadTokens && hadToken
         }
         if response.statusCode == 401 && bothHadTokens {
-            await authFailure.report()
+            await authFailure.report(owner: owner)
         }
 
         guard (200..<300).contains(response.statusCode) else {
@@ -272,6 +293,14 @@ final class APIClient: Sendable {
             request.setValue("Bearer \(jwt)", forHTTPHeaderField: "Authorization")
         }
         return request
+    }
+
+    /// Token acquisition protects the outgoing request. Check again after the
+    /// response so a previous session cannot deliver private rows into the next
+    /// account's models, or turn its late 401 into a new session's sign-out.
+    private func ensureCurrentOwner(_ owner: RequestOwner) async throws {
+        try Task.checkCancellation()
+        guard await owner.isCurrent() else { throw CancellationError() }
     }
 
     /// The session token for one request. `nil` means signed out, and the
@@ -387,10 +416,11 @@ private actor AuthFailureReporter {
         self.handler = handler
     }
 
-    func report() async {
+    func report(owner: RequestOwner) async {
+        guard await owner.isCurrent() else { return }
         let now = Date()
         if let lastFiredAt, now.timeIntervalSince(lastFiredAt) < 30 { return }
         lastFiredAt = now
-        await handler()
+        await (owner.onAuthFailure ?? handler)()
     }
 }

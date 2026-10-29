@@ -164,6 +164,8 @@ final class AppModel {
     init(settings: SettingsStore, userID: String?) {
         self.userID = userID
         self.settings = settings
+        let requestOwner = ClerkAuth.requestOwner(for: userID)
+        let backgroundRequestOwner = ClerkAuth.requestOwner(for: userID, canSignOut: false)
         // A second 401 after the fresh-token retry means the session itself is
         // invalid, so sign out locally rather than leaving the app looking
         // signed in while every request fails.
@@ -172,7 +174,8 @@ final class AppModel {
                 guard let userID else { return nil }
                 return try await ClerkAuth.token(for: userID, fresh: fresh)
             },
-            onAuthFailure: { await ClerkAuth.signOut(ifAccount: userID) }
+            onAuthFailure: { await ClerkAuth.signOut(ifAccount: userID) },
+            requestOwner: requestOwner
         )
         chat = ChatViewModel(api: api, settings: settings)
         highlights = HighlightsStore(api: api, cacheURL: HighlightsStore.defaultCacheURL)
@@ -181,7 +184,8 @@ final class AppModel {
                 guard let userID else { return nil }
                 return try await ClerkAuth.token(for: userID, fresh: fresh)
             },
-            onAuthFailure: { }
+            onAuthFailure: { },
+            requestOwner: backgroundRequestOwner
         )
         bible = BibleModel(api: api, reading: ReadingJournal(account: userID, api: readingAPI))
         bible.highlights = highlights
@@ -202,7 +206,8 @@ final class AppModel {
                 guard let userID else { return nil }
                 return try await ClerkAuth.token(for: userID, fresh: fresh)
             },
-            onAuthFailure: { }
+            onAuthFailure: { },
+            requestOwner: backgroundRequestOwner
         )
         learn = LearnModel(account: userID, api: learnAPI)
         // Runs before anything has read the caches: the notes and highlights
