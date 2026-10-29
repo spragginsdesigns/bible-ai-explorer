@@ -33,7 +33,7 @@ enum NativeVoiceRules {
         let matches = options.filter { normalized($0) == value || normalized($0) == label || normalized($0) == candidate }
         if matches.count > 1 { return .ambiguous }
         if let match = matches.first { return .choose(match) }
-        if ["stop", "stop voice", "cancel", "cancel voice", "stop listening", "end voice control", "turn voice off", "end voice", "stop voice controls"].contains(value) { return .stop }
+        if ["stop", "stop voice", "cancel", "cancel voice", "stop listening", "end voice control", "end voice controls", "turn voice off", "end voice", "stop voice control", "stop voice controls"].contains(value) { return .stop }
         if ["back", "go back", "take me back"].contains(value) { return .back }
         if ["repeat", "repeat options", "read options", "read the options", "repeat the options", "read my options", "what are my choices", "repeat that", "read choices", "read my choices", "read the choices", "what are the choices", "what are the options", "repeat my options", "repeat my choices", "repeat the choices", "say that again"].contains(value) { return .repeatOptions }
         let aliases = ["home": "today", "daily walk": "today", "reader": "bible", "bible reader": "bible",

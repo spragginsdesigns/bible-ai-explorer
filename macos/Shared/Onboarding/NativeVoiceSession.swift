@@ -117,7 +117,7 @@ final class NativeVoiceSession {
             || app.dailyCross.listen.isPlaying || app.chapterAudio.isPlaying
             || app.aiConsent.prompt != nil || !app.aiConsent.isCurrent || app.onboarding.isSpotlightTransitioning
         if app.chat.sendError != nil, !app.chat.isBusy {
-            input.fail("The answer could not be completed. Check Chat and start voice controls to retry.")
+            input.fail("The answer could not be completed. Use Try again in Chat, then start voice controls again.")
             return
         }
         let current = key(app: app)
@@ -238,6 +238,7 @@ final class NativeVoiceSession {
                 app.onboarding.setHourPicker(messageID: message.id, open: true)
                 app.onboarding.voice.enqueueLocal(optionsText((message, card), app: app))
             } else {
+                app.onboarding.voice.enqueueLocal("Choosing \(label).")
                 app.onboarding.answer(card, with: label, messageID: message.id, app: app)
             }
         case .ambiguous:
@@ -250,6 +251,7 @@ final class NativeVoiceSession {
                 break
             }
             handling = true
+            app.onboarding.voice.enqueueLocal("I am working on your answer.")
             operation = Task { [weak self, weak app] in
                 guard let self, let app, !Task.isCancelled else { return }
                 let draft = app.chat.input

@@ -46,6 +46,8 @@ struct NativeVoiceTests {
         #expect(NativeVoiceRules.resolve("stop listening", options: options) == .stop)
         #expect(NativeVoiceRules.resolve("repeat options", options: options) == .repeatOptions)
         #expect(NativeVoiceRules.resolve("stop voice controls", options: options) == .stop)
+        #expect(NativeVoiceRules.resolve("stop voice control", options: []) == .stop)
+        #expect(NativeVoiceRules.resolve("end voice controls", options: []) == .stop)
     }
 
     @Test("Voice uses the visible tour buttons and can open the time picker without submitting it")

@@ -38,6 +38,7 @@ test('explicit navigation, back, repeat and stop have bounded semantic destinati
  assert.deepEqual(resolve('repeat choices'),{type:'repeat'});
  assert.deepEqual(resolve('stop listening'),{type:'stop'});
  assert.deepEqual(resolve('stop voice controls'),{type:'stop'});
+ assert.deepEqual(resolve('stop voice control'),{type:'stop'});
 });
 
 test('ordinary questions, negations, injected instructions and unknown destinations remain ordinary chat',()=>{
@@ -48,6 +49,6 @@ test('ordinary questions, negations, injected instructions and unknown destinati
 
 test('Android mirror resolves the same choices, invalid inputs and navigation as web',()=>{
  const contexts=[{options},{options:[]},{options:Array.from({length:25},(_,i)=>`Hour ${i}`)}];
- const phrases=[...options,'select the fourth option','the fourth one','I am saved and growing in the Word','saved','choose saved','option -1','-1','option 0','option twenty five','repeat options','stop voice controls','open Notes','go back','What does the Bible say about forgiveness?','Do not choose option four'];
+ const phrases=[...options,'select the fourth option','the fourth one','I am saved and growing in the Word','saved','choose saved','option -1','-1','option 0','option twenty five','repeat options','stop voice controls','stop voice control','end voice controls','open Notes','go back','What does the Bible say about forgiveness?','Do not choose option four'];
  for(const context of contexts)for(const phrase of phrases)assert.deepEqual(resolveAndroid(phrase,context),resolveVoiceCommand(phrase,context),phrase);
 });

@@ -57,6 +57,7 @@ export default function VoiceControlProvider({ children }: { children: React.Rea
 	const speech = useRef<ReturnType<typeof speakVoiceStatus> | null>(null);
 	const activeRef = useRef(false);
 	const speechGeneration = useRef(0);
+	const commandEpoch = useRef(0);
 	const verifiedOwner = useRef<string | null>(null);
 	const owner = useRef(userId);
 	owner.current = userId;
@@ -70,6 +71,7 @@ export default function VoiceControlProvider({ children }: { children: React.Rea
 	const [registry] = useState(() => new VoiceActionRegistry(() => { engine.current?.invalidate(); registryChanged.current(); }));
 	const sync = useCallback(() => engine.current?.setPaused(narrationBusy() || Boolean(chat.current?.busy)), []);
 	const stop = useCallback(() => {
+		commandEpoch.current += 1;
 		activeRef.current = false;
 		speechGeneration.current += 1;
 		engine.current?.stop();
@@ -112,25 +114,31 @@ export default function VoiceControlProvider({ children }: { children: React.Rea
 		if (!activeRef.current || owner.current !== verifiedOwner.current || !allowed) return;
 		if (revision !== registry.revision) { await announce(`The choices changed. ${registry.readOptions()}`); return; }
 		const capturedRoute = routeEpoch.current;
+		const capturedEpoch = commandEpoch.current;
+		const capturedOwner = owner.current;
+		const canDispatch = () => activeRef.current && commandEpoch.current === capturedEpoch
+			&& owner.current === capturedOwner && verifiedOwner.current === capturedOwner && capturedRoute === routeEpoch.current;
 		const command = resolveVoiceCommand(text, { options: registry.options });
 		switch (command.type) {
 			case "choose":
+				await announce(`Choosing ${command.label}.`);
+				if (!canDispatch() || revision !== registry.revision) break;
 				if (!await registry.choose(command.index, revision)) await announce(`That choice is no longer available. ${registry.readOptions()}`);
 				break;
 			case "navigate": {
 				await announce(`Opening ${command.destination}.`);
-				if (!activeRef.current || capturedRoute !== routeEpoch.current) break;
+				if (!canDispatch()) break;
 				if (!await confirmVoiceDeparture()) { await announce("Your note could not be saved. I kept this screen open. Please try saving it again before leaving."); break; }
-				if (activeRef.current && capturedRoute === routeEpoch.current) { registry.clear(); router.push(ROUTES[command.destination]); }
+				if (canDispatch()) { registry.clear(); router.push(ROUTES[command.destination]); }
 				break;
 			}
 			case "back": {
 				if (routeHistory.current.length < 2) { await announce("There is no previous SureWord screen in this session. Say open followed by the screen's name."); break; }
 				const previous = routeHistory.current.at(-2)!;
 				await announce("Going back.");
-				if (!activeRef.current || capturedRoute !== routeEpoch.current) break;
+				if (!canDispatch()) break;
 				if (!await confirmVoiceDeparture()) { await announce("Your note could not be saved. I kept this screen open. Please try saving it again before leaving."); break; }
-				if (activeRef.current && capturedRoute === routeEpoch.current) { routeHistory.current.pop(); registry.clear(); router.push(previous); }
+				if (canDispatch()) { routeHistory.current.pop(); registry.clear(); router.push(previous); }
 				break;
 			}
 			case "repeat": await announce(registry.readOptions()); break;
@@ -138,9 +146,16 @@ export default function VoiceControlProvider({ children }: { children: React.Rea
 			case "ambiguous": await announce(`Please say one option's name or number. ${registry.readOptions()}`); break;
 			case "unmatched": {
 				const scope = registry.current;
-				if (scope?.onText) await scope.onText(text);
+				if (scope?.onText) {
+					await announce("I am working on your answer.");
+					if (canDispatch() && revision === registry.revision) await scope.onText(text);
+				}
 				else if (scope?.actions.length) await announce(`I could not match that choice. ${registry.readOptions()}`);
-				else if (chat.current && !chat.current.busy) await chat.current.send(text);
+				else if (chat.current && !chat.current.busy) {
+					const key = chat.current.key;
+					await announce("I am working on your answer.");
+					if (canDispatch() && revision === registry.revision && chat.current?.key === key && !chat.current.busy) await chat.current.send(text);
+				}
 				else await announce("Open Chat to ask a question, or say open followed by the screen's name.");
 				break;
 			}
@@ -215,6 +230,7 @@ export default function VoiceControlProvider({ children }: { children: React.Rea
 	}), [allowed, announce, registry, stop, sync, readPendingOptions]);
 	const start = async () => {
 		if (!allowed || owner.current !== verifiedOwner.current || !supported || !engine.current) return;
+		commandEpoch.current += 1;
 		setError(""); activeRef.current = true; setActive(true); pendingOptions.current = false;
 		await announce(`Voice controls ready. ${registry.readOptions(false)}`);
 		if (!activeRef.current) return;
