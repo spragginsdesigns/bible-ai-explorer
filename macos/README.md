@@ -460,8 +460,25 @@ readback, `mac-sdk-signout-quit2-local-readback.json` and
 do not identify the specific Clerk refusal reason. The earlier two normal-EOF
 runs remain inconclusive for this guard.
 
-App and DMG notarization, stapling and Gatekeeper checks passed for the clean
-Mac build; publication is in progress. The uploaded **1.30.0 (2)** is attached
+Mac **1.30.0 (39)** is published as
+[`macos-v1.30.0`](https://github.com/spragginsdesigns/bible-ai-explorer/releases/tag/macos-v1.30.0)
+at **03:21:28 UTC**, tagged at `1ce16b11`. App/DMG notarization, stapling and
+Gatekeeper checks passed. Public download verification at **03:22:33 UTC**
+matched the **48,609,350-byte** DMG, SHA-256
+`27b6842d460ed06b84875a514daace9444118be656076177d0cd7818ff50ccd0`,
+and the preserved **169,878,412-byte** Android APK, SHA-256
+`138bfa438131dc21d2a0bcde00ddde88dfdf5899740ca01106f559e2417538a2`.
+`macos-130-public-release-readback.json` records both anonymous downloads.
+The release app's 703-file source fingerprint matches the current Mac product
+sources; later commits only add tests or documentation.
+
+A final clean/notarized Mac runtime recheck reached People → Zipporah and its
+Moses spouse relationship, then the Timeline's last Patmos event → highlighted
+**Revelation 22:20**, with the correct KJV text and a visible account footer.
+The process remained alive, with no SureWord crash report newer than the
+pre-fix 19:29 local report. `mac-atlas-clean-final-readback.json` and the
+`mac-atlas-clean-*` screenshots preserve this bounded check. It is not a
+network-disabled cold-start claim. The uploaded **1.30.0 (2)** is attached
 to a new **1.30.0 PREPARE_FOR_SUBMISSION** App Store draft with **manual release**,
 current repository listing text and updated review credentials verified by
 readback at **03:11:51 UTC**. No review submission or public iOS release occurred.

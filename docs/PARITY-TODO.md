@@ -63,8 +63,25 @@ readback, `mac-sdk-signout-quit2-local-readback.json` and
 do not identify the specific Clerk refusal reason. The earlier two normal-EOF
 runs remain inconclusive for this guard.
 
-App and DMG notarization, stapling and Gatekeeper checks passed for the clean
-Mac build; publication is in progress. The uploaded **1.30.0 (2)** is attached
+Mac **1.30.0 (39)** is published as
+[`macos-v1.30.0`](https://github.com/spragginsdesigns/bible-ai-explorer/releases/tag/macos-v1.30.0)
+at **03:21:28 UTC**, tagged at `1ce16b11`. App/DMG notarization, stapling and
+Gatekeeper checks passed. Public download verification at **03:22:33 UTC**
+matched the **48,609,350-byte** DMG, SHA-256
+`27b6842d460ed06b84875a514daace9444118be656076177d0cd7818ff50ccd0`,
+and the preserved **169,878,412-byte** Android APK, SHA-256
+`138bfa438131dc21d2a0bcde00ddde88dfdf5899740ca01106f559e2417538a2`.
+`macos-130-public-release-readback.json` records both anonymous downloads.
+The release app's 703-file source fingerprint matches the current Mac product
+sources; later commits only add tests or documentation.
+
+A final clean/notarized Mac runtime recheck reached People → Zipporah and its
+Moses spouse relationship, then the Timeline's last Patmos event → highlighted
+**Revelation 22:20**, with the correct KJV text and a visible account footer.
+The process remained alive, with no SureWord crash report newer than the
+pre-fix 19:29 local report. `mac-atlas-clean-final-readback.json` and the
+`mac-atlas-clean-*` screenshots preserve this bounded check. It is not a
+network-disabled cold-start claim. The uploaded **1.30.0 (2)** is attached
 to a new **1.30.0 PREPARE_FOR_SUBMISSION** App Store draft with **manual release**,
 current repository listing text and updated review credentials verified by
 readback at **03:11:51 UTC**. No review submission or public iOS release occurred.
@@ -196,7 +213,7 @@ A row is done for this checklist only when the behavior is correct on web, Andro
   - Current source: both clients register raw hex tokens plus an APNs environment. The server stores `apns:<environment>:<hex>`, routes directly to Apple, and retains legacy iOS Expo rows. The former `isServerDeliveryConfigured = false`/Expo-upload plan is superseded. iOS reads signed build metadata; macOS reads its actual APS entitlement.
   - Configuration: separate SureWord-only Sandbox/Production keys, six Production-scope Vercel secrets, and the active installed `MAC_APP_DIRECT` production profile are prepared. Configuration is not a deployed sender or delivery receipt.
   - Current runtime: `sureword.app` is READY at docs-only `002370b6` with the same backend code as `b2b40b5e`. Earlier `b2b40b5e` receipts prove closed-app delivery and a separate durable-Stop completion with no push work or exact-target OS record during the bounded observation. The final SDK sign-out plus quit run persisted its answer at 03:10:09 UTC after the app was absent. It retained the bound row, recorded `disconnected=true`, audience 1, session-guard skipped 1 and APNs sent 0, with no Stop marker. Exact-target OS receipts stayed zero through 03:11:56 UTC. Specific Clerk refusal reason is unverified; prior normal-EOF runs remain inconclusive.
-  - Remaining work: finish migration/sign-out failure sequences and delayed-notice cleanup; verify both personalized notifications, cold/warm taps and local/remote dedup on final clean signed builds. Mac footer layout acceptance and fresh app/DMG notarization have passed; publication is the remaining Mac distribution step. No physical iOS delivery or universal Stop absence guarantee is claimed.
+  - Remaining work: finish migration/sign-out failure sequences and delayed-notice cleanup; verify both personalized notifications, cold/warm taps and local/remote dedup on final clean signed builds. Mac footer layout acceptance, fresh app/DMG notarization and public 1.30.0 DMG download verification have passed. No physical iOS delivery or universal Stop absence guarantee is claimed.
   - Evidence: `macos/SureWord-iOS/App/PushRegistration.swift`, `macos/SureWord/App/MacPushRegistration.swift`, `macos/Shared/App/APNsRegistration.swift`, `src/lib/apns.ts`, `docs/ios/push-design.md`.
   - Done when: the final signed Apple builds receive and route both notifications without duplicate or previous-account banners, including the Mac with the app closed and a physical iPhone. Android/legacy Expo behavior must remain intact.
 
