@@ -1,6 +1,26 @@
 {
 	"releases": [
 		{
+			"version": "1.111.0",
+			"versionCode": 130,
+			"date": "2026-10-29",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Notifications have their own artwork. The Daily Cross shows a gold cross under the morning star and \"Your answer is ready\" shows the open Word, so you can tell them apart at a glance. Expand one for a larger picture and the full preview."
+					]
+				},
+				{
+					"kind": "improved",
+					"items": [
+						"Answer previews in notifications read as plain text, without the quote marks and formatting symbols that made them look like the morning verse.",
+						"Security: updated the network library to block certificates that were reported compromised."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.110.0",
 			"versionCode": 129,
 			"date": "2026-10-28",

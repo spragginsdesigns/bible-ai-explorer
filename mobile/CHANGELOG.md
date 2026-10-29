@@ -7,7 +7,7 @@ This file is the **single source of truth for Google Play "What's new" release n
 **What's new (Play):**
 
 NEW
-- Notifications have their own artwork. The Daily Cross shows a gold cross before the rising morning star, and "Your answer is ready" shows the open Word, so you can tell them apart at a glance. Expand either one to see a larger picture and the full verse or answer preview.
+- Notifications have their own artwork. The Daily Cross shows a gold cross under the morning star and "Your answer is ready" shows the open Word, so you can tell them apart at a glance. Expand one for a larger picture and the full preview.
 
 IMPROVED
 - Answer previews in notifications read as plain text, without the quote marks and formatting symbols that made them look like the morning verse.
