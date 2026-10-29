@@ -176,12 +176,12 @@ export function useVerseWords({ book, chapter, verse }: UseVerseWordsArgs) {
 	const fetchStrongs = useCallback(
 		async (number: string): Promise<StrongsDetail | null> => {
 			const exclude = verseKey(book, chapter, verse);
-			const key = `${number}|${exclude}`;
+			const key = `fragments-v1|${number}|${exclude}`;
 			const cached = strongsCache.get(key);
 			if (cached !== undefined) return cached;
 			try {
 				const res = await consentFetch(
-					`/api/bible/strongs?number=${encodeURIComponent(number)}&examples=3&exclude=${exclude}`
+					`/api/bible/strongs?number=${encodeURIComponent(number)}&examples=3&exclude=${exclude}&alignment=fragments-v1`
 				);
 				if (!res.ok) {
 					if (res.status === 404) strongsCache.set(key, null);

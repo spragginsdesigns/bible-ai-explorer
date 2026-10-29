@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import path from "node:path";
 import ts from "typescript";
 
-const require = createRequire(import.meta.url);
 const compiled = new Map();
 // Cache transpilation while keeping every test's dependency and database mocks isolated.
 function loadCached(relative, mocks) {
@@ -12,10 +12,11 @@ function loadCached(relative, mocks) {
 		compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
 	}).outputText);
 	const module = { exports: {} };
+	const localRequire = createRequire(path.resolve(relative));
 	new Function("require", "module", "exports", compiled.get(relative))(id => {
 		if (id in mocks) return mocks[id];
 		if (id.startsWith("@/")) return {};
-		return require(id);
+		return localRequire(id);
 	}, module, module.exports);
 	return module.exports;
 }

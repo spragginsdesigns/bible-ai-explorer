@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { isRightToLeft, stripCantillation } from "@/lib/bible/original-text";
-import type { VerseWordDetail, VerseWordRow, VerseWordStudy } from "@/lib/verse-words-contract";
+import type { StrongsOccurrences, VerseWordDetail, VerseWordRow, VerseWordStudy } from "@/lib/verse-words-contract";
 import { useVerseWords, type StrongsDetail } from "./useVerseWords";
 
 interface WordStudySectionProps {
@@ -33,6 +33,12 @@ const SCRIPT_FONT = "system-ui, 'Segoe UI', 'Noto Sans Hebrew', 'Noto Sans', ser
 
 /** Marks a Strong's lookup that is still in flight. */
 type StrongsState = StrongsDetail | null | "loading";
+
+/** Show a count only when the server explicitly identifies its source-edition scope. */
+function occurrenceActionLabel(occurrences?: StrongsOccurrences): string {
+	if (occurrences?.totalScope !== "original-edition-verses") return "Find occurrences";
+	return `Original verse${occurrences.total === 1 ? "" : "s"} · ${occurrences.total}`;
+}
 
 /** The Hebrew Bible runs to Malachi; everything after it is Greek. */
 const LAST_HEBREW_BOOK = 39;
@@ -383,7 +389,7 @@ const WordDetail: React.FC<WordDetailProps> = ({ study, row, head, entry, rtl, o
 						onClick={() => onAsk(everyPrompt, false)}
 						className="rounded-lg border border-black/[0.1] bg-black/[0.04] px-2 py-2 text-[0.8125rem] font-bold text-neutral-700 transition-colors hover:bg-black/[0.08] dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-neutral-200 dark:hover:bg-white/[0.1]"
 					>
-						{occurrences ? `Every verse · ${occurrences.total}` : "Every verse"}
+						{occurrenceActionLabel(occurrences)}
 					</button>
 				) : null}
 			</div>

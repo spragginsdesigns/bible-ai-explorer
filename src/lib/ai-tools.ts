@@ -30,6 +30,7 @@ import {
 	type RewriteNoteResult,
 } from "@/lib/notes-io";
 import { NOTE_HOUSE_STYLE } from "@/utils/noteHouseStyle";
+import { originalQueryPrefixes, originalSourceTokens } from "../../scripts/lib/original-query.mjs";
 import type { NoteAIWriteOperation } from "@/lib/note-ai-operations";
 import { getChapter, getVerseText, type TranslationId } from "@/lib/bible/translations";
 import { HIGHLIGHT_COLORS } from "@/lib/highlights";
@@ -402,13 +403,12 @@ async function matchedWordsFor(
 ): Promise<OriginalMatchedWord[]> {
 	const original = await getOriginalVerse(row.book, row.chapter, row.verse);
 	if (!original) return [];
-	const plainOf = row.language === "Hebrew" ? hebrewPlainQuery : greekPlainQuery;
 	const matched: OriginalMatchedWord[] = [];
-	for (const word of original.words) {
+	for (const word of original.words.slice(row.sourceWordStart ?? 0, row.sourceWordEnd ?? original.words.length)) {
 		const byNumber = word.strongs !== "" && wantedIds.has(word.strongs);
 		const byText =
 			wantedPrefixes.length > 0 &&
-			wantedPrefixes.some((prefix) => plainOf(word.text).startsWith(prefix));
+			wantedPrefixes.some((prefix) => originalSourceTokens(row.language, [word.text]).some(token => token.startsWith(prefix)));
 		if (!byNumber && !byText) continue;
 		matched.push({
 			text: displayOriginal(row.language, word.text),
@@ -447,6 +447,11 @@ export interface OriginalSearchMatch {
 	reference: string;
 	/** Always the original text's own numbering: "Psalms 51:3" in the WLC. */
 	originalReference: string;
+	sourceIdentifier: string;
+	sourceWordStart: number;
+	sourceWordEnd?: number;
+	/** Why a match has original-source identity only, when no KJV target applies. */
+	sourceOnlyReason?: string | null;
 	language: OriginalLanguage;
 	/** The verse as it is displayed: Hebrew without cantillation, or Greek. */
 	original: string;
@@ -462,6 +467,7 @@ export interface OriginalSearchMatch {
  */
 export interface OriginalSearchToolOutput extends ScriptureSearchToolOutput {
 	total: number;
+	totalScope: "original-edition-verses";
 	resolved: { strongs: string; lemma: string; translit: string; gloss: string }[];
 	matches: OriginalSearchMatch[];
 }
@@ -822,7 +828,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 
 	const searchOriginalLanguageTool = tool({
 		description:
-			"Search the inspired Hebrew (Westminster Leningrad Codex) and Greek (Scrivener 1894 Textus Receptus) text itself by original word, Strong's number, or transliteration, and get every verse where that word or root occurs. This is the tool for word studies: \"every verse with hesed\", \"where does agape appear in 1 John\", \"verses containing H7965\". It reports how many verses match in all, not just the page it returns. Use getOriginalText when you want one verse word by word, and lookupStrongs when you want the dictionary entry; use this when you want the occurrences.",
+			"Search the inspired Hebrew (Westminster Leningrad Codex) and Greek (Scrivener 1894 Textus Receptus) text itself by original word, Strong's number, or transliteration, and get bounded matching source passages. This is the tool for word studies: \"every verse with hesed\", \"where does agape appear in 1 John\", \"verses containing H7965\". Its total counts original-edition verses, including superscriptions, rather than distinct numbered KJV verses. The returned page is bounded and carries precise original-source fragments. Use getOriginalText when you want one verse word by word, and lookupStrongs when you want the dictionary entry; use this when you want the occurrences.",
 		inputSchema: z.object({
 			strongs: z
 				.string()
@@ -930,21 +936,23 @@ export function buildSureWordTools(context: SureWordToolContext) {
 
 			const result = await searchOriginalVerses({
 				...(strongsIds ? { strongs: strongsIds } : {}),
-				...(plainText ? { text: plainText } : {}),
+				...(plainText !== undefined ? { text: plainText } : {}),
 				...(searchLanguage ? { language: searchLanguage } : {}),
 				...(bookNumber !== undefined ? { book: bookNumber } : {}),
 				limit: limit ?? 8,
 			});
 
 			const wantedIds = new Set(strongsIds ?? []);
-			const wantedPrefixes = plainText ? plainText.split(/\s+/).filter(Boolean) : [];
+			const wantedPrefixes = originalQueryPrefixes(plainText ?? "");
 			const matches: OriginalSearchMatch[] = [];
 			const verses: RetrievedVerse[] = [];
+			const quotations: (string | undefined)[] = [];
 
 			for (const row of result.rows) {
 				const display = displayOriginal(row.language, row.text);
 				const bookName = getKjvBookName(row.book) ?? `Book ${row.book}`;
 				const originalReference = `${bookName} ${row.chapter}:${row.verse}`;
+				const edition = row.language === "Hebrew" ? "WLC" : "TR";
 				const { kjvBook, kjvChapter, kjvVerse } = row;
 				const kjvAligned = kjvBook !== null && kjvChapter !== null && kjvVerse !== null;
 
@@ -958,19 +966,25 @@ export function buildSureWordTools(context: SureWordToolContext) {
 					// The Hebrew and Greek carry their own versification (Psalm titles
 					// are verse 1 in the WLC), so an unaligned hit must say which
 					// numbering it is in rather than pass as a KJV reference.
-					reference = `${originalReference} (${row.language === "Hebrew" ? "WLC" : "TR"} numbering)`;
+					reference = `${bookName} (${edition} ${row.chapter}:${row.verse}; words ${(row.sourceWordStart ?? 0) + 1}-${row.sourceWordEnd ?? "end"})`;
 				}
 
 				matches.push({
 					reference,
 					originalReference,
+					sourceIdentifier: `${edition} ${row.chapter}:${row.verse}`,
+					sourceWordStart: row.sourceWordStart ?? 0,
+					sourceWordEnd: row.sourceWordEnd,
+					sourceOnlyReason: row.sourceOnlyReason,
 					language: row.language,
 					original: display,
 					matchedWords: await matchedWordsFor(row, wantedIds, wantedPrefixes),
 					kjvAligned,
 				});
-				// Unaligned original text is Hebrew/Greek, not the requested English translation.
-				verses.push({ reference, similarity: 1, text: text ?? display, ...(text ? { translation } : {}) });
+				quotations.push(text);
+				// The shared retrieved-verses cards open KJV coordinates. Original-only
+				// evidence stays in matches/formatted, never mislabeled as English.
+				if (kjvAligned && text) verses.push({ reference, similarity: 1, text, translation });
 			}
 
 			const scope = [
@@ -988,7 +1002,8 @@ export function buildSureWordTools(context: SureWordToolContext) {
 					: `the words "${askedWord ?? ""}"`;
 			const header = [
 				`Searched the original text for ${subject}${scope}.`,
-				`${result.total} verse${result.total === 1 ? "" : "s"} match; showing ${matches.length}.`,
+				`${result.total} original-edition verse${result.total === 1 ? "" : "s"} match; showing ${matches.length} matching source passages.`,
+				"The total includes source-only superscriptions; it is not a count of distinct numbered KJV verses. This result page is bounded.",
 				ambiguous
 					? "That spelling matched more than one Strong's entry, so say which words these hits are and let the user narrow it."
 					: "",
@@ -1008,10 +1023,14 @@ export function buildSureWordTools(context: SureWordToolContext) {
 					if (matched.gloss) parts.push(`KJV: ${matched.gloss.slice(0, 70)}`);
 					return `  - ${parts.join(" | ")}`;
 				});
-				const quoted = verses[index]?.text;
+				const quoted = quotations[index];
 				return [
 					`${match.reference} (${match.language})`,
+					`  Original source in ${match.originalReference.replace(/\s+\d+:\d+$/, "")}: \`${match.sourceIdentifier}\` (words ${match.sourceWordStart + 1}-${match.sourceWordEnd ?? "end"}).`,
 					`  ${match.original}`,
+					match.sourceOnlyReason === "query-crosses-fragment-boundary"
+						? "  The full query spans source fragments; no single numbered KJV verse is attributed."
+						: !match.kjvAligned ? "  This original-source fragment has no numbered KJV target." : "",
 					...(words.length > 0 ? ["  matched:", ...words] : []),
 					quoted ? `  ${translation}: "${quoted}"` : "",
 				]
@@ -1025,8 +1044,9 @@ export function buildSureWordTools(context: SureWordToolContext) {
 				formatted:
 					matches.length > 0
 						? `${header}\n\n${blocks.join("\n\n")}`
-						: `${header} No verse in the original text matched.`,
+						: `${header} No matching passages were returned from this bounded page.`,
 				total: result.total,
+				totalScope: result.totalScope,
 				resolved: resolved.map(({ strongs: number, lemma, translit, gloss }) => ({
 					strongs: number,
 					lemma,

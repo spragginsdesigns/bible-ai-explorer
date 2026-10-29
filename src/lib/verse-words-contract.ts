@@ -85,6 +85,8 @@ export interface StrongsOccurrence {
 }
 
 export interface StrongsOccurrences {
+	/** Raw WLC/TR verse count, including superscriptions; not a distinct KJV target count. */
+	totalScope?: "original-edition-verses";
 	/** Every verse of the original text carrying the number. */
 	total: number;
 	examples: StrongsOccurrence[];

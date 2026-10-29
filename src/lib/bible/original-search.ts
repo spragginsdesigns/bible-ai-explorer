@@ -16,8 +16,10 @@
  */
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { originalQueryTsQuery } from "../../../scripts/lib/original-query.mjs";
 import {
 	getStrongsDictionary,
+	originalConcordanceRows,
 	type StrongsDictionary,
 	type StrongsEntry,
 } from "@/lib/bible/originals";
@@ -31,6 +33,8 @@ export type StrongsLanguage = "hebrew" | "greek";
 /** Lowest and highest number of verses one search may return. */
 const MIN_LIMIT = 1;
 const MAX_LIMIT = 20;
+/** Bound candidate projection even when many source-only rows are skipped. */
+const MAX_SOURCE_CANDIDATES = 200;
 
 /** How many Strong's numbers a transliteration may resolve to. */
 const MAX_CANDIDATES = 6;
@@ -151,26 +155,14 @@ export function detectScript(input: string): "hebrew" | "greek" | "latin" {
 }
 
 /**
- * A tsquery lexeme: single-quoted with any internal quote doubled, the same
- * rule verse-fulltext.ts uses, so nothing a user types can escape into the
- * query as an operator.
- */
-function quoteLexeme(word: string): string {
-	return `'${word.replace(/'/g, "''")}'`;
-}
-
-/**
  * The `to_tsquery('simple', ...)` string for already-plain words, requiring
- * every one of them. Each is a prefix match, because Hebrew and Greek inflect
+ * every whitespace clause. Wrapping punctuation is ignored; internal word
+ * boundaries stay adjacent. Each term is a prefix match, because Hebrew and Greek inflect
  * heavily and the 'simple' dictionary stems nothing: `αγαπ:*` reaches
  * ἀγάπη, ἀγάπης and ἀγάπην alike. Returns null when nothing usable is left.
  */
 export function buildOriginalTsQuery(plainWords: string | readonly string[]): string | null {
-	const words = (typeof plainWords === "string" ? plainWords.split(/\s+/) : plainWords)
-		.map((word) => word.trim())
-		.filter((word) => word.length > 0);
-	if (words.length === 0) return null;
-	return words.map((word) => `${quoteLexeme(word)}:*`).join(" & ");
+	return originalQueryTsQuery(plainWords);
 }
 
 /**
@@ -420,6 +412,10 @@ export interface OriginalVerseRow {
 	kjvBook: number | null;
 	kjvChapter: number | null;
 	kjvVerse: number | null;
+	/** Zero-based/end-exclusive offsets in this row's raw source verse. */
+	sourceWordStart?: number;
+	sourceWordEnd?: number;
+	sourceOnlyReason?: string | null;
 }
 
 export interface OriginalSearchOptions {
@@ -431,11 +427,15 @@ export interface OriginalSearchOptions {
 	/** Restrict to one book, 1-66 in canonical order. */
 	book?: number;
 	limit: number;
+	/** Public English examples exclude original-only title/boundary hits. */
+	mappedOnly?: boolean;
 }
 
 export interface OriginalSearchResult {
 	rows: OriginalVerseRow[];
-	/** Every verse the search matched, not just the page returned. */
+	/** SQL source-index count semantics, unchanged by fragment projection. */
+	totalScope: "original-edition-verses";
+	/** Whole original-edition verses, including titles; not distinct numbered KJV targets. */
 	total: number;
 }
 
@@ -445,9 +445,9 @@ interface CountRow {
 
 /**
  * Verses of the original text matching a Strong's number set, a word, or
- * both, in canonical order. `total` comes from a second count over the same
- * predicate so the model can say "245 verses, showing 20" instead of implying
- * the page is the whole answer.
+ * both, in source order. `total` counts raw indexed WLC/TR verses with the
+ * same predicate; returned rows are bounded source fragments. Neither value
+ * is an exhaustive distinct numbered-KJV occurrence count.
  */
 export async function searchOriginalVerses(
 	options: OriginalSearchOptions
@@ -458,14 +458,14 @@ export async function searchOriginalVerses(
 		// of the resolved numbers, so ANY-of is the right test, not all-of.
 		conditions.push(Prisma.sql`"strongs" && ${options.strongs}::text[]`);
 	}
-	if (options.text) {
+	if (options.text !== undefined) {
 		const tsquery = buildOriginalTsQuery(options.text);
-		if (!tsquery) return { rows: [], total: 0 };
+		if (!tsquery) return { rows: [], total: 0, totalScope: "original-edition-verses" };
 		conditions.push(Prisma.sql`"search" @@ to_tsquery('simple', ${tsquery})`);
 	}
 	// Without a predicate this would scan the whole text and return an
 	// arbitrary 20 verses, which reads to the model like a real answer.
-	if (conditions.length === 0) return { rows: [], total: 0 };
+	if (conditions.length === 0) return { rows: [], total: 0, totalScope: "original-edition-verses" };
 
 	if (options.language) conditions.push(Prisma.sql`"language" = ${options.language}`);
 	if (options.book !== undefined) conditions.push(Prisma.sql`"book" = ${options.book}`);
@@ -473,6 +473,7 @@ export async function searchOriginalVerses(
 	const where = Prisma.join(conditions, " AND ");
 	const limit = Math.min(MAX_LIMIT, Math.max(MIN_LIMIT, Math.trunc(options.limit) || MIN_LIMIT));
 
+	const candidateLimit = Math.min(MAX_SOURCE_CANDIDATES, Math.max(40, limit * 8));
 	const [rows, counted] = await Promise.all([
 		prisma.$queryRaw<OriginalVerseRow[]>`
 			SELECT "book", "chapter", "verse", "language", "text", "plain", "strongs",
@@ -480,7 +481,7 @@ export async function searchOriginalVerses(
 			FROM "OriginalVerse"
 			WHERE ${where}
 			ORDER BY "book", "chapter", "verse"
-			LIMIT ${limit}
+			LIMIT ${candidateLimit}
 		`,
 		// count(*) is bigint, which Prisma hands back as a BigInt that JSON
 		// cannot serialise into a tool result; cast it in SQL.
@@ -489,5 +490,10 @@ export async function searchOriginalVerses(
 		`,
 	]);
 
-	return { rows, total: Number(counted[0]?.total ?? rows.length) };
+	// The database locates candidates and counts raw original verses. Its one
+	// legacy primary KJV coordinate cannot identify split/title word matches.
+	const projected = (await Promise.all(rows.map(row => originalConcordanceRows(
+		row.book, row.chapter, row.verse, options,
+	)))).flat();
+	return { rows: projected.slice(0, limit), total: Number(counted[0]?.total ?? rows.length), totalScope: "original-edition-verses" };
 }
