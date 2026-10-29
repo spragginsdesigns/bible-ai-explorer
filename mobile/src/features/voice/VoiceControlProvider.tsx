@@ -53,9 +53,13 @@ export function VoiceControlProvider({ children }: { children: React.ReactNode }
 	const [enabled, setEnabled] = useState(false);
 	const [status, setStatus] = useState("Voice controls off.");
 	const currentAccount = useRef(userId);
-	currentAccount.current = userId;
-	const state = useRef({ enabled: false, requesting: false, permission: false, prompting: false, command: false, cue: false, active: false, epoch: 0, path, foreground: AppState.currentState === "active" });
+	const state = useRef({ enabled: false, requesting: false, permission: false, prompting: false, command: null as symbol | null, cue: false, active: false, epoch: 0, path, foreground: AppState.currentState === "active" });
+	const actionGeneration = useRef(0);
+	// Revoke old callbacks during the render that changes their owner/route,
+	// before an awaited acknowledgement can resume ahead of passive effects.
+	if (state.current.path !== path || currentAccount.current !== userId) actionGeneration.current += 1;
 	state.current.path = path;
+	currentAccount.current = userId;
 	const gate = useRef(new VoiceTurnGate()).current;
 	const cardRef = useRef<{ path: string; card: VoiceCard } | null>(null);
 	const chatRef = useRef<{ path: string; chat: VoiceChat } | null>(null);
@@ -63,16 +67,18 @@ export function VoiceControlProvider({ children }: { children: React.ReactNode }
 	const subscriptions = useRef<{ remove: () => void }[]>([]);
 	const endWaiters = useRef<(() => void)[]>([]);
 	const turn = useRef<ReturnType<VoiceTurnGate["begin"]> | null>(null);
+	const capture = useRef<{ ended: boolean; hadFinal: boolean; epoch: number; endTimer?: ReturnType<typeof setTimeout> } | null>(null);
 	const pending = useRef<{ text: string; scope: unknown; changed?: boolean } | null>(null);
 	const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const activeCard = () => cardRef.current?.path === state.current.path ? cardRef.current.card : null;
 	const activeChat = () => chatRef.current?.path === state.current.path ? chatRef.current.chat : null;
 	const scope = () => activeCard() ?? activeChat() ?? state.current.path;
-	const blocked = () => !state.current.enabled || !state.current.foreground || state.current.permission || state.current.command || voiceOutputActive() || Boolean(activeChat()?.busy);
+	const blocked = () => !state.current.enabled || !state.current.foreground || state.current.permission || state.current.command !== null || voiceOutputActive() || Boolean(activeChat()?.busy);
 
 	const abortMicrophone = useCallback(async () => {
 		gate.invalidate();
 		pending.current = null;
+		if (capture.current?.endTimer) clearTimeout(capture.current.endTimer);
 		if (timer.current) clearTimeout(timer.current);
 		if (!state.current.active) return;
 		await new Promise<void>((resolve, reject) => {
@@ -92,6 +98,10 @@ export function VoiceControlProvider({ children }: { children: React.ReactNode }
 		const ownSpeech = state.current.enabled || state.current.requesting || state.current.cue;
 		state.current.enabled = false;
 		state.current.epoch += 1;
+		actionGeneration.current += 1;
+		state.current.command = null;
+		state.current.permission = false;
+		state.current.prompting = false;
 		state.current.requesting = false;
 		setEnabled(false);
 		setStatus("Voice controls off. Tap Start voice controls to listen again.");
@@ -119,48 +129,67 @@ export function VoiceControlProvider({ children }: { children: React.ReactNode }
 		// Recognition is disabled before recovery speech, so its own error cannot be a command.
 		void say(message).catch(() => undefined);
 	}
-	function schedule() {
+	function schedule(delay = 250, announce = true) {
 		if (timer.current) clearTimeout(timer.current);
+		const scheduledEpoch = state.current.epoch;
 		timer.current = setTimeout(async () => {
-			if (blocked() || state.current.active || !recognizer.current) return;
+			if (scheduledEpoch !== state.current.epoch || blocked() || state.current.active || !recognizer.current) return;
 			if (activeChat()?.error) return fail(activeChat()?.error ?? "The last answer failed. Voice controls stopped.");
 			const epoch = state.current.epoch;
-			state.current.command = true;
-			try { await say("Listening."); }
-			catch { if (epoch === state.current.epoch) fail("Could not speak the listening cue. Voice controls stopped."); }
-			finally { state.current.command = false; }
+			if (announce) {
+				const commandOwner = Symbol("listening cue");
+				state.current.command = commandOwner;
+				try { await say("Listening."); }
+				catch { if (epoch === state.current.epoch) fail("Could not speak the listening cue. Voice controls stopped."); }
+				finally { if (state.current.command === commandOwner) state.current.command = null; }
+			}
 			if (epoch !== state.current.epoch || blocked() || state.current.active) return;
 			turn.current = gate.begin(scope());
+			capture.current = { ended: false, hadFinal: false, epoch };
 			state.current.active = true;
 			pending.current = null;
 			setStatus("Listening. Say an option, open a screen, or stop voice controls.");
 			try {
 				recognizer.current.start({ lang: "en-US", interimResults: false, continuous: false, maxAlternatives: 1, contextualStrings: [...(activeCard()?.options ?? []), "open Bible", "go back", "repeat options", "stop voice controls"] });
 			} catch { state.current.active = false; fail("Speech recognition could not start. Tap Start voice controls to retry."); }
-		}, 250);
+		}, delay);
 	}
 	async function execute(text: string, expected: unknown, changed = false) {
 		if (blocked() || expected !== scope()) return;
-		state.current.command = true;
+		const commandOwner = Symbol("voice action");
+		state.current.command = commandOwner;
 		setStatus("Working on your request.");
 		const epoch = state.current.epoch;
+		const generation = actionGeneration.current;
+		const account = currentAccount.current;
+		const route = state.current.path;
+		const cardEntry = cardRef.current;
+		const chatEntry = chatRef.current;
+		const card = activeCard();
+		const chat = activeChat();
+		const ownsCommand = () => state.current.enabled && state.current.foreground && state.current.epoch === epoch &&
+			state.current.command === commandOwner && currentAccount.current === account &&
+			state.current.path === route;
+		const isCurrent = () => ownsCommand() && actionGeneration.current === generation &&
+			cardRef.current === cardEntry && chatRef.current === chatEntry;
 		try {
 			if (changed) await say("Those options changed. Here are the current choices.");
-			if (epoch !== state.current.epoch) return;
-			const card = activeCard();
+			if (!isCurrent()) return;
 			const command = resolveVoiceCommand(text, { options: card?.options ?? [] });
 			if (command.type === "stop") { stop(); return; }
 			if (command.type === "choose") {
 				if (!card || card !== expected) throw new Error("Those options changed. Say repeat options to hear the current choices.");
-				// Retire before calling the same tap action: duplicate finals cannot send twice.
-				cardRef.current = null;
 				await say(`Choosing ${command.label}.`);
-				if (epoch !== state.current.epoch) return;
+				if (!isCurrent()) return;
+				// Keep the entry through the acknowledgement so cleanup can revoke
+				// it, then consume it immediately before its real tap callback.
+				cardRef.current = null;
 				await card.choose(command.label);
 			} else if (command.type === "navigate" || command.type === "back") {
 				await say(command.type === "navigate" ? `Opening ${command.destination}.` : "Going back.");
-				if (epoch !== state.current.epoch) return;
+				if (!isCurrent()) return;
 				await afterTabDepartureGuard(() => {
+					if (!isCurrent()) return;
 					if (command.type === "navigate") router.navigate(paths[command.destination]);
 					else if (router.canGoBack()) router.back();
 				});
@@ -169,27 +198,30 @@ export function VoiceControlProvider({ children }: { children: React.ReactNode }
 			} else if (command.type === "ambiguous") {
 				await say("I heard more than one possible choice. Say the complete option label or its number. Say repeat options to hear them.");
 			} else if (card?.allowOther) {
-				cardRef.current = null;
 				await say("I am sending your answer.");
-				if (epoch !== state.current.epoch) return;
+				if (!isCurrent()) return;
+				cardRef.current = null;
 				await card.choose(text);
 			} else if (card?.ask && /^(?:what|why|how|who|when|where|can|could|would|please explain|i want|my |i )/i.test(text.trim())) {
 				await say("I am working on your answer.");
-				if (epoch !== state.current.epoch) return;
+				if (!isCurrent()) return;
 				await card.ask(text);
 			} else if (card) {
 				await say("I could not match that choice. Say the complete option label or its number, or repeat options.");
-			} else if (activeChat()) {
+			} else if (chat) {
 				await say("I am working on your answer.");
-				if (epoch !== state.current.epoch) return;
-				await activeChat()!.send(text);
+				if (!isCurrent()) return;
+				await chat.send(text);
 			} else {
 				await say("Say open Chat to ask SureWord a question, or say the name of a screen to open.");
 			}
 		} catch (error) {
-			if (epoch === state.current.epoch) fail(error instanceof Error ? error.message : "That request failed. Voice controls stopped.");
+			// A genuine save failure still stops the originating command after
+			// its card was consumed. It must not speak onto another route/account
+			// or stop a replacement command after the user has moved on.
+			if (ownsCommand()) fail(error instanceof Error ? error.message : "That request failed. Voice controls stopped.");
 		} finally {
-			state.current.command = false;
+			if (state.current.command === commandOwner) state.current.command = null;
 			if (epoch === state.current.epoch) schedule();
 		}
 	}
@@ -203,6 +235,7 @@ export function VoiceControlProvider({ children }: { children: React.ReactNode }
 		state.current.requesting = true;
 		state.current.permission = true;
 		const epoch = ++state.current.epoch;
+		actionGeneration.current += 1;
 		const account = userId;
 		try {
 			setStatus("Checking voice access and microphone permission.");
@@ -216,6 +249,7 @@ export function VoiceControlProvider({ children }: { children: React.ReactNode }
 				recognizer.current = module;
 				subscriptions.current = [
 					module.addListener("result", (event) => {
+						if (event.isFinal && event.results[0]?.transcript.trim() && capture.current && !capture.current.ended) capture.current.hadFinal = true;
 						const token = turn.current;
 						if (token && event.isFinal && !latest.current.blocked() && token.scope !== latest.current.scope()) {
 							pending.current = { text: "repeat options", scope: latest.current.scope(), changed: true };
@@ -227,16 +261,29 @@ export function VoiceControlProvider({ children }: { children: React.ReactNode }
 						if (text) pending.current = { text, scope: token.scope };
 					}),
 					module.addListener("end", () => {
+						const endedCapture = capture.current;
+						if (!state.current.active || !endedCapture || endedCapture.ended) return;
+						endedCapture.ended = true;
+						if (endedCapture.endTimer) clearTimeout(endedCapture.endTimer);
 						state.current.active = false;
 						for (const resolve of endWaiters.current.splice(0)) resolve();
 						const result = pending.current;
 						pending.current = null;
 						if (result) void latest.current.execute(result.text, result.scope, result.changed);
-						else latest.current.schedule();
+						else if (endedCapture.epoch === state.current.epoch) latest.current.schedule(endedCapture.hadFinal ? 250 : 500, endedCapture.hadFinal);
 					}),
 					module.addListener("error", (event) => {
 						if (event.error === "aborted" || !state.current.enabled) return;
-						latest.current.fail(event.error === "no-speech" || event.error === "speech-timeout" ? "I did not hear a complete answer. Tap Start voice controls to try again." : "Speech recognition stopped. Check microphone permission and your connection, then tap Start voice controls.");
+						const idleCapture = capture.current;
+						if ((event.error === "no-speech" || event.error === "speech-timeout") && (!idleCapture || idleCapture.ended || !state.current.active)) return;
+						if ((event.error === "no-speech" || event.error === "speech-timeout") && idleCapture && !idleCapture.ended && !idleCapture.hadFinal && !pending.current && idleCapture.epoch === state.current.epoch) {
+							gate.invalidate();
+							if (!idleCapture.endTimer) idleCapture.endTimer = setTimeout(() => {
+								if (capture.current === idleCapture && !idleCapture.ended && idleCapture.epoch === state.current.epoch && state.current.enabled) latest.current.fail("Speech recognition did not finish. Tap Start voice controls to retry.");
+							}, 2500);
+							return;
+						}
+						latest.current.fail("Speech recognition stopped. Check microphone permission and your connection, then tap Start voice controls.");
 					}),
 				];
 			}
@@ -251,10 +298,12 @@ export function VoiceControlProvider({ children }: { children: React.ReactNode }
 		} catch (error) {
 			if (epoch === state.current.epoch) fail(error instanceof Error && !/native module/i.test(error.message) ? error.message : "This build does not include speech recognition. Install a new SureWord native build to use voice controls.");
 		} finally {
-			state.current.permission = false;
-			state.current.prompting = false;
-			state.current.requesting = false;
-			if (epoch === state.current.epoch) schedule();
+			if (epoch === state.current.epoch) {
+				state.current.permission = false;
+				state.current.prompting = false;
+				state.current.requesting = false;
+				schedule();
+			}
 		}
 	}
 
@@ -282,16 +331,18 @@ export function VoiceControlProvider({ children }: { children: React.ReactNode }
 	useEffect(() => { void abortMicrophone().then(() => latest.current.schedule()).catch((error) => latest.current.fail(String(error))); }, [path, abortMicrophone]);
 
 	const registerCard = useCallback((card: VoiceCard) => {
+		actionGeneration.current += 1;
 		const entry = { path: state.current.path, card };
 		cardRef.current = entry;
-		return () => { if (cardRef.current === entry) { cardRef.current = null; gate.invalidate(); } };
+		return () => { if (cardRef.current === entry) { actionGeneration.current += 1; cardRef.current = null; gate.invalidate(); } };
 	}, [gate]);
 	const registerChat = useCallback((chat: VoiceChat) => {
+		actionGeneration.current += 1;
 		const entry = { path: state.current.path, chat };
 		chatRef.current = entry;
 		if (chat.busy) void abortMicrophone().catch((error) => latest.current.fail(String(error)));
 		else latest.current.schedule();
-		return () => { if (chatRef.current === entry) chatRef.current = null; };
+		return () => { if (chatRef.current === entry) { actionGeneration.current += 1; chatRef.current = null; } };
 	}, [abortMicrophone]);
 	const finish = () => { if (state.current.active) { setStatus("Finishing your spoken answer."); recognizer.current?.stop(); } };
 	return <Context.Provider value={{ eligible, enabled, status, start: () => { void start(); }, finish, stop, speak, registerCard, registerChat }}><View style={{ flex: 1 }}>
