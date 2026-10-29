@@ -411,7 +411,67 @@ through the normal Gatekeeper path.
 
 ## Status
 
-### Current integration checkpoint, 2026-10-28
+### Reviewer authentication and Mac follow-up, 2026-10-29
+
+The earlier credential and sign-in handoffs are resolved. Production Clerk
+readback confirms the user changed the reviewer password at **02:19:29 UTC**
+and signed in at **02:20:08 UTC**. The existing SureWord App Review entry in
+1Password was updated and its saved password matched the supplied value.
+Credentials remain outside the repository and these receipts.
+
+The user approved AI for this review account. The actual Mac disclosure was
+accepted; production readback records consent version **2** at **02:42:20 UTC**,
+with no declined timestamp. Opening, confirmation/back, and acceptance stayed
+in the same live Mac process. `143893b3` fixes the reproducible AppKit constraint
+loop during disclosure presentation by deferring presentation and managing
+measured sheet size without continuous preferred-content-size tracking.
+
+The shipping iOS app passed authenticated acceptance on **SW-C1** at
+**02:59:48 UTC**: exact reviewer identity checked before preference changes,
+ASV Genesis 1:1 selected and retained after tab return and normal relaunch,
+then KJV restored and checked. `ios-authenticated-translation-final-summary.json`
+records **1 passed, 0 failed, 0 skipped**; the private result bundle is
+`ios-authenticated-acceptance-private/attempt-4.xcresult`. This proves normal
+relaunch persistence, not independent cross-device synchronization. Attempt 3
+reached the signed-in shell but used the wrong Settings entry point; the
+corrected test navigates through Today's direct gear.
+
+Mac footer diagnosis is now measured: a zero-width Chat proposal made the
+multiline composer report **767.5 pt** tall, lifting the shell to **876.5 pt**
+inside **721 pt** available height. A supported **420 pt** chat-column minimum
+reduces the shell minimum to **660 × 427** and makes the normal shell exactly
+**1180 × 721**. Actual normal-window, shorter-window and eight-line unsent-draft
+screenshots show the avatar, account name, gear, composer and creator credit
+fully visible. Settings opens from the footer. All temporary layout probes
+were removed. The clean installed app passed Today/Chat transitions and the
+shorter-window eight-line-draft check; `17debbc5` commits the sizing correction. See `mac-footer-width-fix-safe-receipt.json` under
+`/tmp/sureword-parity-takeover/` for exact proof limits.
+
+The actual SDK sign-out plus quit guard repeat now passes. The Mac was absent
+before the assistant persisted at **03:10:09.361 UTC**; the retained raw Apple
+recipient remained bound, with no Stop marker. One complete correlated request
+records `disconnected=true`, one audience recipient, one session-guard skip and
+**zero APNs sends**. Exact-target and undecodable OS receipt counts remained
+zero through **03:11:56 UTC**, while the app stayed closed. Local remote identity
+cleared, retaining token/proof/owner; the first disk read preceded the flush.
+`mac-sdk-signout-quit-0310-runtime-summary.json`, the corresponding server
+readback, `mac-sdk-signout-quit2-local-readback.json` and
+`mac-sdk-signout-quit2-os-final-readback.json` preserve this evidence. The logs
+do not identify the specific Clerk refusal reason. The earlier two normal-EOF
+runs remain inconclusive for this guard.
+
+App and DMG notarization, stapling and Gatekeeper checks passed for the clean
+Mac build; publication is in progress. The uploaded **1.30.0 (2)** is attached
+to a new **1.30.0 PREPARE_FOR_SUBMISSION** App Store draft with **manual release**,
+current repository listing text and updated review credentials verified by
+readback at **03:11:51 UTC**. No review submission or public iOS release occurred.
+Physical-device APNs/StoreKit and provider flows remain open: the paired iPhone
+tunnel was still unavailable in the latest device discovery.
+
+### Historical integration checkpoint, 2026-10-28 (superseded above)
+
+This is a preserved earlier snapshot. Its pending items are superseded wherever
+the follow-up above records newer verification.
 
 Reconciled through **23:29 UTC**. Mac metadata is **1.30.0 (39)**; uploaded iOS
 **1.30.0 (2)** uses native `1643de78`. Temporary layout/auth tracing has been

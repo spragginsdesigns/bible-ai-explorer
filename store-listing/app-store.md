@@ -4,17 +4,12 @@ The exact text for SureWord's App Store page. Start at
 [`store-listing/README.md`](README.md); the Play twin is
 [`play-store.md`](play-store.md).
 
-**PENDING (2026-10-27):** the description below adds the Ways to Serve line
-(and trims five lines to fit). App Store Connect still has the earlier
-text. Clear this by running `listing apply` on the Mac with the next iOS
-version that ships Ways to Serve, then `listing check`.
-
-> **PENDING (2026-10-27): text-size copy awaits the combined Apple listing gate.**
-> The shared description now names adjustable text across chat, Scripture,
-> notes and menus. iOS 1.28.0 (1) containing text sizing is uploaded and VALID.
-> The Ways to Serve gate above remains open: publish
-> the full description only when its Apple version includes both features,
-> then remove this block after `asc.py listing check` matches.
+**Prepared in App Store Connect (2026-10-28 Pacific):** the complete text below,
+including Ways to Serve and adjustable text, is saved to the **1.30.0** draft.
+`asc.py listing check` matches. Build **1.30.0 (2)** is attached; the draft remains
+`PREPARE_FOR_SUBMISSION` with manual release. Public version **1.26.0** stays
+unchanged until review and release. Receipt:
+`/tmp/sureword-parity-takeover/ios-130-store-draft-prepared-readback.json`.
 
 Entered 2026-10-19: `asc.py listing apply` wrote this name, subtitle,
 promotional text, description and keywords to 1.21.0 and `listing check`

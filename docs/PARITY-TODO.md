@@ -14,7 +14,67 @@ This is the actionable counterpart to [`PARITY.md`](PARITY.md). The older file i
 
 The audit used current source, release tags, the parity/feature documents, and existing release receipts. It did not include a new device, simulator, browser, or build run. Do not turn a source finding into a verified fix without exercising the real client path.
 
-## 2026-10-28 Apple reconciliation
+## Reviewer authentication and Mac follow-up, 2026-10-29
+
+The earlier credential and sign-in handoffs are resolved. Production Clerk
+readback confirms the user changed the reviewer password at **02:19:29 UTC**
+and signed in at **02:20:08 UTC**. The existing SureWord App Review entry in
+1Password was updated and its saved password matched the supplied value.
+Credentials remain outside the repository and these receipts.
+
+The user approved AI for this review account. The actual Mac disclosure was
+accepted; production readback records consent version **2** at **02:42:20 UTC**,
+with no declined timestamp. Opening, confirmation/back, and acceptance stayed
+in the same live Mac process. `143893b3` fixes the reproducible AppKit constraint
+loop during disclosure presentation by deferring presentation and managing
+measured sheet size without continuous preferred-content-size tracking.
+
+The shipping iOS app passed authenticated acceptance on **SW-C1** at
+**02:59:48 UTC**: exact reviewer identity checked before preference changes,
+ASV Genesis 1:1 selected and retained after tab return and normal relaunch,
+then KJV restored and checked. `ios-authenticated-translation-final-summary.json`
+records **1 passed, 0 failed, 0 skipped**; the private result bundle is
+`ios-authenticated-acceptance-private/attempt-4.xcresult`. This proves normal
+relaunch persistence, not independent cross-device synchronization. Attempt 3
+reached the signed-in shell but used the wrong Settings entry point; the
+corrected test navigates through Today's direct gear.
+
+Mac footer diagnosis is now measured: a zero-width Chat proposal made the
+multiline composer report **767.5 pt** tall, lifting the shell to **876.5 pt**
+inside **721 pt** available height. A supported **420 pt** chat-column minimum
+reduces the shell minimum to **660 × 427** and makes the normal shell exactly
+**1180 × 721**. Actual normal-window, shorter-window and eight-line unsent-draft
+screenshots show the avatar, account name, gear, composer and creator credit
+fully visible. Settings opens from the footer. All temporary layout probes
+were removed. The clean installed app passed Today/Chat transitions and the
+shorter-window eight-line-draft check; `17debbc5` commits the sizing correction. See `mac-footer-width-fix-safe-receipt.json` under
+`/tmp/sureword-parity-takeover/` for exact proof limits.
+
+The actual SDK sign-out plus quit guard repeat now passes. The Mac was absent
+before the assistant persisted at **03:10:09.361 UTC**; the retained raw Apple
+recipient remained bound, with no Stop marker. One complete correlated request
+records `disconnected=true`, one audience recipient, one session-guard skip and
+**zero APNs sends**. Exact-target and undecodable OS receipt counts remained
+zero through **03:11:56 UTC**, while the app stayed closed. Local remote identity
+cleared, retaining token/proof/owner; the first disk read preceded the flush.
+`mac-sdk-signout-quit-0310-runtime-summary.json`, the corresponding server
+readback, `mac-sdk-signout-quit2-local-readback.json` and
+`mac-sdk-signout-quit2-os-final-readback.json` preserve this evidence. The logs
+do not identify the specific Clerk refusal reason. The earlier two normal-EOF
+runs remain inconclusive for this guard.
+
+App and DMG notarization, stapling and Gatekeeper checks passed for the clean
+Mac build; publication is in progress. The uploaded **1.30.0 (2)** is attached
+to a new **1.30.0 PREPARE_FOR_SUBMISSION** App Store draft with **manual release**,
+current repository listing text and updated review credentials verified by
+readback at **03:11:51 UTC**. No review submission or public iOS release occurred.
+Physical-device APNs/StoreKit and provider flows remain open: the paired iPhone
+tunnel was still unavailable in the latest device discovery.
+
+## Historical 2026-10-28 Apple reconciliation (superseded above)
+
+This is a preserved earlier snapshot. Its pending items are superseded wherever
+the follow-up above records newer verification.
 
 Reconciled through **23:29 UTC**. The six Apple lanes and upstream ASV/creator
 histories are retained; the 112-entry worktree audit found no omitted source.
@@ -135,8 +195,8 @@ A row is done for this checklist only when the behavior is correct on web, Andro
 - [ ] **Both Apple apps: prove direct-APNs morning-verse and answer-ready delivery.**
   - Current source: both clients register raw hex tokens plus an APNs environment. The server stores `apns:<environment>:<hex>`, routes directly to Apple, and retains legacy iOS Expo rows. The former `isServerDeliveryConfigured = false`/Expo-upload plan is superseded. iOS reads signed build metadata; macOS reads its actual APS entitlement.
   - Configuration: separate SureWord-only Sandbox/Production keys, six Production-scope Vercel secrets, and the active installed `MAC_APP_DIRECT` production profile are prepared. Configuration is not a deployed sender or delivery receipt.
-  - Current runtime: `sureword.app` is READY at docs-only `002370b6` with the same backend code as `b2b40b5e`. Earlier `b2b40b5e` receipts prove closed-app delivery and a separate durable-Stop completion with no push work or exact-target OS record during the bounded observation. Actual SDK sign-out cleared local identity while retaining token/proof and the old server row, but its post-sign-out completion had `disconnected=false` and no recipient/guard/APNs work. Zero OS records is bounded absence; the guard was not exercised.
-  - Remaining work: repeat SDK sign-out with quit/forced disconnect after restoring the existing Google session, then finish migration/sign-out failure sequences and delayed-notice cleanup; verify both personalized notifications, cold/warm taps and local/remote dedup on final clean signed builds. Mac layout acceptance and fresh notarization remain open. No physical iOS delivery or universal Stop absence guarantee is claimed.
+  - Current runtime: `sureword.app` is READY at docs-only `002370b6` with the same backend code as `b2b40b5e`. Earlier `b2b40b5e` receipts prove closed-app delivery and a separate durable-Stop completion with no push work or exact-target OS record during the bounded observation. The final SDK sign-out plus quit run persisted its answer at 03:10:09 UTC after the app was absent. It retained the bound row, recorded `disconnected=true`, audience 1, session-guard skipped 1 and APNs sent 0, with no Stop marker. Exact-target OS receipts stayed zero through 03:11:56 UTC. Specific Clerk refusal reason is unverified; prior normal-EOF runs remain inconclusive.
+  - Remaining work: finish migration/sign-out failure sequences and delayed-notice cleanup; verify both personalized notifications, cold/warm taps and local/remote dedup on final clean signed builds. Mac footer layout acceptance and fresh app/DMG notarization have passed; publication is the remaining Mac distribution step. No physical iOS delivery or universal Stop absence guarantee is claimed.
   - Evidence: `macos/SureWord-iOS/App/PushRegistration.swift`, `macos/SureWord/App/MacPushRegistration.swift`, `macos/Shared/App/APNsRegistration.swift`, `src/lib/apns.ts`, `docs/ios/push-design.md`.
   - Done when: the final signed Apple builds receive and route both notifications without duplicate or previous-account banners, including the Mac with the app closed and a physical iPhone. Android/legacy Expo behavior must remain intact.
 
@@ -189,7 +249,7 @@ These rows are not assertions that a feature is absent. They are the proof still
 - [ ] **Account deletion:** exercise a real disposable account on web, Android, and iOS, including success, retry/failure behavior, cache/sign-out cleanup, and the applicable Stripe, Play, or App Store subscription warning/cancellation path.
 - [ ] **Current SureWord AI plans:** verify Free, Pro, and owner-plan presentation and request behavior after BYOK removal. Confirm there are no add-key controls, no stale reasoning options, the Pro mark is correct, and included usage remains server-enforced.
 - [ ] **Native usage enforcement:** exercise Free exhaustion, Pro limits, utility/background work, and recovery on Android and iOS rather than relying only on shared API tests.
-- [ ] **Authentication:** complete real provider round trips where still open: Google on Android and iOS, Apple on iOS, and the dedicated review account on iOS. Its saved password was rejected on web and actual iOS; the Production dashboard shows no lock/ban or MFA and an October 8 UTC password-change timestamp versus an October 26 vault note. The user-only password-dialog handoff is pending; do not retry or reset on the user’s behalf. Confirm unknown-email sign-up and existing-email sign-in crossover remains intact.
+- [ ] **Authentication:** complete real provider round trips where still open: Google on Android and iOS, Apple on iOS, plus unknown-email sign-up/existing-email sign-in crossover. The dedicated review account now signs in on both Apple apps after the user changed its password; the authenticated SW-C1 translation test passed and restored KJV. Its credential is saved in 1Password and the prepared 1.30.0 App Review record.
 
 ### 2.2 Android proof
 
@@ -252,7 +312,7 @@ The following should not be used as evidence of current capability gaps. Update 
 - **Android Study Bible notes loop:** already present in tagged Android source releases from `android-v1.90.0`; do not repeat the old “ships in the next Android build” claim.
 - **Android Alive/LC Greek:** already present in tagged Android source releases from `android-v1.88.0` onward, with John from `android-v1.89.1`; do not repeat the old “next build” claim.
 - **Older Apple environment blockers:** superseded Xcode-license/CoreSimulator statements and old iOS sermon-studies “not built” cells are not current capability evidence. Record the actual current build/test blocker instead.
-- **Apple remote push:** entitlements, direct APNs source and environment-specific credentials are prepared; both additive migrations are applied and the session-bound server is READY. Closed-app guarded delivery and bounded Stop receipts supersede the blanket runtime-pending claim. Actual SDK sign-out local cleanup is proved, but `disconnected=false` made the first server completion inapplicable to guard verification; a forced-disconnect repeat is pending. Final clean Mac acceptance/notarization, morning delivery, manual taps, migration/failure cases and physical iOS acceptance remain open.
+- **Apple remote push:** entitlements, direct APNs source and environment-specific credentials are prepared; both additive migrations are applied and the session-bound server is READY. Closed-app guarded delivery, bounded Stop receipts and the final SDK-sign-out-plus-quit recipient skip are proved within their recorded scopes. Clean Mac footer acceptance and fresh app/DMG notarization passed. Morning delivery, manual taps, migration/failure cases and physical iOS acceptance remain open.
 - **iOS inline references:** the 2026-10-28 implementation supersedes the original missing-source finding. Older checkmarks still do not close the final running-app acceptance row in section 1.3.
 - **Planned-feature notes:** Quiz me and Walk with me now have implementations on web, Android, and iOS; older planned-only labels are stale. The old Pro/BYOK product-design note also predates the no-BYOK decision.
 
