@@ -82,6 +82,25 @@ export const BETA_MODULES: readonly BetaModule[] = [
 		builtOn: ["The atlas and timeline corpus (people, places, events)", "The Ussher dating of the KJV margins", "The Bible reader"],
 	},
 	{
+		slug: "games",
+		destination: "bible",
+		title: "Chapter Games",
+		tagline: "Play the chapter you just read",
+		inspiredBy: "Classic flash games",
+		priority: "P2",
+		status: "building",
+		issue: "LC-17850",
+		summary:
+			"A short game for a chapter of the Bible, played in the passage's own words and finished for an award. The first is Matthew 14, Peter's Water Walk: step out of the ship in the storm, lean against the wind, step up over the swells and keep your eyes on Jesus, or begin to sink and cry out, \"Lord, save me.\"",
+		capabilities: [
+			"Play Peter's Water Walk (Matthew 14:22-33) with the keyboard, the mouse or two thumbs, in a storm with wind, rain, swells and sound",
+			"Read the passage in the KJV as the game tells it: stepping out, beginning to sink and being caught, and the wind ceasing",
+			"Earn the Walked on the Water award in gold, silver or bronze by the faith you keep, with your best time and every finish kept",
+			"Open a chapter's game from the end of that chapter in the reader",
+		],
+		builtOn: ["The bundled KJV and the Bible reader", "The shared study store"],
+	},
+	{
 		slug: "projects",
 		destination: "study",
 		title: "Study Projects",

@@ -7,6 +7,7 @@ import {
 	Brain,
 	Church,
 	FolderOpen,
+	Gamepad2,
 	GraduationCap,
 	HandHeart,
 	Headphones,
@@ -44,6 +45,7 @@ export const SECTION_ICONS: Record<BetaSectionId, LucideIcon> = {
 /** One icon per module slug; a module without one falls back to its destination's. */
 const MODULE_ICONS: Record<string, LucideIcon> = {
 	atlas: MapPinned,
+	games: Gamepad2,
 	projects: FolderOpen,
 	verify: ShieldCheck,
 	tutor: MessageCircleQuestion,

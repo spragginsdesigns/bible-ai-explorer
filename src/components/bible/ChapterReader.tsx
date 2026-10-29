@@ -51,6 +51,7 @@ import VerseNotesSection from "./VerseNotesSection";
 import VerseSheet, { type VerseSheetTier } from "./VerseSheet";
 import WordStudySection from "./WordStudySection";
 import VerseAtlasLinks from "../beta/atlas/VerseAtlasLinks";
+import ChapterGameCard from "../beta/games/ChapterGameCard";
 import AddToNoteDialog from "../AddToNoteDialog";
 import QuizEntryCard from "../quiz/QuizEntryCard";
 import ShareCardDialog from "../share/ShareCardDialog";
@@ -1038,6 +1039,9 @@ const ChapterReader: React.FC = () => {
                   </div>
                 );
               })}
+
+              {/* Founders only (SureWord Beta, LC-17850): this chapter's game, when it has one. */}
+              {user ? <ChapterGameCard key={`game:${order}:${chapter}`} order={order} chapter={chapter} parchment={parchment} /> : null}
 
               {/* Quiz me: offered at the end of the chapter to a signed-in
                   reader; keyed so paging in place resets the card. */}
