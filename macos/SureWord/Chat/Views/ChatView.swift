@@ -60,6 +60,11 @@ struct ChatView: View {
             .padding(Spacing.lg)
         }
         .background(ChatAppearance.colors(for: theme).bg)
+        // NavigationSplitView asks for the detail's minimum with a zero-width
+        // proposal. Measuring the multiline composer at that width wraps it
+        // into a tall column and makes the entire window exceed the screen.
+        // A usable chat-column minimum keeps that measurement representative.
+        .frame(minWidth: 420)
         .environment(\.theme, ChatAppearance.colors(for: theme))
         .overlay(alignment: .top) {
             if let toast {
