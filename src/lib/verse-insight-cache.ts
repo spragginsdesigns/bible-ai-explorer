@@ -15,7 +15,8 @@ function whereKey(key: VerseInsightKey) {
 	return {
 		translation: key.translation,
 		reference: key.reference,
-		textHash: verseInsightCacheHash(key.modelId, key.effort, key.text),
+		// Separate verified output from every pre-gate cache entry.
+		textHash: verseInsightCacheHash(key.modelId, key.effort, `scripture-verified-v1\n${key.text}`),
 		promptVersion: VERSE_INSIGHT_PROMPT_VERSION,
 	};
 }

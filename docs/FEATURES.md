@@ -1078,6 +1078,26 @@ Two paths in `mobile/src/features/notifications/useVerseOfDayNotifications.ts`:
 Tap routing: notification data `{screen: "cross"}` → `/cross`; legacy
 payloads with only a verse reference fall back to the reader.
 
+### Notification art (Android 1.111.0, the next iOS build, 2026-10-29)
+
+Austin's report: the morning Daily Cross and a "Your answer is ready" push
+looked identical in the tray (same logo, both a line of Scripture). Each kind
+now carries its own artwork, and the titles are plain words again ("Pick up
+your cross", "Your answer is ready"; the old emoji prefixes are gone). The
+kind always comes from the notification data's `screen`, the same field tap
+routing reads: `cross` is the Daily Cross, `chat` is an answer, anything else
+(sermon watchdog, owner alerts) gets no art and looks as it always did.
+
+| Client | How | Where |
+|--------|-----|-------|
+| Android | `SureWordNotificationsService` subclasses expo-notifications' `NotificationsService` at receiver priority 0 (Expo's own is -1, so Expo routes every event to ours) and swaps in `SureWordPresentationDelegate`. Expo still builds the notification (channel, tap intent, extras, sound); the delegate re-dresses it with `Notification.DecoratedCustomViewStyle` and two RemoteViews: closed is a 40dp mark beside one-line title and text, expanded puts the wide banner above the words, never behind them, per Android's custom-notification guide. Any failure posts Expo's notification unchanged. Art is pre-rounded WebP because RemoteViews cannot clip. | `mobile/modules/sureword-notifications/` |
+| iOS | The server sets `mutable-content: 1` and a category (`SUREWORD_CROSS` / `SUREWORD_ANSWER`, `apnsCategoryFor` in `src/lib/apns.ts`). `SureWord-iOS-NotificationService` attaches the mark as the banner thumbnail; `SureWord-iOS-NotificationContent` draws the long-press view (wide art over title and body). Apple keeps the header and app icon. Local notices (the Daily Cross fallback, the Mac's answer notice) are dressed the same way in-app. | `macos/Shared/NotificationArt/`, both extension folders |
+| Web | `buildWebPushPayload` adds `icon` and `image` from `notificationArtFor`; the service worker shows them, and the local hidden-tab notice uses the same files. | `public/notifications/`, `public/push-handlers.js` |
+
+Regenerate: `node scripts/generate-notification-art.mjs` (gpt-image-2.5-sunburst
+masters into `.logo-work/notifications/`, then every platform's copy), or
+`--derive` to recut from existing masters. Needs ImageMagick 7.
+
 ### Who owns a push token (device proof)
 
 `POST /api/push-tokens` upserts by token, so until 2026-10-09 anyone who knew
@@ -4387,6 +4407,7 @@ if Clerk fails after the commit).
 | ChatAttachment (incl. voice transcripts) | userId | cascade; blobs deleted by pathname |
 | Folder, Tag, Note | userId | cascade |
 | NoteTag, NoteAIMessage | note | cascade via Note |
+| NoteAIOperation | note AI execution fence and request hash, separate from history | cascade via User and Note |
 | NoteEmbedding (pgvector) | noteId + copied userId | cascade through the current Note owner |
 | NoteLink | sourceNoteId + copied userId | cascade through the current source Note owner |
 | PushToken, ReadingEvent, VerseHighlight, SuggestedQuestionSet, VerseMemory, LearnReviewReceipt, Feedback | userId | cascade |

@@ -2,6 +2,19 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.111.0 (versionCode 130) - 2026-10-29 - internal and closed testing
+
+**What's new (Play):**
+
+NEW
+- Notifications have their own artwork. The Daily Cross shows a gold cross under the morning star and "Your answer is ready" shows the open Word, so you can tell them apart at a glance. Expand one for a larger picture and the full preview.
+
+IMPROVED
+- Answer previews in notifications read as plain text, without the quote marks and formatting symbols that made them look like the morning verse.
+- Security: updated the network library to block certificates that were reported compromised.
+
+**Dev notes:** Austin's report (2026-10-29): this morning's Daily Cross and "Your answer is ready" looked the same in the tray (same logo, both a line of Scripture). Art made with gpt-image-2.5-sunburst in the logo's gold-on-black (prompts in `scripts/generate-notification-art.mjs`). New local module `mobile/modules/sureword-notifications`: `SureWordNotificationsService` subclasses expo-notifications' `NotificationsService` and registers for `expo.modules.notifications.NOTIFICATION_EVENT` at priority 0, above Expo's -1, so `findDesignatedBroadcastReceiver` picks it; it only swaps the presentation delegate. `SureWordPresentationDelegate` lets Expo build the notification (channel, tap intent, extras, sound), then re-dresses it with `Notification.DecoratedCustomViewStyle` and two RemoteViews layouts per Android's custom-notification guide: closed (40dp mark, one-line title and text, fits the 48dp minimum) and expanded (banner above the words, never behind them). The kind comes from the data's `screen` (the same field the tap router reads), so remote pushes and the local Daily Cross fallback both get art, and anything else or any failure posts Expo's notification unchanged. Art is bundled as pre-rounded WebP (RemoteViews cannot clip corners). Titles are plain again ("Pick up your cross", "Your answer is ready"); the server's answer preview strips markdown (`answerTrayPreview`). Includes main's OkHttp 4.12.1 floor (`mobile/plugins/withOkHttpFloor.js`, eMudhra CA advisory). Web shows the same art through the notification `icon`/`image`; iOS 1.31.0 adds a Notification Service Extension (thumbnail) and Content Extension (long-press view).
+
 ## 1.110.0 (versionCode 129) - 2026-10-28 - internal and closed testing
 
 **What's new (Play):**

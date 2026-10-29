@@ -16,7 +16,8 @@ import Foundation
 /// Pure, so the rule and the payload are unit-tested
 /// (`AnswerReadyNotificationTests`); the Mac's poster is `AnswerReadyNotifier`.
 enum AnswerReadyNotification {
-    /// The server push's and the web notice's title, word for word.
+    /// The server push's and the web notice's title, word for word
+    /// (`ANSWER_READY_TITLE` in `src/lib/push-routing.ts`).
     static let title = "Your answer is ready"
     /// The web notice's body for a conversation with no title yet.
     static let fallbackBody = "Tap to read it in SureWord."

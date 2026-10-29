@@ -1,0 +1,32 @@
+plugins {
+	id "com.android.library"
+	id "expo-module-gradle-plugin"
+}
+
+group = "com.spragginsdesigns.sureword"
+version = "1.0.0"
+
+android {
+	namespace "com.spragginsdesigns.sureword.notifications"
+	defaultConfig {
+		versionCode 1
+		versionName "1.0.0"
+	}
+}
+
+// Expo 57 links expo-notifications as its precompiled artifact
+// (expo-module.config.json "publication"), not a Gradle project, so depend on
+// that same coordinate at the installed version.
+def expoNotificationsVersion = new groovy.json.JsonSlurper().parse(
+	new File(providers.exec {
+		workingDir(projectDir)
+		commandLine("node", "--print", "require.resolve('expo-notifications/package.json')")
+	}.standardOutput.asText.get().trim())
+).version
+
+dependencies {
+	// The receiver and presentation delegate below extend expo-notifications'
+	// own classes, so its pipeline (channels, taps, JS listeners) stays intact.
+	// compileOnly: the app already packages it; this only borrows its classes.
+	compileOnly "host.exp.exponent:expo.modules.notifications:${expoNotificationsVersion}"
+}

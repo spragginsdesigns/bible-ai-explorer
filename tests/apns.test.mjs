@@ -21,6 +21,7 @@ import {
 	APNS_EXPIRATION_SECONDS,
 	APNS_JWT_TTL_MS,
 	DEFAULT_APNS_BUNDLE_ID,
+	apnsCategoryFor,
 	apnsCollapseId,
 	apnsConfig,
 	apnsRecipientsOf,
@@ -220,14 +221,24 @@ const ANSWER = {
 
 test("the payload keeps the Expo title, body and data, with data at the top level", () => {
 	assert.deepEqual(buildApnsPayload(MORNING), {
-		aps: { alert: { title: MORNING.title, body: MORNING.body }, sound: "default" },
+		aps: {
+			alert: { title: MORNING.title, body: MORNING.body },
+			sound: "default",
+			"mutable-content": 1,
+			category: "SUREWORD_CROSS",
+		},
 		screen: "cross",
 		book: "John",
 		chapter: 3,
 		verse: 16,
 	});
 	assert.deepEqual(buildApnsPayload(ANSWER), {
-		aps: { alert: { title: ANSWER.title, body: ANSWER.body }, sound: "default" },
+		aps: {
+			alert: { title: ANSWER.title, body: ANSWER.body },
+			sound: "default",
+			"mutable-content": 1,
+			category: "SUREWORD_ANSWER",
+		},
 		screen: "chat",
 		conversationId: "conv_1",
 	});
@@ -235,7 +246,21 @@ test("the payload keeps the Expo title, body and data, with data at the top leve
 	assert.deepEqual(buildApnsPayload({ ...ANSWER, data: { aps: { badge: 9 }, screen: "chat" } }).aps, {
 		alert: { title: ANSWER.title, body: ANSWER.body },
 		sound: "default",
+		"mutable-content": 1,
+		category: "SUREWORD_ANSWER",
 	});
+	// A push with no kind (the sermon watchdog) stays a plain alert.
+	assert.deepEqual(buildApnsPayload({ title: "t", body: "b", data: { type: "sermon-watchdog" } }).aps, {
+		alert: { title: "t", body: "b" },
+		sound: "default",
+	});
+});
+
+test("the iOS category matches the shared notification art table", async () => {
+	const { notificationArtFor } = await import("../src/lib/push-routing.ts");
+	for (const data of [MORNING.data, ANSWER.data, { type: "sermon-watchdog" }]) {
+		assert.equal(apnsCategoryFor(data), notificationArtFor(data)?.apnsCategory);
+	}
 });
 
 test("collapse ids match the web tags and the Mac's local answer notice", () => {

@@ -7,6 +7,32 @@ import { canonicalPassage } from "@/lib/bible/passage-context";
 import { getChapter } from "@/lib/bible/translations";
 import type { AgentStudy, Prisma } from "@prisma/client";
 
+export interface GeneratedContentBlock { id: string; text: string }
+export type VerifyGeneratedContent = (blocks: GeneratedContentBlock[], purpose: string) => Promise<GeneratedContentBlock[] | null>;
+
+export const GENERATED_WRITE_VERIFICATION_ERROR = "I couldn't verify the Scripture in this content, so nothing was saved. Retrieve the supporting passages, correct the content, and try again.";
+
+/** A rejected, unavailable or malformed verifier must never reach a write. */
+export async function verifyGeneratedWriteBlocks(
+	verify: VerifyGeneratedContent | undefined,
+	blocks: GeneratedContentBlock[],
+	purpose: string,
+): Promise<GeneratedContentBlock[] | null> {
+	if (!verify) return null;
+	// Preserve the expected structure even if a callback mutates its input.
+	const expected = blocks.map(block => ({ ...block }));
+	try {
+		const verified = await verify(blocks.map(block => ({ ...block })), purpose);
+		if (!Array.isArray(verified) || verified.length !== expected.length ||
+			new Set(expected.map(block => block.id)).size !== expected.length ||
+			verified.some((block, index) => !block || block.id !== expected[index].id ||
+				typeof block.text !== "string" || (expected[index].text.trim() !== "" && block.text.trim() === ""))) return null;
+		return verified.map(block => ({ id: block.id, text: block.text }));
+	} catch {
+		return null;
+	}
+}
+
 /** Model tool outputs must be JSON values, including database timestamps. */
 function studyRecord(study: AgentStudy | null) {
 	return study ? { ...study, createdAt: study.createdAt.toISOString(), updatedAt: study.updatedAt.toISOString() } : null;
@@ -15,14 +41,14 @@ function studyRecord(study: AgentStudy | null) {
 const stateSchema = z.object({
 	audience: z.string().max(200),
 	passages: z.array(z.string().max(100)).max(30),
-	conclusions: z.array(z.object({ statement: z.string().max(700), references: z.array(z.string().max(100)).max(8) })).max(15),
+	conclusions: z.array(z.object({ statement: z.string().max(700), references: z.array(z.string().trim().min(1).max(100)).min(1).max(8) })).max(15),
 	openQuestions: z.array(z.string().max(300)).max(12),
 	nextStep: z.string().max(500),
 	noteIds: z.array(z.string().max(120)).max(10),
 	status: z.enum(["active", "complete"]),
 });
 
-export function buildStudyTools(context: { userId: string; userText?: () => string; messageId?: () => string; knownStudyIds?: Set<string>; readStudyIds?: Set<string> }) {
+export function buildStudyTools(context: { userId: string; userText?: () => string; messageId?: () => string; knownStudyIds?: Set<string>; readStudyIds?: Set<string>; verifyGeneratedContent?: VerifyGeneratedContent }) {
 	const knownIds = context.knownStudyIds ?? new Set<string>();
 	return {
 		findStudies: tool({
@@ -50,6 +76,7 @@ export function buildStudyTools(context: { userId: string; userText?: () => stri
 			execute: async ({ id, revision, title, goal, state }) => {
 				const sourceMessageId = context.messageId?.();
 				if (!sourceMessageId || !isStudyWorkRequest(context.userText?.() ?? "")) return { success: false, error: "The user has not requested ongoing study work or saving a study in this turn." };
+				if (state.conclusions.some(item => !item.references.length)) return { success: false, error: "Every saved conclusion needs a supporting Scripture reference. Retrieve its evidence before saving." };
 				const references = [...new Set([...state.passages, ...state.conclusions.flatMap(item => item.references)])];
 				if (references.length > 30) return { success: false, error: "Keep a checkpoint to 30 distinct references. Store the full study in Notes." };
 				try {
@@ -60,8 +87,31 @@ export function buildStudyTools(context: { userId: string; userText?: () => stri
 						else await getChapter("KJV", ref.order, ref.chapter);
 					}));
 				} catch { return { success: false, error: "A Scripture reference does not exist or is not a supported bounded passage. Retrieve and check every endpoint before saving." }; }
+				const verified = await verifyGeneratedWriteBlocks(context.verifyGeneratedContent, [
+					{ id: "title", text: title },
+					{ id: "goal", text: goal },
+					{ id: "state.audience", text: state.audience },
+					...state.conclusions.map((item, index) => {
+						const association = `\n\nScripture references: ${item.references.join("; ")}`;
+						return { id: `state.conclusions.${index}.statement`, text: item.statement.endsWith(association) ? item.statement : `${item.statement}${association}` };
+					}),
+					...state.openQuestions.map((text, index) => ({ id: `state.openQuestions.${index}`, text })),
+					{ id: "state.nextStep", text: state.nextStep },
+				], "saveStudy");
+				if (!verified) return { success: false, error: GENERATED_WRITE_VERIFICATION_ERROR };
+				const text = new Map(verified.map(block => [block.id, block.text]));
+				// Repairs must also respect the same field limits as original inputs.
+				const checked = z.object({ title: z.string().trim().min(1).max(160), goal: z.string().trim().min(1).max(600), state: stateSchema }).safeParse({
+					title: text.get("title"), goal: text.get("goal"),
+					state: { ...state, audience: text.get("state.audience"),
+						conclusions: state.conclusions.map((item, index) => ({ ...item, statement: text.get(`state.conclusions.${index}.statement`) })),
+						openQuestions: state.openQuestions.map((_, index) => text.get(`state.openQuestions.${index}`)),
+						nextStep: text.get("state.nextStep"),
+					},
+				});
+				if (!checked.success) return { success: false, error: GENERATED_WRITE_VERIFICATION_ERROR };
 				if (state.noteIds.length && await prisma.note.count({ where: { userId: context.userId, id: { in: state.noteIds } } }) !== new Set(state.noteIds).size) return { success: false, error: "A linked note does not belong to this user." };
-				const data = { title, goal, state: state as Prisma.InputJsonValue };
+				const data = { title: checked.data.title, goal: checked.data.goal, state: checked.data.state as Prisma.InputJsonValue };
 				if (id) {
 					if (!revision) return { success: false, error: "Read the study's current revision first." };
 					const changed = await prisma.agentStudy.updateMany({ where: { id, userId: context.userId, revision }, data: { ...data, revision: { increment: 1 } } });

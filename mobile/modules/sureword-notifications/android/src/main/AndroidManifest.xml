@@ -1,0 +1,20 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+	<application>
+		<!--
+			expo-notifications sends every notification event to the highest
+			priority receiver for this action in the package
+			(NotificationsService.findDesignatedBroadcastReceiver). Its own
+			receiver sits at -1, so this subclass at 0 wins and only swaps the
+			presentation delegate. Boot and package-replaced broadcasts stay
+			with Expo's receiver alone, so nothing is rescheduled twice.
+		-->
+		<receiver
+			android:name=".SureWordNotificationsService"
+			android:enabled="true"
+			android:exported="false">
+			<intent-filter android:priority="0">
+				<action android:name="expo.modules.notifications.NOTIFICATION_EVENT" />
+			</intent-filter>
+		</receiver>
+	</application>
+</manifest>

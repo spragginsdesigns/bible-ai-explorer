@@ -53,6 +53,7 @@ enum AnswerReadyNotifier {
                     content.body = AnswerReadyNotification.body(conversationTitle: title)
                     content.sound = .default
                     content.userInfo = AnswerReadyNotification.userInfo(conversationID: conversationID)
+                    NotificationArt.answer.dress(content)
                     let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
                     try await UNUserNotificationCenter.current().add(request)
                 },

@@ -38,6 +38,51 @@ ordinary saved chat responses and numbered choices are spoken before capture
 restarts. These local speech controls do not create paid GPT-Live sessions.
 Arbitrary nested reader/editor controls and physical blind-user acceptance
 are not established by this implementation.
+## Full Apple parity revalidation in progress, 2026-10-29
+
+The earlier simulator checkpoint below does **not** establish the new request
+for every Android and web capability. A fresh feature inventory and runtime
+acceptance pass is active. Native changes remain unpublished while those
+journeys are verified; aggregate unit results are supporting evidence only.
+
+iOS 1.30.0 (2) was withdrawn after the new pass reproduced a note-AI editor
+integrity bug. App Store Connect readback at 14:47:19 UTC shows the review
+submission COMPLETE and version DEVELOPER_REJECTED. Automatic release after
+approval (AFTER_APPROVAL) is retained for resubmission. The historical
+submission and expedite receipts below describe the earlier state.
+
+The replacement implementation adds durable note-AI operation receipts and a
+transactional write fence. A disconnected turn must be settled or cancelled
+on the server, then its canonical note reloaded, before Apple allows another
+manual save. Reservation, single execution, cancellation-before-execution,
+orphan recovery, ownership, and cancellation versus an active commit have
+passing isolated Postgres coverage. The installed/public Apple builds do not
+yet use this protocol. Live backend and final native acceptance remain gates.
+
+The new iOS pass also found and fixed delayed automatic onboarding overriding
+a newer tab choice. Held-response tests cover a changed destination, an equal
+Today selection, and cancellation. The linked-note runtime journey is being
+repeated against that correction and the explicit editor-close fix.
+
+The linked-note shipping journey subsequently passed A→B→A, another manual
+edit, Back to the Notes library and normal relaunch; its owned QA notes were
+deleted. The Gospels preset-plan journey also passed reader handoff, manual
+mark, relaunch persistence, unmark and archive, restoring no active plan.
+Heading text persisted across relaunch, but the Markdown-export test stopped
+at the test runner's paste permission. Export and reader append remain open.
+
+The operation protocol is staged against production services with public
+domains unchanged. Its final candidate passed 23 authenticated API checks,
+then a real model/tool rewrite followed by canonical readback, manual PATCH,
+history Clear, replay rejection and owned-note cleanup. The additive
+`20261029170000_note_ai_operations` migration was applied transactionally and
+its finished checksum read back. These prove the API path; final installed
+Apple UI and production rollout remain separate gates.
+
+The production web sign-in page offers Apple. The Mac welcome screen hid
+that provider; source now offers it through Clerk's existing browser OAuth
+flow while iOS retains native Apple authorization. Mac build and provider
+launch/cancel acceptance are pending.
 
 ## Apple release submission, 2026-10-29
 
@@ -845,6 +890,7 @@ tab selection). Same behavior, different plumbing.
 | Streaming chat via `POST /api/ask-question` | ✅ | ✅ | ✅ | ✅ | Shared backend; macOS has recorded-stream regression fixtures |
 | Stop generating mid-stream | ✅ `ChatInputBar` stop → `abandonPendingAnswer` | ✅ 2026-09-14 `useChat` `abandonPendingAnswer` + stop button while streaming | ✅ `ChatInputBar` stop button → `ChatViewModel.stop()` (in source since 2026-08-12, shipped in the installed 1.5.0) | ✅ stop button in `macos/SureWord-iOS/Views/Chat/ChatInputBar.swift` (shared source; device/runtime/distribution unverified) | Stopping leaves the partial answer and clears the pending attachment; Android additionally suppresses the answer-ready push (the server cannot distinguish a deliberate stop from a dropped connection) |
 | Answer survives a lost connection (backgrounded app, locked screen, network change) | ✅ 1.24.0, collects on app resume | ✅ collects on tab focus | ✅ 1.5.0 polls on transport failure + wake | ✅ shared (compiled, unverified in-app) | Server-side half is shared and already live for every client: `/api/ask-question` drains its own copy of the SSE stream (`consumeSseStream`), so a client disconnect can no longer cancel generation or persist a truncated reply. Each client then polls `GET /api/conversations/{id}` until the finished answer appears and swaps it in instead of showing an error (`answerRecovery.ts`, mirrored). macOS/iOS still surface a stream failure as a failure |
+| Notification art: the Daily Cross and "Your answer is ready" each show their own artwork (closed and expanded) | ⏳ 1.111.0 (130), `mobile/modules/sureword-notifications` (RemoteViews, `DecoratedCustomViewStyle`) | ⏳ push `icon` + `image` from `notificationArtFor`, local hidden-tab notice matches | ⏳ local Daily Cross and answer notices attach the mark (`NotificationArt.dress`); the Mac has no remote push | ⏳ next iOS build (after 1.30.0; the Mac's Codex session holds the 1.31.0 bump): Notification Service Extension (thumbnail) + Content Extension (long-press view), server sends `mutable-content` + category | Keyed on the data's `screen` on every client; other notices keep the plain look. See `docs/FEATURES.md` → "Notification art" |
 | "Your answer is ready" push when the answer lands after you left | ✅ 1.24.0, own channel + Settings → Chat toggle | 🟡 2026-10-04 Web Push from the same `notifyChatAnswerReady` server send, plus a local notification when the tab is hidden but still connected (`notifyAnswerReady` in `useChat.ts`); tap opens `/?conversationId=`; real delivery untested | 🟡 2026-10-19 in the installed 1.21.0 (LC-16620): an answer that finished while SureWord was in the background posted no notice; SureWord has no entry in System Settings > Notifications, so permission looks denied or never granted. The switch only asks when the status is undetermined. Needs Austin to check System Settings. A local "Your answer is ready" when an answer lands, streamed to the end or recovered, while SureWord is not the active app, the web's hidden-tab rule (`AnswerReadyNotification`, posted by `AnswerReadyNotifier` from `ChatViewModel.onAnswerReady`); the click opens that conversation; Settings → Chat toggle, kept on this Mac because the Mac registers no push token. The shared rule, the chat-model hook and their 10 tests pass under Swift 6 on Linux | 🟡 source + tests, not compiled (LC-16620 audit; built in `5012602` and `6cc04a0`): `PushRegistration` sends `chatReplies` with the Expo token and its device proof, Settings → Notifications → Chat toggle, a tap opens that conversation (`NotificationTapTarget` → `PendingDeepLinks`), deliberate stops are suppressed (`ChatStopSignals`). Dormant until the APNs key is uploaded to the EAS project and `PushRegistration.isServerDeliveryConfigured` flips (`docs/ios/push-design.md`) | Sent only when the requesting client disconnected mid-stream (`req.signal.aborted`); tapping opens that conversation. Android suppresses the push for an answer the user deliberately stopped, which the server cannot distinguish from a dropped connection. Needs a registered push token, which now survives switching the Verse of the Day off (`PushToken.chatReplies`). Same cold-start deep-link gap as the morning push |
 | Model + reasoning-effort picker | ✅ sparkles button in chat header (1.11.0) | ✅ picker on chat input; since 2026-10-27 the owner's SureWord rows (Free, Pro, Sol) show no search box, matching Android and Apple (`shouldShowSearch`, unit test) | ✅ 1.5.0 sparkles toolbar button → popover | ✅ chat-header button → sheet | Served by `GET /api/ai/models`; sends `modelId`/`effort` in the chat body; last pick persists as the account default |
 | Run options beside the model: REASONING (Off→Max, per model), SPEED (Fast on OpenAI gpt-5.x non-nano, Claude Opus 5/4.8, every OpenRouter model), LENGTH (Brief/Normal/Detailed), MODE (Pro on GPT-5.6); sections appear only when the model offers a choice; search past 8 models; model rows carry pills + tagline or context/price meta; summary label ("GPT-5.6 Luna · High · Fast") | ✅ 1.71.0 (77) full-height sheet split into Models / Options tabs: Models pins the search over a scrolling grouped list (a single provider is a static section header, several fold), Options draws each section as a card with chips in an equal-cell wrapping grid (`optionGridColumns`), summary line in the sheet header; 1.47.0 through 1.70.3 stacked the chips in a horizontal scroll under a shrunken list | ✅ picker on chat input (summary on the trigger chip) | ⚠️ 1.7.0 built in source, unverified until a Mac build | ⚠️ same as macOS | Server derives capabilities per model (`src/lib/ai/models.ts` `deriveCapabilities`, OpenRouter live catalog overlay); request body adds `speed`/`verbosity`/`mode`; an explicit `effort: null` key is Auto and clears the stored default, while an absent key keeps it (every client stores a local "auto" sentinel for the Auto chip and omits the key when nothing was ever chosen); clients seed local picks from `defaults` on load so a choice made on one device shows on the others; non-native verbosity travels as a system-prompt hint; house mode ignores all three. Persisted in `User.defaultSpeed/defaultVerbosity/defaultMode` (migration `20260903000000_chat_run_options`) |

@@ -112,6 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Must be set before any notification can be delivered, or a click on
         // the morning reminder does nothing but foreground the app.
         UNUserNotificationCenter.current().delegate = self
+        UNUserNotificationCenter.current().setNotificationCategories(NotificationArt.categories)
         // "Share into SureWord" in other apps' Services menus (`NSServices` in
         // project.yml, handled in `MacShareInbox.swift`). Requests can arrive
         // as soon as this is set.

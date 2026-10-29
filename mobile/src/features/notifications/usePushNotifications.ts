@@ -318,7 +318,9 @@ export function usePushNotifications(): void {
 				await cancelAllScheduled().catch(() => {});
 				await Notifications.scheduleNotificationAsync({
 					content: {
-						title: "✝ Pick up your cross",
+						// Same title as the server's push (DAILY_CROSS_TITLE); the
+						// sureword-notifications module draws its art from screen.
+						title: "Pick up your cross",
 						body: "Your word for today is ready.",
 						data: { screen: "cross" },
 					},

@@ -24,6 +24,7 @@ Override the key with ASC_KEY_ID / ASC_ISSUER_ID / ASC_KEY_PATH.
 """
 import base64
 import os
+import re
 import subprocess
 import sys
 import time
@@ -96,9 +97,18 @@ def distribution_certificate_id():
 def bundle_id_resource(identifier):
     data = get("/v1/bundleIds", **{"filter[identifier]": identifier, "limit": 5})["data"]
     match = [d for d in data if d["attributes"]["identifier"] == identifier]
-    if not match:
+    if match:
+        return match[0]["id"]
+    # Only SureWord's own extension ids are registered here; the app's id is
+    # never created by a script (its record holds the App Store listing).
+    if not identifier.startswith("com.spragginsdesigns.sureword."):
         sys.exit(f"asc: bundle id {identifier} is not registered")
-    return match[0]["id"]
+    created = post("/v1/bundleIds", {"data": {
+        "type": "bundleIds",
+        "attributes": {"identifier": identifier, "name": "SureWord " + re.sub(r"[^A-Za-z0-9]+", " ", identifier.rsplit(".", 1)[-1]), "platform": "IOS"},
+    }})["data"]
+    print(f"asc: registered bundle id {identifier}", file=sys.stderr)
+    return created["id"]
 
 
 def install(profile):

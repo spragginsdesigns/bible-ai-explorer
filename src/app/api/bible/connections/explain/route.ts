@@ -1,18 +1,19 @@
 import { waitUntil } from "@vercel/functions";
-import { createTextStreamResponse, streamText, toTextStream } from "ai";
+import { createTextStreamResponse, streamText } from "ai";
 import { NextResponse } from "next/server";
 import { plainDashes } from "@/lib/ai/plain-dashes";
-import { AiCredentialError, resolveModel } from "@/lib/ai/provider";
+import { SCRIPTURE_OUTPUT_GUIDANCE, VERIFICATION_UNAVAILABLE, verifyGeneratedAnswer, verifiedTextStream } from "@/lib/ai/verified-generation";
+import { AiCredentialError, resolveModel, resolveVerificationModel } from "@/lib/ai/provider";
 import { reserveIncludedRequest, withIncludedAiRequest } from "@/lib/billing/usage";
 import { bookByOrder, resolveReference } from "@/lib/bible/books";
-import { connectionSectionOf, CONNECTION_SECTIONS } from "@/lib/bible/connectionsMap";
+import { connectionSectionOf, CONNECTION_SECTIONS, parseConnectionExplanation } from "@/lib/bible/connectionsMap";
 import { getCrossReferencesFor } from "@/lib/bible/crossRefs";
-import { getVerseText, parseTranslationId, type TranslationId } from "@/lib/bible/translations";
+import { getVerseText, parseTranslationId, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { readVerseInsight, writeVerseInsight } from "@/lib/verse-insight-cache";
 import { getAuthUser } from "@/lib/auth";
 import { connectionsSystemPrompt } from "@/utils/systemPrompt";
 
-export const maxDuration = 60;
+export const maxDuration = 180;
 
 /** Passages explained per answer: the sheet's cards, and a bounded prompt. */
 const MAX_LINKS = 10;
@@ -106,22 +107,39 @@ async function handlePost(req: Request): Promise<Response> {
 		}
 
 		if (resolved.access === "house") await reserveIncludedRequest(userId);
+		const verificationModel = await resolveVerificationModel(userId, resolved.definition);
 		const result = streamText({
 			model: resolved.model,
-			system: connectionsSystemPrompt(translation),
+			system: `${connectionsSystemPrompt(translation)}\n\n${SCRIPTURE_OUTPUT_GUIDANCE}\nKeep the required plain summary first line and REFERENCE :: explanation lines. Explain in prose; do not insert standalone quotation markers into these card lines.`,
 			prompt: material,
 			maxOutputTokens: 2500,
 			providerOptions: resolved.providerOptions,
 			experimental_transform: plainDashes(),
-			onEnd: ({ text: full, finishReason }) => {
-				if (finishReason !== "stop" || !full.includes("::")) return;
-				waitUntil(writeVerseInsight(cacheKey, full, modelUsed));
-			},
+			abortSignal: AbortSignal.timeout(90_000),
 		});
-		// Finish even if the sheet closes, so the next reader gets the cache.
-		result.consumeStream();
+		const verifiedAnswer = (async () => {
+			const full = await result.text;
+			const checked = await verifyGeneratedAnswer([{ id: "connections", text: full }], {
+				model: verificationModel, providerOptions: resolved.providerOptions, translation, language: TRANSLATIONS[translation].language,
+				question: `Explain how ${reference} connects to each supplied passage. REQUIRED OUTPUT FORMAT: one plain summary line without a separator followed by one REFERENCE :: explanation line per connected passage, preserving the supplied references in order. Every line must remain one line; no headings, extra lines, or standalone quotation markers.`,
+				context: material,
+			});
+			const answer = checked.blocks.map(block => block.text).join("\n\n");
+			if (!checked.verified) return answer;
+			const parsed = parseConnectionExplanation(answer, true);
+			if (!parsed.summary || parsed.items.length !== passages.length || parsed.items.some((item, index) => item.reference !== passages[index].reference || !item.text)) {
+				return VERIFICATION_UNAVAILABLE[TRANSLATIONS[translation].language];
+			}
+			if (await result.finishReason === "stop") {
+				await writeVerseInsight(cacheKey, answer, modelUsed);
+			}
+			return answer;
+		})();
+		// Complete verification/cache even if the sheet closes while checking.
+		waitUntil(verifiedAnswer.catch(error => console.error("Connections verification failed:", error)));
+
 		return createTextStreamResponse({
-			stream: toTextStream({ stream: result.stream }),
+			stream: verifiedTextStream(verifiedAnswer),
 			headers: { "X-Connections-Cache": "miss" },
 		});
 	} catch (error) {

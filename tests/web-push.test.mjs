@@ -101,6 +101,8 @@ test("web payload keeps the Expo title, body and data with a tap URL and tag", (
 		url: "/cross",
 		tag: "daily-cross",
 		data: { screen: "cross", book: "John", chapter: 3, verse: 16 },
+		icon: "/notifications/cross-mark.jpg",
+		image: "/notifications/cross-wide.jpg",
 	});
 	const chat = buildWebPushPayload({
 		title: "Your answer is ready",
@@ -109,6 +111,19 @@ test("web payload keeps the Expo title, body and data with a tap URL and tag", (
 	});
 	assert.equal(chat.url, "/?conversationId=abc");
 	assert.equal(chat.tag, "chat-abc");
+	assert.equal(chat.icon, "/notifications/answer-mark.jpg");
+	assert.equal(chat.image, "/notifications/answer-wide.jpg");
+	// A notice with no kind (the sermon watchdog) carries no art.
+	assert.equal("icon" in buildWebPushPayload({ title: "t", body: "b", data: { type: "sermon-watchdog" } }), false);
+});
+
+test("every notice kind's art is a file the site serves", async () => {
+	const { notificationArtFor } = await import("../src/lib/push-routing.ts");
+	for (const screen of ["cross", "chat"]) {
+		const art = notificationArtFor({ screen });
+		for (const path of [art.icon, art.image]) await readFile(new URL(`../public${path}`, import.meta.url));
+	}
+	assert.equal(notificationArtFor({ type: "sermon-watchdog" }), null);
 });
 
 test("404 and 410 retire a subscription; other failures do not", () => {
@@ -260,4 +275,14 @@ test("push registration checks the stored owner before it writes", async () => {
 	}
 	// The write is conditional on the row the decision read, never a blind upsert.
 	assert.ok(!post.includes("prisma.pushToken.upsert"), "POST upserts without re-checking ownership");
+});
+
+test("the answer-ready notice reads as a reply, not the morning verse", async () => {
+	const { ANSWER_READY_TITLE, answerTrayPreview } = await import("../src/lib/push-routing.ts");
+	assert.equal(ANSWER_READY_TITLE, "Your answer is ready");
+	assert.equal(
+		answerTrayPreview("> The LORD is my shepherd; I shall not want.\n> He maketh me to lie down\n\n## Comfort\n\n- **Psalm 23:1** speaks of [provision](https://x.y)."),
+		"The LORD is my shepherd; I shall not want. He maketh me to lie down Comfort Psalm 23:1 speaks of provision.",
+	);
+	assert.equal(answerTrayPreview("word ".repeat(100)).length, 220);
 });

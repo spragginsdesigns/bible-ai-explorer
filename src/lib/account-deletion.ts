@@ -85,6 +85,7 @@ export const ACCOUNT_DATA_MODELS: readonly AccountDataModel[] = [
 	{ model: "NoteEmbedding", via: "cascade", parent: "Note" },
 	{ model: "NoteTag", via: "cascade", parent: "Note" },
 	{ model: "NoteAIMessage", via: "cascade", parent: "Note" },
+	{ model: "NoteAIOperation", via: "cascade" },
 	{ model: "PushToken", via: "cascade" },
 	{ model: "ReadingEvent", via: "cascade" },
 	{ model: "VerseHighlight", via: "cascade" },

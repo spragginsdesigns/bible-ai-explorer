@@ -1,19 +1,20 @@
 import { waitUntil } from "@vercel/functions";
-import { createTextStreamResponse, streamText, toTextStream } from "ai";
+import { createTextStreamResponse, streamText } from "ai";
 import { plainDashes } from "@/lib/ai/plain-dashes";
+import { SCRIPTURE_OUTPUT_GUIDANCE, verifyGeneratedAnswer, verifiedTextStream } from "@/lib/ai/verified-generation";
 import { NextResponse } from "next/server";
-import { AiCredentialError, resolveModel } from "@/lib/ai/provider";
+import { AiCredentialError, resolveModel, resolveVerificationModel } from "@/lib/ai/provider";
 import { captureServerEvent } from "@/lib/analytics/server";
 import { ANALYTICS_EVENTS, platformFromHeaders } from "@/lib/analytics/events";
 import { getAuthUser } from "@/lib/auth";
-import { parseTranslationId, type TranslationId } from "@/lib/bible/translations";
+import { parseTranslationId, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
 import { readVerseInsight, writeVerseInsight } from "@/lib/verse-insight-cache";
 import { verseInsightSystemPrompt } from "@/utils/systemPrompt";
 import { canonicalPassage } from "@/lib/bible/passage-context";
 import { formatVersesForModel } from "@/lib/scripture-search";
 import { stampFirstUse } from "@/lib/onboarding";
 
-export const maxDuration = 60;
+export const maxDuration = 180;
 
 const MAX_REFERENCE_LENGTH = 120;
 const MAX_TEXT_LENGTH = 2500;
@@ -105,44 +106,39 @@ async function handlePost(req: Request): Promise<Response> {
 		}
 
 		if (resolved.access === "house") await reserveIncludedRequest(userId);
+		const verificationModel = await resolveVerificationModel(userId, resolved.definition);
 		const result = streamText({
 			model: resolved.model,
-			system: verseInsightSystemPrompt(translation, { passage: isPassage }),
+			system: `${verseInsightSystemPrompt(translation, { passage: isPassage })}\n\n${SCRIPTURE_OUTPUT_GUIDANCE}`,
 			prompt: `Selected text (explain only this):\n${formatVersesForModel(passage.verses.map(verse => ({ ...verse, similarity: 1 })), translation)}\n\nImmediate surrounding context:\n${formatVersesForModel(passage.contextVerses.map(verse => ({ ...verse, similarity: 1 })), translation)}`,
 			maxOutputTokens: 2000,
 			providerOptions: resolved.providerOptions,
 			// Applied before the stream and the cache write, so the cached
 			// explanation is as dash-free as the streamed one.
 			experimental_transform: plainDashes(),
-			onEnd: ({ text: full, finishReason }) => {
-				// Only a naturally finished, non-empty answer is worth keeping:
-				// a length cut-off or an error mid-stream must regenerate next tap.
-				if (finishReason !== "stop" || !full.trim()) return;
-				// Counted here rather than at the response, for the same reason the
-				// cache write is: a stream cut off mid-sentence never became an
-				// insight the reader could use.
-				captureServerEvent({
-					userId,
-					event: ANALYTICS_EVENTS.verseInsightOpened,
-					platform,
-					properties: {
-						translation,
-						passage: isPassage,
-						cacheHit: false,
-						model: modelUsed,
-					},
-				});
-				waitUntil(writeVerseInsight(cacheKey, full, modelUsed));
-				// Ticks "Tap a verse" on the Getting started card (Walk with me).
-				waitUntil(stampFirstUse(userId, "firstInsightAt"));
-			},
+			abortSignal: AbortSignal.timeout(90_000),
 		});
-		// Run to completion even if the reader closes the sheet, so the
-		// explanation still lands in the cache for the next tap.
-		result.consumeStream();
+		const verifiedAnswer = (async () => {
+			const full = await result.text;
+			const checked = await verifyGeneratedAnswer([{ id: "insight", text: full }], {
+				model: verificationModel, providerOptions: resolved.providerOptions, translation, language: TRANSLATIONS[translation].language,
+				question: `Explain only the selected passage ${passage.reference} in the Bible's language.`,
+				context: `Selected canonical passage:\n${canonicalText}\nImmediate context:\n${formatVersesForModel(passage.contextVerses.map(verse => ({ ...verse, similarity: 1 })), translation)}`,
+			});
+			const answer = checked.blocks.map(block => block.text).join("\n\n");
+			if (checked.verified && await result.finishReason === "stop" && answer.trim()) {
+				captureServerEvent({ userId, event: ANALYTICS_EVENTS.verseInsightOpened, platform,
+					properties: { translation, passage: isPassage, cacheHit: false, model: modelUsed } });
+				await writeVerseInsight(cacheKey, answer, modelUsed);
+				await stampFirstUse(userId, "firstInsightAt");
+			}
+			return answer;
+		})();
+		// Complete verification/cache even if the sheet closes while checking.
+		waitUntil(verifiedAnswer.catch(error => console.error("Verse insight verification failed:", error)));
 
 		return createTextStreamResponse({
-			stream: toTextStream({ stream: result.stream }),
+			stream: verifiedTextStream(verifiedAnswer),
 			headers: { "X-Verse-Insight-Cache": "miss", "X-Verse-Insight-Model": modelUsed },
 		});
 	} catch (error) {

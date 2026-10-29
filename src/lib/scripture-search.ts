@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { getChapter, type TranslationId } from "@/lib/bible/translations";
 import { getKjvBookName } from "@/utils/kjvBible";
-import { findVersesFullText } from "@/lib/bible/verse-fulltext";
+import { findVersesFullTextDetailed, type KeywordMatchCoverage } from "@/lib/bible/verse-fulltext";
 import { searchWords } from "@/lib/bible/search-words";
 import { queryEmbedding, EMBEDDING_MODEL_ID, EMBEDDING_DIMENSIONS } from "@/lib/ai/embeddings";
 import { searchQuery } from "@/lib/search-query";
@@ -15,6 +15,8 @@ export interface RetrievedVerse {
 }
 
 export interface ScriptureSearchResult {
+	/** Lexical candidate page; vector scores remain independently measured. */
+	keywordCoverage?: KeywordMatchCoverage;
 	verses: RetrievedVerse[];
 	averageSimilarity: number;
 	/** Set when the vector store was unreachable and keyword matching filled in. */
@@ -98,11 +100,14 @@ export async function searchScripture(
 ): Promise<ScriptureSearchResult> {
 	signal?.throwIfAborted();
 	limit = Math.min(20, Math.max(1, Math.trunc(limit) || 5));
-	const [embedding, keywordHits] = await Promise.all([
+	const [embedding, keywordSearch] = await Promise.all([
 		queryEmbedding(query, signal).catch(() => null),
-		findVersesFullText(searchWords(query), Math.max(limit, KEYWORD_MERGE_HITS)).catch(() => []),
+		// Hybrid recall explicitly permits partial wording; the exact-word tool stays strict.
+		findVersesFullTextDetailed(searchWords(query), Math.max(limit, KEYWORD_MERGE_HITS), { allowPartial: true }).catch(() => null),
 	]);
 	signal?.throwIfAborted();
+	const keywordHits = keywordSearch?.hits ?? [];
+	let keywordCoverage = keywordSearch?.coverage;
 	const vectorOutcome = embedding ? await vectorSearch(embedding, limit, keywordHits).catch(() => null) : null;
 	signal?.throwIfAborted();
 
@@ -112,6 +117,8 @@ export async function searchScripture(
 	if (!vectorOutcome) {
 		// Vector store down: serve keyword matches alone rather than nothing.
 		degraded = true;
+		if (keywordCoverage) keywordCoverage = { ...keywordCoverage, returnedCount: Math.min(keywordHits.length, limit), limit,
+			truncated: keywordCoverage.truncated || keywordHits.length > limit };
 		coordinates = keywordHits.slice(0, limit).map((hit) => ({
 			book: hit.book,
 			chapter: hit.chapter,
@@ -123,7 +130,7 @@ export async function searchScripture(
 	}
 
 	if (coordinates.length === 0) {
-		return { verses: [], averageSimilarity: 0, ...(degraded ? { degraded } : {}) };
+		return { verses: [], averageSimilarity: 0, ...(degraded ? { degraded } : {}), ...(keywordCoverage ? { keywordCoverage } : {}) };
 	}
 
 	const chapters = new Map<string, string[]>();
@@ -144,7 +151,7 @@ export async function searchScripture(
 			? verses.reduce((sum, v) => sum + v.similarity, 0) / verses.length
 			: 0;
 
-	return { verses, averageSimilarity, ...(degraded ? { degraded } : {}) };
+	return { verses, averageSimilarity, ...(degraded ? { degraded } : {}), ...(keywordCoverage ? { keywordCoverage } : {}) };
 }
 
 /** Format retrieved verses for inclusion in a model prompt or tool result. */

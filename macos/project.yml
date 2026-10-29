@@ -335,6 +335,10 @@ targets:
         product: ClerkKitUI
       # "Share into SureWord" (PRD D8), embedded in PlugIns/.
       - target: SureWord-iOS-Share
+      # Notification art: the thumbnail on a closed banner, and the
+      # long-press view (Shared/NotificationArt, docs/FEATURES.md).
+      - target: SureWord-iOS-NotificationService
+      - target: SureWord-iOS-NotificationContent
     # The App Group is the share extension's only channel to the app: it
     # writes the share into the group container and the app reads it back
     # (`ShareInbox/PendingShareStore.swift`). The same group is declared by
@@ -473,6 +477,69 @@ targets:
               NSExtensionActivationSupportsImageWithMaxCount: 5
               NSExtensionActivationSupportsFileWithMaxCount: 5
               NSExtensionActivationSupportsAttachmentsWithMaxCount: 5
+
+  # Attaches each push's art (Shared/NotificationArt) as its banner
+  # thumbnail. Woken by the `mutable-content` the server sets on the Daily
+  # Cross and answer pushes (src/lib/apns.ts). No network, no App Group: the
+  # art is bundled.
+  SureWord-iOS-NotificationService:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: SureWord-iOS-NotificationService
+      - path: Shared/NotificationArt
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.spragginsdesigns.sureword.notification-service
+        PRODUCT_NAME: SureWordNotificationService
+        TARGETED_DEVICE_FAMILY: "1,2"
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+    info:
+      path: SureWord-iOS-NotificationService/Info.plist
+      properties:
+        CFBundleDisplayName: SureWord
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSHumanReadableCopyright: "© 2026 Austin Spraggins"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.usernotifications.service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationService
+
+  # The long-press view: the kind's wide art over its title and text
+  # (Apple's "Customizing the Appearance of Notifications"). Picked by the
+  # category the server sends; Apple keeps the header.
+  SureWord-iOS-NotificationContent:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: SureWord-iOS-NotificationContent
+      - path: Shared/NotificationArt
+    dependencies:
+      - sdk: UserNotificationsUI.framework
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.spragginsdesigns.sureword.notification-content
+        PRODUCT_NAME: SureWordNotificationContent
+        TARGETED_DEVICE_FAMILY: "1,2"
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+    info:
+      path: SureWord-iOS-NotificationContent/Info.plist
+      properties:
+        CFBundleDisplayName: SureWord
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSHumanReadableCopyright: "© 2026 Austin Spraggins"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.usernotifications.content-extension
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationViewController
+          NSExtensionAttributes:
+            UNNotificationExtensionCategory: [SUREWORD_CROSS, SUREWORD_ANSWER]
+            # The controller sets preferredContentSize from its content; this
+            # is only the first frame's height-to-width ratio.
+            UNNotificationExtensionInitialContentSizeRatio: 0.9
+            UNNotificationExtensionDefaultContentHidden: true
 
   SureWord-iOSTests:
     type: bundle.unit-test
