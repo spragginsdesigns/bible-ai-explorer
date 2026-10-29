@@ -11,6 +11,8 @@ import {
 	type PushRecipient,
 } from "@/lib/push-audience";
 import {
+	ANSWER_READY_TITLE,
+	answerTrayPreview,
 	buildWebPushPayload,
 	isGoneWebPushStatus,
 	recipientFromRow,
@@ -253,12 +255,6 @@ async function sendViaExpo(messages: PendingPush[], label: string): Promise<numb
 /** Android channel the "your answer is ready" push is routed to. */
 export const CHAT_REPLY_CHANNEL_ID = "chat-replies";
 
-/** Keep the tray line readable; the full answer is one tap away. */
-function trayPreview(text: string, max = 220): string {
-	const collapsed = text.replace(/\s+/g, " ").trim();
-	return collapsed.length <= max ? collapsed : `${collapsed.slice(0, max - 1).trimEnd()}…`;
-}
-
 /**
  * Tell the user their answer finished while they were away. Called only when
  * the client disconnected mid-stream (app backgrounded, screen locked, network
@@ -271,7 +267,8 @@ export async function notifyChatAnswerReady(options: {
 	conversationId: string;
 	answerText: string;
 }): Promise<void> {
-	const preview = trayPreview(options.answerText);
+	// The full answer is one tap away.
+	const preview = answerTrayPreview(options.answerText);
 	if (!preview) return;
 
 	try {
@@ -287,7 +284,7 @@ export async function notifyChatAnswerReady(options: {
 				{
 					userId: options.userId,
 					recipients: tokens.map(recipientFromRow),
-					title: "Your answer is ready",
+					title: ANSWER_READY_TITLE,
 					body: preview,
 					data: { screen: "chat", conversationId: options.conversationId },
 					channelId: CHAT_REPLY_CHANNEL_ID,

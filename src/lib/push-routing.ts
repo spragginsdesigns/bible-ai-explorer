@@ -215,6 +215,29 @@ export function mayRegisterExistingPushToken(
 	return true;
 }
 
+/**
+ * Title of every "answer is ready" notice (server push, web tab, Mac). The
+ * speech balloon sets it apart at a glance from "✝ Pick up your cross", whose
+ * body is also Scripture. Mirrored by AnswerReadyNotification.title in Swift.
+ */
+export const ANSWER_READY_TITLE = "\u{1F4AC} Your answer is ready";
+
+/**
+ * One readable tray line from a markdown answer. Answers open with a quoted
+ * verse, and a raw "> The LORD is my shepherd" read like the morning verse
+ * rather than a reply, so quote, heading, list and emphasis markers go.
+ */
+export function answerTrayPreview(text: string, max = 220): string {
+	const plain = text
+		.replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+		.replace(/^[ \t]*(?:>[ \t]?)+/gm, "")
+		.replace(/^[ \t]*#{1,6}[ \t]+/gm, "")
+		.replace(/^[ \t]*(?:[-*+]|\d+\.)[ \t]+/gm, "")
+		.replace(/(\*\*|__|\*|_|`)(.+?)\1/g, "$2");
+	const collapsed = plain.replace(/\s+/g, " ").trim();
+	return collapsed.length <= max ? collapsed : `${collapsed.slice(0, max - 1).trimEnd()}…`;
+}
+
 /** Push services answer 404 or 410 for a subscription that will never work again. */
 export function isGoneWebPushStatus(statusCode: number | undefined): boolean {
 	return statusCode === 404 || statusCode === 410;

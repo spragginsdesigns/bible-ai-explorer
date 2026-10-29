@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { webPushTapUrl } from "@/lib/push-routing";
+import { ANSWER_READY_TITLE, webPushTapUrl } from "@/lib/push-routing";
 import {
 	adoptPhoneHour,
 	DEFAULT_WEB_NOTIFICATION_SETTINGS,
@@ -423,7 +423,7 @@ export function notifyAnswerReady(opts: { conversationId: string; title?: string
 	) {
 		return;
 	}
-	const title = "Your answer is ready";
+	const title = ANSWER_READY_TITLE;
 	const options: NotificationOptions = {
 		body: opts.title?.trim() || "Tap to read it in SureWord.",
 		tag: `chat-${opts.conversationId}`,

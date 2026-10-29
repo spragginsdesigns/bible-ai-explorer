@@ -261,3 +261,14 @@ test("push registration checks the stored owner before it writes", async () => {
 	// The write is conditional on the row the decision read, never a blind upsert.
 	assert.ok(!post.includes("prisma.pushToken.upsert"), "POST upserts without re-checking ownership");
 });
+
+test("the answer-ready notice reads as a reply, not the morning verse", async () => {
+	const { ANSWER_READY_TITLE, answerTrayPreview } = await import("../src/lib/push-routing.ts");
+	assert.notEqual(ANSWER_READY_TITLE, "Your answer is ready");
+	assert.ok(ANSWER_READY_TITLE.endsWith("Your answer is ready"));
+	assert.equal(
+		answerTrayPreview("> The LORD is my shepherd; I shall not want.\n> He maketh me to lie down\n\n## Comfort\n\n- **Psalm 23:1** speaks of [provision](https://x.y)."),
+		"The LORD is my shepherd; I shall not want. He maketh me to lie down Comfort Psalm 23:1 speaks of provision.",
+	);
+	assert.equal(answerTrayPreview("word ".repeat(100)).length, 220);
+});
