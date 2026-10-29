@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 extension View {
     /// Mounted on the account shell, so commands keep working after leaving Chat.
@@ -30,8 +33,41 @@ private struct NativeVoiceDriver: ViewModifier {
                 await input.checkEligibility(api: app.api, account: app.userID)
             }
             .onChange(of: stateKey) { _, _ in session.synchronize(app: app) }
-            .onChange(of: scenePhase, initial: true) { _, phase in session.setForeground(phase == .active, app: app, permissionPrompt: phase == .inactive) }
+            .onChange(of: scenePhase, initial: true) { _, phase in
+                #if os(macOS)
+                let active = phase == .active && NSApp.isActive
+                #else
+                let active = phase == .active
+                #endif
+                session.setForeground(active, app: app, permissionPrompt: phase == .inactive)
+            }
             .onDisappear { session.stop(app: app) }
+            #if os(macOS)
+            // A visible Mac window can keep an active scene while another
+            // application owns input. AppKit activation must fence capture too.
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
+                .receive(on: DispatchQueue.main)) { _ in
+                session.setForeground(false, app: app, permissionPrompt: true)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+                .receive(on: DispatchQueue.main)) { _ in
+                session.setForeground(true, app: app)
+                Task { await input.checkEligibility(api: app.api, account: app.userID) }
+            }
+            .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didActivateApplicationNotification)
+                .receive(on: DispatchQueue.main)) { notification in
+                guard let activated = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
+                if activated.processIdentifier == ProcessInfo.processInfo.processIdentifier {
+                    session.setForeground(true, app: app)
+                } else {
+                    // Preserve only the initial system permission continuation.
+                    // Switching to a normal app cancels it even during setup.
+                    let permissionHost = ["com.apple.usernotificationcenter", "com.apple.securityagent"]
+                        .contains(activated.bundleIdentifier?.lowercased() ?? "")
+                    session.setForeground(false, app: app, permissionPrompt: permissionHost)
+                }
+            }
+            #endif
     }
 }
 
