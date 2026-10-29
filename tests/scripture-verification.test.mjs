@@ -570,3 +570,115 @@ test("lexical complete/full glosses are distinct from claims to quote an entire 
   const hebrew = await check(`Psalm 51:1 uses “${original.words[0].text}”; the Hebrew surface form is a complete word. (WLC 51:3.)`);
   assert.equal(hebrew.ok, true, JSON.stringify(hebrew.issues));
 });
+
+
+const actualKeywordReferenceListDraft = "Psalm 24:1 (KJV):\n\n**Psalms 24:1 (KJV)**\n> 1 The earth is the LORD’s, and the fulness thereof; the world, and they that dwell therein.\n\nOther returned examples include Psalms 11:4, 22:28, 113:3, 115:16, 116:19, 118:23, and 137:4.\n\nPsalm 29:8 should **not** be an exact match for the possessive “LORD’s.” It says “the LORD shaketh,” which is not possessive.";
+
+test("actual keyword draft keeps inherited conjoined references without phantom volume errors", async () => {
+  const result = await check(actualKeywordReferenceListDraft);
+  assert.deepEqual(result.references.map(reference => reference.reference), ["Psalms 24:1", "Psalms 24:1", "Psalms 11:4", "Psalms 22:28", "Psalms 113:3", "Psalms 115:16", "Psalms 116:19", "Psalms 118:23", "Psalms 137:4", "Psalms 29:8"]);
+  assert.equal(result.issues.some(issue => issue.code === "unknown_book" || issue.code === "invalid_reference"), false, JSON.stringify(result.issues));
+  assert.equal(result.ok, false, "the negative possessive quotation still fails canonical matching");
+  assert.ok(result.issues.some(issue => issue.code === "quote_mismatch" && issue.reference === "Psalms 29:8" && issue.excerpt === "LORD’s."));
+  assert.ok(result.quotes.some(quote => quote.text === "the LORD shaketh," && quote.status === "verified"));
+});
+
+test("a terminal citation coordinate is not a volume on the next citation", async () => {
+  for (const separator of [".\n\n", ". ", " ", "\n"]) {
+    const result = await check("Psalms 137:4" + separator + "Psalm 29:8.");
+    assert.equal(result.ok, true, JSON.stringify(result.issues));
+    assert.deepEqual(result.references.map(reference => reference.reference), ["Psalms 137:4", "Psalms 29:8"]);
+  }
+});
+
+test("inherited conjunction lists retain real coordinates and canonical evidence", async () => {
+  for (const draft of ["Psalms 11:4, 22:28, and 137:4.", "Psalms 11:4,22:28,and 137:4.", "John 3:16, and 18.", "John 3:16; and 4:1."]) {
+    const result = await check(draft);
+    assert.equal(result.ok, true, JSON.stringify(result.issues));
+    assert.equal(result.references.length, draft.startsWith("Psalms") ? 3 : 2);
+    assert.ok(result.references.every(reference => reference.canonicalText.length > 0));
+  }
+});
+
+test("conjunction parsing never hides unknown books or malformed inherited coordinates", async () => {
+  for (const draft of ["John 3:16, and Hezekiah 3:16.", "Psalms 11:4, and 999:4.", "John 3:16; and 4.", "John 3:16, and 4:999.", "John 3:16, and 4:1:2.", "John 3:16, and 4:1-", "John 3:16, and 4:1a."]) {
+    assert.equal((await check(draft)).ok, false, draft);
+  }
+});
+
+test("unsupported volume guards stay active outside prior citation spans", async () => {
+  for (const draft of ["4 John 1:1", "IV John 1:1", "4\nJohn 1:1", "III Psalm 29:8", "Read 9. Psalm 29:8", "3:4 John 1:1", "Hezekiah 3:4 Psalm 29:8", "Psalms 137:4.\n\n4 John 1:1"]) {
+    const result = await check(draft);
+    assert.equal(result.ok, false, draft);
+    assert.ok(result.issues.some(issue => issue.code === "invalid_reference" && issue.message.includes("volume")), JSON.stringify(result.issues));
+  }
+});
+
+test("negative quotations and format controls retain the existing fail-closed rules", async () => {
+  assert.equal((await check('Psalm 29:8 does not say “LORD’s.”')).ok, false);
+  assert.equal((await check('John 3:16, and Heze\u200bkiah 3:16.')).ok, false);
+  assert.equal((await check('Psalm 29:8 contains “God guarantees wealth.”')).ok, false);
+});
+
+test("safe negative wording can use ordinary prose while preserving actual Scripture quotes", async () => {
+  const result = await check('Psalm 29:8 says “the LORD shaketh,” which uses LORD followed by shaketh rather than a possessive form.');
+  assert.equal(result.ok, true, JSON.stringify(result.issues));
+  assert.equal(result.quotes.length, 1);
+  assert.equal(result.quotes[0].status, "verified");
+});
+
+
+test("dangling range dashes cannot hide behind punctuation, newlines or Markdown", async () => {
+  for (const suffix of ["-.", "-!", "-?", "-,", "-;", "-", "-\n", "-\nGod gave His Son.", "- **", "- `", '- "', "–.", "—.", "−.", "- **.**"]) {
+    for (const prefix of ["John 4:1", "John 3:16, and 4:1"]) {
+      const result = await check(prefix + suffix);
+      assert.equal(result.ok, false, prefix + suffix);
+      assert.ok(result.issues.some(issue => issue.code === "invalid_reference"), JSON.stringify(result.issues));
+    }
+  }
+});
+
+test("dash prose after complete coordinates and ranges still verifies", async () => {
+  for (const draft of [
+    "Read John 4:1 — Jesus knew.",
+    "Read John 4:1 - **Jesus** knew.",
+    "Read John 4:1–Jesus knew.",
+    "Compare John 3:16-17 — God sent His Son.",
+    `John 3:16-17 — “${john316} ${john317}”`,
+  ]) {
+    const result = await check(draft);
+    assert.equal(result.ok, true, JSON.stringify(result.issues));
+  }
+});
+
+test("inherited list numbers cannot conceal an unsupported book volume", async () => {
+  for (const draft of [
+    "John 3:16, and 4 John 1:1",
+    "John 3:16, 4 John 1:1",
+    "John 3:16, and 9 John 1:1",
+    "John 3:16, and 0 John 1:1",
+    "John 3:16, and 10 John 1:1",
+    "John 3:16, and 4. John 1:1",
+    "John 3:16, and ４ John 1:1",
+    "Psalms 11:4, and 3 Psalm 29:8",
+  ]) {
+    const result = await check(draft);
+    assert.equal(result.ok, false, draft);
+    assert.ok(result.issues.some(issue => issue.code === "invalid_reference" && issue.message.includes("volume")), JSON.stringify(result.issues));
+    assert.equal(result.references.some(reference => reference.reference === "John 3:4"), false, "an invalid book volume cannot become an unrelated inherited verse");
+  }
+});
+
+test("volume-boundary checks preserve supported volumes and prior explicit coordinates", async () => {
+  for (const draft of [
+    "John 3:16, and 1 John 4:9",
+    "John 3:16, and 2 John 1:6",
+    "John 3:16, and 3 John 1:4",
+    "Psalms 137:4 Psalm 29:8",
+    "Psalms １３７:４.\n\nPsalm 29:8",
+  ]) {
+    const result = await check(draft);
+    assert.equal(result.ok, true, JSON.stringify(result.issues));
+    assert.equal(result.references.length, 2, draft);
+  }
+});

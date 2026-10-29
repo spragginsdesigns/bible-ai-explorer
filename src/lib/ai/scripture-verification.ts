@@ -155,7 +155,12 @@ function scanCitations(text: string, issues: ScriptureVerificationIssue[], origi
     if (originalIdentifiers.some((identifier) => start >= identifier.start && start < identifier.end)) continue;
     const book = bookFromMatch(match[1]);
     if (!book) continue;
-    if (/(?:^|[^\p{L}\p{N}])[1-9IVX]+\.?\s+$/iu.test(text.slice(Math.max(0, start - 12), start))) {
+    const precedingVolume = scanText.slice(Math.max(0, start - 12), start).match(/(?:^|[^\p{L}\p{N}])([0-9IVX]+)\.?\s+$/iu);
+    const precedingNumberStart = precedingVolume ? start - precedingVolume[0].length + precedingVolume[0].lastIndexOf(precedingVolume[1]) : -1;
+    // A preceding citation's coordinate is not a volume on the next book.
+    // Only an already parsed citation span supplies this distinction.
+    const priorCitationNumber = groups.some((group) => precedingNumberStart >= group.start && precedingNumberStart < group.end);
+    if (precedingVolume && !priorCitationNumber) {
       issues.push({ code: "invalid_reference", severity: "error", message: "The book has an unsupported or mismatched volume number.", excerpt: text.slice(Math.max(0, start - 3), start + match[0].length) });
     }
     const numberStart = start + match[0].length - match[2].length;
@@ -187,11 +192,13 @@ function scanCitations(text: string, issues: ScriptureVerificationIssue[], origi
       parts.push({ book, chapter, verse, endChapter, endVerse });
       verseContext = verse !== undefined;
       cursor += tail[0].length;
-      const next = scanText.slice(cursor).match(/^\s*([,;])\s*(?=\d)/);
+      const next = scanText.slice(cursor).match(/^\s*([,;])\s*(?:and\s+)?(?=\d)/i);
       if (!next) break;
       const afterSeparator = scanText.slice(cursor + next[0].length);
       const nextBook = citationStart().exec(afterSeparator);
-      if (nextBook?.index === 0) break;
+      // An unsupported volume must stay outside this group so it cannot
+      // masquerade as an inherited verse and bypass the next book's guard.
+      if (nextBook?.index === 0 || (nextBook && /^\d+\.?\s+$/.test(afterSeparator.slice(0, nextBook.index)))) break;
       separator = next[1];
       cursor += next[0].length;
     }
@@ -201,7 +208,10 @@ function scanCitations(text: string, issues: ScriptureVerificationIssue[], origi
     // nonnumeric prose body must follow. A doubled internal colon or another
     // numeric coordinate remains malformed rather than being reclassified.
     const proseDelimiter = verseContext && /^\s*:{1,2}(?!:)\s+(?:[*_`]*)(?=[\p{L}"\u201c\u2018])/u.test(remaining);
-    if ((!proseDelimiter && /^\s*:/.test(remaining)) || /^\s*[-\u2013\u2014\u2212]\s*(?:$|\d)/.test(remaining) || /^\p{L}/u.test(remaining)) {
+    // A dash left after parsing the coordinate is prose only when an actual
+    // nonnumeric word follows on that line, allowing ordinary Markdown/quotes.
+    const danglingRange = /^\s*[-\u2013\u2014\u2212]/.test(remaining) && !/^\s*[-\u2013\u2014\u2212][ \t]*[*_`("'\u201c\u2018\[]*(?=\p{L})/u.test(remaining);
+    if ((!proseDelimiter && /^\s*:/.test(remaining)) || danglingRange || /^\p{L}/u.test(remaining)) {
       issues.push({ code: "invalid_reference", severity: "error", message: "The Scripture reference has an incomplete or unsupported range.", excerpt: text.slice(start, cursor + 24) });
     }
     const editionLabel = text.slice(cursor).match(/^\s*\((WLC|TR)(?:\s+numbering)?\)/i);
