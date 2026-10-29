@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>SureWord voice conversations: accessibility and implementation plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ---------- tokens (do not change; this is the standard) ---------- */
+:root{
+  color-scheme:dark;
+  --bg:#09090b;
+  --surface:rgba(255,255,255,.04);
+  --surface-2:rgba(255,255,255,.06);
+  --surface-3:rgba(255,255,255,.10);
+  --border:rgba(255,255,255,.08);
+  --border-strong:rgba(255,255,255,.14);
+  --fg:#fafafa;
+  --fg-2:#d4d4d8;
+  --muted:#a1a1aa;
+  --dim:#8b8b95;
+  --accent:#3b82f6;
+  --accent-2:#22d3ee;
+  --ok:#22c55e;
+  --warn:#f59e0b;
+  --bad:#ef4444;
+  --info:#8b5cf6;
+  --radius:12px;
+  --radius-lg:16px;
+  --radius-xl:20px;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 16px 40px -12px rgba(0,0,0,.6);
+  --edge:inset 0 1px 0 rgba(255,255,255,.06);
+  --font:"Geist",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Inter,sans-serif;
+  --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --max:1040px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font:15px/1.6 var(--font);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  background-image:
+    radial-gradient(900px 420px at 50% -120px, rgba(34,211,238,.16), transparent 70%),
+    radial-gradient(700px 360px at 85% -60px, rgba(59,130,246,.12), transparent 70%);
+  background-repeat:no-repeat;
+}
+a{color:var(--accent-2);text-decoration:none}
+a:hover{text-decoration:underline;text-underline-offset:3px}
+:focus-visible{outline:2px solid var(--accent-2);outline-offset:3px;border-radius:6px}
+.wrap{width:min(100% - 2.5rem, var(--max));margin-inline:auto}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.02em;line-height:1.2}
+h1{font-size:clamp(1.9rem,4.5vw,2.75rem);font-weight:700;letter-spacing:-.03em}
+h2{font-size:1.35rem}
+h3{font-size:1rem}
+p{margin:.5rem 0}
+code,pre,.num,.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+code{font-size:.86em;background:var(--surface-2);border:1px solid var(--border);padding:.1em .4em;border-radius:6px}
+pre{margin:.75rem 0 0;padding:.9rem 1rem;background:#0c0c0f;border:1px solid var(--border);border-radius:var(--radius);font-size:.82rem;line-height:1.6;overflow:auto;white-space:pre}
+pre code{background:none;border:0;padding:0;font-size:inherit}
+
+/* ---------- header ---------- */
+header{padding:3.5rem 0 2rem}
+.eyebrow{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;font-size:.72rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-2)}
+.eyebrow .sep{color:var(--dim);letter-spacing:0}
+header h1{margin:.8rem 0 .6rem;max-width:22ch}
+.dek{max-width:60ch;font-size:1.08rem;color:var(--fg-2)}
+.meta{margin-top:1rem;font-family:var(--mono);font-size:.76rem;color:var(--dim)}
+
+/* ---------- sticky nav (use only when 4+ sections) ---------- */
+nav{position:sticky;top:0;z-index:5;padding:.6rem 0;background:rgba(9,9,11,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
+nav .wrap{display:flex;gap:.4rem;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 2.5rem),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 2.5rem),transparent);padding-right:2.5rem}
+nav .wrap::-webkit-scrollbar{display:none}
+nav a{flex:0 0 auto;padding:.34rem .8rem;border:1px solid var(--border);border-radius:999px;font-size:.8rem;font-weight:500;color:var(--muted);background:var(--surface)}
+nav a:hover{color:var(--fg);border-color:var(--border-strong);text-decoration:none}
+
+/* ---------- layout ---------- */
+main{padding:1.5rem 0 4rem}
+section{margin:2.5rem 0}
+section>h2{margin-bottom:.35rem}
+.lead{color:var(--muted);max-width:64ch;margin:0 0 1rem}
+.grid{display:grid;gap:.9rem}
+.cols-2{grid-template-columns:repeat(2,1fr)}
+.cols-3{grid-template-columns:repeat(3,1fr)}
+.cols-4{grid-template-columns:repeat(4,1fr)}
+
+/* ---------- surfaces ---------- */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.1rem 1.25rem;box-shadow:var(--shadow),var(--edge)}
+.card h3{margin-bottom:.35rem}
+.card p{color:var(--fg-2)}
+.card p:last-child{margin-bottom:0}
+.card-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.4rem}
+.verdict{border-left:3px solid var(--accent-2);background:linear-gradient(90deg,rgba(34,211,238,.08),var(--surface) 40%)}
+.verdict strong{color:var(--fg)}
+
+/* KPI tiles: max 4 per report */
+.kpi{padding:1rem 1.15rem}
+.kpi .label{font-size:.74rem;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.kpi .value{display:block;margin:.25rem 0 .1rem;font-family:var(--mono);font-size:1.9rem;font-weight:500;letter-spacing:-.03em;line-height:1.1}
+.kpi .delta{font-size:.78rem;color:var(--muted)}
+.kpi .delta.up{color:var(--ok)}
+.kpi .delta.down{color:var(--bad)}
+
+/* badges: tinted flat, never gradient, never shadowed */
+.badge{display:inline-flex;align-items:center;gap:.3rem;padding:.14rem .55rem;border-radius:999px;font-size:.7rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);border:1px solid color-mix(in srgb,var(--c) 28%,transparent)}
+.badge.ok{--c:var(--ok)}
+.badge.warn{--c:var(--warn)}
+.badge.bad{--c:var(--bad)}
+.badge.info{--c:var(--info)}
+.badge.neutral{--c:var(--muted)}
+.badge.accent{--c:var(--accent-2)}
+
+/* evidence stays folded */
+details{border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);margin-top:.8rem}
+summary{cursor:pointer;padding:.65rem .95rem;font-size:.84rem;font-weight:500;color:var(--muted);list-style:none;display:flex;align-items:center;gap:.5rem}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"";width:.4rem;height:.4rem;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+details[open] summary::before{transform:rotate(45deg)}
+details[open] summary{color:var(--fg);border-bottom:1px solid var(--border)}
+details .body{padding:.75rem .95rem 1rem;font-size:.9rem;color:var(--fg-2)}
+details .body>:first-child{margin-top:0}
+
+/* tables */
+.table{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);box-shadow:var(--edge)}
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th,td{padding:.6rem .85rem;text-align:left;vertical-align:top;border-bottom:1px solid var(--border)}
+th{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:var(--surface-2)}
+td.num,th.num{text-align:right;white-space:nowrap}
+
+/* simple bar chart (no library) */
+.bars{display:grid;gap:.45rem}
+.bar{display:grid;grid-template-columns:minmax(6rem,14rem) 1fr auto;gap:.75rem;align-items:center;font-size:.86rem}
+.bar .track{display:block;height:.55rem;background:var(--surface-2);border-radius:999px;overflow:hidden}
+.bar .fill{display:block;height:100%;width:var(--v);background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:999px}
+.bar .n{color:var(--muted)}
+
+/* steps / recommendations */
+.steps{list-style:none;padding:0;margin:0;display:grid;gap:.6rem;counter-reset:s}
+.steps li{position:relative;padding:.85rem 1rem .85rem 3rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);color:var(--fg-2)}
+.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:.9rem;top:.8rem;width:1.5rem;height:1.5rem;display:grid;place-items:center;border-radius:999px;background:var(--surface-3);color:var(--fg);font:600 .74rem var(--mono)}
+.steps strong{color:var(--fg)}
+
+ul.plain{margin:.4rem 0 0;padding-left:1.1rem;color:var(--fg-2)}
+ul.plain li{margin:.25rem 0}
+hr{border:0;border-top:1px solid var(--border);margin:2rem 0}
+footer{border-top:1px solid var(--border);padding:1.25rem 0 2.5rem;font-size:.8rem;color:var(--dim)}
+footer a{color:var(--muted)}
+
+/* ---------- responsive ---------- */
+@media (max-width:820px){
+  .cols-3,.cols-4{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:560px){
+  header{padding:2.4rem 0 1.4rem}
+  .wrap{width:min(100% - 1.5rem, var(--max))}
+  .cols-2,.cols-3{grid-template-columns:1fr}
+  .cols-4{grid-template-columns:repeat(2,1fr);gap:.6rem}
+  .card{padding:.95rem 1rem}
+  .kpi .value{font-size:1.6rem}
+  .bar{grid-template-columns:1fr auto;}
+  .bar .track{grid-column:1 / -1;order:3}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}summary::before{transition:none}}
+@media print{
+  body{background:#fff;color:#111}
+  nav{display:none}
+  .card,.table,details{box-shadow:none;border-color:#ddd;background:#fff}
+  details{page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<header id="top"><div class="wrap">
+  <div class="eyebrow">SureWord<span class="sep">/</span>Voice accessibility plan<span class="sep">/</span>2026-10-28</div>
+  <h1>Let people speak to the same SureWord they already use.</h1>
+  <p class="dek">Add an optional spoken conversation to ordinary chat, with natural replies, the same tools and memory, and one saved history across every device.</p>
+  <div class="meta">Prepared by Codex · Planning only · Source audit + current vendor documentation · Implementation and device proof pending</div>
+</div></header>
+<nav aria-label="Sections"><div class="wrap"><a href="#summary">Decision</a><a href="#findings">Experience</a><a href="#data">Architecture &amp; cost</a><a href="#acceptance">Release gates</a><a href="#next">Work order</a><a href="#method">Evidence</a></div></nav>
+<main class="wrap">
+<section id="summary" aria-label="Recommendation">
+  <div class="card verdict">
+    <div class="card-head"><h2>Build near-real-time conversation first.</h2><span class="badge info">Recommendation</span></div>
+    <p><strong>Microphone → transcription → SureWord's existing chat engine → streamed natural speech → listen again.</strong> Use the current ElevenLabs Flash voice as the first natural-voice candidate, with device speech as a fallback. Keep GPT-Live client delegation as a prototype for more fluid interruptions.</p>
+    <p>The main engineering work is reliable turn ownership, audio coordination, and blind accessibility. Existing uploaded voice messages and onboarding narration supply useful parts, but neither is a conversation mode.</p>
+  </div>
+  <div class="grid cols-4" style="margin-top:.9rem">
+    <div class="card kpi"><span class="label">Shared tool definitions</span><span class="value">52</span><span class="delta">Keep the current account and context rules</span></div>
+    <div class="card kpi"><span class="label">Supported clients</span><span class="value">4</span><span class="delta">Android first; web, iOS, macOS in cycle</span></div>
+    <div class="card kpi"><span class="label">10-minute example</span><span class="value">$0.20</span><span class="delta">Chained speech estimate, plus chat/tools</span></div>
+    <div class="card kpi"><span class="label">Raw recordings saved</span><span class="value">0</span><span class="delta">Proposed default; retain the chat transcript</span></div>
+  </div>
+</section>
+<section id="findings">
+  <h2>A blind person must be able to finish the whole conversation.</h2>
+  <p class="lead">The supplied image suggests an inviting Talk entry. The product requirement extends through permissions, follow-ups, tool actions, errors, and returning to the saved chat.</p>
+  <div class="grid">
+    <div class="card">
+      <div class="card-head"><h3>Start once, then talk back and forth.</h3><span class="badge info">Proposed experience</span></div>
+      <p>Add a clearly named <strong>Talk to SureWord</strong> button beside the composer and on the chat home. After permission and a short spoken introduction, the user asks a question, hears the answer, and continues in the same thread without tapping Send each time.</p>
+      <details><summary>Controls and turn behavior</summary><div class="body"><ul class="plain">
+        <li>Listening, Working, Speaking, Paused, and Connection lost are both visible and accessible; a waveform or color is never the only signal.</li>
+        <li>Provide Finish speaking, Cancel recording, Stop speaking, Pause listening, Replay answer, and End conversation. No hold gesture or precise touch is required.</li>
+        <li>Detect the end of speech with a configurable pause; start testing around 1.2–2 seconds. Offer a manual mode with one stable accessible Start/Finish control for slow speech, long pauses, or noisy rooms. Read back the recognized request on demand and allow correction or cancellation before execution.</li>
+        <li>Re-arm listening after playback/cues drain and the previous turn is durably saved. If capture starts earlier, hold its transcript until the canonical parent version is available. First release is turn-taking; speaking over the assistant is a separate echo-cancellation and interruption gate.</li>
+        <li>Replay, slower/faster speech, and stop/resume use existing output, without spending another AI answer. Add Read aloud to old answers outside Talk mode.</li>
+        <li>First release uses an explicit foreground session. Backgrounding or locking pauses microphone capture; resume is deliberate. Background calling and wake words are later scope.</li>
+      </ul></div></details>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Voice and typing share one history and one set of capabilities.</h3><span class="badge info">Product contract</span></div>
+      <p>Save finalized user speech as ordinary user text, and save SureWord's full answer, citations, and tool results in the same conversation. A person can switch to typing, close the app, or reopen the thread on another device.</p>
+      <details><summary>What “all its tools” means</summary><div class="body"><p>Preserve Scripture retrieval, KJV passages, original languages, Atlas, web search preferences, notes, highlights, memories and prayer, Daily Cross, reading plans and journal, Learn, church and sermon context, Serve, and ongoing studies. These remain subject to the same entitlement, ownership, context, and confirmation checks as typed chat.</p><p>Render tool cards for sighted users and speak their useful outcome. Read available choices with stable labels and support an answer such as “the second one.” If a tool opens a screen, announce the destination and offer to read its content; opening a visual screen alone does not satisfy a spoken request.</p><p>Do not narrate internal reasoning or raw tool JSON. Say that a note was saved only after its server receipt exists. The current registry is <code>src/lib/ai-tools.ts:1669–1704</code>, including its six spread builders.</p></div></details>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Saved text and spoken meaning must agree.</h3><span class="badge warn">Release requirement</span></div>
+      <p>Speak the approved answer with plain, warm, unhurried delivery and an adjustable speed. Format references for speech, preserve exact KJV quotations, and keep the existing doctrinal foundation in the shared backend.</p>
+      <details><summary>Speech rendering and interruptions</summary><div class="body"><p>Use full-answer narration as an engineering baseline. The first user pilot must stream completed, stable sentences or clauses, or demonstrate that full-answer narration meets the measured response targets. A speech renderer removes Markdown and expands references such as “First Corinthians, chapter thirteen, verse four”; it must not silently rewrite theology, quotations, or action results.</p><p>The full answer remains in the log when playback is interrupted. Record playback separately as partial/stopped, and offer “read the rest.” Generated text, synthesized audio, and audio actually played are different facts; never mark the entire answer as heard merely because generation completed.</p><p>If GPT-Live paraphrases an approved result, its actual spoken transcript also needs to be stored and tied to that result. Exact Scripture can use a verified rendered clip with Live output controlled while it plays. A prompt alone is not proof that the spoken words matched.</p></div></details>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Screen-reader use is part of the core flow.</h3><span class="badge warn">Release requirement</span></div>
+      <p>Test with TalkBack and VoiceOver enabled, with the screen hidden. Keep focus stable, announce state changes without reading every token, and provide one clear route to stop audio or leave the session.</p>
+      <details><summary>Speech ownership, failure, and privacy</summary><div class="body"><ul class="plain">
+        <li>Offer natural app narration or device/screen-reader reading for answers, with an explicit preference. Avoid duplicate automatic full-answer announcements; never require disabling the screen reader.</li>
+        <li>Coordinate chat narration, Bible audio, devotional audio, microphone capture, headphones, Bluetooth, and system interruptions in one audio controller per client. Announce readiness only after capture initializes; exclude app cues/status speech from input and suspend automatic capture during app announcements.</li>
+        <li>Prevent self-transcription and measure ambient false activations on hardware. Provide pause/manual capture and transcript correction; ambient speech must never bypass protected-action confirmation.</li>
+        <li>Read permission, network, quota, transcription, and playback failures with an actionable recovery. Keep the transcript when audio fails, and avoid silent fallback failures.</li>
+        <li>Tell users they hear an AI voice and that their transcript is saved with chat. Capture only during an explicit session; save raw microphone audio only with a separate opt-in.</li>
+        <li>Verify screen-reader navigation cannot become user input. Where reliable coordination is unavailable, provide explicit accessible Start/Finish capture with the screen reader enabled.</li>
+        <li>Keep transcripts and synthesized personal audio private and account-scoped. Use short-lived playback URLs, a defined audio cache lifetime, deletion with the conversation/account, and no transcript text in analytics. Vendor retention terms require separate review.</li>
+      </ul><p>The status behavior follows <a href="https://www.w3.org/WAI/WCAG22/Understanding/status-messages.html">W3C guidance on accessible status messages</a>. This plan is not a claim of accessibility conformance.</p></div></details>
+    </div>
+  </div>
+</section>
+<section id="data">
+  <h2>Keep speech around the shared chat engine.</h2>
+  <p class="lead">The near-real-time path is the first-release recommendation. Full-duplex voice remains a measured alternative, with explicit fidelity and hosting gates.</p>
+  <div class="table"><table><thead><tr><th>Layer</th><th>First release</th><th>Reason</th></tr></thead><tbody>
+    <tr><td>Input</td><td>In-app mic, voice activity detection, final transcript</td><td>Commands become user text before policy, memory, and persistence.</td></tr>
+    <tr><td>Thinking and tools</td><td>Shared turn runner extracted from <code>/api/ask-question</code></td><td>Keep current model/effort rules, doctrine, memory, tools, and account context.</td></tr>
+    <tr><td>Output</td><td>ElevenLabs <code>eleven_flash_v2_5</code> streaming candidate; device TTS fallback</td><td>Already used for onboarding replies; read the authoritative answer directly.</td></tr>
+    <tr><td>History</td><td>Existing Conversation/Message plus durable turn and operation receipts</td><td>Resume and retry without duplicate notes, journal entries, or answers.</td></tr>
+    <tr><td>Session</td><td>Client audio state machine, bounded authenticated HTTP/SSE requests</td><td>Near-real-time conversation can use existing hosting without a permanent call server.</td></tr>
+    <tr><td>Full duplex prototype</td><td>GPT-Live client delegation → the same turn runner</td><td>Natural overlapping speech is promising; verify paraphrasing, turn grouping, cost, and native transport.</td></tr>
+  </tbody></table></div>
+  <details><summary>The five backend contracts that must precede automatic retries</summary><div class="body">
+    <ol class="steps">
+      <li><strong>One canonical spoken turn.</strong> Require/create an owned conversation before accepting input. Commit finalized mic speech into user text; keep arbitrary uploaded recordings as quoted attachment content.</li>
+      <li><strong>One server-owned turn identity.</strong> Use a stable <code>turnId</code>, conversation parent/version, and canonical user/assistant IDs. Load validated history from the server; serialize committed turns in a thread and reject or reconcile stale parents.</li>
+      <li><strong>Idempotent writes and durable save events.</strong> Uniquely claim each turn, tool operation, and synthesis segment; replay stored results on retry and charge once per segment. Save user text before work; return <code>turn.saved</code> only after assistant text/tool results are durable. Reconnect by ID, without generating again.</li>
+      <li><strong>Separate stopping audio from cancelling work.</strong> Stop speaking clears playback immediately. Cancel pending work blocks unstarted writes and suppresses obsolete output, while completed actions keep their receipts. End conversation closes capture and transport according to an explicit drain/cancel policy.</li>
+      <li><strong>Exact spoken approval.</strong> Bind a final explicit “yes” to the active proposal, exact arguments, and a later user turn. Keep the existing fingerprint/expiry/ownership rules; ensure the proposal was presented accessibly before using a bare confirmation.</li>
+    </ol>
+    <p>Proposed runner input: <code>userId, conversationId, turnId, parentVersion, canonicalText, inputMode, locale, timezone</code>. Proposed output events: user saved, progress, tool receipt, answer text, speech segment ready, turn saved, terminal state. These are design contracts, not existing APIs.</p>
+    <p>Suggested storage: a durable turn record with unique IDs and state; per-operation receipts for mutating tools; message metadata linking input mode and logical voice session; separate speech segment/playback records. Apply schema migrations only during implementation. Keep transport records subordinate to the existing conversation and account deletion paths.</p>
+  </div></details>
+  <details><summary>What is already built, and where it stops</summary><div class="body">
+    <div class="table"><table><thead><tr><th>Capability from source</th><th>Android</th><th>Web</th><th>macOS / iOS</th></tr></thead><tbody>
+      <tr><td>Imported audio transcription</td><td>Present</td><td>Present</td><td>Present</td></tr>
+      <tr><td>Onboarding read-aloud + device fallback</td><td>Present</td><td>Present</td><td>Present, shared Apple code</td></tr>
+      <tr><td>In-app conversational microphone capture</td><td>Absent</td><td>Absent</td><td>Absent</td></tr>
+      <tr><td>Live transcription and automatic next turn</td><td>Absent</td><td>Absent</td><td>Absent</td></tr>
+      <tr><td>General chat reply narration</td><td>Absent</td><td>Absent</td><td>Absent</td></tr>
+    </tbody></table></div>
+    <p>“Present” means implementation exists in source, not a fresh device pass. Keyboard dictation supplied by the operating system is separate from an in-app conversation.</p>
+    <p>Android recording is explicitly disabled in <code>mobile/app.json:69–73</code>. Apple needs microphone usage configuration and capture implementation; add speech-recognition permission only if that API is selected. Every native capture change requires a rebuilt app.</p>
+    <p>Onboarding narration is gated by conversation on both server and clients. Current speech generation waits for <code>response.arrayBuffer()</code>, so its “stream” playback URL does not provide low-latency synthesis while new answer text arrives.</p>
+  </div></details>
+  <details><summary>Compare architectures and current prices</summary><div class="body">
+    <div class="table"><table><thead><tr><th>Option</th><th>Tradeoff</th><th>Voice cost example</th></tr></thead><tbody>
+      <tr><td>Recommended chain: STT + shared agent + Flash</td><td>Direct text fidelity; turn-taking and audio coordination are application work.</td><td class="num">~$0.195 / 10 min</td></tr>
+      <tr><td>GPT-Live + client delegation</td><td>Full duplex; needs transcript grouping, spoken-result checks, and session control.</td><td class="num">$0.50 / 10 min</td></tr>
+      <tr><td>Device speech output</td><td>No cloud TTS charge; quality and availability depend on installed voices.</td><td class="num">STT + chat still billed</td></tr>
+    </tbody></table></div>
+    <p><strong>Assumptions:</strong> 10 minutes total, five minutes of user speech, five minutes of assistant speech, 900 output characters per spoken minute. Existing <code>gpt-4o-mini-transcribe</code> at $0.003/input minute costs $0.015; 4,500 Flash characters at $0.04/1,000 cost $0.18. GPT-Live is $0.05/session minute, billed per second; backend models/tools are additional in both examples.</p>
+    <p>These are planning examples, not a production quote. They exclude backend tokens, tools, storage, hosting, retries, silence policy, taxes, and plan-specific terms. ElevenLabs advertises ~75 ms model latency; that is not measured end-to-end SureWord latency. Sources: <a href="https://elevenlabs.io/pricing/api">ElevenAPI pricing</a>, <a href="https://elevenlabs.io/docs/overview/models#flash-v25">Flash model documentation</a>, <a href="https://developers.openai.com/api/docs/pricing">OpenAI pricing</a>.</p>
+    <p><strong>Access recommendation, pending Austin's decision:</strong> provide basic spoken use on Free within a clear allowance, and a larger natural-voice allowance on Pro. Do not treat existing uncapped Pro audio-file transcription as authorization for unlimited live voice. Repeat/stop/rate controls should not consume chat turns; backend questions continue through the existing usage policy.</p>
+    <p>The source currently configures 20 Free answers/day and 50 Pro answers/day with 600/month (<code>src/lib/billing/plans.ts:3–5</code>). Conversational follow-ups can exhaust that quickly; measure real sessions before setting voice allowances. Input minutes, synthesized characters, session duration, and AI answer turns need separate accounting.</p>
+  </div></details>
+  <details><summary>Why GPT-Live is a prototype, and why legacy OpenAI TTS is not the baseline</summary><div class="body">
+    <p><a href="https://developers.openai.com/api/docs/guides/voice-agents">OpenAI's architecture guide</a> now supports a full-duplex voice frontend with an independent existing backend. Client delegation is the fitting mode for SureWord; it retains our context and tool execution rather than rebuilding them in a hosted configuration.</p>
+    <p>Two documented constraints matter here: Live commentary may paraphrase supplied results, and transcript fragments have timestamps but no completed-turn event or item ID. We must group turns, record actual speech, preserve exact quotations, and handle corrections while work continues. Sources: <a href="https://developers.openai.com/api/docs/guides/live-delegation#configure-client-delegation">Client delegation</a> and <a href="https://developers.openai.com/api/docs/guides/live-conversations#transcript-deltas">Live transcript behavior</a>.</p>
+    <p>For a secure Live architecture, plan a persistent server-side session controller and <a href="https://developers.openai.com/api/docs/guides/voice-server-controls">sideband control connection</a>, keeping authorization and credentials server-owned. Verify native WebRTC support in the actual Expo and Apple builds, project access, session lifecycle, regional/network behavior, and operating cost before choosing a call service. Do not assume an ordinary five-minute Next.js route can own an arbitrarily long voice call; <a href="https://vercel.com/docs/functions/limitations">Vercel documents bounded function duration</a>.</p>
+    <p>OpenAI's <a href="https://developers.openai.com/api/docs/guides/text-to-speech">TTS guide</a> currently marks <code>tts-1</code>, <code>tts-1-hd</code>, and <code>gpt-4o-mini-tts</code> for shutdown on January 6, 2027. It says the replacement uses the Realtime API rather than <code>/audio/speech</code>; avoid starting a new long-lived integration on those legacy models.</p>
+  </div></details>
+</section>
+<section id="acceptance">
+  <h2>“Works for a blind user” is the release test.</h2>
+  <p class="lead">An audible demo is insufficient. Verify spoken behavior, saved records, completed tool actions, and recovery separately on the same build.</p>
+  <div class="table"><table><thead><tr><th>Scenario</th><th>Required evidence</th></tr></thead><tbody>
+    <tr><td>Screen hidden, screen reader on</td><td>Start, permission, ask, hear, follow up, replay, pause and exit using ordinary accessible activation. No sighted rescue after onboarding.</td></tr>
+    <tr><td>Scripture and a follow-up</td><td>“Read Psalm 23,” then “What does verse four mean?” Hear accurate KJV wording; confirm both turns and citations survive reopening on a second client.</td></tr>
+    <tr><td>Write and confirm</td><td>“Save that to my notes”; check the actual saved note. For a protected replacement, hear the exact proposal and confirm it in a later turn. Repeated network delivery produces one change.</td></tr>
+    <tr><td>All tool families</td><td>Exercise reading, notes, memory/prayer, Daily Cross/plans, Learn, church/sermon, Serve, Atlas/language and allowed web research. Speak useful outcomes and accessible choices.</td></tr>
+    <tr><td>Interrupt, correct, reconnect</td><td>Stop playback immediately; clear stale audio. Correct a request before pending writes, retain completed receipts, reconnect without duplicate answers or actions.</td></tr>
+    <tr><td>Real audio conditions</td><td>Speaker, headphones, Bluetooth, TV/background speech, long pauses, Bible names and verse numbers. No self-transcription or competing screen-reader narration.</td></tr>
+    <tr><td>Failure and lifecycle</td><td>Denied/revoked mic, expired login, lost network, exhausted quota, failed synthesis, app background/lock, incoming call, conversation switch. Speak recovery and preserve saved text. Test pauses longer than the endpoint threshold without sighted rescue.</td></tr>
+    <tr><td>Usage settlement and replay</td><td>Duplicate delivery synthesizes/charges once per segment. Successful tool-only/card-only turns, interrupted work, failed synthesis, and replay settle their independent allowances correctly.</td></tr>
+    <tr><td>Privacy and deletion</td><td>Another account cannot read/play the session. Conversation/account deletion removes associated stored speech; mic indicators and pause behavior match actual capture.</td></tr>
+  </tbody></table></div>
+  <details><summary>Performance targets and proof package</summary><div class="body"><p>Proposed pilot targets, not measured results: median first useful audible answer within 3 seconds of the user’s last spoken word and p95 within 7 seconds for ordinary no-tool questions; Stop speaking silences playback within 300 ms. Include endpoint detection in that user-facing total; also measure committed-turn latency, transcription, backend first useful text, speech first byte, and actual audible playback separately.</p><p>Tool-heavy requests get truthful accessible progress, with the full task time reported separately. A filler acknowledgment does not count as the answer. Use deterministic replay tests for duplicate delivery and interruption, then representative human recordings and live sessions.</p><p>Record device/build, network, configuration, timing, screen-reader settings, server turn IDs, saved history, and tool receipt checks. A successful simulator run does not establish microphone routing, Bluetooth, or blind usability on physical hardware. Pilot with a blind participant; Austin's mom is the motivating user, and participation remains her choice.</p></div></details>
+</section>
+<section id="next">
+  <h2>Build in five bounded work packages.</h2>
+  <p class="lead">Owners below are engineering roles, not assignments already sent to a team. No implementation, deployment, or external issue creation is part of this planning task.</p>
+  <ol class="steps">
+    <li><strong>Audio prototype, Android owner.</strong> Capture actual microphone speech, submit one finalized turn through the shared engine, and compare Flash/device narration. Measure first audible answer, long pauses, exact quotations, and screen-reader behavior. Prototype GPT-Live client delegation separately to resolve the full-duplex tradeoff.</li>
+    <li><strong>Durable turn contracts, backend owner.</strong> Extract the shared runner without changing doctrine. Add canonical history, turn/operation identity, durable-save acknowledgment, stale-result handling, and playback-versus-work cancellation. Prove reconnect, approval, quota, and deletion behavior before automatic retries.</li>
+    <li><strong>Accessible conversation, Android + backend owners.</strong> Build the hands-free turn-taking loop, transcript, replay/rate controls, tool outcome narration, permission/recovery flow, and audio coordinator. Gate rollout by account/server flags and exercise the real Android path first.</li>
+    <li><strong>Capability parity, web + Apple owners.</strong> Implement the same contract with native layouts on web, iOS and macOS. Rebuild capture permissions, test real audio hardware, and update <code>docs/PARITY.md</code>; no untested platform is marked complete.</li>
+    <li><strong>Blind-user pilot and release, accessibility + release owners.</strong> Review recorded evidence and actual saved/tool state, choose allowances and voice defaults from measured cost, then ship through the normal Android/web/Apple gates. Keep full duplex gated until it meets the same fidelity and interruption tests.</li>
+  </ol>
+  <details><summary>Decisions still open</summary><div class="body"><ul class="plain"><li>Which device the motivating user will use, to prioritize the physical pilot.</li><li>Free versus Pro allowances and whether natural voice is included by default.</li><li>Preferred voice, speaking rate, and pause sensitivity after listening tests.</li><li>Whether full-duplex benefits justify its transcript, fidelity, hosting, and cost work.</li></ul><p>Working assumptions: Android leads development as the project requires; all four clients remain in scope. Basic speech accessibility should be available to Free users within an explicit allowance. These are planning recommendations, not settled billing policy.</p></div></details>
+</section>
+<section id="method">
+  <h2>Evidence and boundaries</h2>
+  <p class="lead">Read-only code audit by two bounded investigators, with lead inspection of the key contracts. Vendor documentation was retrieved during this session on October 28, 2026.</p>
+  <details><summary>Source evidence and exact implementation targets</summary><div class="body">
+    <div class="table"><table><thead><tr><th>Finding</th><th>Source location</th><th>Implementation implication</th></tr></thead><tbody>
+      <tr><td>Shared tool orchestration</td><td><code>src/app/api/ask-question/route.ts:739–775, 1113–1257</code><br><code>src/lib/ai-tools.ts:1669–1704</code></td><td>Extract one runner; keep the current prompts and contextual tool rules.</td></tr>
+      <tr><td>Client-supplied recent history and optional conversation</td><td><code>ask-question/route.ts:671–674, 744–775, 875</code></td><td>Require owned, canonical, versioned conversation state for voice.</td></tr>
+      <tr><td>Final save runs after stream work</td><td><code>ask-question/route.ts:913–945</code><br><code>prisma/schema.prisma:445–499</code></td><td>Add durable acknowledgment and turn state; do not equate stream completion with saved history.</td></tr>
+      <tr><td>Disconnect preserves generation</td><td><code>ask-question/route.ts:1259–1272, 1302–1326</code><br><code>prisma/schema.prisma:458–471</code></td><td>New explicit interruption policy; a client abort does not roll back writes.</td></tr>
+      <tr><td>Imported audio is quoted content</td><td><code>src/lib/audio-transcription-rules.ts:83–100</code><br><code>ask-question/route.ts:284–311, 849–851</code></td><td>New first-party mic input mode; do not promote arbitrary uploaded speech to commands.</td></tr>
+      <tr><td>Existing approval semantics</td><td><code>src/lib/agent-actions.ts:79–106, 126–134</code></td><td>Preserve later-turn exact approval; add accessible proposal presentation state.</td></tr>
+      <tr><td>Some writes lack retry receipts</td><td><code>src/lib/notes-io.ts:145–173</code><br><code>src/lib/serve.ts:143–144</code><br><code>src/lib/billing/usage.ts:122–146, 291–315</code></td><td>Stable turn IDs and per-tool operation receipts, not billing deduplication alone.</td></tr>
+      <tr><td>Narration scope and buffering</td><td><code>src/lib/onboarding-voice.ts:18–39, 80–97</code><br><code>src/lib/daily-cross-audio.ts:312–340</code></td><td>Generalize ownership-checked narration and add actual synthesis streaming.</td></tr>
+      <tr><td>Existing speech queue and fallback</td><td><code>mobile/src/features/onboarding/useWelcomeVoice.ts:18–44, 62–124</code><br><code>src/components/walk/useWelcomeVoice.ts:89–125</code><br><code>macos/Shared/Onboarding/OnboardingVoice.swift:128–171</code></td><td>Reuse concepts; add general controls, audible failures, and one audio owner.</td></tr>
+      <tr><td>Client entry and audio configuration</td><td><code>mobile/src/features/chat/ChatInputBar.tsx:323–382</code><br><code>src/components/ChatInput.tsx</code><br><code>macos/SureWord-iOS/Views/Chat/ChatInputBar.swift:82–149</code><br><code>macos/SureWord/Chat/Views/ChatInputBar.swift:53–125</code><br><code>mobile/app.json:69–73</code><br><code>macos/project.yml:386–397</code></td><td>Implement per-platform Talk controls, capture, permission configuration, and state announcements.</td></tr>
+    </tbody></table></div>
+    <p>Other reviewed paths include transcription completion/usage, conversation APIs, client chat hooks, audio Bible controls, onboarding gates, and accessibility announcements. Read the referenced files again before implementation because concurrent Apple work is active.</p>
+  </div></details>
+  <p>Git fetch completed: inspected checkout <code>143893b3</code>, nine commits ahead of <code>origin/main</code> at inspection, with unrelated local Apple edits. No code changes, model calls, microphone tests, database writes, or release actions were performed for this plan. Source presence and vendor capabilities are established; latency, voice quality, exact speech, account access, and real-device usability remain unverified.</p>
+</section>
+</main>
+<footer><div class="wrap">Generated 2026-10-28 · Single-file HTML, fonts fall back offline · <a href="#top">Back to top</a></div></footer>
+</body></html>
