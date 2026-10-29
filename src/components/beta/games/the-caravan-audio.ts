@@ -1,10 +1,12 @@
+import { stageAudioContext } from "./stage-kit";
+
 /**
  * The sound of The Caravan (LC-17851), synthesized with Web Audio so the game
  * ships no sound files: the desert wind (louder in a gust of the sandstorm),
  * footfalls on the sand, a hand drum and a plucked, oud-like line on the
  * Hijaz scale that build as the caravan keeps its stride, a low drone, a
  * chime when the star is caught up with, and a resolving chord at the house.
- * Created only from a press (browsers start audio on a gesture).
+ * Built on the shared stage AudioContext, which the Start press unlocks.
  */
 
 export interface CaravanMix {
@@ -54,9 +56,10 @@ function noiseBuffer(context: AudioContext, seconds: number): AudioBuffer {
 }
 
 export function createCaravanAudio(muted: boolean): CaravanAudio | null {
-	const Context = typeof window === "undefined" ? undefined : (window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext);
-	if (!Context) return null;
-	const context = new Context();
+	// The shared stage context, unlocked by the Start press (iOS plays nothing from a context opened later).
+	const shared = stageAudioContext();
+	if (!shared) return null;
+	const context: AudioContext = shared;
 	const master = context.createGain();
 	master.gain.value = muted ? 0 : 0.85;
 	master.connect(context.destination);
@@ -82,16 +85,17 @@ export function createCaravanAudio(muted: boolean): CaravanAudio | null {
 	const drone = context.createGain();
 	drone.gain.value = 0;
 	droneShape.connect(drone).connect(master);
-	for (const [frequency, type] of [
+	const droneTones = ([
 		[73.42, "sawtooth"],
 		[110, "triangle"],
-	] as const) {
+	] as const).map(([frequency, type]) => {
 		const tone = context.createOscillator();
 		tone.type = type;
 		tone.frequency.value = frequency;
 		tone.connect(droneShape);
 		tone.start();
-	}
+		return tone;
+	});
 
 	function burst(filter: BiquadFilterType, frequency: number, peak: number, seconds: number, at = context.currentTime, sweepTo?: number) {
 		const source = context.createBufferSource();
@@ -254,7 +258,9 @@ export function createCaravanAudio(muted: boolean): CaravanAudio | null {
 		},
 		close() {
 			window.clearInterval(scheduler);
-			void context.close();
+			// The context is shared by every stage: stop this game's endless sources and cut off the rest.
+			for (const source of [windSource, ...droneTones]) source.stop();
+			master.disconnect();
 		},
 	};
 }

@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { BETA_PRIVATE_HEADERS, betaNotFound, requireBetaApi } from "@/lib/beta/access";
-import { GAME_MIN_SECONDS, recordGameRun } from "@/lib/beta/games/awards";
+import { GAME_MIN_SECONDS, listGameAwards, recordGameRun } from "@/lib/beta/games/awards";
 import { checkGameRun, findChapterGame } from "@/lib/beta/games/games-rules";
 
 /**
+ * GET /api/beta/games/<game>/award -> { award }: the founder's award for the
+ * game, or null before it is won; the reader's card reads it (LC-17851).
+ *
  * POST /api/beta/games/<game>/award { faithKept, seconds, swellsCleared }
  * -> { award }: records a finished chapter game and returns the founder's
  * award with it folded in (docs/beta/games.md). An unknown game is the
@@ -15,6 +18,19 @@ type Params = { params: Promise<{ game: string }> };
 
 function json(body: unknown, status = 200) {
 	return NextResponse.json(body, { status, headers: BETA_PRIVATE_HEADERS });
+}
+
+export async function GET(_request: Request, { params }: Params) {
+	const gate = await requireBetaApi();
+	if (!gate.ok) return gate.response;
+	const game = findChapterGame((await params).game);
+	if (!game) return betaNotFound();
+	try {
+		return json({ award: (await listGameAwards(gate.userId))[game.slug] ?? null });
+	} catch (error) {
+		console.error("[api/beta/games/award] read failed", { name: error instanceof Error ? error.name : typeof error });
+		return json({ error: "Your award could not be read." }, 500);
+	}
 }
 
 export async function POST(request: Request, { params }: Params) {

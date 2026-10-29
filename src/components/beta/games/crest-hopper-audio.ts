@@ -1,21 +1,27 @@
+import { stageAudioContext } from "./stage-kit";
+
 /**
  * Crest Hopper's sound (LC-17851): chiptune, synthesized with Web Audio
  * square and triangle oscillators and a little noise, so the game ships no
- * sound files. A blip for each hop that climbs with the combo, a splash of
- * noise for a slip, a rush for a gust, and a short jingle on reaching Jesus.
- * Created only from a press (browsers start audio on a gesture).
+ * sound files. A low storm ostinato under the round that quickens toward
+ * Jesus, a blip for each hop that climbs as Peter nears him, a splash of noise
+ * for a slip, a rising hiss for a gust's warning and a rush when it shoves,
+ * and a short jingle on reaching Jesus. The stage creates it on the round's
+ * first step, on the shared stage AudioContext that the Start press unlocks.
  */
 
 export interface HopperAudio {
-	hop(combo: number): void;
+	/** One beat of the ostinato; `beat` counts up from 0, `progress` is 0 at the ship to 1 at Jesus. */
+	beat(beat: number, progress: number): void;
+	hop(progress: number): void;
 	side(): void;
+	land(): void;
+	steady(): void;
 	slip(): void;
 	gustWarn(): void;
 	gust(): void;
-	rest(): void;
-	sinking(): void;
-	rescued(): void;
 	victory(): void;
+	lost(): void;
 	setMuted(muted: boolean): void;
 	pause(): void;
 	resume(): void;
@@ -28,9 +34,10 @@ function note(semitones: number): number {
 }
 
 export function createHopperAudio(muted: boolean): HopperAudio | null {
-	const Context = typeof window === "undefined" ? undefined : (window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext);
-	if (!Context) return null;
-	const context = new Context();
+	// The shared stage context, unlocked by the Start press (iOS plays nothing from a context opened later).
+	const shared = stageAudioContext();
+	if (!shared) return null;
+	const context: AudioContext = shared;
 	const master = context.createGain();
 	master.gain.value = muted ? 0 : 0.5;
 	master.connect(context.destination);
@@ -74,39 +81,44 @@ export function createHopperAudio(muted: boolean): HopperAudio | null {
 		source.stop(t + length + 0.05);
 	}
 
-	// A major pentatonic run the combo climbs: each hop in a row a step higher.
-	const SCALE = [3, 5, 7, 10, 12, 15, 17, 19, 22];
+	// The storm's bass line in A minor (A, A, F, G), and a pentatonic run the hops climb toward Jesus.
+	const BASS = [-24, -24, -28, -26];
+	const SCALE = [3, 5, 7, 10, 12, 15, 17, 19, 22, 24, 27, 29];
 
 	return {
-		hop(combo) {
-			const step = SCALE[Math.min(SCALE.length - 1, Math.max(0, combo))];
-			tone("square", note(step), note(step + 7), 0, 0.07, 0.09);
+		beat(beat, progress) {
+			const root = BASS[Math.floor(beat / 2) % BASS.length];
+			tone("triangle", note(root), note(root), 0, 0.22, 0.2);
+			if (beat % 2 === 1) hiss("lowpass", 500, 200, 0, 0.12, 0.05);
+			// Nearer Jesus, a high answer joins in.
+			if (progress > 0.45 && beat % 4 === 2) tone("square", note(root + 31), note(root + 31), 0, 0.09, 0.025);
+		},
+		hop(progress) {
+			const step = SCALE[Math.min(SCALE.length - 1, Math.max(0, Math.round(progress * (SCALE.length - 1))))];
+			tone("square", note(step), note(step + 7), 0, 0.07, 0.08);
 		},
 		side() {
 			tone("triangle", note(-2), note(3), 0, 0.06, 0.16);
+		},
+		land() {
+			hiss("highpass", 2400, 4000, 0, 0.06, 0.05);
+		},
+		steady() {
+			tone("triangle", note(3), note(3), 0, 0.1, 0.18);
+			tone("triangle", note(10), note(10), 0.08, 0.18, 0.18);
 		},
 		slip() {
 			hiss("bandpass", 1600, 260, 0, 0.45, 0.4);
 			tone("square", note(-5), note(-17), 0.02, 0.28, 0.07);
 		},
 		gustWarn() {
-			hiss("highpass", 900, 2600, 0, 0.9, 0.08);
+			hiss("highpass", 900, 2600, 0, 1.2, 0.09);
 		},
 		gust() {
-			hiss("bandpass", 2400, 500, 0, 0.35, 0.22);
-		},
-		rest() {
-			tone("triangle", note(3), note(3), 0, 0.12, 0.2);
-			tone("triangle", note(10), note(10), 0.1, 0.22, 0.2);
-		},
-		sinking() {
-			for (const [i, step] of [7, 3, 0, -5].entries()) tone("triangle", note(step), note(step), i * 0.22, 0.3, 0.2);
-		},
-		rescued() {
-			for (const [i, step] of [-9, -5, -2, 3].entries()) tone("triangle", note(step), note(step), i * 0.14, 0.35, 0.2);
+			hiss("bandpass", 2400, 500, 0, 0.35, 0.24);
 		},
 		victory() {
-			// C major, rising, then a held chord: the wind ceased.
+			// Rising, then a held chord: the wind ceased.
 			const melody: [number, number, number][] = [
 				[3, 0, 0.12],
 				[7, 0.12, 0.12],
@@ -123,6 +135,9 @@ export function createHopperAudio(muted: boolean): HopperAudio | null {
 			] as const) tone("triangle", note(step), note(step), start, length, 0.22);
 			tone("triangle", note(-2), note(-2), 0.84, 1.2, 0.12);
 		},
+		lost() {
+			for (const [i, step] of [7, 3, 0, -5].entries()) tone("triangle", note(step), note(step), i * 0.2, 0.3, 0.18);
+		},
 		setMuted(next) {
 			master.gain.setTargetAtTime(next ? 0 : 0.5, context.currentTime, 0.03);
 		},
@@ -133,7 +148,8 @@ export function createHopperAudio(muted: boolean): HopperAudio | null {
 			void context.resume();
 		},
 		close() {
-			void context.close();
+			// The context is shared by every stage: only this game's sound is cut off.
+			master.disconnect();
 		},
 	};
 }

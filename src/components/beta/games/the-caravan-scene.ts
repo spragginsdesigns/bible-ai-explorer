@@ -1,7 +1,11 @@
 import {
 	CARAVAN_END,
+	CARAVAN_FOOT,
+	CARAVAN_HITS,
 	CARAVAN_JERUSALEM,
 	OVERHEAD_CLEARANCE,
+	hazardAction,
+	nextHazard,
 	type CaravanHazard,
 	type CaravanState,
 } from "@/lib/beta/games/the-caravan-rules";
@@ -11,9 +15,12 @@ import {
  * sky from dusk through the deep night to the glow before dawn, the star
  * high ahead, far mountains, dunes, palms and rock spires in parallax, the
  * road with its rocks, ravines, ledges and gusts of sand, the travellers and
- * their pack animals, Jerusalem's walls at the halt and the house in
- * Bethlehem at the end. Pure drawing: everything it shows comes from the
- * simulation's state and the frame's clock, and nothing here changes either.
+ * their pack animals, Jerusalem's walls passing far off midway and the house
+ * in Bethlehem at the end; then, over it all, what to do next (JUMP or DUCK
+ * over each hazard as it comes, LC-17851's "make the controls obvious") and
+ * the stars of the star kept. Pure drawing: everything it shows comes from
+ * the simulation's state and the frame's clock, and nothing here changes
+ * either.
  */
 
 export interface TrailPoint {
@@ -33,14 +40,16 @@ export interface CaravanFrame {
 	starGlow: number;
 	/** 0-1 shake after a stumble (0 for reduced motion), already faded by the caller. */
 	shake: number;
-	/** Seconds since the halt at Jerusalem began, or null. */
-	halt: number | null;
 	/** Seconds since the caravan reached the house, or null. */
 	arrival: number | null;
+	/** 0-1 red flash after a stumble, already faded by the caller (shown in reduced motion too). */
+	flash: number;
+	/** 0-1: how strongly the opening "how to play" cue shows, already faded by the caller. */
+	hint: number;
 }
 
 /** The house sits just past the end of the road; its door a little before it. */
-const HOUSE_X = CARAVAN_END + 5.2;
+const HOUSE_X = CARAVAN_END + 3;
 const DOOR_X = HOUSE_X - 0.6;
 /** The train behind the leader: who walks where, in paces behind him. */
 /** It runs on off the edge of the view: travellers, those with them, and their animals, never a count. */
@@ -200,6 +209,10 @@ function starPosition(frame: CaravanFrame, view: View) {
 	const portrait = width < height;
 	let x = width * ((portrait ? 0.64 : 0.72) + (portrait ? 0.42 : 0.34) * slip);
 	let y = height * ((portrait ? 0.3 : 0.15) + 0.13 * slip);
+	// Over the last of the road it comes down toward the house ahead.
+	const near = frame.arrival === null ? ease((state.x - (CARAVAN_END - 22)) / 22) : 1;
+	x += (Math.min(width * 0.86, view.sx(HOUSE_X + 2)) - x) * near * 0.85;
+	y += (height * 0.2 - y) * near * 0.6;
 	if (frame.arrival !== null) {
 		// "Till it came and stood over where the young child was."
 		const t = ease(frame.arrival / 2.6);
@@ -214,8 +227,6 @@ function drawStar(ctx: CanvasRenderingContext2D, frame: CaravanFrame, view: View
 	const { x, y } = starPosition(frame, view);
 	const kept = state.keep / 100;
 	let bright = 0.3 + 0.7 * kept + 0.5 * frame.starGlow;
-	// At the halt in Jerusalem it is faint; when they depart it goes before them again (verse 9).
-	if (frame.halt !== null) bright *= 0.45;
 	if (state.phase === "lost") bright *= clamp(1 - state.ended / 1.5, 0, 1);
 	const arrived = frame.arrival === null ? 0 : ease(frame.arrival / 2.6);
 	bright += 0.4 * arrived;
@@ -300,8 +311,8 @@ function landmarkX(frame: CaravanFrame, view: View, at: number, cameraAt: number
 
 function drawJerusalem(ctx: CanvasRenderingContext2D, frame: CaravanFrame, view: View) {
 	const depth = 0.34;
-	const u = view.unit * 0.95;
-	const cx = landmarkX(frame, view, 0.64, CARAVAN_JERUSALEM - view.span * view.lead, depth);
+	const u = view.unit * 0.5;
+	const cx = landmarkX(frame, view, 0.62, CARAVAN_JERUSALEM - view.span * view.lead, depth);
 	const half = u * 13;
 	if (cx + half < 0 || cx - half > frame.width) return;
 	const base = view.ground - u * 0.9;
@@ -359,8 +370,8 @@ function drawJerusalem(ctx: CanvasRenderingContext2D, frame: CaravanFrame, view:
 
 function drawBethlehem(ctx: CanvasRenderingContext2D, frame: CaravanFrame, view: View) {
 	const depth = 0.34;
-	const u = view.unit * 0.85;
-	const cx = landmarkX(frame, view, 0.82, CARAVAN_END - view.span * view.lead, depth);
+	const u = view.unit * 0.6;
+	const cx = landmarkX(frame, view, 0.7, CARAVAN_END - view.span * view.lead, depth);
 	const half = u * 9;
 	if (cx + half < 0 || cx - half > frame.width) return;
 	const base = view.ground - u * 0.8;
@@ -402,7 +413,7 @@ function drawNearLand(ctx: CanvasRenderingContext2D, frame: CaravanFrame, view: 
 		const scale = view.unit * (0.85 + hash(i * 11) * 0.45);
 		// Near the cities the land is kept clear for them.
 		const world = view.camera + x / view.unit;
-		if (Math.abs(world - CARAVAN_JERUSALEM - 8) < 10) continue;
+		if (Math.abs(world - CARAVAN_JERUSALEM) < 6) continue;
 		if (kind < 0.36) drawPalm(ctx, x, base, scale, frame.now + i, color);
 		else if (kind < 0.58) {
 			// A rock spire, wind-cut.
@@ -885,7 +896,7 @@ function drawCaravan(ctx: CanvasRenderingContext2D, frame: CaravanFrame, view: V
 	const lead = leaderX(frame);
 	// "Fell down, and worshipped him": a deep bow at the door.
 	const kneel = frame.arrival === null ? 0 : 0.72 * ease((frame.arrival - 2.6) / 0.9);
-	const moving = (state.phase === "east" || state.phase === "bethlehem") && state.speed > 0.4 ? true : frame.arrival !== null && frame.arrival < 2.4;
+	const moving = state.phase === "running" ? true : frame.arrival !== null && frame.arrival < 2.4;
 	const overhead = (x: number) =>
 		state.hazards.some((hazard) => (hazard.kind === "ledge" || hazard.kind === "gust") && x > hazard.x - 0.9 && x < hazard.x + hazard.w + 0.5);
 	const poses: { kind: "traveller" | "animal"; pose: Pose; look: number }[] = [];
@@ -896,7 +907,7 @@ function drawCaravan(ctx: CanvasRenderingContext2D, frame: CaravanFrame, view: V
 		const ducked = (frame.arrival === null && overhead(x) ? 1 : 0) || (walker.kind === "traveller" ? kneel : kneel * 0.6);
 		poses.push({ kind: walker.kind, look: walker.look, pose: { x, y, crouch: ducked, stride: x * 2.3, air: y > 0.15 ? 1 : 0, moving } });
 	}
-	const crouch = Math.max(state.ducking ? 1 : 0, kneel, state.phase === "fell" ? 0.4 : 0);
+	const crouch = Math.max(state.ducking ? 1 : 0, kneel, state.phase === "lost" ? 0.4 : 0);
 	poses.push({
 		kind: "traveller",
 		look: 0,
@@ -916,7 +927,7 @@ function drawCaravan(ctx: CanvasRenderingContext2D, frame: CaravanFrame, view: V
 		ctx.restore();
 	}
 	// The lead rope from the leader's hand to the first animal.
-	if (frame.arrival === null && state.phase !== "fell") {
+	if (frame.arrival === null) {
 		const hand = { x: view.sx(lead) - view.unit * 0.1, y: view.sy(state.y + (state.ducking ? 0.55 : 1.1)) };
 		const animalY = trailHeight(frame.trail, state.x - TRAIN[0].behind);
 		const head = { x: view.sx(state.x - TRAIN[0].behind + 1.45), y: view.sy(animalY + (overhead(state.x - TRAIN[0].behind) ? 1.0 : 2.25)) };
@@ -988,7 +999,7 @@ function drawHouse(ctx: CanvasRenderingContext2D, frame: CaravanFrame, view: Vie
 function drawDust(ctx: CanvasRenderingContext2D, frame: CaravanFrame, view: View) {
 	const { state, now } = frame;
 	// Sand kicked up behind the leader's heels at pace.
-	if (state.grounded && state.speed > 4 && (state.phase === "east" || state.phase === "bethlehem")) {
+	if (state.grounded && state.phase === "running") {
 		ctx.fillStyle = "rgba(214, 180, 130, 0.35)";
 		for (let k = 0; k < 5; k++) {
 			const age = (now * 3 + k / 5) % 1;
@@ -1049,6 +1060,136 @@ function drawForeground(ctx: CanvasRenderingContext2D, frame: CaravanFrame, view
 	}
 }
 
+function chip(ctx: CanvasRenderingContext2D, x: number, y: number, text: string, fill: string, ink: string, scale: number, alpha: number) {
+	ctx.save();
+	ctx.globalAlpha = alpha;
+	ctx.translate(x, y);
+	ctx.scale(scale, scale);
+	ctx.font = "900 17px system-ui, sans-serif";
+	const w = ctx.measureText(text).width + 22;
+	ctx.shadowColor = fill;
+	ctx.shadowBlur = 14 * (scale - 0.8);
+	ctx.fillStyle = fill;
+	ctx.beginPath();
+	ctx.roundRect(-w / 2, -15, w, 30, 15);
+	ctx.fill();
+	ctx.shadowBlur = 0;
+	ctx.fillStyle = ink;
+	ctx.textAlign = "center";
+	ctx.textBaseline = "middle";
+	ctx.fillText(text, 0, 1);
+	ctx.restore();
+}
+
+function starShape(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+	ctx.beginPath();
+	for (let k = 0; k < 8; k++) {
+		const angle = -Math.PI / 2 + (k * Math.PI) / 4;
+		const radius = k % 2 ? r * 0.38 : r;
+		ctx.lineTo(x + Math.cos(angle) * radius, y + Math.sin(angle) * radius);
+	}
+	ctx.closePath();
+}
+
+/** What to do about the hazard coming (JUMP or DUCK, glowing when it is time), the opening cue, the stars kept, a stumble's flash. */
+function drawCues(ctx: CanvasRenderingContext2D, frame: CaravanFrame, view: View) {
+	const { width, height, state, now } = frame;
+	const playing = state.phase === "running";
+	if (playing) {
+		const coming: CaravanHazard[] = [];
+		const first = nextHazard(state);
+		if (first) {
+			coming.push(first);
+			const second = state.hazards.find((hazard) => hazard.id === first.id + 1);
+			if (second) coming.push(second);
+		}
+		for (const hazard of coming) {
+			const action = hazardAction(hazard.kind);
+			const closing = state.speed + (hazard.kind === "gust" ? 4 : 0);
+			const until = (hazard.x - CARAVAN_FOOT - state.x) / Math.max(1, closing);
+			if (until > 1.7) continue;
+			const alpha = clamp((1.7 - until) / 0.5, 0, 1);
+			// Time to act: a jump about a fifth of a second before a rock or the lip, a duck just before the overhang.
+			const act = action === "jump" ? until < 0.32 : until < 0.4;
+			const pulse = act ? 1.12 + 0.1 * Math.sin(now * 24) : 0.9;
+			const centre = view.sx(hazard.x + hazard.w / 2);
+			const x = clamp(centre, 50, width - 50);
+			const y = action === "jump" ? view.sy(hazard.kind === "rock" ? hazard.h + 2.4 : 2.6) : view.sy(4.9);
+			const jump = action === "jump";
+			const fill = jump ? "#ffd166" : "#7dd3fc";
+			// A pointer down to it.
+			ctx.save();
+			ctx.globalAlpha = alpha * 0.9;
+			ctx.fillStyle = fill;
+			ctx.beginPath();
+			ctx.moveTo(x - 7, y + 14);
+			ctx.lineTo(x + 7, y + 14);
+			ctx.lineTo(centre, y + 24);
+			ctx.closePath();
+			ctx.fill();
+			ctx.restore();
+			chip(ctx, x, y, jump ? "JUMP ↑" : "DUCK ↓", fill, "#1b1206", pulse, alpha);
+			if (act && hazard === first) {
+				// The leader's ring, the colour of what to do.
+				const lx = view.sx(state.x);
+				const ly = view.sy(state.y + 1);
+				ctx.strokeStyle = fill;
+				ctx.globalAlpha = 0.85;
+				ctx.lineWidth = 3;
+				ctx.beginPath();
+				ctx.arc(lx, ly, view.unit * (1.25 + 0.15 * Math.sin(now * 24)), 0, Math.PI * 2);
+				ctx.stroke();
+				ctx.globalAlpha = 1;
+			}
+		}
+	}
+
+	// The opening cue: the two controls, big.
+	if (frame.hint > 0) {
+		ctx.save();
+		ctx.globalAlpha = frame.hint;
+		ctx.fillStyle = "rgba(6, 6, 16, 0.55)";
+		ctx.beginPath();
+		ctx.roundRect(width / 2 - 150, 44, 300, 82, 16);
+		ctx.fill();
+		ctx.restore();
+		const pulse = 1 + 0.06 * Math.sin(now * 9);
+		chip(ctx, width / 2, 66, "↑ Space · Tap = JUMP", "#ffd166", "#1b1206", pulse, frame.hint);
+		chip(ctx, width / 2, 104, "↓ · Swipe down = DUCK", "#7dd3fc", "#06121b", pulse, frame.hint);
+		const lx = view.sx(state.x);
+		const ly = view.sy(1);
+		ctx.strokeStyle = `rgba(255, 220, 140, ${0.8 * frame.hint})`;
+		ctx.lineWidth = 3;
+		ctx.beginPath();
+		ctx.arc(lx, ly, view.unit * (1.1 + 0.3 * ((now * 1.5) % 1)), 0, Math.PI * 2);
+		ctx.stroke();
+	}
+
+	// The stars kept: one goes dark at each stumble; the last lost is the star lost.
+	const kept = CARAVAN_HITS - state.hits;
+	ctx.fillStyle = "rgba(6, 6, 16, 0.45)";
+	ctx.beginPath();
+	ctx.roundRect(8, 8, 26 * CARAVAN_HITS + 10, 32, 12);
+	ctx.fill();
+	for (let k = 0; k < CARAVAN_HITS; k++) {
+		const on = k < kept;
+		ctx.fillStyle = on ? "#ffe9a8" : "rgba(255, 255, 255, 0.18)";
+		if (on) {
+			ctx.shadowColor = "#ffd166";
+			ctx.shadowBlur = 8;
+		}
+		starShape(ctx, 26 + k * 26, 24, 10);
+		ctx.fill();
+		ctx.shadowBlur = 0;
+	}
+
+	if (frame.flash > 0) {
+		ctx.fillStyle = `rgba(255, 70, 50, ${0.32 * frame.flash})`;
+		ctx.fillRect(0, 0, width, height);
+		chip(ctx, clamp(view.sx(state.x), 70, width - 70), view.sy(3.3), "Stumbled!", "#ff6b5a", "#fff", 1, Math.min(1, frame.flash * 1.6));
+	}
+}
+
 export function drawCaravanScene(ctx: CanvasRenderingContext2D, frame: CaravanFrame) {
 	const view = viewFor(frame);
 	const { width, height, state } = frame;
@@ -1085,5 +1226,6 @@ export function drawCaravanScene(ctx: CanvasRenderingContext2D, frame: CaravanFr
 		ctx.fillStyle = shade;
 		ctx.fillRect(0, 0, width, height);
 	}
+	drawCues(ctx, frame, view);
 	ctx.restore();
 }

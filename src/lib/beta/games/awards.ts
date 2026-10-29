@@ -11,12 +11,6 @@ import {
 	type GameAward,
 	type GameRun,
 } from "@/lib/beta/games/games-rules";
-import { CARAVAN_MIN_SECONDS } from "@/lib/beta/games/the-caravan-rules";
-import { CHART_MIN_SECONDS } from "@/lib/beta/games/star-chart-rules";
-import { HOPPER_MIN_SECONDS } from "@/lib/beta/games/crest-hopper-rules";
-import { STAR_MIN_SECONDS } from "@/lib/beta/games/follow-the-star-rules";
-import { STORM_MIN_SECONDS } from "@/lib/beta/games/through-the-storm-rules";
-import { WALK_MIN_SECONDS } from "@/lib/beta/games/water-walk-rules";
 
 /**
  * Chapter Games' awards (LC-17850, docs/beta/games.md), one study-store item
@@ -27,18 +21,11 @@ import { WALK_MIN_SECONDS } from "@/lib/beta/games/water-walk-rules";
 const MODULE = "games";
 const KIND = "award";
 
-/** The soonest each game can be finished; a faster reported time was not played. */
-export const GAME_MIN_SECONDS: Record<string, number> = {
-	"water-walk": WALK_MIN_SECONDS,
-	"through-the-storm": STORM_MIN_SECONDS,
-	"crest-hopper": HOPPER_MIN_SECONDS,
-	"follow-the-star": STAR_MIN_SECONDS,
-	"the-caravan": CARAVAN_MIN_SECONDS,
-	"star-chart": CHART_MIN_SECONDS,
-};
+/** The soonest each game can be won (the registry's `minSeconds`); a faster reported time was not played. */
+export const GAME_MIN_SECONDS: Record<string, number> = Object.fromEntries(CHAPTER_GAMES.map((game) => [game.slug, game.minSeconds]));
 
 function awardItems(userId: string): Promise<BetaItem[]> {
-	return listBetaItems(userId, { module: MODULE, kind: KIND, take: 100 });
+	return listBetaItems(userId, { module: MODULE, kind: KIND, take: 200 });
 }
 
 /** The founder's award for each game they have finished, by game slug. */

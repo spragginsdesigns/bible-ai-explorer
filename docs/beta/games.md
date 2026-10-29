@@ -1,92 +1,105 @@
 # Chapter Games (`games`)
 
-**Where:** SureWord Beta, Bible → Chapter Games, `/beta/bible/games` (founders
-only, web only), and a card at the end of a chapter that has a game.
+**Where:** SureWord Beta, at the end of each chapter of Matthew in the reader
+(founders only, web only), and Bible → Chapter Games, `/beta/bible/games`.
+Every game plays right there in the page; there are no game pages.
 **Issue:** LC-17850 (Austin): "incorporate minigames into the bible for each
-chapter ... start with an example i.e. Matthew 14: Peter's Water Walking
-Simulator ... should feel like a real flash mini-game, should be fun and feel
+chapter ... should feel like a real flash mini-game, should be fun and feel
 immersive and slightly challenging, and get an award when you complete it."
-LC-17851 (Jay): "try 2 additional types of flash games for it (so we can try
-different styles - art, theme, feel, vibe, immersiveness, etc) ... and then
-can do another flash game for something in the book of matthew, same thing
-(3 variants, to see which one feels right)."
-**Status:** building (two chapters have games, each three ways to play).
+LC-17851 (Jay, then Austin after playing the first six): "controls and
+instructions and tips at start should be highlighted and way more obvious
+... games should be like that wario-ware thing ... maybe like 15 seconds
+instead of i.e. 1 min long ... the UI should load within the page ... let's
+just isolate it to whichever 1 game you think is best for each, and then do a
+mini-game for each chapter ... just the book of matthew to start ... can have
+fish audio etc as well for any voices."
+**Status:** building (all 28 chapters of Matthew have a game).
 
-## Ways to play a passage
+## How a round plays
 
-A passage can be played more than one way (LC-17851), so the founders can
-try styles side by side. Each way is its own game in `CHAPTER_GAMES` with its
-own slug, page, component and award item; the ways of one passage share its
-`reference`, `story`, `award`, `grades`, `measure` and medal `emblem`, and
-`style` tells them apart. The games page groups them under their passage, and
-the reader card at the end of the chapter lists every way with its own Play.
+Every game runs in one player (`MicroGame.tsx`), the same everywhere:
 
-| Passage | Game (slug) | Style |
-|---|---|---|
-| Matthew 14:22-33, Peter walks on the water | Peter's Water Walk (`water-walk`) | The storm, side on |
-| | Through the Storm (`through-the-storm`) | First person |
-| | Crest Hopper (`crest-hopper`) | Arcade |
-| Matthew 2:1-12, the wise men follow the star | Follow the Star (`follow-the-star`) | Night sky |
-| | The Caravan (`the-caravan`) | Side-scroller |
-| | Star Chart (`star-chart`) | Puzzle |
+1. **How to play.** The game's command ("Hop!") in large type, each control
+   as big key caps (or, on a touch screen, the gesture first), what it does,
+   and one or two tips. The scene sits behind it. Start (or Enter).
+2. **Countdown.** About a second and a half: the command flashes with the
+   controls under it. The cast speaks the game's intro verse.
+3. **The round,** about fifteen seconds (12-15). A timer bar runs above the
+   stage and the controls stay in view under it. Keys reach the game only
+   while it has focus, and never scroll the page. Escape or leaving the tab
+   pauses.
+4. **The outcome.** A win shows the medal in its grade, the grade's name,
+   the score and time, the win verse in the KJV (spoken by the cast) and saves
+   the award. A loss shows the controls and the first tip again, and Try
+   again.
 
-Every game takes the same props (`components/beta/games/types.ts`) and uses
-the shared header, passage card, story screens, mute setting and award save
-in `components/beta/games/shared.tsx`; its stage, controls, art and sound are
-its own.
+The voice is the chapter's existing recording (`/api/bible/audio`, Matthew's
+full-cast KJV production, `src/lib/bible/audioBible.ts`), played from the
+verse's start to its end (`verse-voice.ts`). Every word heard is the KJV on
+screen and nothing is generated when someone plays. The device's mute
+setting silences the voice and the game's sound alike.
 
-## What it does
+## The games
 
-- **Peter's Water Walk** (`/beta/bible/games/water-walk`, Matthew 14:22-33).
-  Peter steps out of the ship in the fourth watch and walks the storm to
-  Jesus across the sea, in about half a minute when it goes well. The HUD
-  shows how much of the way is walked, never a distance: Matthew 14 gives none.
-  - **Lean against the wind.** Gusts of the "wind boisterous" push him off
-    balance; the rain and the streaks across the sky show which way. Hold left
-    or right (arrow keys or A/D, the Lean buttons, or a thumb on each on a
-    phone) to keep the balance marker in its steady middle.
-  - **Step up over each swell** as its crest reaches him (Up, W or Space, or
-    Step up). Too early or too late and the crest strikes him: faith drops and
-    he is shoved back toward the ship.
-  - **Keep your eyes on Jesus.** Standing steady builds faith; tipping and
-    being struck drain it. Jesus' light is always at the edge of the view. As
-    faith falls the water climbs Peter's legs and the view darkens.
-  - **Beginning to sink.** At no faith he sinks, verse 30 comes up, and the one
-    thing to do is cry "Lord, save me". Jesus comes to him and catches him
-    (verse 31) and the storm calms; then Try again. Nothing is recorded.
-  - **Reaching Jesus** takes his hand, the wind ceases (verse 32, the sound
-    resolves to a quiet chord) and the award comes up with verses 32-33.
-  - Sound is synthesized in the browser (wind, rain, sea, thunder, a splash,
-    the chord), muted with one button and remembered on the device. Lightning
-    never flashes for someone who asked for reduced motion. Leaving the tab
-    pauses the game.
-- **The award.** Finishing earns **Walked on the Water**, graded by the lowest
-  faith of the walk: **Eyes on Jesus** (gold, faith never under 70%), **Of
-  Good Cheer** (silver, 40-69%) and **Be Not Afraid** (bronze). The best
-  grade, best faith and best time stand, and every finish is counted; a worse
-  finish never lowers them.
-- **Where to find it.** The Bible destination lists Chapter Games; its page
-  lists every chapter with a game and the award earned on each. At the end of
-  Matthew 14 in the reader, founders get a Chapter game card with Play.
-  Chapters without a game ask nothing; on a chapter with one, the card asks
-  `GET /api/beta/access` at most once per account per session, the same
-  pattern as the atlas's verse links.
-- **Scripture first.** Every verse the game shows is read from the bundled KJV
-  by the page (`getKjvChapter`) and handed to the game, never typed into it.
-  The whole passage sits under the game. It is played straight: no comedy, no
-  caricature.
+Austin asked for the one best game of each passage from the first six
+(LC-17851): The Caravan was kept for Matthew 2 and Crest Hopper for Matthew
+14, both cut to fifteen-second rounds; Peter's Water Walk, Through the
+Storm, Follow the Star and Star Chart were retired
+(their awards stay in founders' study stores). The registry,
+`CHAPTER_GAMES` in `src/lib/beta/games/games-rules.ts`, holds each game's
+passage, command, controls, tips, round length, fastest possible win, voiced
+verses, award, grades and medal.
+
+| Ch. | Game (slug) | Passage | Play |
+|---|---|---|---|
+| 1 | The Generations (`the-generations`) | 1:1-17 | Tap who begat whom, in order |
+| 2 | The Caravan (`the-caravan`) | 2:1-12 | Run under the star: jump and duck |
+| 3 | Winnow the Floor (`winnow`) | 3:11-17 | Wheat to the garner, chaff to the fire |
+| 4 | Fishers of Men (`fishers-of-men`) | 4:18-22 | Catch the fish in the net |
+| 5 | Let Your Light Shine (`let-your-light-shine`) | 5:14-16 | Lift the bushels off the candles |
+| 6 | Treasures in Heaven (`treasures-in-heaven`) | 6:19-21 | Catch treasure, dodge moth and rust |
+| 7 | Built on the Rock (`house-on-the-rock`) | 7:24-27 | Stack the house true |
+| 8 | Lord, Save Us (`lord-save-us`) | 8:23-27 | Bail the ship, left and right |
+| 9 | The Hem of His Garment (`hem-of-his-garment`) | 9:20-22 | Weave through the crowd to the hem |
+| 10 | Sheep Among Wolves (`sheep-among-wolves`) | 10:16-31 | Dodge the wolves |
+| 11 | Rest for Your Souls (`rest-for-your-souls`) | 11:28-30 | Lift burdens off the weary |
+| 12 | Known by His Fruit (`known-by-his-fruit`) | 12:33-35 | Pick the good fruit |
+| 13 | The Sower (`the-sower`) | 13:3-9 | Sow on the good ground |
+| 14 | Crest Hopper (`crest-hopper`) | 14:22-33 | Hop the swells to Jesus |
+| 15 | Seven Baskets Full (`seven-baskets`) | 15:32-38 | Gather the fragments |
+| 16 | Whom Say Ye? (`whom-say-ye`) | 16:13-18 | Follow the true answer as it shuffles |
+| 17 | The Coin in the Fish (`coin-in-the-fish`) | 17:24-27 | Strike when the fish bites |
+| 18 | The Lost Sheep (`the-lost-sheep`) | 18:12-14 | Find the one gone astray |
+| 19 | The Eye of a Needle (`eye-of-a-needle`) | 19:23-26 | Thread the needles |
+| 20 | Have Mercy on Us (`have-mercy-on-us`) | 20:29-34 | Cry out above the crowd |
+| 21 | Hosanna! (`hosanna`) | 21:1-11 | Spread branches in the way |
+| 22 | The Wedding Garment (`the-wedding-garment`) | 22:1-14 | Clothe each guest |
+| 23 | Under Her Wings (`under-her-wings`) | 23:37-39 | Gather the chickens |
+| 24 | Watch! (`watch`) | 24:42-44 | Tap the instant the lightning flashes |
+| 25 | The Sheep and the Goats (`sheep-and-goats`) | 25:31-40 | Sheep to the right, goats to the left |
+| 26 | Watch with Me (`watch-with-me`) | 26:36-41 | Keep Peter, James and John awake |
+| 27 | The Veil Was Rent (`the-veil-rent`) | 27:50-54 | Trace the veil from the top to the bottom |
+| 28 | He Is Risen (`he-is-risen`) | 28:1-10 | Run and tell his disciples |
+
+Every game is played straight: reverent, KJV-rooted, Jesus drawn as a
+simple robed figure in light with no detailed face, and Matthew 27 shows
+only the veil, the darkness and the quake.
+
+## The award
+
+Winning a round earns the chapter's award, graded by the round's 0-100
+score: gold 70 and up, silver 40-69, bronze below. The best grade, best
+score and best time stand, and every win is counted; a worse win never
+lowers them. A loss records nothing.
 
 ## How hard it is
 
-The simulation is pure and seeded (`water-walk-rules.ts`), so the tests play
-it. Measured with the shipped tuning over 400 seeds: a scripted steady player
-reaches Jesus on every seed with gold; one who reacts a quarter second late on
-keys finishes 97% of walks (three in four with gold); never stepping up
-finishes 48%, never with gold; never leaning and doing nothing never finish.
-During tuning, a player a third of a second late and loose on the swells
-finished about half. The tuning numbers sit at
-the top of that file. Re-run `tests/beta-games.test.mjs` after changing any of
-them: its bounds are the "slightly challenging" contract.
+Each game's simulation is pure and seeded (`<slug>-rules.ts`), so its tests
+play it (`tests/beta-games-<slug>.test.mjs`): a skilled scripted player wins
+on at least 95% of 200 seeds and never faster than the game's `minSeconds`,
+an idle player never wins, a masher rarely does, and a sloppy one sometimes
+loses. Re-run a game's tests after changing its tuning: their bounds are the
+"hard enough" contract.
 
 ## Data
 
@@ -96,57 +109,63 @@ study store), written only through `src/lib/beta/store.ts`:
 | Field | Value |
 |---|---|
 | `module` / `kind` | `games` / `award` |
-| `title` | `<award>: <game title>`, e.g. `Walked on the Water: Peter's Water Walk` |
-| `body` | the grade, the game's measure (faith kept, kept to the star), best time and finishes, in words the Vault searches |
-| `refs` | the passage's first and last verse, e.g. `40.14.22`, `40.14.33` (and `40.14`, added by the store) |
-| `topics` | the passage's, e.g. `chapter game`, `faith` (Matthew 14) or `chapter game`, `worship` (Matthew 2) |
+| `title` | `<award>: <game title>`, e.g. `A Great Calm: Lord, Save Us` |
+| `body` | the grade, the game's measure, best time and wins, in words the Vault searches |
+| `refs` | the passage's first and last verse, e.g. `40.8.23`, `40.8.27` (and `40.8`, added by the store) |
+| `topics` | the game's, e.g. `chapter game`, `faith` |
 | `data` | `{ game, grade, bestFaith, bestSeconds, completions, firstAt, lastAt }` |
 
 Once the award exists, its update is conditional on the item's `updatedAt`,
-so two finishes saved at once both count (a lost race reads again and retries). Account deletion cascades through the store. No table and no
-migration.
+so two wins saved at once both count (a lost race reads again and retries).
+Account deletion cascades through the store. No table and no migration.
 
 ## API
 
 | Route | Does |
 |---|---|
-| `POST /api/beta/games/<game>/award` `{ faithKept, seconds, swellsCleared }` | Records a finished game and returns `{ award }`. `faithKept` is the game's 0-100 score as its `measure` names it (faith kept, kept to the star), `seconds` at least the fastest that game can be finished (`GAME_MIN_SECONDS`; 26 s for the water walk) and at most an hour, and `swellsCleared` the game's count of what it clears (swells, crests, legs charted; the name is the first game's), 0-500. Anything else is a 400; an unknown game, or anyone off `BETA_USER_IDS`, the ordinary 404. |
+| `GET /api/beta/games/<game>/award` | `{ award }`, the founder's award for the game or `null`; the reader card shows the medal from it. |
+| `POST /api/beta/games/<game>/award` `{ faithKept, seconds, swellsCleared }` | Records a won round and returns `{ award }`. `faithKept` is the round's 0-100 score, `seconds` at least the game's `minSeconds` and at most an hour, and `swellsCleared` the game's count (fish caught, stones laid), 0-500. Anything else is a 400; an unknown game, or anyone off `BETA_USER_IDS`, the ordinary 404. |
 
-The pages read awards on the server; there is no GET route.
+## A game's stage
 
-## Adding the next chapter's game
+The player owns everything around the round; a game is three files:
 
-1. Add its entry to `CHAPTER_GAMES` in `src/lib/beta/games/games-rules.ts`
-   (slug, title, style, book, chapter, verses, story, award and grade names
-   from the passage, measure, emblem, topics). Another way to play a passage
-   that already has a game spreads that passage's shared fields.
-2. Write its simulation as a pure `*-rules.ts` beside the water walk's, with
-   tests that it can be won, lost and not trivially won.
-3. Add its component (taking `ChapterGameProps`, built on `shared.tsx`) to
-   `GAMES` in `src/components/beta/games/ChapterGamePlayer.tsx` for its slug
-   (a client component, so each game's code loads on its own page only), and its
-   fastest time to `GAME_MIN_SECONDS` in `awards.ts`. A test fails when either
-   is missing.
+1. **Rules,** `src/lib/beta/games/<slug>-rules.ts`: pure and seeded, no
+   runtime imports (the tests load it with Node's type stripping), stepped at
+   1/60 s, ending when the task is done or at the round's length, with a
+   result `{ won, score, count, seconds }`.
+2. **Stage,** `src/components/beta/games/stages/<Pascal>.tsx`: takes
+   `StageProps` (`types.ts`), draws a 400x400 picture on a canvas through
+   `useStageLoop` (`stage-kit.ts`), reads keys from `keys` and its own
+   pointer events, plays sound through `useSynth`, calls `onTime` as the
+   clock runs and `onEnd` once. Sound always goes through the one shared
+   `stageAudioContext()` that the player unlocks on the Start press (a game
+   with its own engine, like The Caravan, builds it on that context): iOS
+   Safari plays nothing from a context opened later in the game loop.
+3. **Tests,** `tests/beta-games-<slug>.test.mjs`, to the bounds above.
 
-The reader card, the games page and the award store pick it up from the
-registry.
+Have Mercy on Us (Matthew 20) is the reference. To add a chapter, add its
+registry entry, its three files and its line in `STAGES`
+(`ChapterGamePlayer.tsx`); `tests/beta-games.test.mjs` fails until all are
+there.
 
 ## Files
 
 | What | Where |
 |---|---|
-| Pages | `src/app/beta/bible/games/page.tsx`, `src/app/beta/bible/games/[game]/page.tsx` |
-| Games, scenes, sound, medal, list, reader card | `src/components/beta/games/` (`<Game>.tsx`, `<slug>-scene.ts`, `<slug>-audio.ts`) |
-| What every game shares, and its props | `src/components/beta/games/shared.tsx`, `types.ts` |
+| Games list page | `src/app/beta/bible/games/page.tsx` |
+| Reader card, games list, player, medal | `src/components/beta/games/` (`ChapterGameCard.tsx`, `GamesHome.tsx`, `ChapterGamePlayer.tsx`, `MicroGame.tsx`, `AwardMedal.tsx`) |
+| Stage kit, voice, props | `src/components/beta/games/stage-kit.ts`, `verse-voice.ts`, `types.ts`, `shared.tsx` |
+| Each game's stage | `src/components/beta/games/stages/` (The Caravan and Crest Hopper keep their `<slug>-scene.ts` and `<slug>-audio.ts` beside them) |
 | Registry, grades, award rules | `src/lib/beta/games/games-rules.ts` |
 | Each game's simulation | `src/lib/beta/games/<slug>-rules.ts` |
 | Awards in the study store | `src/lib/beta/games/awards.ts` |
 | API | `src/app/api/beta/games/[game]/award/route.ts` |
-| Tests | `tests/beta-games.test.mjs` (registry, awards, gate, the water walk), `tests/beta-games-<slug>.test.mjs` (each other game) |
+| Tests | `tests/beta-games.test.mjs` (registry, awards, gate, in-page play), `tests/beta-games-<slug>.test.mjs` (each game) |
 
 ## Proof
 
-See LC-17850 for the water walk and LC-17851 for the other five: a production build against a throwaway Neon branch, signed in as
-the founder stand-in and the off-list control, the game played to Jesus
-through real keyboard input at 1280 and real touch at 375px, a sink and rescue,
-the award row read back from the database, and the API attacked with bad runs.
+LC-17850 and LC-17851 hold the proof: a production build against a throwaway
+Neon branch, signed in as the founder stand-in and the off-list control,
+every game played through real input in the page, the award rows read back
+from the database, and the API attacked with bad runs.

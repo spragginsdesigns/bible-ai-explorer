@@ -1,27 +1,41 @@
 /**
  * Crest Hopper's sea (LC-17851), drawn as pixel art: the whole picture is
- * painted into a small offscreen buffer (about 180 pixels across) and scaled
- * up with smoothing off, so every pixel stays a crisp block. Seen from above:
- * the ship at the bottom, rows of swells rolling across, and Jesus waiting in
- * his light at the top, a figure in warm light with no face drawn. A limited
- * palette of night blues, white foam and gold.
+ * painted into a 200x200 offscreen buffer and scaled up onto the 400x400
+ * stage with smoothing off, so every pixel stays a crisp block. Seen from
+ * above: the ship at the bottom, ten rows of swells rolling across, and Jesus
+ * waiting in his light at the top, a figure in warm light with no face drawn.
+ * A limited palette of night blues, white foam and gold.
+ *
+ * On top of the pixels, in the stage's own units, go the cues that make the
+ * moment to press unmistakable (Austin's note on the storm game, LC-17851):
+ * the glowing ring on the next row (gold: hop now; red: a trough, wait), the
+ * "Tap or ↑" hint until the first hop, and a gust's arrow, countdown and
+ * marker on the spot it will shove him to (green: safe; red: move).
  */
 
 import {
-	HOPPER_COLS,
-	HOPPER_HOP_AIR,
-	HOPPER_LIGHT_ROW,
-	HOPPER_SHIP_LANES,
-	HOPPER_START,
+	CREST_COLS,
+	CREST_FAITH,
+	CREST_GUST_WARN,
+	CREST_HOP_AIR,
+	CREST_LIGHT_ROW,
+	CREST_SHIP_LANES,
+	CREST_SHOVE_AIR,
+	cellAt,
 	crestAt,
-	hopperProgress,
-	type HopperEvent,
-	type HopperState,
+	hopUpHolds,
+	shoveLands,
+	type CrestEvent,
+	type CrestState,
 } from "@/lib/beta/games/crest-hopper-rules";
 
+/** The buffer's size in pixels; the stage is twice that in its units. */
+export const HOPPER_PIXELS = 200;
+const SCALE = 2;
 const CELL = 16;
-const ROW = 16;
-const FIELD = HOPPER_COLS * CELL;
+const ROW = 15;
+const FIELD = CREST_COLS * CELL;
+const M = (HOPPER_PIXELS - FIELD) / 2;
 
 const P = {
 	abyss: "#05071a",
@@ -33,13 +47,10 @@ const P = {
 	crestLight: "#4b82d6",
 	foam: "#bfe0ff",
 	white: "#ffffff",
-	rest: "#2a4c9e",
-	restLight: "#5b8fe0",
 	calm: "#162a66",
 	gold: "#f2b84b",
 	goldLight: "#ffd97a",
 	goldPale: "#fff3c4",
-	goldDeep: "#b9781f",
 	robe: "#f6efdc",
 	robeShade: "#d2c6a6",
 	glowSkin: "#ffe6b3",
@@ -57,14 +68,11 @@ const P = {
 	hud: "#f1eadc",
 	hudDim: "#8d98c4",
 	danger: "#e2735a",
+	ember: "#3a2f4a",
 	rain: "#3f5fae",
+	rock: "#1b2140",
+	rockLight: "#2b3360",
 } as const;
-
-/** The picture's size in buffer pixels for a stage, and the whole-number scale it is drawn up at. */
-export function hopperLayout(width: number, height: number): { scale: number; w: number; h: number } {
-	const scale = Math.max(1, Math.min(Math.floor(width / 150), Math.floor(height / 150)));
-	return { scale, w: Math.max(FIELD + 8, Math.ceil(width / scale)), h: Math.max(120, Math.ceil(height / scale)) };
-}
 
 interface Particle {
 	x: number;
@@ -92,61 +100,49 @@ interface Streak {
 	speed: number;
 }
 
-/** Everything the picture remembers between frames: the camera, splashes, score pops and the wind. Never the game itself. */
+/** A ring of light where he landed, in buffer pixels. */
+interface Ripple {
+	x: number;
+	y: number;
+	age: number;
+	good: boolean;
+}
+
+/** Everything the picture remembers between frames: splashes, pops, the wind and the flashes. Never the game itself. */
 export interface HopperLook {
-	cam: number;
 	particles: Particle[];
 	pops: Pop[];
 	streaks: Streak[];
+	ripples: Ripple[];
 	rain: { x: number; y: number }[];
 	shake: number;
-	/** Seconds since the last gust shoved, for the wind's burst. */
+	/** Seconds since the last gust shoved, the last slip, the win. */
 	gustAge: number;
-	/** Seconds since the last slip, for the red flash of the meter. */
 	slipAge: number;
-	/** When the rescue and the arrival began (seconds on the page's clock), or null. */
-	rescueAt: number | null;
-	arriveAt: number | null;
-	/** The gold of the combo, fading. */
-	comboGlow: number;
-	w: number;
-	h: number;
+	wonAge: number | null;
+	/** Peter's place in the light once he reaches it, easing to Jesus' side. */
+	arrive: number;
 }
 
 export function createLook(): HopperLook {
-	return { cam: 0, particles: [], pops: [], streaks: [], rain: [], shake: 0, gustAge: 9, slipAge: 9, rescueAt: null, arriveAt: null, comboGlow: 0, w: 0, h: 0 };
+	return { particles: [], pops: [], streaks: [], ripples: [], rain: [], shake: 0, gustAge: 9, slipAge: 9, wonAge: null, arrive: 0 };
 }
 
-function laneX(look: HopperLook, x: number): number {
-	return margin(look) + CELL / 2 + x * CELL;
+function laneX(x: number): number {
+	return M + CELL / 2 + x * CELL;
 }
 
-function margin(look: HopperLook): number {
-	return Math.floor((look.w - FIELD) / 2);
-}
-
-function baseY(look: HopperLook): number {
-	return Math.round(look.h * 0.64);
-}
-
-function rowY(look: HopperLook, row: number): number {
-	return baseY(look) - (row - look.cam) * ROW;
+function rowY(row: number): number {
+	return HOPPER_PIXELS - 14 - row * ROW;
 }
 
 /** Where Peter is drawn: his lane, his row (between two while hopping) and how high the hop has lifted him. */
-function peterPose(state: HopperState): { x: number; row: number; lift: number } {
+function peterPose(state: CrestState): { x: number; row: number; lift: number } {
 	const hop = state.hop;
 	if (!hop || state.air <= 0) return { x: state.x, row: state.row, lift: 0 };
-	const air = hop.kind === "shove" ? 0.16 : HOPPER_HOP_AIR;
+	const air = hop.kind === "shove" ? CREST_SHOVE_AIR : CREST_HOP_AIR;
 	const done = 1 - state.air / air;
 	return { x: state.x, row: hop.fromRow + (hop.toRow - hop.fromRow) * done, lift: Math.sin(done * Math.PI) * (hop.kind === "shove" ? 3 : 6) };
-}
-
-function camTarget(look: HopperLook, row: number): number {
-	// The ship whole above the bottom of the picture (and the phone's faith strip), Jesus' light well inside the top.
-	const bottom = (look.h - (margin(look) >= 44 ? 20 : 30) - baseY(look)) / ROW;
-	const top = HOPPER_LIGHT_ROW - (baseY(look) - 40) / ROW;
-	return Math.min(top, Math.max(bottom, row));
 }
 
 function burst(look: HopperLook, x: number, y: number, count: number, colors: readonly string[], speed: number, gravity: number, life: number) {
@@ -158,57 +154,46 @@ function burst(look: HopperLook, x: number, y: number, count: number, colors: re
 }
 
 function pop(look: HopperLook, text: string, x: number, y: number, color: string) {
-	const m = margin(look);
 	const half = textWidth(text) / 2;
 	for (const older of look.pops) older.y -= 7;
-	look.pops.push({ text, x: Math.min(m + FIELD - half - 2, Math.max(m + half + 2, x)), y, age: 0, color });
-	if (look.pops.length > 4) look.pops.shift();
+	look.pops.push({ text, x: Math.min(M + FIELD - half - 2, Math.max(M + half + 2, x)), y, age: 0, color });
+	if (look.pops.length > 3) look.pops.shift();
 }
 
-/** Feeds the game's events into the picture: splashes, foam, sparkles and the score's pops. */
-export function lookEvents(look: HopperLook, state: HopperState, events: readonly HopperEvent[], now: number, reduceMotion: boolean) {
+/** Feeds the round's events into the picture: splashes, foam, sparkles and flashes. */
+export function lookEvents(look: HopperLook, state: CrestState, events: readonly CrestEvent[], reduceMotion: boolean) {
 	for (const event of events) {
 		switch (event.type) {
 			case "land": {
-				const x = laneX(look, event.x);
-				const y = rowY(look, event.row);
-				burst(look, x, y - 1, 5, [P.foam, P.white], 22, 40, 0.35);
-				if (event.points > 0) pop(look, event.combo > 1 ? `+${event.points} X${event.combo}` : `+${event.points}`, x, y - 16, event.combo > 2 ? P.goldLight : P.hud);
-				if (event.combo > 2) {
-					look.comboGlow = 1;
-					burst(look, x, y - 8, 4 + event.combo, [P.goldLight, P.goldPale], 26, -10, 0.6);
-				}
-				break;
-			}
-			case "rest": {
-				const y = rowY(look, event.row);
-				pop(look, "CALM +100", laneX(look, state.x), y - 24, P.goldLight);
+				const x = laneX(event.x);
+				const y = rowY(event.row);
+				burst(look, x, y - 1, 6, [P.foam, P.white], 22, 40, 0.35);
+				look.ripples.push({ x, y, age: 0, good: true });
 				break;
 			}
 			case "slip": {
-				const x = laneX(look, event.x);
-				const y = rowY(look, event.row);
-				burst(look, x, y, 18, [P.white, P.foam, P.crestLight], 46, 90, 0.7);
-				pop(look, "SLIP", x, y - 16, P.danger);
+				const x = laneX(event.x);
+				const y = rowY(event.row);
+				burst(look, x, y, 22, [P.white, P.foam, P.crestLight], 50, 90, 0.7);
+				look.ripples.push({ x, y, age: 0, good: false });
+				pop(look, event.faith > 0 ? "-1 FAITH" : "SINKING", x, y - 16, P.danger);
 				look.slipAge = 0;
 				if (!reduceMotion) look.shake = 0.3;
 				break;
 			}
+			case "gust":
 			case "shoved":
 				look.gustAge = 0;
 				break;
-			case "gust":
-				look.gustAge = 0;
+			case "steady":
+				pop(look, "STEADY", laneX(state.x), rowY(state.row) - 16, P.goldLight);
+				look.ripples.push({ x: laneX(state.x), y: rowY(state.row), age: 0, good: true });
 				break;
-			case "rescued":
-				look.rescueAt = now;
-				break;
-			case "arrived": {
-				look.arriveAt = now;
-				const x = laneX(look, state.x);
-				const y = rowY(look, HOPPER_LIGHT_ROW);
-				burst(look, x, y - 8, 30, [P.goldLight, P.goldPale, P.white], 50, -12, 1.4);
-				pop(look, `+${event.bonus}`, x, y - 30, P.goldLight);
+			case "won": {
+				look.wonAge = 0;
+				const x = laneX(state.x);
+				const y = rowY(CREST_LIGHT_ROW);
+				burst(look, x, y - 8, 34, [P.goldLight, P.goldPale, P.white], 50, -12, 1.4);
 				break;
 			}
 			default:
@@ -217,20 +202,17 @@ export function lookEvents(look: HopperLook, state: HopperState, events: readonl
 	}
 }
 
-/** Moves the camera, the splashes and the weather along by `dt` seconds. */
-export function stepLook(look: HopperLook, state: HopperState, dt: number, w: number, h: number, reduceMotion: boolean) {
-	if (look.w !== w || look.h !== h) {
-		const first = look.w === 0;
-		look.w = w;
-		look.h = h;
-		if (first) look.cam = camTarget(look, state.row);
-	}
-	const pose = peterPose(state);
-	look.cam += (camTarget(look, pose.row) - look.cam) * Math.min(1, dt * 6);
+/** Moves the splashes, the flashes and the weather along by `dt` seconds. */
+export function stepLook(look: HopperLook, state: CrestState, dt: number, reduceMotion: boolean) {
+	const w = HOPPER_PIXELS;
+	const h = HOPPER_PIXELS;
 	look.shake = Math.max(0, look.shake - dt);
 	look.gustAge += dt;
 	look.slipAge += dt;
-	look.comboGlow = Math.max(0, look.comboGlow - dt * 1.5);
+	if (look.wonAge !== null) {
+		look.wonAge += dt;
+		look.arrive = Math.min(1, look.wonAge / 0.9);
+	}
 	for (const particle of look.particles) {
 		particle.life -= dt;
 		particle.vy += particle.gravity * dt;
@@ -243,14 +225,16 @@ export function stepLook(look: HopperLook, state: HopperState, dt: number, w: nu
 		item.y -= dt * 14;
 	}
 	look.pops = look.pops.filter((item) => item.age < 0.9);
+	for (const ripple of look.ripples) ripple.age += dt;
+	look.ripples = look.ripples.filter((ripple) => ripple.age < 0.45);
 
 	// The wind contrary: streaks while a gust is coming, a burst when it shoves, and the rain driven by it.
-	const calm = state.phase === "arrived" || state.phase === "rescued";
+	const calm = state.phase === "won";
 	const wind = state.gust?.dir ?? (look.gustAge < 0.6 ? (state.shove?.dir ?? 0) : 0);
-	const rate = calm ? 0 : state.gust ? 26 : look.gustAge < 0.5 ? 70 : 0;
+	const rate = calm ? 0 : state.gust ? 30 : look.gustAge < 0.5 ? 80 : 0;
 	if (!reduceMotion && wind !== 0 && Math.random() < rate * dt) {
 		const left = wind > 0;
-		look.streaks.push({ x: left ? -16 : w + 16, y: 14 + Math.random() * (h - 28), len: 6 + Math.floor(Math.random() * 12), speed: wind * (190 + Math.random() * 90) });
+		look.streaks.push({ x: left ? -16 : w + 16, y: 30 + Math.random() * (h - 40), len: 6 + Math.floor(Math.random() * 12), speed: wind * (190 + Math.random() * 90) });
 	}
 	for (const streak of look.streaks) streak.x += streak.speed * dt;
 	look.streaks = look.streaks.filter((streak) => streak.x > -40 && streak.x < w + 40);
@@ -260,7 +244,7 @@ export function stepLook(look: HopperLook, state: HopperState, dt: number, w: nu
 	if (look.rain.length > drops) look.rain.length = drops;
 	const slant = 18 + 50 * Math.abs(wind) * (wind < 0 ? -1 : 1);
 	for (const drop of look.rain) {
-		drop.y += dt * 120;
+		drop.y += dt * (reduceMotion ? 40 : 120);
 		drop.x += dt * slant;
 		if (drop.y > h) drop.y -= h + 4;
 		if (drop.x > w) drop.x -= w;
@@ -288,40 +272,26 @@ const GLYPHS: Record<string, string> = {
 	"8": "111101111101111",
 	"9": "111101111001111",
 	A: "010101111101101",
-	B: "110101110101110",
 	C: "011100100100011",
+	R: "110101110101101",
+	P: "110101110100100",
 	D: "110101101101110",
 	E: "111100110100111",
 	F: "111100110100100",
 	G: "011100101101011",
 	H: "101101111101101",
 	I: "111010010010111",
-	J: "001001001101010",
 	K: "101101110101101",
 	L: "100100100100111",
-	M: "101111111101101",
 	N: "110101101101101",
 	O: "010101101101010",
-	P: "110101110100100",
-	Q: "010101101110011",
-	R: "110101110101101",
 	S: "011100010001110",
 	T: "111010010010010",
 	U: "101101101101111",
-	V: "101101101101010",
 	W: "101101111111101",
-	X: "101101010101101",
 	Y: "101101010010010",
-	Z: "111001010100111",
-	"%": "101001010100101",
-	">": "100010001010100",
-	"<": "001010100010001",
 	"+": "000010111010000",
-	"!": "010010010000010",
-	":": "000010000010000",
-	".": "000000000000010",
 	"-": "000000111000000",
-	"/": "001001010100100",
 };
 
 function textWidth(text: string, size = 1): number {
@@ -387,34 +357,28 @@ function drawGlow(ctx: CanvasRenderingContext2D, x: number, y: number, size: num
 	ctx.globalAlpha = 1;
 }
 
-function drawSeaRow(ctx: CanvasRenderingContext2D, look: HopperLook, state: HopperState, r: number, now: number, reduceMotion: boolean) {
+function drawSeaRow(ctx: CanvasRenderingContext2D, state: CrestState, r: number, now: number, reduceMotion: boolean) {
 	const row = state.rows[r];
-	const top = Math.round(rowY(look, r) - ROW / 2);
-	const left = margin(look);
-	rect(ctx, P.trough, left, top, FIELD, ROW);
-	rect(ctx, P.deep, left, top, FIELD, 1);
+	const top = Math.round(rowY(r) - ROW / 2);
+	rect(ctx, P.trough, M, top, FIELD, ROW);
+	rect(ctx, P.deep, M, top, FIELD, 1);
 	// Ripples in the trough, drifting with the row.
 	const drift = Math.floor(row.offset * 6);
-	for (let i = -1; i < HOPPER_COLS + 1; i++) {
-		const rx = left + i * CELL + ((((drift + r * 5) % CELL) + CELL) % CELL);
+	for (let i = -1; i < CREST_COLS + 1; i++) {
+		const rx = M + i * CELL + ((((drift + r * 5) % CELL) + CELL) % CELL);
+		if (rx < M || rx > M + FIELD - 4) continue;
 		rect(ctx, P.ripple, rx, top + 7, 4, 1);
-		rect(ctx, P.ripple, rx + 8, top + 11, 3, 1);
-	}
-	if (row.kind === "rest") {
-		// One long, calm swell, crest from bank to bank.
-		rect(ctx, P.rest, left, top + 3, FIELD, 10);
-		rect(ctx, P.restLight, left, top + 3, FIELD, 2);
-		rect(ctx, P.crestDark, left, top + 12, FIELD, 1);
-		const shimmer = reduceMotion ? 0 : Math.floor(now * 3);
-		for (let i = 0; i < FIELD; i += 7) if ((i + shimmer * 3 + r) % 5 === 0) rect(ctx, P.goldLight, left + i, top + 3, 2, 1);
-		for (let i = 2; i < FIELD; i += 9) rect(ctx, P.foam, left + i, top + 2, 3, 1);
-		return;
+		rect(ctx, P.ripple, rx + 8, top + 10, 3, 1);
 	}
 	const first = Math.floor(-row.offset - 1);
 	const tide = reduceMotion ? 0 : Math.floor(now * 8);
-	for (let k = first; k <= first + HOPPER_COLS + 2; k++) {
+	ctx.save();
+	ctx.beginPath();
+	ctx.rect(M, top, FIELD, ROW);
+	ctx.clip();
+	for (let k = first; k <= first + CREST_COLS + 2; k++) {
 		if (!crestAt(row, k)) continue;
-		const x = Math.round(left + (k + row.offset) * CELL);
+		const x = Math.round(M + (k + row.offset) * CELL);
 		const open = !crestAt(row, k - 1);
 		const close = !crestAt(row, k + 1);
 		// The swell's shadow on the trough, its body in three blues, its cap of foam.
@@ -463,14 +427,24 @@ function drawSeaRow(ctx: CanvasRenderingContext2D, look: HopperLook, state: Hopp
 			}
 		}
 	}
+	ctx.restore();
+	// Which way the row rolls: a chevron of foam on each bank.
+	const chevron = row.dir > 0 ? ">" : "<";
+	const cy = top + 5;
+	for (const bx of [M - 7, M + FIELD + 3]) {
+		const x0 = chevron === ">" ? bx : bx + 2;
+		rect(ctx, P.hudDim, x0, cy, 1, 1);
+		rect(ctx, P.hudDim, x0 + (chevron === ">" ? 1 : -1), cy + 1, 1, 1);
+		rect(ctx, P.hudDim, x0 + (chevron === ">" ? 2 : -2), cy + 2, 1, 1);
+		rect(ctx, P.hudDim, x0 + (chevron === ">" ? 1 : -1), cy + 3, 1, 1);
+		rect(ctx, P.hudDim, x0, cy + 4, 1, 1);
+	}
 }
 
-function drawShip(ctx: CanvasRenderingContext2D, look: HopperLook, now: number, reduceMotion: boolean) {
-	const cy = Math.round(rowY(look, 0) + (reduceMotion ? 0 : Math.round(Math.sin(now * 1.4))));
-	const left = margin(look);
-	rect(ctx, P.trough, left, cy - 8, FIELD, ROW + 12);
-	const x0 = left + HOPPER_SHIP_LANES[0] * CELL - 8;
-	const x1 = left + (HOPPER_SHIP_LANES[1] + 1) * CELL + 8;
+function drawShip(ctx: CanvasRenderingContext2D, now: number, reduceMotion: boolean) {
+	const cy = Math.round(rowY(0) + (reduceMotion ? 0 : Math.round(Math.sin(now * 1.4))));
+	const x0 = M + CREST_SHIP_LANES[0] * CELL - 8;
+	const x1 = M + (CREST_SHIP_LANES[1] + 1) * CELL + 8;
 	const height = 22;
 	const top = cy - 11;
 	for (let i = 0; i < height; i++) {
@@ -490,11 +464,8 @@ function drawShip(ctx: CanvasRenderingContext2D, look: HopperLook, now: number, 
 		if (i === 1 || i === height - 2) rect(ctx, P.woodLight, a + 1, top + i, b - a - 2, 1);
 		if (i % 4 === 3 && !edge) rect(ctx, P.woodDark, a + 3, top + i, b - a - 6, 1);
 	}
-	// The wake along the hull.
-	rect(ctx, P.foam, x0 + 4, top + height, x1 - x0 - 26, 1);
-	rect(ctx, P.foam, x1 - 14, cy, 4, 1);
 	// The mast and its yard.
-	const mx = left + 5 * CELL + 8;
+	const mx = M + 5 * CELL + 8;
 	rect(ctx, P.woodDark, mx - 1, top + 3, 2, height - 6);
 	rect(ctx, P.woodDark, mx - 2, cy - 2, 4, 4);
 	rect(ctx, P.woodLight, mx - 1, cy - 1, 2, 2);
@@ -510,19 +481,18 @@ function drawShip(ctx: CanvasRenderingContext2D, look: HopperLook, now: number, 
 	}
 }
 
-function drawLightRows(ctx: CanvasRenderingContext2D, look: HopperLook, now: number, reduceMotion: boolean) {
-	const y = rowY(look, HOPPER_LIGHT_ROW);
+function drawLight(ctx: CanvasRenderingContext2D, now: number, reduceMotion: boolean, won: number | null) {
+	const y = rowY(CREST_LIGHT_ROW);
 	const bottom = Math.round(y + ROW / 2);
-	if (bottom <= 0) return;
-	const left = margin(look);
-	rect(ctx, P.calm, left, 0, FIELD, bottom);
+	rect(ctx, P.calm, M, 0, FIELD, bottom);
 	for (let row = 0; row < bottom; row += 6) {
-		for (let i = 0; i < FIELD; i += 12) rect(ctx, P.ripple, left + i + ((row * 5) % 12), row + 2, 5, 1);
+		for (let i = 0; i < FIELD - 5; i += 12) rect(ctx, P.ripple, M + i + ((row * 5) % 12), row + 2, 5, 1);
 	}
 	const pulse = reduceMotion ? 1 : 0.92 + 0.08 * Math.sin(now * 2);
-	drawGlow(ctx, laneX(look, 4), y - 6, 150 * pulse, 0.55);
-	drawGlow(ctx, laneX(look, 4), y - 6, 78, 1);
-	rect(ctx, P.goldLight, left, bottom - 1, FIELD, 1);
+	const bloom = won === null ? 0 : Math.min(1, won / 0.8);
+	drawGlow(ctx, laneX(4), y - 6, (110 + 80 * bloom) * pulse, 0.5 + 0.3 * bloom);
+	drawGlow(ctx, laneX(4), y - 6, 60, 1);
+	rect(ctx, P.goldLight, M, bottom - 1, FIELD, 1);
 }
 
 /** A figure in warm light, robe and halo; no face is drawn. `reach` stretches a hand out toward Peter (-1 left, 1 right). */
@@ -555,12 +525,11 @@ function drawJesus(ctx: CanvasRenderingContext2D, cx: number, feet: number, reac
 	rect(ctx, P.goldLight, cx + 4, feet - 20, 1, 6);
 }
 
-function drawPeter(ctx: CanvasRenderingContext2D, cx: number, feet: number, lift: number, mode: "stand" | "hop" | "slip" | "sink", sink: number, facing: number, now: number) {
+function drawPeter(ctx: CanvasRenderingContext2D, cx: number, feet: number, lift: number, mode: "stand" | "hop" | "slip", facing: number, now: number, sink = 0) {
 	cx = Math.round(cx);
 	feet = Math.round(feet);
-	if (mode === "slip" || mode === "sink") {
-		const under = mode === "sink" ? Math.round(3 + sink * 6) : 2;
-		const y = feet + under;
+	if (mode === "slip") {
+		const y = feet + 2 + Math.round(sink * 5);
 		// Head and arms above the water, a ring of foam about him.
 		rect(ctx, P.tunic, cx - 3, y - 8, 6, 3);
 		rect(ctx, P.skin, cx - 2, y - 12, 4, 4);
@@ -606,177 +575,92 @@ function drawWeather(ctx: CanvasRenderingContext2D, look: HopperLook, reduceMoti
 	}
 }
 
-function meter(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, value: number, vertical: boolean, low: boolean, flash: boolean) {
-	rect(ctx, P.abyss, x - 1, y - 1, w + 2, h + 2);
-	rect(ctx, P.panelLine, x, y, w, h);
-	const fill = low ? P.danger : P.gold;
-	if (vertical) {
-		const filled = Math.round(h * value);
-		rect(ctx, flash ? P.white : fill, x, y + h - filled, w, filled);
-		if (filled > 1) rect(ctx, low ? "#f5a08a" : P.goldLight, x, y + h - filled, 1, filled);
-		for (let i = y + 3; i < y + h; i += 4) rect(ctx, P.abyss, x, i, w, 1);
+/** A lamp's flame, one measure of faith: lit, or a cold ember once spent. */
+function drawFlame(ctx: CanvasRenderingContext2D, x: number, y: number, lit: boolean, flicker: number, flash: boolean) {
+	if (!lit) {
+		rect(ctx, P.ember, x + 3, y + 6, 4, 4);
+		rect(ctx, P.ember, x + 4, y + 4, 2, 2);
 	} else {
-		const filled = Math.round(w * value);
-		rect(ctx, flash ? P.white : fill, x, y, filled, h);
-		if (filled > 1) rect(ctx, low ? "#f5a08a" : P.goldLight, x, y, filled, 1);
-		for (let i = x + 4; i < x + w; i += 5) rect(ctx, P.abyss, i, y, 1, h);
+		const body = flash ? P.white : P.gold;
+		rect(ctx, body, x + 2, y + 5, 6, 5);
+		rect(ctx, body, x + 3, y + 3, 4, 2);
+		rect(ctx, P.goldLight, x + 4, y + 1 + flicker, 2, 3 - flicker);
+		rect(ctx, P.goldLight, x + 3, y + 6, 4, 3);
+		rect(ctx, P.goldPale, x + 4, y + 7, 2, 2);
 	}
+	// The lamp under it.
+	rect(ctx, P.woodLight, x + 1, y + 10, 8, 2);
+	rect(ctx, P.woodDark, x + 2, y + 12, 6, 1);
 }
 
-function score6(score: number): string {
-	return String(Math.min(999999, Math.max(0, Math.round(score)))).padStart(6, "0");
-}
-
-function drawHud(ctx: CanvasRenderingContext2D, look: HopperLook, state: HopperState, now: number, reduceMotion: boolean) {
-	const { w, h } = look;
-	const m = margin(look);
-	const faith = state.faith / 100;
-	const low = state.faith < 35;
+function drawPanels(ctx: CanvasRenderingContext2D, look: HopperLook, state: CrestState, now: number, reduceMotion: boolean) {
+	const h = HOPPER_PIXELS;
+	// The banks of the sea: rocks either side of the swells.
+	rect(ctx, P.panel, 0, 0, M, h);
+	rect(ctx, P.panel, M + FIELD, 0, M, h);
+	for (let y = 0; y < h; y += 6) {
+		rect(ctx, P.rock, M - 3 - ((y / 6) % 2), y, 3, 4);
+		rect(ctx, P.rock, M + FIELD + ((y / 6) % 2), y, 3, 4);
+		rect(ctx, P.rockLight, M - 2, y + 1, 1, 1);
+		rect(ctx, P.rockLight, M + FIELD + 1, y + 1, 1, 1);
+	}
+	// Faith: three lamps down the left bank.
+	drawText(ctx, "FAITH", 4, 44, state.faith <= 1 ? P.danger : P.hudDim);
 	const flash = !reduceMotion && look.slipAge < 0.45 && Math.floor(look.slipAge * 12) % 2 === 0;
-	const progress = hopperProgress(state);
-	const comboColor = look.comboGlow > 0.1 || state.combo > 2 ? P.goldLight : P.hud;
+	for (let i = 0; i < CREST_FAITH; i++) {
+		const lit = i < state.faith;
+		const flicker = reduceMotion ? 0 : Math.floor(now * 6 + i * 2) % 2;
+		drawFlame(ctx, 9, 54 + i * 18, lit, flicker, flash && i === state.faith);
+	}
+	// The way to Jesus, ship to light, down the right bank.
+	const tx = M + FIELD + 14;
+	const top = rowY(CREST_LIGHT_ROW);
+	const bottom = rowY(0);
+	for (let y = top; y < bottom; y += 3) rect(ctx, P.panelLine, tx, y, 1, 2);
+	rect(ctx, P.goldLight, tx - 2, top - 2, 5, 5);
+	rect(ctx, P.goldPale, tx - 1, top - 1, 3, 3);
+	rect(ctx, P.woodLight, tx - 2, bottom - 1, 5, 3);
+	const at = rowY(peterPose(state).row);
+	rect(ctx, P.tunic, tx - 2, Math.round(at) - 2, 5, 4);
+	rect(ctx, P.skin, tx - 1, Math.round(at) - 4, 3, 2);
+}
 
-	if (m >= 44) {
-		// An arcade cabinet's side panels.
-		rect(ctx, P.panel, 0, 0, m, h);
-		rect(ctx, P.panel, m + FIELD, 0, w - m - FIELD, h);
-		rect(ctx, P.panelLine, m - 2, 0, 1, h);
-		rect(ctx, P.panelLine, m + FIELD + 1, 0, 1, h);
-		rect(ctx, P.abyss, m - 1, 0, 1, h);
-		rect(ctx, P.abyss, m + FIELD, 0, 1, h);
-		const lx = 6;
-		drawText(ctx, "SCORE", lx, 10, P.hudDim);
-		drawText(ctx, score6(state.score), lx, 18, P.hud, Math.min(2, Math.floor((m - 10) / 23)));
-		drawText(ctx, "COMBO", lx, 38, P.hudDim);
-		drawText(ctx, state.combo > 1 ? `X${state.combo}` : "-", lx, 46, comboColor, 2);
-		drawText(ctx, "HOPS", lx, 66, P.hudDim);
-		drawText(ctx, String(state.cleanHops), lx, 74, P.hud);
-		drawText(ctx, "SLIPS", lx, 86, P.hudDim);
-		drawText(ctx, String(state.slips), lx, 94, state.slips ? P.danger : P.hud);
-		const rx = m + FIELD + 6;
-		drawText(ctx, "FAITH", rx, 24, low ? P.danger : P.hudDim);
-		const barTop = 33;
-		const barH = Math.max(30, h - barTop - 18);
-		meter(ctx, rx + 2, barTop, 8, barH, faith, true, low, flash);
-		drawText(ctx, `${Math.round(state.faith)}%`, rx, barTop + barH + 5, low ? P.danger : P.hud);
-		// The way to Jesus, ship to light.
-		const tx = rx + 22;
-		if (tx + 4 < w) {
-			rect(ctx, P.panelLine, tx, barTop, 1, barH);
-			rect(ctx, P.goldLight, tx - 1, barTop - 2, 3, 3);
-			rect(ctx, P.woodLight, tx - 1, barTop + barH - 1, 3, 2);
-			rect(ctx, P.white, tx - 1, Math.round(barTop + barH - 2 - progress * (barH - 3)), 3, 2);
-		}
-	} else {
-		// A phone: score across the top, faith along the bottom, the way to Jesus down the left bank.
-		rect(ctx, P.panel, 0, 0, w, 14);
-		rect(ctx, P.panelLine, 0, 14, w, 1);
-		drawText(ctx, "SCORE", 3, 5, P.hudDim);
-		drawText(ctx, score6(state.score), 24, 2, P.hud, 2);
-		if (state.combo > 1) drawText(ctx, `X${state.combo}`, 24 + textWidth("000000", 2) + 4, 5, comboColor);
-		rect(ctx, P.panel, 0, h - 11, w, 11);
-		rect(ctx, P.panelLine, 0, h - 12, w, 1);
-		drawText(ctx, "FAITH", 3, h - 8, low ? P.danger : P.hudDim);
-		const barX = 24;
-		const barW = w - barX - 22;
-		meter(ctx, barX, h - 8, barW, 5, faith, false, low, flash);
-		drawText(ctx, `${Math.round(state.faith)}%`, barX + barW + 4, h - 8, low ? P.danger : P.hud, 1);
-		if (m >= 6) {
-			const tx = Math.floor(m / 2);
-			const top = 20;
-			const bottom = h - 18;
-			for (let y = top; y < bottom; y += 3) rect(ctx, P.panelLine, tx, y, 1, 2);
-			rect(ctx, P.goldLight, tx - 1, top - 2, 3, 3);
-			rect(ctx, P.woodLight, tx - 1, bottom, 3, 2);
-			rect(ctx, P.white, tx - 1, Math.round(bottom - 1 - progress * (bottom - top - 2)), 3, 2);
+/** Paints one frame into the buffer (HOPPER_PIXELS square). */
+export function drawHopper(ctx: CanvasRenderingContext2D, look: HopperLook, state: CrestState, now: number, reduceMotion: boolean) {
+	const size = HOPPER_PIXELS;
+	rect(ctx, P.abyss, 0, 0, size, size);
+	rect(ctx, P.trough, M, rowY(0) - ROW / 2, FIELD, size);
+	for (let r = 1; r < CREST_LIGHT_ROW; r++) drawSeaRow(ctx, state, r, now, reduceMotion);
+	drawShip(ctx, now, reduceMotion);
+	drawLight(ctx, now, reduceMotion, look.wonAge);
+
+	// Landing ripples: white for a crest, red for a trough.
+	for (const ripple of look.ripples) {
+		const r = 3 + ripple.age * 26;
+		const color = ripple.good ? P.white : P.danger;
+		for (let a = 0; a < 16; a++) {
+			const angle = (a / 16) * Math.PI * 2;
+			if (ripple.age > 0.3 && a % 2) continue;
+			rect(ctx, color, ripple.x + Math.cos(angle) * r, ripple.y + Math.sin(angle) * r * 0.45, 1, 1);
 		}
 	}
 
-	// A gust shown coming: the arrow says which way it will shove him.
-	if (state.gust && state.phase === "playing") {
-		const label = state.gust.dir > 0 ? "GUST >>" : "<< GUST";
-		const blink = reduceMotion || Math.floor(now * 6) % 2 === 0;
-		const tw = textWidth(label, 2);
-		const x = m + Math.round((FIELD - tw) / 2);
-		const y = m >= 44 ? 6 : 19;
-		rect(ctx, P.abyss, x - 3, y - 2, tw + 6, 14);
-		if (blink) drawText(ctx, label, x, y, P.foam, 2, null);
-		else drawText(ctx, label, x, y, P.crestLight, 2, null);
-	}
-	if (state.phase === "playing" && state.t < HOPPER_START + 0.6) {
-		const label = state.t < HOPPER_START ? "READY" : "HOP!";
-		const tw = textWidth(label, 2);
-		drawText(ctx, label, m + Math.round((FIELD - tw) / 2), Math.round(h * 0.42), P.goldLight, 2);
-	}
-}
-
-export interface HopperFrame {
-	state: HopperState;
-	now: number;
-	reduceMotion: boolean;
-}
-
-/** Paints one frame into the buffer (`look.w` by `look.h` pixels). */
-export function drawHopper(ctx: CanvasRenderingContext2D, look: HopperLook, frame: HopperFrame) {
-	const { state, now, reduceMotion } = frame;
-	const { w, h } = look;
-	ctx.save();
-	if (look.shake > 0) ctx.translate(Math.round((Math.random() - 0.5) * 4), Math.round((Math.random() - 0.5) * 3));
-	// The deep beyond the lanes, and the banks of the field.
-	rect(ctx, P.abyss, -4, -4, w + 8, h + 8);
-	const m = margin(look);
-	for (let y = 0; y < h; y += 2) {
-		rect(ctx, P.deep, m - 3 + ((y / 2) % 2), y, 1, 1);
-		rect(ctx, P.deep, m + FIELD + 2 - ((y / 2) % 2), y, 1, 1);
-	}
-
-	const lowest = Math.max(0, Math.floor(look.cam - (h - baseY(look)) / ROW) - 1);
-	const highest = Math.min(HOPPER_LIGHT_ROW - 1, Math.ceil(look.cam + baseY(look) / ROW) + 1);
-	// Below the ship, open sea.
-	rect(ctx, P.trough, m, Math.round(rowY(look, 0) + ROW / 2), FIELD, h);
-	for (let r = Math.max(1, lowest); r <= highest; r++) drawSeaRow(ctx, look, state, r, now, reduceMotion);
-	if (lowest <= 1) drawShip(ctx, look, now, reduceMotion);
-	drawLightRows(ctx, look, now, reduceMotion);
-
-	// Jesus in his light: at the top, or come to Peter on a rescue (v31).
+	// Jesus in his light; reaching it, Peter goes to his side and he stretches forth his hand (v31).
 	const pose = peterPose(state);
-	if (state.phase === "arrived" && look.arriveAt !== null) {
-		// Reaching the light, Peter goes to Jesus' side.
-		const t = Math.min(1, (now - look.arriveAt) / 0.9);
+	const won = state.phase === "won";
+	if (won) {
 		const goal = state.x <= 4 ? 3.1 : 4.9;
-		pose.x = state.x + (goal - state.x) * (1 - Math.pow(1 - t, 2));
+		pose.x = state.x + (goal - state.x) * (1 - Math.pow(1 - look.arrive, 2));
 	}
-	const px = laneX(look, pose.x);
-	const py = rowY(look, pose.row) + 3;
-	const lightY = rowY(look, HOPPER_LIGHT_ROW) + 4;
-	let jx = laneX(look, 4);
-	let jy = lightY;
-	let reach = 0;
-	if (look.rescueAt !== null) {
-		const t = Math.min(1, (now - look.rescueAt) / 1.1);
-		const ease = 1 - Math.pow(1 - t, 3);
-		const tx = px + (pose.x > 4 ? -14 : 14);
-		jx = tx + (laneX(look, 4) - tx) * (1 - ease);
-		jy = py + (-30 - py) * (1 - ease);
-		reach = pose.x > 4 ? 1 : -1;
-		drawGlow(ctx, jx, jy - 8, 110, 0.5 + 0.3 * ease);
-	} else if (state.phase === "arrived") {
-		reach = state.x > 4 ? 1 : -1;
-	}
-	if (jy > -40 && jy < h + 30) drawJesus(ctx, jx, jy, reach);
+	const lightY = rowY(CREST_LIGHT_ROW) + 4;
+	drawJesus(ctx, laneX(4), lightY, won ? (state.x > 4 ? 1 : -1) : 0);
 
-	// Peter.
+	const px = laneX(pose.x);
+	const py = rowY(pose.row) + 3;
 	const facing = state.hop ? Math.sign(state.hop.target - state.hop.fromX) || 1 : 1;
-	if (state.phase === "sinking" || (state.phase === "rescued" && look.rescueAt !== null && now - look.rescueAt < 0.8)) {
-		drawPeter(ctx, px, py, 0, "sink", state.sink, facing, now);
-	} else if (state.phase === "rescued") {
-		// Caught and held up beside Jesus.
-		drawPeter(ctx, px, py - 2, 0, "stand", 0, reach > 0 ? -1 : 1, now);
-	} else if (state.stun > 0) {
-		drawPeter(ctx, px, py, 0, "slip", 0, facing, now);
-	} else {
-		drawPeter(ctx, px, py, pose.lift, pose.lift > 0 ? "hop" : "stand", 0, facing, now);
-	}
+	if (state.phase === "lost" && state.lostBy === "faith") drawPeter(ctx, px, py, 0, "slip", facing, now, Math.min(1, look.slipAge / 1.2));
+	else if (state.stun > 0) drawPeter(ctx, px, py, 0, "slip", facing, now);
+	else drawPeter(ctx, px, py, pose.lift, pose.lift > 0 ? "hop" : "stand", facing, now);
 
 	for (const particle of look.particles) {
 		if (particle.life < particle.max * 0.25 && Math.floor(particle.life * 30) % 2 === 0) continue;
@@ -784,17 +668,178 @@ export function drawHopper(ctx: CanvasRenderingContext2D, look: HopperLook, fram
 	}
 	drawWeather(ctx, look, reduceMotion);
 
-	// Fear closing in as faith runs low.
-	if (state.faith < 40 && state.phase !== "arrived") {
-		const depth = Math.round((1 - state.faith / 40) * 10);
+	// Fear closing in at the last measure of faith.
+	if (state.faith <= 1 && !won) {
+		const depth = state.faith === 0 ? 14 : 8;
 		for (let i = 0; i < depth; i++) {
-			for (let x = (i % 2) * 2; x < w; x += 4) {
-				rect(ctx, P.abyss, x, i + 15, 1, 1);
-				rect(ctx, P.abyss, x + 1, h - 13 - i, 1, 1);
+			for (let x = M + (i % 2) * 2; x < M + FIELD; x += 4) {
+				rect(ctx, P.abyss, x, i, 1, 1);
+				rect(ctx, P.abyss, x + 1, size - 1 - i, 1, 1);
 			}
 		}
 	}
 	for (const item of look.pops) drawText(ctx, item.text, item.x - textWidth(item.text) / 2, item.y, item.color);
-	ctx.restore();
-	drawHud(ctx, look, state, now, reduceMotion);
+	drawPanels(ctx, look, state, now, reduceMotion);
+}
+
+// --- the cues, in stage units (twice the buffer's pixels) -------------------
+
+/**
+ * What the ring on the next row says right now: "hop" (gold), "wait" (red) or
+ * null when no ring shows. Gold only while a hop pressed at any moment over a
+ * player's reaction time from now would still land on a crest.
+ */
+export function ringState(state: CrestState): "hop" | "wait" | null {
+	if (state.phase !== "playing" || state.air > 0 || state.stun > 0 || state.row >= CREST_LIGHT_ROW) return null;
+	return hopUpHolds(state) ? "hop" : "wait";
+}
+
+/**
+ * Where a gust will shove him and whether that is a crest, or null with no
+ * gust shown. In the air or floundering there is no spot to mark yet
+ * (`marked` false): it shoves him where he lands.
+ */
+export function gustTarget(state: CrestState): { x: number; row: number; safe: boolean; marked: boolean } | null {
+	if (!state.gust || state.phase !== "playing") return null;
+	const row = state.rows[state.row];
+	if (state.air > 0 || state.stun > 0) return { x: state.x, row: state.row, safe: true, marked: false };
+	if (row.kind !== "sea") return { x: state.x, row: state.row, safe: true, marked: false };
+	const k = cellAt(row, state.x) + state.gust.dir;
+	return { x: k + row.offset, row: state.row, safe: shoveLands(state, state.gust.dir), marked: true };
+}
+
+function pill(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, fill: string, color: string, size = 18) {
+	ctx.font = `900 ${size}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+	ctx.textAlign = "center";
+	ctx.textBaseline = "middle";
+	const width = ctx.measureText(text).width + size * 1.1;
+	const left = Math.max(M * SCALE + 4, Math.min(HOPPER_PIXELS * SCALE - M * SCALE - 4 - width, x - width / 2));
+	ctx.fillStyle = fill;
+	ctx.beginPath();
+	ctx.roundRect(left, y - size * 0.85, width, size * 1.7, size * 0.85);
+	ctx.fill();
+	ctx.fillStyle = color;
+	ctx.fillText(text, left + width / 2, y + 1);
+}
+
+/** Draws the cues over the scaled-up pixels: the ring, the first-hop hint, the gust's warning and the flashes. */
+export function drawCues(ctx: CanvasRenderingContext2D, look: HopperLook, state: CrestState, now: number, reduceMotion: boolean) {
+	const S = SCALE;
+	const pulse = reduceMotion ? 1 : 0.5 + 0.5 * Math.sin(now * 9);
+	const ring = ringState(state);
+	if (ring) {
+		const x = laneX(state.x) * S;
+		const y = (rowY(state.row + 1) + 1) * S;
+		ctx.save();
+		ctx.lineWidth = ring === "hop" ? 4 : 3;
+		if (ring === "hop") {
+			ctx.strokeStyle = "#ffd97a";
+			ctx.shadowColor = "rgba(255,217,122,.9)";
+			ctx.shadowBlur = reduceMotion ? 8 : 6 + 10 * pulse;
+			ctx.beginPath();
+			ctx.ellipse(x, y, 15 + 2 * pulse, 9 + pulse, 0, 0, Math.PI * 2);
+			ctx.stroke();
+			ctx.shadowBlur = 0;
+			// An arrow up from Peter to the ring.
+			ctx.fillStyle = "#ffd97a";
+			ctx.beginPath();
+			ctx.moveTo(x, y + 14);
+			ctx.lineTo(x - 7, y + 22);
+			ctx.lineTo(x + 7, y + 22);
+			ctx.closePath();
+			ctx.fill();
+		} else {
+			ctx.strokeStyle = "rgba(226,115,90,.85)";
+			ctx.setLineDash([5, 4]);
+			ctx.beginPath();
+			ctx.ellipse(x, y, 14, 8, 0, 0, Math.PI * 2);
+			ctx.stroke();
+			ctx.setLineDash([]);
+			ctx.beginPath();
+			ctx.moveTo(x - 5, y - 4);
+			ctx.lineTo(x + 5, y + 4);
+			ctx.moveTo(x + 5, y - 4);
+			ctx.lineTo(x - 5, y + 4);
+			ctx.stroke();
+		}
+		ctx.restore();
+	}
+
+	// Until the first hop: how to hop, pulsing over the ring.
+	if (state.phase === "playing" && state.hops === 0 && state.slips === 0 && state.row === 0 && state.air === 0) {
+		const y = (rowY(1) - 16) * S;
+		ctx.globalAlpha = reduceMotion ? 1 : 0.75 + 0.25 * pulse;
+		pill(ctx, ring === "hop" ? "Tap or ↑  Hop now!" : "Wait for the gold ring", laneX(state.x) * S, y, ring === "hop" ? "#ffd97a" : "rgba(5,7,26,.85)", ring === "hop" ? "#1a1206" : "#f1eadc", 17);
+		ctx.globalAlpha = 1;
+	}
+
+	// A gust coming: its arrow, its countdown, and the spot it will shove him to.
+	const target = gustTarget(state);
+	if (state.gust && target) {
+		const left = Math.max(0, state.gust.at - state.t);
+		const arrow = state.gust.dir > 0 ? "→" : "←";
+		const label = target.safe ? `Gust ${arrow}  ${left.toFixed(1)}` : `Gust ${arrow}  Move!  ${left.toFixed(1)}`;
+		// Over the open sea: low while Peter is high, high while he is low.
+		const y = state.row >= 6 ? 372 : 118;
+		ctx.globalAlpha = reduceMotion || Math.floor(now * 6) % 2 === 0 ? 1 : 0.85;
+		pill(ctx, label, HOPPER_PIXELS, y, target.safe ? "rgba(191,224,255,.95)" : "#e2735a", "#05071a", 20);
+		ctx.globalAlpha = 1;
+		// The countdown draining under the label.
+		const width = 150;
+		ctx.fillStyle = "rgba(5,7,26,.7)";
+		ctx.fillRect(HOPPER_PIXELS - width / 2, y + 22, width, 5);
+		ctx.fillStyle = target.safe ? "#bfe0ff" : "#e2735a";
+		ctx.fillRect(HOPPER_PIXELS - width / 2, y + 22, width * Math.min(1, left / CREST_GUST_WARN), 5);
+		// Where it will shove him.
+		if (target.marked) {
+			const x = laneX(target.x) * S;
+			const ty = rowY(target.row) * S;
+			ctx.save();
+			ctx.lineWidth = 3;
+			ctx.strokeStyle = target.safe ? "#7ee0a1" : "#ff6b5a";
+			ctx.globalAlpha = target.safe ? 0.9 : 0.6 + 0.4 * pulse;
+			ctx.strokeRect(x - 14, ty - 12, 28, 24);
+			if (!target.safe) {
+				ctx.beginPath();
+				ctx.moveTo(x - 8, ty - 7);
+				ctx.lineTo(x + 8, ty + 7);
+				ctx.moveTo(x + 8, ty - 7);
+				ctx.lineTo(x - 8, ty + 7);
+				ctx.stroke();
+			}
+			// The arrow from Peter to it.
+			const from = laneX(state.x) * S;
+			const dir = state.gust.dir;
+			ctx.fillStyle = ctx.strokeStyle;
+			ctx.beginPath();
+			ctx.moveTo(from + dir * 10, ty - 22);
+			ctx.lineTo(from + dir * 24, ty - 22);
+			ctx.lineTo(from + dir * 24, ty - 27);
+			ctx.lineTo(from + dir * 32, ty - 20);
+			ctx.lineTo(from + dir * 24, ty - 13);
+			ctx.lineTo(from + dir * 24, ty - 18);
+			ctx.lineTo(from + dir * 10, ty - 18);
+			ctx.closePath();
+			ctx.fill();
+			ctx.restore();
+		}
+	}
+
+	// Flashes: red on a slip, a cool sweep when a gust shoves, gold on reaching Jesus.
+	if (look.slipAge < 0.35) {
+		ctx.fillStyle = `rgba(226,60,50,${0.32 * (1 - look.slipAge / 0.35)})`;
+		ctx.fillRect(0, 0, HOPPER_PIXELS * S, HOPPER_PIXELS * S);
+	}
+	if (look.gustAge < 0.25 && state.phase === "playing") {
+		ctx.fillStyle = `rgba(191,224,255,${0.18 * (1 - look.gustAge / 0.25)})`;
+		ctx.fillRect(0, 0, HOPPER_PIXELS * S, HOPPER_PIXELS * S);
+	}
+	if (look.wonAge !== null && look.wonAge < 0.7) {
+		ctx.fillStyle = `rgba(255,243,196,${0.45 * (1 - look.wonAge / 0.7)})`;
+		ctx.fillRect(0, 0, HOPPER_PIXELS * S, HOPPER_PIXELS * S);
+	}
+	if (state.phase === "lost") {
+		ctx.fillStyle = "rgba(5,7,26,.35)";
+		ctx.fillRect(0, 0, HOPPER_PIXELS * S, HOPPER_PIXELS * S);
+	}
 }
