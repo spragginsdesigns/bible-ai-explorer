@@ -25,7 +25,7 @@ const degradedCacheHeaders = {
 const DEFAULT_LIMIT = 5;
 const MAX_LIMIT = 20;
 /** Longest same-chapter span quoted inline, matching the getCrossReferences tool. */
-const MAX_QUOTED_VERSES = 4;
+const MAX_QUOTED_VERSES = 30;
 
 /**
  * Parse a 1-based query param. Digits only, so "1.5", "-1" and "five" are all
@@ -59,38 +59,63 @@ function referenceOf(ref: CrossReference): string {
 		: `${name} ${ref.chapter}:${ref.verse}-${ref.endChapter}:${ref.endVerse}`;
 }
 
-/**
- * The text to show under an edge (none for reference-only), and whether a
- * lookup failed, which keeps the answer out of the long-lived cache. A range
- * that crosses a chapter is never quoted (the card would swallow a chapter
- * tail), and a translation that has to be fetched can fail without taking the
- * whole row down: NKJV comes from bolls.life, and a "See also" list of
- * references still answers the question when it is unreachable.
- */
+interface QuoteCoverage {
+	requestedReference: string;
+	returnedReference: string | null;
+	requestedVerseCount: number | null;
+	returnedVerseCount: number;
+	truncated: boolean;
+}
+
+interface QuotedCrossReference {
+	text?: string;
+	failed: boolean;
+	quotedReference: string | null;
+	coverage: QuoteCoverage;
+	notice?: string;
+}
+
+/** Only complete quotations may appear beneath a full curated reference. */
 async function quote(
 	ref: CrossReference,
 	translation: TranslationId
-): Promise<{ text?: string; failed: boolean }> {
-	if (ref.endChapter !== undefined && ref.endChapter !== ref.chapter) return { failed: false };
-	const last = Math.min(ref.endVerse ?? ref.verse, ref.verse + MAX_QUOTED_VERSES - 1);
+): Promise<QuotedCrossReference> {
+	const reference = referenceOf(ref);
+	const crossChapter = ref.endChapter !== undefined && ref.endChapter !== ref.chapter;
+	const last = ref.endVerse ?? ref.verse;
+	const requestedVerseCount = crossChapter ? null : last - ref.verse + 1;
+	const referenceOnly = (notice: string, failed = false): QuotedCrossReference => ({
+		failed, quotedReference: null, notice,
+		coverage: { requestedReference: reference, returnedReference: null,
+			requestedVerseCount, returnedVerseCount: 0, truncated: true },
+	});
+	if (crossChapter) return referenceOnly("Cross-chapter range; open the reference to read each chapter.");
+	if ((requestedVerseCount ?? 0) > MAX_QUOTED_VERSES) {
+		return referenceOnly(`Range exceeds ${MAX_QUOTED_VERSES} verses; open the reference to read the full passage.`);
+	}
+	if (!Number.isInteger(requestedVerseCount) || (requestedVerseCount ?? 0) < 1) {
+		return referenceOnly("The complete range could not be read.", true);
+	}
 	const texts: string[] = [];
 	try {
 		for (let verse = ref.verse; verse <= last; verse++) {
 			const text = await getVerseText(translation, ref.order, ref.chapter, verse);
-			if (!text) break;
+			if (!text?.trim()) return referenceOnly(`The complete range is unavailable in ${translation}; no quotation was returned.`, true);
 			texts.push(text);
 		}
 	} catch (error) {
-		// The loader rethrows with a reader-facing message; the cause it carries
-		// (a timeout, a 5xx, a bad payload) is the part worth logging.
 		const cause = error instanceof Error && error.cause !== undefined ? error.cause : error;
 		console.error(
 			`[api/bible/crossrefs] ${translation} verse text lookup failed for ${ref.order}:${ref.chapter}`,
 			cause
 		);
-		return { failed: true };
+		return referenceOnly(`The complete range could not be loaded in ${translation}; no quotation was returned.`, true);
 	}
-	return texts.length > 0 ? { text: texts.join(" "), failed: false } : { failed: false };
+	return {
+		text: texts.join(" "), failed: false, quotedReference: reference,
+		coverage: { requestedReference: reference, returnedReference: reference,
+			requestedVerseCount, returnedVerseCount: texts.length, truncated: false },
+	};
 }
 
 /**
@@ -125,14 +150,12 @@ export async function GET(req: Request): Promise<Response> {
 		}
 		const translation: TranslationId = rawTranslation ?? "KJV";
 
-		const refs = (await getCrossReferencesFor(target.order, target.chapter, target.verse)).slice(
-			0,
-			limit
-		);
+		const allRefs = await getCrossReferencesFor(target.order, target.chapter, target.verse);
+		const refs = allRefs.slice(0, limit);
 		const quoted = await Promise.all(refs.map((ref) => quote(ref, translation)));
 		const crossReferences = refs.map((ref, index) => {
-			const text = quoted[index].text;
-			return { reference: referenceOf(ref), ...(text ? { text } : {}) };
+			const { failed: _failed, ...quotation } = quoted[index];
+			return { reference: referenceOf(ref), ...quotation };
 		});
 		const degraded = quoted.some((result) => result.failed);
 
@@ -143,6 +166,9 @@ export async function GET(req: Request): Promise<Response> {
 				reference: `${bookName(target.order)} ${target.chapter}:${target.verse}`,
 				translation,
 				crossReferences,
+				total: allRefs.length,
+				returnedCount: refs.length,
+				truncated: allRefs.length > refs.length,
 			},
 			{ headers: degraded ? degradedCacheHeaders : cacheHeaders }
 		);

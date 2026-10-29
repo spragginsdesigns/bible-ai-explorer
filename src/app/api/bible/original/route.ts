@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { bookByOrder } from "@/lib/bible/books";
-import { getOriginalVerse } from "@/lib/bible/originals";
+import { getOriginalVerseForKjv } from "@/lib/bible/originals";
 
 export const maxDuration = 10;
 
-// The Hebrew and Greek texts are public domain and ship inside the deploy, so
+// The Hebrew and Greek texts ship inside the deploy, so
 // nothing here can go stale except through a new build. Cache hard: this is the
 // per-tap request every client makes when a reader opens a verse.
 const cacheHeaders = {
@@ -25,7 +25,7 @@ function positiveInteger(raw: string | null): number | null {
 
 /**
  * The original-language text of one verse, word by word with Strong's numbers,
- * morphology and glosses. Public: the text is public domain and carries no user
+ * morphology and glosses for a KJV reference. Public: it carries no user
  * state, and every client needs it before a session exists.
  */
 export async function GET(req: Request): Promise<Response> {
@@ -41,7 +41,7 @@ export async function GET(req: Request): Promise<Response> {
 			return NextResponse.json({ error: "invalid_reference" }, { status: 400 });
 		}
 
-		const original = await getOriginalVerse(book, chapter, verse);
+		const original = await getOriginalVerseForKjv(book, chapter, verse);
 		if (!original) {
 			// A miss is a permanent fact about the versification, so cache it as
 			// hard as a hit: every client asks this on every fresh load.
@@ -61,6 +61,9 @@ export async function GET(req: Request): Promise<Response> {
 				language: original.language,
 				textName: original.textName,
 				words: original.words,
+				requestedReference: original.requestedReference,
+				sourceVersification: original.sourceVersification,
+				sourceReferences: original.sourceReferences,
 			},
 			{ headers: cacheHeaders }
 		);

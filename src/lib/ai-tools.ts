@@ -76,7 +76,7 @@ import {
 import type { LearnStage } from "@/lib/learn-schedule";
 import { getKjvBookNumber, getKjvBookName } from "@/utils/kjvBible";
 import type { HighlightLabels } from "@/lib/preferences-contract";
-import { resolveReference } from "@/lib/bible/books";
+import { bookByOrder, resolveReference } from "@/lib/bible/books";
 import { findVersesFullText } from "@/lib/bible/verse-fulltext";
 import { indexedOccurrences } from "@/lib/bible/indexed-occurrences";
 import { canonicalPassage } from "@/lib/bible/passage-context";
@@ -91,8 +91,9 @@ import {
 } from "@/lib/bible/atlas";
 import {
 	getOriginalVerse,
+	getOriginalVerseForKjv,
 	lookupStrongsEntry,
-	type OriginalVerse,
+	type KjvOriginalVerse,
 	type StrongsEntry,
 } from "@/lib/bible/originals";
 import { stripCantillation } from "@/lib/bible/original-text";
@@ -109,13 +110,25 @@ import {
 	type StrongsCandidate,
 } from "@/lib/bible/original-search";
 
+export interface PassageCoverage {
+	requestedReference: string;
+	returnedReference: string | null;
+	requestedVerseCount: number | null;
+	returnedVerseCount: number;
+	truncated: boolean;
+}
+
 export interface ScriptureSearchToolOutput {
+	/** Present when findVerses received a reference rather than a word search. */
+	coverage?: PassageCoverage;
+	truncated?: boolean;
 	verses: RetrievedVerse[];
 	averageSimilarity: number;
 	formatted: string;
 }
 
 export interface PassageToolOutput {
+	coverage?: PassageCoverage;
 	reference: string;
 	verses: RetrievedVerse[];
 	contextVerses?: RetrievedVerse[];
@@ -278,34 +291,86 @@ const PLAN_DAYS_AHEAD = 3;
 const MAX_PASSAGE_VERSES = 30;
 const MAX_CROSS_REFERENCES = 8;
 
-/**
- * The verses of one passage in the user's translation, word for word, capped
- * at MAX_PASSAGE_VERSES and stopping at the end of the chapter. Shared by
- * getPassage and by findVerses, which answers a query that is itself a bare
- * reference with the passage instead of a word search.
- */
+/** Resolve book aliases without treating a reference as a bare book name. */
+function scriptureBookNumber(book: string): number | undefined {
+	const canonical = getKjvBookNumber(book);
+	if (canonical) return canonical;
+	const alias = resolveReference(`${book.trim()} 1`);
+	return alias?.chapter === 1 && alias.verse === undefined ? alias.order : undefined;
+}
+
+/** The navigation parser drops range ends; a quotation must validate the whole request. */
+function parsePassageQuery(query: string) {
+	const parts = query.trim().match(/^([1-3]?\s*[\p{L}. ]+?)\s*([+-]?\d.*)$/u);
+	if (!parts) return null;
+	const order = scriptureBookNumber(parts[1]);
+	if (!order) return null;
+	const coordinates = parts[2].match(/^(\d+)(?:\s*:\s*(\d+)(?:\s*[-\u2013\u2014]\s*(\d+))?)?$/);
+	if (!coordinates) throw new Error("Use a chapter, verse, or verse range within one chapter; cross-chapter ranges are not supported.");
+	return {
+		order,
+		chapter: Number(coordinates[1]),
+		verseStart: coordinates[2] === undefined ? undefined : Number(coordinates[2]),
+		verseEnd: coordinates[3] === undefined ? undefined : Number(coordinates[3]),
+	};
+}
+
+function passageReference(book: string, chapter: number, start: number, end: number) {
+	return `${book} ${chapter}:${start}${end === start ? "" : `-${end}`}`;
+}
+
+/** Validate against the actual translation before applying a response cap. */
 async function readPassageVerses(
 	bookNumber: number,
 	bookName: string,
 	chapter: number,
-	verseStart: number,
+	verseStart: number | undefined,
 	verseEnd: number | undefined,
-	translation: TranslationId
-): Promise<RetrievedVerse[]> {
-	const end = Math.min(verseEnd ?? verseStart, verseStart + MAX_PASSAGE_VERSES - 1);
-	const verses: RetrievedVerse[] = [];
+	translation: TranslationId,
+	cap = MAX_PASSAGE_VERSES
+): Promise<{ verses: RetrievedVerse[]; coverage: PassageCoverage }> {
+	const book = bookByOrder(bookNumber);
+	if (!Number.isInteger(chapter) || chapter < 1 || !book || chapter > book.chapters) {
+		throw new Error("That chapter does not exist in this book.");
+	}
 	const chapterVerses = await getChapter(translation, bookNumber, chapter);
-	for (let verse = verseStart; verse <= end; verse++) {
+	const start = verseStart ?? 1;
+	const requestedEnd = verseEnd ?? (verseStart === undefined ? chapterVerses.length : start);
+	if (!Number.isInteger(start) || !Number.isInteger(requestedEnd) || start < 1 || requestedEnd < start || requestedEnd > chapterVerses.length) {
+		throw new Error("That verse or range does not exist in this chapter.");
+	}
+	const end = Math.min(requestedEnd, start + cap - 1);
+	const verses: RetrievedVerse[] = [];
+	for (let verse = start; verse <= end; verse++) {
 		const text = chapterVerses[verse - 1];
-		if (!text) break;
+		if (!text?.trim()) throw new Error(`The text of ${bookName} ${chapter}:${verse} is unavailable in ${translation}.`);
 		verses.push({ reference: `${bookName} ${chapter}:${verse}`, similarity: 1, text, translation });
 	}
-	return verses;
+	return {
+		verses,
+		coverage: {
+			requestedReference: verseStart === undefined ? `${bookName} ${chapter}` : passageReference(bookName, chapter, start, requestedEnd),
+			returnedReference: passageReference(bookName, chapter, start, end),
+			requestedVerseCount: requestedEnd - start + 1,
+			returnedVerseCount: verses.length,
+			truncated: end < requestedEnd,
+		},
+	};
+}
+
+function formatPassageCoverage(coverage: PassageCoverage) {
+	return coverage.truncated
+		? `Requested ${coverage.requestedReference} (${coverage.requestedVerseCount ?? "unknown number of"} verses); returned ${coverage.returnedReference ?? "no quotation"} (${coverage.returnedVerseCount} verses). This is partial coverage; retrieve the remaining verses before treating the passage as fully read.`
+		: `Read all ${coverage.returnedVerseCount} requested verses: ${coverage.returnedReference}.`;
 }
 
 export interface CrossReferencesToolOutput {
 	reference: string;
-	crossReferences: { reference: string; text?: string }[];
+	crossReferences: { reference: string; text?: string; quotedReference?: string | null; coverage?: PassageCoverage; notice?: string }[];
+	/** Ranked references available and returned, separately from quotation coverage. */
+	total?: number;
+	returnedCount?: number;
+	truncated?: boolean;
 	formatted: string;
 }
 
@@ -350,7 +415,7 @@ async function matchedWordsFor(
 	return matched;
 }
 
-export interface OriginalTextToolOutput extends OriginalVerse {
+export interface OriginalTextToolOutput extends KjvOriginalVerse {
 	reference: string;
 	formatted: string;
 }
@@ -521,7 +586,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 		execute: async ({ query, book, limit }): Promise<ScriptureSearchToolOutput> => {
 			let bookNumber: number | undefined;
 			if (book) {
-				bookNumber = getKjvBookNumber(book);
+				bookNumber = scriptureBookNumber(book);
 				if (!bookNumber) {
 					throw new Error(`Unknown book name: "${book}". Use standard KJV book names, or omit book.`);
 				}
@@ -530,27 +595,23 @@ export function buildSureWordTools(context: SureWordToolContext) {
 			// A query that is itself a reference ("John 3:16", "Psalm 23") is a
 			// lookup, not a word search: answer it from the passage so the model
 			// never has to re-ask through getPassage.
-			const reference = resolveReference(query);
+			const reference = parsePassageQuery(query);
 			if (reference) {
-				const bookName = getKjvBookName(reference.order) ?? `Book ${reference.order}`;
-				const start = reference.verse ?? 1;
-				// No verse in the reference means a whole chapter: read from verse 1
-				// up to the shared cap.
-				const verses = await readPassageVerses(
-					reference.order,
-					bookName,
-					reference.chapter,
-					start,
-					reference.verse ?? start + MAX_PASSAGE_VERSES - 1,
-					translation
-				);
-				if (verses.length > 0) {
-					return {
-						verses,
-						averageSimilarity: 1,
-						formatted: formatVersesForModel(verses, translation),
-					};
+				if (bookNumber !== undefined && bookNumber !== reference.order) {
+					throw new Error("The reference and book filter name different books.");
 				}
+				const bookName = getKjvBookName(reference.order)!;
+				const { verses, coverage } = await readPassageVerses(
+					reference.order, bookName, reference.chapter,
+					reference.verseStart, reference.verseEnd, translation
+				);
+				return {
+					verses,
+					averageSimilarity: 1,
+					coverage,
+					truncated: coverage.truncated,
+					formatted: `${formatVersesForModel(verses, translation)}\n${formatPassageCoverage(coverage)}`,
+				};
 			}
 
 			const hits = await findVersesFullText(query, limit ?? 8, { book: bookNumber });
@@ -595,15 +656,16 @@ export function buildSureWordTools(context: SureWordToolContext) {
 				.describe("Last verse of the range, inclusive. Omit for a single verse."),
 		}),
 		execute: async ({ book, chapter, verseStart, verseEnd }): Promise<PassageToolOutput> => {
-			const bookNumber = getKjvBookNumber(book);
+			const bookNumber = scriptureBookNumber(book);
 			if (!bookNumber) {
 				throw new Error(`Unknown book name: "${book}". Use standard KJV book names.`);
 			}
-			const bookName = getKjvBookName(bookNumber) ?? book;
+			const bookName = getKjvBookName(bookNumber)!;
+			const { coverage } = await readPassageVerses(bookNumber, bookName, chapter, verseStart, verseEnd, translation);
 			const passage = await canonicalPassage(`${bookName} ${chapter}:${verseStart}${verseEnd === undefined ? "" : `-${verseEnd}`}`, translation);
 			const verses = passage.verses.map(row => ({ ...row, similarity: 1 }));
 			const contextVerses = passage.contextVerses.map(row => ({ ...row, similarity: 1 }));
-			return { ...passage, verses, contextVerses, formatted: `${formatVersesForModel(verses, translation)}\n\nSurrounding context (not part of the requested quotation):\n${formatVersesForModel(contextVerses, translation)}${passage.truncated ? "\nThe requested range was bounded to 30 verses; explain this limit instead of claiming to have read the whole range." : ""}` };
+			return { ...passage, verses, contextVerses, coverage, formatted: `${formatVersesForModel(verses, translation)}\n${formatPassageCoverage(coverage)}\n\nSurrounding context (not part of the requested quotation):\n${formatVersesForModel(contextVerses, translation)}` };
 		},
 	});
 
@@ -616,17 +678,16 @@ export function buildSureWordTools(context: SureWordToolContext) {
 			verse: z.number().int().min(1),
 		}),
 		execute: async ({ book, chapter, verse }): Promise<CrossReferencesToolOutput> => {
-			const bookNumber = getKjvBookNumber(book);
+			const bookNumber = scriptureBookNumber(book);
 			if (!bookNumber) {
 				throw new Error(`Unknown book name: "${book}". Use standard KJV book names.`);
 			}
 			const bookName = getKjvBookName(bookNumber) ?? book;
-			const refs = (await getCrossReferencesFor(bookNumber, chapter, verse)).slice(
-				0,
-				MAX_CROSS_REFERENCES
-			);
+			await readPassageVerses(bookNumber, bookName, chapter, verse, verse, translation);
+			const allRefs = await getCrossReferencesFor(bookNumber, chapter, verse);
+			const refs = allRefs.slice(0, MAX_CROSS_REFERENCES);
 
-			const crossReferences = await Promise.all(
+			const crossReferences: (CrossReferencesToolOutput["crossReferences"][number] & { coverage: PassageCoverage })[] = await Promise.all(
 				refs.map(async (ref) => {
 					const refBookName = getKjvBookName(ref.order) ?? `Book ${ref.order}`;
 					const isRange =
@@ -639,22 +700,32 @@ export function buildSureWordTools(context: SureWordToolContext) {
 							: `${refBookName} ${ref.chapter}:${ref.verse}-${ref.endChapter}:${ref.endVerse}`
 						: `${refBookName} ${ref.chapter}:${ref.verse}`;
 
-					// Quote single verses and short same-chapter ranges; long ranges
-					// stay reference-only (the model can getPassage them if needed).
-					const lastVerse =
-						isRange && ref.endChapter === ref.chapter
-							? Math.min(ref.endVerse ?? ref.verse, ref.verse + 3)
-							: ref.verse;
-					const texts: string[] = [];
-					if (!isRange || ref.endChapter === ref.chapter) {
-						for (let v = ref.verse; v <= lastVerse; v++) {
-							const text = await getVerseText(translation, ref.order, ref.chapter, v);
-							if (!text) break;
-							texts.push(text);
-						}
+					const crossChapter = isRange && ref.endChapter !== ref.chapter;
+					const requestedVerseCount = crossChapter ? null : (ref.endVerse ?? ref.verse) - ref.verse + 1;
+					const referenceOnly = (notice: string) => ({
+						reference, translation, quotedReference: null, notice, coverage: {
+							requestedReference: reference, returnedReference: null,
+							requestedVerseCount, returnedVerseCount: 0, truncated: true,
+						} satisfies PassageCoverage,
+					});
+					// Legacy clients label text with the full curated reference. Only
+					// attach text when every verse under that label was read completely.
+					if (crossChapter || (requestedVerseCount ?? 0) > MAX_PASSAGE_VERSES) {
+						return referenceOnly(crossChapter
+							? "Cross-chapter range; use getPassage separately for each chapter."
+							: `Range exceeds ${MAX_PASSAGE_VERSES} verses; use getPassage in smaller sections.`);
 					}
-					const text = texts.length > 0 ? texts.join(" ") : undefined;
-					return { reference, translation, ...(text ? { text } : {}) };
+					try {
+						const { verses, coverage } = await readPassageVerses(
+							ref.order, refBookName, ref.chapter, ref.verse,
+							isRange ? ref.endVerse : ref.verse, translation
+						);
+						return { reference, translation, quotedReference: coverage.returnedReference,
+							coverage, text: verses.map(row => row.text).join(" ") };
+					} catch {
+						return referenceOnly(`The complete range could not be read in ${translation}; no quotation was returned.`);
+					}
+
 				})
 			);
 
@@ -665,11 +736,15 @@ export function buildSureWordTools(context: SureWordToolContext) {
 					: crossReferences
 							.map((ref) =>
 								ref.text
-									? `${ref.reference} ${translation}: "${ref.text}"`
-									: `${ref.reference} (reference only; use getPassage for its text)`
+									? `${ref.quotedReference} ${translation}: "${ref.text}"${ref.coverage.truncated ? ` (${formatPassageCoverage(ref.coverage)})` : ""}`
+									: `${ref.reference} (reference only; ${ref.notice})`
 							)
 							.join("\n");
-			return { reference: source, crossReferences, formatted };
+			return {
+				reference: source, crossReferences, total: allRefs.length,
+				returnedCount: refs.length, truncated: allRefs.length > refs.length,
+				formatted: `${formatted}\nReturned ${refs.length} of ${allRefs.length} curated cross-references${allRefs.length > refs.length ? "; this list is partial" : ""}.`,
+			};
 		},
 	});
 
@@ -687,15 +762,16 @@ export function buildSureWordTools(context: SureWordToolContext) {
 				throw new Error(`Unknown book name: "${book}". Use standard KJV book names.`);
 			}
 			const bookName = getKjvBookName(bookNumber) ?? book;
-			const original = await getOriginalVerse(bookNumber, chapter, verse);
+			const original = await getOriginalVerseForKjv(bookNumber, chapter, verse);
 			if (!original) {
 				throw new Error(
-					`${bookName} ${chapter}:${verse} was not found in the original-language text. Note that Hebrew versification can differ slightly from the KJV (e.g. Psalm titles count as verse 1).`
+					`${bookName} ${chapter}:${verse} could not be aligned to the original-language text. Do not substitute an adjacent source verse.`
 				);
 			}
 			const reference = `${bookName} ${chapter}:${verse}`;
 			const formatted = [
 				`${reference} (${original.textName}):`,
+				`KJV reference aligned to ${original.sourceVersification}: ${original.sourceReferences.map(source => `${getKjvBookName(source.book)} ${source.chapter}:${source.verse}${source.wordStart !== undefined || source.wordEnd !== undefined ? ` (source word offsets ${source.wordStart ?? 0}-${source.wordEnd ?? "end"}, end exclusive)` : ""}`).join("; ")}.`,
 				original.words.map((word) => word.text).join(" "),
 				...original.words.map((word) => {
 					const parts = [word.text];

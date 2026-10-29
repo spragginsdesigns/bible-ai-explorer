@@ -12,6 +12,9 @@
  * paths, so every book is listed by hand, mirroring kjv.ts.
  */
 
+import { alignFromKjv, originalFragmentMatchesSource } from "../../../scripts/lib/original-versification.mjs";
+import { getKjvBook } from "./kjv";
+
 /** chapters -> verses -> words, each word a [text, strongs, morph] triple. */
 type RawBook = string[][][][];
 
@@ -158,19 +161,23 @@ export interface OriginalVerse {
 }
 
 /**
- * The original-language text of one verse, word by word with Strong's
- * numbers, morphology, and dictionary glosses. Returns null when the verse
- * does not exist in the original-language versification.
+ * Raw WLC/TR coordinates, used by the original-language search index.
+ * Reader-facing KJV references MUST use getOriginalVerseForKjv instead.
+ * Returns null when the source verse does not exist.
  */
 export async function getOriginalVerse(
   order: number,
   chapter: number,
   verse: number
 ): Promise<OriginalVerse | null> {
+  if (!validReference(order, chapter, verse)) return null;
   const book = await getOriginalBook(order);
   const words = book[chapter - 1]?.[verse - 1];
   if (!words || words.length === 0) return null;
+  return describeOriginalWords(order, words);
+}
 
+async function describeOriginalWords(order: number, words: string[][]): Promise<OriginalVerse> {
   const isOldTestament = order <= 39;
   const dict = await getDictionary(isOldTestament ? "hebrew" : "greek");
   return {
@@ -190,5 +197,68 @@ export async function getOriginalVerse(
           : {}),
       };
     }),
+  };
+}
+
+export interface OriginalSourceReference {
+  book: number;
+  chapter: number;
+  verse: number;
+  /**
+   * Zero-based, end-exclusive offsets; absent when the whole verse is used.
+   * A leading range omitted from Psalm verse 1 is its unnumbered title.
+   */
+  wordStart?: number;
+  wordEnd?: number;
+}
+
+export interface KjvOriginalVerse extends OriginalVerse {
+  requestedReference: { book: number; chapter: number; verse: number; versification: "KJV" };
+  sourceVersification: "WLC" | "TR";
+  sourceReferences: OriginalSourceReference[];
+}
+
+const kjvAlignmentCache = new Map<number, ReturnType<typeof alignFromKjv>>();
+
+function validReference(book: number, chapter: number, verse: number): boolean {
+  return Number.isInteger(book) && book >= 1 && book <= 66 &&
+    Number.isInteger(chapter) && chapter >= 1 && Number.isInteger(verse) && verse >= 1;
+}
+
+/**
+ * Original text corresponding to a KJV coordinate. Psalm titles are excluded,
+ * shifted chapters are resolved, and every source fragment in a join is kept
+ * in source order. Missing or unresolvable text returns null, never adjacent
+ * Hebrew under the requested KJV reference. The words contract is identical to
+ * the raw lookup; the additional references make the alignment explicit.
+ */
+export async function getOriginalVerseForKjv(
+  order: number,
+  chapter: number,
+  verse: number
+): Promise<KjvOriginalVerse | null> {
+  if (!validReference(order, chapter, verse)) return null;
+  const [book, kjvBook] = await Promise.all([getOriginalBook(order), getKjvBook(order)]);
+  let alignment = kjvAlignmentCache.get(order);
+  if (!alignment) {
+    alignment = alignFromKjv(order, book.map((entry) => entry.length), kjvBook.map((entry) => entry.length));
+    kjvAlignmentCache.set(order, alignment);
+  }
+  const fragments = alignment(chapter, verse);
+  if (fragments.length === 0) return null;
+  const words: string[][] = [];
+  for (const fragment of fragments) {
+    const source = book[fragment.chapter - 1]?.[fragment.verse - 1];
+    if (!source?.length) return null;
+    if (!originalFragmentMatchesSource(order, fragment, source)) return null;
+    const selected = source.slice(fragment.wordStart ?? 0, fragment.wordEnd ?? source.length);
+    if (!selected.length) return null;
+    words.push(...selected);
+  }
+  return {
+    ...await describeOriginalWords(order, words),
+    requestedReference: { book: order, chapter, verse, versification: "KJV" },
+    sourceVersification: order <= 39 ? "WLC" : "TR",
+    sourceReferences: fragments.map((fragment) => ({ book: order, ...fragment })),
   };
 }

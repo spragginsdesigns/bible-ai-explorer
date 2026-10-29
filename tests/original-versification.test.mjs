@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { alignToKjv, unmappedChapters } from "../scripts/lib/original-versification.mjs";
+import { alignFromKjv, alignToKjv, unmappedChapters } from "../scripts/lib/original-versification.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const books = JSON.parse(fs.readFileSync(path.join(root, "src/data/books.json"), "utf8"));
@@ -153,7 +153,7 @@ test("no chapter of any book falls through to the unmapped rule", () => {
 
 test("the whole Bible aligns, and only Psalm titles are unmapped", () => {
 	// The end-to-end count the seed script depends on: 31,170 original verses,
-	// 66 of them Psalm superscriptions with no KJV coordinate, every other one
+	// 67 of them Psalm superscriptions with no KJV coordinate, every other one
 	// landing on a KJV verse that actually exists.
 	let total = 0;
 	let mapped = 0;
@@ -181,9 +181,77 @@ test("the whole Bible aligns, and only Psalm titles are unmapped", () => {
 		}
 	}
 	assert.equal(total, 31170);
-	assert.equal(nulls, 66);
-	assert.equal(mapped, 31104);
-	// 31,102 KJV verses less Nehemiah 7:68 and Isaiah 64:1, which the WLC
-	// does not number separately.
-	assert.equal(covered.size, 31100);
+	assert.equal(nulls, 67);
+	assert.equal(mapped, 31103);
+	// The legacy whole-source index has no separate row for Nehemiah 7:68,
+	// Isaiah 64:1, or Psalm 13:6. Precise inverse retrieval covers the two
+	// split verses with word fragments.
+	assert.equal(covered.size, 31099);
+});
+
+
+test("the inverse covers every KJV coordinate except the absent Nehemiah verse", () => {
+	let covered = 0;
+	let joins = 0;
+	for (const book of books) {
+		const { original, kjv } = chapterCounts(book.order);
+		const forward = alignToKjv(book.order, original, kjv);
+		const inverse = alignFromKjv(book.order, original, kjv);
+		const seen = new Map();
+		for (let chapter = 1; chapter <= kjv.length; chapter++) {
+			for (let verse = 1; verse <= kjv[chapter - 1]; verse++) {
+				const fragments = inverse(chapter, verse);
+				if (book.order === 16 && chapter === 7 && verse === 68) {
+					assert.deepEqual(fragments, []);
+					continue;
+				}
+				assert.ok(fragments.length, `${book.name} ${chapter}:${verse} missing`);
+				covered++;
+				if (fragments.length > 1) joins++;
+				for (const fragment of fragments) {
+					assert.ok(fragment.verse >= 1 && fragment.verse <= original[fragment.chapter - 1]);
+					const key = `${fragment.chapter}:${fragment.verse}`;
+					seen.set(key, (seen.get(key) ?? 0) + 1);
+					if (book.order === 23 && fragment.chapter === 63 && fragment.verse === 19) {
+						assert.deepEqual([chapter, verse], fragment.wordStart === 0 ? [63, 19] : [64, 1]);
+					} else if (book.order === 19 && fragment.chapter === 13 && fragment.verse === 6) {
+						assert.deepEqual([chapter, verse], fragment.wordStart === 0 ? [13, 5] : [13, 6]);
+					} else {
+						assert.deepEqual(forward(fragment.chapter, fragment.verse), { chapter, verse });
+						if (!(book.order === 19 && fragment.verse === 1)) assert.equal(fragment.wordStart, undefined);
+						assert.equal(fragment.wordEnd, undefined);
+					}
+				}
+			}
+		}
+		for (let chapter = 1; chapter <= original.length; chapter++) {
+			for (let verse = 1; verse <= original[chapter - 1]; verse++) {
+				const frequency = seen.get(`${chapter}:${verse}`) ?? 0;
+				const split = (book.order === 23 && chapter === 63 && verse === 19) || (book.order === 19 && chapter === 13 && verse === 6);
+				const expected = !forward(chapter, verse) ? 0 : split ? 2 : 1;
+				assert.equal(frequency, expected, `${book.name} ${chapter}:${verse} lost or duplicated`);
+			}
+		}
+	}
+	assert.equal(covered, 31101);
+	assert.equal(joins, 4);
+});
+
+test("inverse alignment fails closed for unexplained counts and invalid references", () => {
+	const unexplained = alignFromKjv(1, [4], [5]);
+	assert.deepEqual(unexplained(1, 1), []);
+	const { original, kjv } = chapterCounts(19);
+	const inverse = alignFromKjv(19, original, kjv);
+	for (const ref of [[3, 0], [3, 9], [3, 1.5], [0, 1], [NaN, 1]]) assert.deepEqual(inverse(...ref), []);
+	const result = inverse(3, 1);
+	result[0].verse = 999;
+	assert.deepEqual(inverse(3, 1), [{ chapter: 3, verse: 2 }]);
+});
+
+
+test("Psalm 13 overrides equal counts because its title and split cancel in the totals", () => {
+  assert.equal(align(19, 13, 1), null);
+  assert.equal(align(19, 13, 2), "13:1");
+  assert.equal(align(19, 13, 5), "13:4");
+  assert.equal(align(19, 13, 6), "13:5");
 });

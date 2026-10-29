@@ -26,12 +26,14 @@
 // books need no override and fall through to the equal-counts identity rule.
 //
 // EVERY entry below was verified against the actual per-chapter verse counts
-// in src/data/originals/*.json and src/data/kjv/*.json, and the seven
+// in src/data/originals/*.json and src/data/kjv/*.json, and the
 // many-to-one joins were additionally confirmed by glossing the Hebrew words
 // through strongs-hebrew.json and comparing to the KJV wording. A chapter
 // whose two counts disagree MUST appear here, including the neighbouring
 // chapter that is otherwise an identity map, because the equal-counts rule
 // cannot fire for it and it would otherwise be dropped as unmapped.
+// Equal-count Psalm 13 is also explicit: its title and split body cancel in
+// the counts. Embedded titles are handled by the word-level inverse below.
 
 /**
  * One contiguous run of original verses and where it lands in the KJV.
@@ -222,6 +224,13 @@ const OVERRIDES = {
 		],
 		41: [{ from: 1, delta: 8 }],
 	},
+	// Psalm 13 is an equal-count exception: WLC verse 1 is the title,
+	// verses 2-5 are KJV 1-4, and WLC verse 6 contains KJV 5 AND 6.
+	// The whole-verse index keeps the first KJV coordinate for that split;
+	// alignFromKjv below resolves the two precise word fragments.
+	19: {
+		13: [{ from: 2, to: 6, delta: -1 }],
+	},
 	// Ecclesiastes: WLC 4:17 is KJV 5:1. WLC 4 = 17 / KJV 16, WLC 5 = 19 / 20.
 	21: {
 		4: [
@@ -383,7 +392,8 @@ export function alignToKjv(book, originalVerseCounts, kjvVerseCounts) {
 
 	return (chapter, verse) => {
 		const originalCount = originalVerseCounts[chapter - 1];
-		if (!Number.isInteger(originalCount) || verse < 1 || verse > originalCount) return null;
+		if (!Number.isInteger(chapter) || !Number.isInteger(verse) ||
+			!Number.isInteger(originalCount) || verse < 1 || verse > originalCount) return null;
 
 		// (a) Explicit override. A chapter listed here is fully described by
 		// its segments; a verse falling outside all of them is unmapped, and
@@ -448,4 +458,157 @@ export function unmappedChapters(book, originalVerseCounts, kjvVerseCounts) {
 		chapters.push(chapter);
 	}
 	return chapters;
+}
+
+// Equal chapter counts do not imply that WLC verse 1 contains only the
+// numbered KJV body. These 52 psalms embed an unnumbered superscription in
+// the SAME source verse. Each entry records the exact title Strong's IDs and
+// the first body IDs, reviewed against the bundled Hebrew and KJV wording.
+// No leading-word heuristic is used at runtime: "Praise ye the LORD" stays
+// in the body where the KJV numbers it (e.g. Psalms 106, 111-113, 135, 146-150).
+/** @type {Record<number, { title: string[], body: string[] }>} */
+const PSALM_EMBEDDED_TITLES = {
+  11: { title: ["H5329", "H1732"], body: ["H3068", "H2620"] },
+  14: { title: ["H5329", "H1732"], body: ["H559", "H5036"] },
+  15: { title: ["H4210", "H1732"], body: ["H3068", "H4310"] },
+  16: { title: ["H4387", "H1732"], body: ["H8104", "H410"] },
+  17: { title: ["H8605", "H1732"], body: ["H8085", "H3068"] },
+  23: { title: ["H4210", "H1732"], body: ["H3068", "H7462"] },
+  24: { title: ["H1732", "H4210"], body: ["H3068", "H776"] },
+  25: { title: ["H1732"], body: ["H413", "H3068"] },
+  26: { title: ["H1732"], body: ["H8199", "H3068"] },
+  27: { title: ["H1732"], body: ["H3068", "H216"] },
+  28: { title: ["H1732"], body: ["H413", "H3068"] },
+  29: { title: ["H4210", "H1732"], body: ["H3051", "H3068"] },
+  32: { title: ["H1732", "H4905"], body: ["H835", "H5375"] },
+  35: { title: ["H1732"], body: ["H7378", "H3068"] },
+  37: { title: ["H1732"], body: ["H408", "H2734"] },
+  50: { title: ["H4210", "H623"], body: ["H410", "H430"] },
+  66: { title: ["H5329", "H7892", "H4210"], body: ["H7321", "H430"] },
+  72: { title: ["H8010"], body: ["H430", "H4941"] },
+  73: { title: ["H4210", "H623"], body: ["H389", "H2896"] },
+  74: { title: ["H4905", "H623"], body: ["H4100", "H430"] },
+  78: { title: ["H4905", "H623"], body: ["H238", "H5971"] },
+  79: { title: ["H4210", "H623"], body: ["H430", "H935"] },
+  82: { title: ["H4210", "H623"], body: ["H430", "H5324"] },
+  86: { title: ["H8605", "H1732"], body: ["H5186", "H3068"] },
+  90: { title: ["H8605", "H4872", "H376", "H430"], body: ["H136", "H4583"] },
+  98: { title: ["H4210"], body: ["H7891", "H3068"] },
+  100: { title: ["H4210", "H8426"], body: ["H7321", "H3068"] },
+  101: { title: ["H1732", "H4210"], body: ["H2617", "H4941"] },
+  103: { title: ["H1732"], body: ["H1288", "H5315"] },
+  109: { title: ["H5329", "H1732", "H4210"], body: ["H430", "H8416"] },
+  110: { title: ["H1732", "H4210"], body: ["H5002", "H3068"] },
+  120: { title: ["H7892", "H4609"], body: ["H413", "H3068"] },
+  121: { title: ["H7892", "H4609"], body: ["H5375", "H5869"] },
+  122: { title: ["H7892", "H4609", "H1732"], body: ["H8055", "H559"] },
+  123: { title: ["H7892", "H4609"], body: ["H413", "H5375"] },
+  124: { title: ["H7892", "H4609", "H1732"], body: ["H3884", "H3068"] },
+  125: { title: ["H7892", "H4609"], body: ["H982", "H3068"] },
+  126: { title: ["H7892", "H4609"], body: ["H7725", "H3068"] },
+  127: { title: ["H7892", "H4609", "H8010"], body: ["H518", "H3068"] },
+  128: { title: ["H7892", "H4609"], body: ["H835", "H3605"] },
+  129: { title: ["H7892", "H4609"], body: ["H7227", "H6887"] },
+  130: { title: ["H7892", "H4609"], body: ["H4615", "H7121"] },
+  131: { title: ["H7892", "H4609", "H1732"], body: ["H3068", "H3808"] },
+  132: { title: ["H7892", "H4609"], body: ["H2142", "H3068"] },
+  133: { title: ["H7892", "H4609", "H1732"], body: ["H2009", "H4100"] },
+  134: { title: ["H7892", "H4609"], body: ["H2009", "H1288"] },
+  138: { title: ["H1732"], body: ["H3034", "H3605"] },
+  139: { title: ["H5329", "H1732", "H4210"], body: ["H3068", "H2713"] },
+  141: { title: ["H4210", "H1732"], body: ["H3068", "H7121"] },
+  143: { title: ["H4210", "H1732"], body: ["H3068", "H8085"] },
+  144: { title: ["H1732"], body: ["H1288", "H3068"] },
+  145: { title: ["H8416", "H1732"], body: ["H7311", "H433"] },
+};
+
+/**
+ * A source fragment uses zero-based, end-exclusive word offsets when a WLC
+ * verse crosses a KJV verse boundary. Omitting both offsets means the whole
+ * original verse. Keep these rules beside the canonical coordinate map:
+ * callers must never recover a KJV verse by indexing WLC coordinates directly.
+ *
+ * @typedef {{ chapter: number, verse: number, wordStart?: number, wordEnd?: number }} OriginalFragment
+ */
+
+/**
+ * Inverse of the canonical alignment, retaining EVERY source verse in joins.
+ * Invalid references, unexplained count differences, and absent WLC text
+ * (KJV Nehemiah 7:68) have no source and return an empty array.
+ *
+ * Isaiah and Psalm 13 contain source verses split across two KJV verses.
+ * Psalm 13 is handled explicitly above rather than inferred from counts.
+ * In Isaiah:
+ * WLC 63:19 words 0..8 are KJV 63:19 ("We are thine ... thy name");
+ * words 9..15 are KJV 64:1 ("Oh that thou wouldest rend the heavens ...").
+ * The split starts with H3863 H7167 H8064, not with WLC 64:1, which is KJV
+ * 64:2. The legacy whole-verse forward index retains 63:19 as its primary
+ * coordinate; precise retrieval must use these fragments.
+ *
+ * @param {number} book
+ * @param {number[]} originalVerseCounts
+ * @param {number[]} kjvVerseCounts
+ * @returns {(chapter: number, verse: number) => OriginalFragment[]}
+ */
+export function alignFromKjv(book, originalVerseCounts, kjvVerseCounts) {
+	const forward = alignToKjv(book, originalVerseCounts, kjvVerseCounts);
+	/** @type {Map<string, OriginalFragment[]>} */
+	const inverse = new Map();
+	/** @param {number} chapter @param {number} verse @param {OriginalFragment} source */
+	const add = (chapter, verse, source) => {
+		const key = `${chapter}:${verse}`;
+		const fragments = inverse.get(key) ?? [];
+		fragments.push(source);
+		inverse.set(key, fragments);
+	};
+	for (let chapter = 1; chapter <= originalVerseCounts.length; chapter++) {
+		for (let verse = 1; verse <= originalVerseCounts[chapter - 1]; verse++) {
+			const target = forward(chapter, verse);
+			if (!target) continue;
+			if (book === PSALMS && chapter === 13 && verse === 6) {
+				add(13, 5, { chapter, verse, wordStart: 0, wordEnd: 6 });
+				add(13, 6, { chapter, verse, wordStart: 6 });
+			} else if (book === PSALMS && verse === 1 && PSALM_EMBEDDED_TITLES[chapter]) {
+				add(target.chapter, target.verse, { chapter, verse, wordStart: PSALM_EMBEDDED_TITLES[chapter].title.length });
+			} else if (book === 23 && chapter === 63 && verse === 19) {
+				add(target.chapter, target.verse, { chapter, verse, wordStart: 0, wordEnd: 9 });
+				if (kjvVerseCounts[63] >= 1) {
+					add(64, 1, { chapter, verse, wordStart: 9 });
+				}
+			} else {
+				add(target.chapter, target.verse, { chapter, verse });
+			}
+		}
+	}
+	return (chapter, verse) => {
+		if (!Number.isInteger(chapter) || !Number.isInteger(verse) ||
+			chapter < 1 || verse < 1 || verse > (kjvVerseCounts[chapter - 1] ?? 0)) return [];
+		// Copy so one caller cannot corrupt another caller's cached alignment.
+		return (inverse.get(`${chapter}:${verse}`) ?? []).map((fragment) => ({ ...fragment }));
+	};
+}
+
+
+/**
+ * Validate word boundaries against the source at runtime. A changed corpus
+ * must fail closed instead of applying reviewed offsets to different words.
+ * @param {number} book
+ * @param {OriginalFragment} fragment
+ * @param {string[][]} words
+ * @returns {boolean}
+ */
+export function originalFragmentMatchesSource(book, fragment, words) {
+  if (book === PSALMS && fragment.verse === 1 && PSALM_EMBEDDED_TITLES[fragment.chapter]) {
+    const rule = PSALM_EMBEDDED_TITLES[fragment.chapter];
+    return [...rule.title, ...rule.body].every((id, index) => words[index]?.[1] === id);
+  }
+  if (book === PSALMS && fragment.chapter === 13 && fragment.verse === 6) {
+    return words.length === 11 && ["H589", "H2617", "H982", "H1523", "H3820", "H3444", "H7891", "H3068", "H3588", "H1580", "H5921"]
+      .every((id, index) => words[index]?.[1] === id);
+  }
+  if (book === 23 && fragment.chapter === 63 && fragment.verse === 19) {
+    return words.length === 16 && words[9]?.[1] === "H3863" &&
+      words[10]?.[1] === "H7167" && words[11]?.[1] === "H8064";
+  }
+  return true;
 }

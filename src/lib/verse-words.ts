@@ -6,7 +6,7 @@ import { bookByOrder } from "@/lib/bible/books";
 import { getKjvChapter } from "@/lib/bible/kjv";
 import { decodeMorphology } from "@/lib/bible/morphology";
 import { cleanGloss, stripCantillation } from "@/lib/bible/original-text";
-import { getOriginalVerse, lookupStrongsEntry, type OriginalVerse } from "@/lib/bible/originals";
+import { getOriginalVerseForKjv, lookupStrongsEntry, type OriginalVerse } from "@/lib/bible/originals";
 import { bibleVersePlainText } from "@/lib/bible/verseMarkup";
 import { prisma } from "@/lib/prisma";
 import { repairRows } from "@/lib/verse-words-rows";
@@ -14,10 +14,10 @@ import { systemPrompt } from "@/utils/systemPrompt";
 import type { VerseWordDetail, VerseWordStudy } from "@/lib/verse-words-contract";
 
 /**
- * Bump whenever the study prompt or the row rules change. Cached studies are
+ * Bump whenever the study prompt, row rules or source alignment change. Cached studies are
  * keyed on it, so the old ones stop matching and the next tap regenerates.
  */
-export const VERSE_WORDS_PROMPT_VERSION = 2;
+export const VERSE_WORDS_PROMPT_VERSION = 3;
 
 /** A study that runs past this has lost the reader; the sheet is a phone screen. */
 const GENERATION_TIMEOUT_MS = 45_000;
@@ -231,7 +231,7 @@ export async function generateVerseWordStudy(options: {
 	const meta = bookByOrder(book);
 	if (!meta) return null;
 	const [original, kjvText] = await Promise.all([
-		getOriginalVerse(book, chapter, verse),
+		getOriginalVerseForKjv(book, chapter, verse),
 		kjvVerseText(book, chapter, verse),
 	]);
 	if (!original || !kjvText) return null;

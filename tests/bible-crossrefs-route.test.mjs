@@ -144,15 +144,15 @@ test("a lower limit takes the top of the same ranking", async () => {
 	);
 });
 
-test("single verses are quoted, same-chapter ranges up to four verses, cross-chapter ranges not at all", async () => {
+test("single verses and complete same-chapter ranges are quoted, cross-chapter ranges not at all", async () => {
 	const { body, lookups } = await call("?reference=Romans+8:28&limit=20");
 	const byReference = new Map(body.crossReferences.map((ref) => [ref.reference, ref]));
 
 	assert.equal(byReference.get("Romans 8:29").text, "text 45:8:29");
-	// Hebrews 12:6-11 is six verses; only the first four are quoted.
+	// Hebrews 12:6-11 is six verses; all six must appear beneath its full reference.
 	assert.equal(
 		byReference.get("Hebrews 12:6-11").text,
-		"text 58:12:6 text 58:12:7 text 58:12:8 text 58:12:9"
+		"text 58:12:6 text 58:12:7 text 58:12:8 text 58:12:9 text 58:12:10 text 58:12:11"
 	);
 	// John 3:36-4:2 crosses a chapter, so it stays reference-only.
 	assert.equal(byReference.get("John 3:36-4:2").text, undefined);
@@ -169,7 +169,7 @@ test("a verse whose text is missing is listed reference-only", async () => {
 	const { body } = await call("?reference=Romans+8:28&limit=1", {
 		verseText: async () => undefined,
 	});
-	assert.deepEqual(body.crossReferences, [{ reference: "Romans 8:29" }]);
+	assert.deepEqual(body.crossReferences.map(({ reference, text }) => ({ reference, ...(text ? { text } : {}) })), [{ reference: "Romans 8:29" }]);
 });
 
 test("an unreachable translation source costs the text, not the row", async () => {
@@ -179,7 +179,7 @@ test("an unreachable translation source costs the text, not the row", async () =
 		},
 	});
 	assert.equal(response.status, 200);
-	assert.deepEqual(body.crossReferences, [
+	assert.deepEqual(body.crossReferences.map(({ reference, text }) => ({ reference, ...(text ? { text } : {}) })), [
 		{ reference: "Romans 8:29" },
 		{ reference: "Ephesians 1:11" },
 	]);
@@ -194,18 +194,18 @@ test("one failed lookup among good ones still keeps the answer out of the long c
 			return `text ${order}:${chapter}:${verse}`;
 		},
 	});
-	assert.deepEqual(body.crossReferences, [
+	assert.deepEqual(body.crossReferences.map(({ reference, text }) => ({ reference, ...(text ? { text } : {}) })), [
 		{ reference: "Romans 8:29", text: "text 45:8:29" },
 		{ reference: "Ephesians 1:11" },
 	]);
 	assert.equal(response.headers.get("cache-control"), DEGRADED_CACHE_CONTROL);
 });
 
-test("a verse that is simply missing is not a failure and is cached as usual", async () => {
+test("a missing verse prevents the long cache from retaining reference-only output", async () => {
 	const { response } = await call("?reference=Romans+8:28&limit=1", {
 		verseText: async () => undefined,
 	});
-	assert.equal(response.headers.get("cache-control"), CACHE_CONTROL);
+	assert.equal(response.headers.get("cache-control"), DEGRADED_CACHE_CONTROL);
 });
 
 test("the server's NKJV fetch gives up well inside the route's time limit", () => {
@@ -223,6 +223,82 @@ test("a verse with no cross-references answers an empty list, not a 404", async 
 	const { response, body } = await call("?reference=3+John+1:14", { edges: [] });
 	assert.equal(response.status, 200);
 	assert.equal(response.headers.get("cache-control"), CACHE_CONTROL);
-	assert.deepEqual(body.crossReferences, []);
+	assert.deepEqual(body.crossReferences.map(({ reference, text }) => ({ reference, ...(text ? { text } : {}) })), []);
 	assert.equal(body.reference, "3 John 1:14");
+});
+
+
+test("the real John 12:36-40 edge returns all five KJV verses", async () => {
+	const kjv = JSON.parse(read("../src/data/kjv/43-john.json"));
+	const edges = JSON.parse(read("../src/data/crossrefs/43-john.json"))["1:5"]
+		.map(([order, chapter, verse, endChapter, endVerse]) => ({ order, chapter, verse, endChapter, endVerse }));
+	const { response, body } = await call("?reference=John+1:5&limit=20", {
+		edges,
+		verseText: async (_translation, order, chapter, verse) => order === 43 ? kjv[chapter - 1][verse - 1] : `text ${order}:${chapter}:${verse}`,
+	});
+	assert.equal(response.status, 200);
+	const ref = body.crossReferences.find(row => row.reference === "John 12:36-40");
+	assert.equal(ref.text, kjv[11].slice(35, 40).join(" "));
+	assert.equal(ref.quotedReference, "John 12:36-40");
+	assert.deepEqual(ref.coverage, { requestedReference: "John 12:36-40", returnedReference: "John 12:36-40", requestedVerseCount: 5, returnedVerseCount: 5, truncated: false });
+});
+
+test("exactly 30 verses are quoted completely; longer spans remain reference-only", async () => {
+	const edges = [30, 31].map(endVerse => ({ order: 19, chapter: 119, verse: 1, endChapter: 119, endVerse }));
+	const { response, body, lookups } = await call("?reference=Psalm+119:1&limit=20", { edges });
+	assert.equal(response.headers.get("cache-control"), CACHE_CONTROL);
+	assert.equal(body.crossReferences[0].text, Array.from({ length: 30 }, (_, i) => `text 19:119:${i + 1}`).join(" "));
+	assert.equal(body.crossReferences[0].coverage.returnedVerseCount, 30);
+	assert.equal(body.crossReferences[0].coverage.truncated, false);
+	const long = body.crossReferences[1];
+	assert.equal(long.reference, "Psalms 119:1-31");
+	assert.equal(long.text, undefined);
+	assert.equal(long.quotedReference, null);
+	assert.deepEqual(long.coverage, { requestedReference: "Psalms 119:1-31", returnedReference: null, requestedVerseCount: 31, returnedVerseCount: 0, truncated: true });
+	assert.match(long.notice, /exceeds 30/);
+	assert.equal(lookups.length, 30);
+});
+
+for (const mode of ["missing", "empty", "failure"]) {
+	test(`a ${mode} verse after good text discards the entire quotation and degrades caching`, async () => {
+		const { response, body } = await call("?reference=John+1:5", {
+			edges: [{ order: 43, chapter: 12, verse: 36, endChapter: 12, endVerse: 40 }],
+			verseText: async (_translation, _order, _chapter, verse) => {
+				if (verse === 40) {
+					if (mode === "failure") throw new Error("timeout");
+					return mode === "empty" ? "  " : undefined;
+				}
+				return `text ${verse}`;
+			},
+		});
+		assert.equal(response.status, 200);
+		assert.equal(response.headers.get("cache-control"), DEGRADED_CACHE_CONTROL);
+		const ref = body.crossReferences[0];
+		assert.equal(ref.reference, "John 12:36-40");
+		assert.equal(ref.text, undefined);
+		assert.equal(ref.quotedReference, null);
+		assert.equal(ref.coverage.requestedVerseCount, 5);
+		assert.equal(ref.coverage.returnedVerseCount, 0);
+		assert.equal(ref.coverage.truncated, true);
+		assert.match(ref.notice, /no quotation was returned/);
+	});
+}
+
+test("cross-chapter rows explicitly disclose quotation coverage and list counts stay separate", async () => {
+	const { body, lookups } = await call("?reference=Romans+8:28&limit=20");
+	const ref = body.crossReferences.find(row => row.reference === "John 3:36-4:2");
+	assert.equal(ref.quotedReference, null);
+	assert.equal(ref.coverage.returnedReference, null);
+	assert.equal(ref.coverage.requestedVerseCount, null);
+	assert.equal(ref.coverage.returnedVerseCount, 0);
+	assert.equal(ref.coverage.truncated, true);
+	assert.match(ref.notice, /Cross-chapter/);
+	assert.ok(!lookups.some(row => row.order === 43));
+	assert.equal(body.total, 8);
+	assert.equal(body.returnedCount, 8);
+	assert.equal(body.truncated, false);
+	const limited = await call("?reference=Romans+8:28&limit=5");
+	assert.equal(limited.body.total, 8);
+	assert.equal(limited.body.returnedCount, 5);
+	assert.equal(limited.body.truncated, true);
 });
