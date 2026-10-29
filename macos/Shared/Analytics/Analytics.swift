@@ -320,6 +320,8 @@ final class Analytics {
 
     static var isRunningTests: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || NSClassFromString("XCTestCase") != nil
+            || NSClassFromString("XCTest.XCTestCase") != nil
     }
 
     init(
