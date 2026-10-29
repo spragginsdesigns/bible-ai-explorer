@@ -145,7 +145,7 @@ content first.
 | H5 | App Privacy "nutrition label" answers matching A5/A7 exactly, recorded in `docs/ios/app-privacy.md`. |
 | H6 | App Review notes: demo account credentials stored in 1Password (not in the repo), how to reach AI features, Pro behavior, church feature, and that content is KJV Scripture. Contact info. |
 | H7 | TestFlight: internal group, then external beta with at least Austin's family/church testers; collect crash and feedback; fix blockers. |
-| H8 | Submit for review; respond to rejections; release manually after approval. |
+| H8 | Submit for review; respond to rejections. Release 1.30.0 automatically after approval, per Austin's 2026-10-29 request; `AFTER_APPROVAL` verified in App Store Connect. |
 
 ### I. Gaps added by the 2026-10-07 Android 1.50.0 to 1.79.0 audit
 

@@ -23,10 +23,13 @@ group now has that same build; beta review was submitted at **06:13:16 Pacific**
 and reads **WAITING_FOR_BETA_REVIEW**. Testing notes are saved, the free reviewer
 account instructions are accurate, and all 16 screenshot assets are COMPLETE.
 
-The public iOS version remains **1.26.0**. Release remains **manual after
-approval**; submission does not establish Apple approval or public availability.
+The public iOS version remains **1.26.0**. At Austin's request, release is now
+**automatic after approval** (`AFTER_APPROVAL`), verified by Apple readback at
+**06:44:20 Pacific**. No manual release action is needed after approval.
+Submission does not establish Apple approval or public availability.
 No physical-device result is inferred from simulator acceptance.
 [Sanitized Apple submission receipt](evidence/release-1.30.0/submission.json).
+[Automatic-release readback](evidence/release-1.30.0/auto-release.json).
 
 **2026-10-27 maintenance, bounded text sizing:** Apple 1.28.0 (macOS build 37)
 has the shared Standard / Large / Largest controls and typography changes.

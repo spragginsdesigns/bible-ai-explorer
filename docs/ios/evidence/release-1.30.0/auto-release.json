@@ -1,0 +1,17 @@
+{
+  "checkedUTC": "2026-10-29T13:44:20.800895+00:00",
+  "appId": "6820260211",
+  "bundleId": "com.spragginsdesigns.sureword",
+  "version": "1.30.0",
+  "versionId": "17e55dc4-dceb-4fef-ab02-3a4bc20d9625",
+  "buildNumber": "2",
+  "buildId": "2ea4e4cd-35a3-44e0-8220-173d360352a7",
+  "previousReleaseType": "MANUAL",
+  "releaseType": "AFTER_APPROVAL",
+  "patchStatus": 200,
+  "readbackMatched": true,
+  "versionState": "WAITING_FOR_REVIEW",
+  "reviewSubmissionId": "cd9519c9-8003-49ca-b543-5faea391ecb9",
+  "reviewState": "WAITING_FOR_REVIEW",
+  "submittedDate": "2026-10-29T13:12:34.476Z"
+}

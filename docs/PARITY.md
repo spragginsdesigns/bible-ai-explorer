@@ -28,10 +28,14 @@ changes add acceptance tests.
 Mac **1.30.0 (39)** remains publicly available in the notarized
 [`macos-v1.30.0` release](https://github.com/spragginsdesigns/bible-ai-explorer/releases/tag/macos-v1.30.0),
 and the live `/api/native-releases` returns that version. iOS is awaiting
-Apple review, with **manual release after approval** retained. Public iOS
+Apple review. At Austin's request, release was changed to **automatic after
+approval** (`AFTER_APPROVAL`) and read back at **13:44:20 UTC / 06:44:20 Pacific**.
+No manual release action is needed after approval. Public iOS
 **1.26.0** remains unchanged. No Apple approval or public iOS release is claimed.
 The [sanitized submission receipt](ios/evidence/release-1.30.0/submission.json)
 records IDs, timestamps, selected build and distribution states without credentials.
+The [automatic-release receipt](ios/evidence/release-1.30.0/auto-release.json)
+supersedes the original submission receipt's `MANUAL` release setting.
 
 ## Accepted simulator gate for this parity goal, 2026-10-29
 

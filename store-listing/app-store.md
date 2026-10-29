@@ -7,11 +7,14 @@ The exact text for SureWord's App Store page. Start at
 **Submitted in App Store Connect (2026-10-29 Pacific):** the complete text below,
 including Ways to Serve and adjustable text, matches `asc.py listing check`.
 Build **1.30.0 (2)** was submitted at **06:12:34 Pacific**; both the version and
-submission read back as `WAITING_FOR_REVIEW`. Release remains **manual after
-approval**. Public version **1.26.0** stays unchanged until review and release.
+submission read back as `WAITING_FOR_REVIEW`. At Austin's request, release is
+now **automatic after approval** (`AFTER_APPROVAL`), read back at **06:44:20
+Pacific**; no manual release action is needed. Public version **1.26.0** stays
+unchanged until review and release.
 The same build is attached to the existing Friends and Church TestFlight group
 and is `WAITING_FOR_BETA_REVIEW`; its testing notes and reviewer instructions
 were updated. [Submission receipt](../docs/ios/evidence/release-1.30.0/submission.json).
+[Automatic-release receipt](../docs/ios/evidence/release-1.30.0/auto-release.json).
 
 Entered 2026-10-19: `asc.py listing apply` wrote this name, subtitle,
 promotional text, description and keywords to 1.21.0 and `listing check`
