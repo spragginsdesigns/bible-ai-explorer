@@ -1,0 +1,69 @@
+{
+  "checkedUTC": "2026-10-29T13:14:28.333255+00:00",
+  "app": {
+    "id": "6820260211",
+    "bundleId": "com.spragginsdesigns.sureword"
+  },
+  "appStore": {
+    "version": "1.30.0",
+    "versionId": "17e55dc4-dceb-4fef-ab02-3a4bc20d9625",
+    "buildNumber": "2",
+    "buildId": "2ea4e4cd-35a3-44e0-8220-173d360352a7",
+    "processingState": "VALID",
+    "expired": false,
+    "usesNonExemptEncryption": false,
+    "submissionId": "cd9519c9-8003-49ca-b543-5faea391ecb9",
+    "submittedUTC": "2026-10-29T13:12:34.476Z",
+    "submissionState": "WAITING_FOR_REVIEW",
+    "versionState": "WAITING_FOR_REVIEW",
+    "releaseType": "MANUAL",
+    "publicVersionAtSubmission": "1.26.0"
+  },
+  "testFlight": {
+    "submissionId": "2ea4e4cd-35a3-44e0-8220-173d360352a7",
+    "submittedDate": "2026-10-29T06:13:16-07:00",
+    "reviewState": "WAITING_FOR_REVIEW",
+    "internalBuildState": "READY_FOR_BETA_TESTING",
+    "externalBuildState": "WAITING_FOR_BETA_REVIEW",
+    "group": {
+      "id": "60137ca4-17e2-4ea9-ab5f-d1b6ff38646c",
+      "name": "Friends and Church",
+      "targetBuildAttached": true
+    },
+    "whatToTestSavedAndReadBack": true,
+    "reviewNotesCorrectedToFreeAccount": true
+  },
+  "metadata": {
+    "listingCheck": "passed",
+    "screenshots": [
+      {
+        "displayType": "APP_IPAD_PRO_3GEN_129",
+        "count": 8
+      },
+      {
+        "displayType": "APP_IPHONE_61",
+        "count": 8
+      }
+    ],
+    "allScreenshotDeliveryStates": "COMPLETE",
+    "reviewContactPresent": true,
+    "reviewCredentialsPresentAndMatchBetweenAppAndBeta": true,
+    "freshVaultComparison": "not completed; CLI timed out; no credential changed"
+  },
+  "macOS": {
+    "version": "1.30.0",
+    "build": "39",
+    "release": "https://github.com/spragginsdesigns/bible-ai-explorer/releases/tag/macos-v1.30.0",
+    "public": true,
+    "dmgSHA256": "27b6842d460ed06b84875a514daace9444118be656076177d0cd7818ff50ccd0",
+    "liveDownloadDiscoveryVersion": "1.30.0"
+  },
+  "scope": {
+    "nativeProductCodeChangedDuringSubmission": false,
+    "uploadedIOSSourceCommit": "1643de78",
+    "laterNativeProductChangesAreMacOSOnly": true,
+    "physicalDeviceAcceptanceRequired": false,
+    "iOSPublicReleaseClaimed": false,
+    "appleApprovalClaimed": false
+  }
+}

@@ -7,6 +7,32 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
+## Apple release submission, 2026-10-29
+
+Austin requested: **"ship it and submit to app store etc"**. App Store Connect
+accepted **iOS 1.30.0 (2)** at **13:12:34 UTC / 06:12:34 Pacific**. A separate
+readback confirmed both version and submission are **WAITING_FOR_REVIEW**;
+submission ID `cd9519c9-8003-49ca-b543-5faea391ecb9` contains only this version.
+The selected build is VALID, unexpired and declares no non-exempt encryption.
+The repository listing matches, reviewer credentials and contact fields are
+present, and all **16** existing iPhone/iPad screenshots are COMPLETE.
+
+The same build was added to the existing **Friends and Church** TestFlight
+group and submitted for beta review at **13:13:16 UTC / 06:13:16 Pacific**.
+Apple returned **WAITING_FOR_BETA_REVIEW**. Testing notes were saved and the
+stale beta instruction claiming the free reviewer account had Pro was corrected.
+No new native product changes or replacement build were needed: the only native
+product changes since uploaded source `1643de78` are macOS-only; later iOS
+changes add acceptance tests.
+
+Mac **1.30.0 (39)** remains publicly available in the notarized
+[`macos-v1.30.0` release](https://github.com/spragginsdesigns/bible-ai-explorer/releases/tag/macos-v1.30.0),
+and the live `/api/native-releases` returns that version. iOS is awaiting
+Apple review, with **manual release after approval** retained. Public iOS
+**1.26.0** remains unchanged. No Apple approval or public iOS release is claimed.
+The [sanitized submission receipt](ios/evidence/release-1.30.0/submission.json)
+records IDs, timestamps, selected build and distribution states without credentials.
+
 ## Accepted simulator gate for this parity goal, 2026-10-29
 
 Austin clarified: **“Goal doesn't need physical real devices just emulators to
@@ -37,9 +63,9 @@ The corresponding receipts are `ios-offline-notification-unit-final-summary.json
 `mac-footer-width-fix-safe-receipt.json` and
 `mac-atlas-clean-final-readback.json` under
 `/tmp/sureword-parity-takeover/`. No physical APNs, camera, audio, or sandbox
-purchase result is inferred from simulator results. iOS **1.30.0 (2)** is
-uploaded and attached to the prepared App Store draft; it has not been submitted
-or publicly released. The Android backlinks task remains outside this goal.
+purchase result is inferred from simulator results. iOS **1.30.0 (2)** is now
+submitted for App Store and TestFlight review, as recorded above; it is not
+publicly released. The Android backlinks task remains outside this goal.
 
 ## Reviewer authentication and Mac follow-up, 2026-10-29
 
@@ -108,10 +134,11 @@ Moses spouse relationship, then the Timeline's last Patmos event → highlighted
 The process remained alive, with no SureWord crash report newer than the
 pre-fix 19:29 local report. `mac-atlas-clean-final-readback.json` and the
 `mac-atlas-clean-*` screenshots preserve this bounded check. It is not a
-network-disabled cold-start claim. The uploaded **1.30.0 (2)** is attached
-to a new **1.30.0 PREPARE_FOR_SUBMISSION** App Store draft with **manual release**,
-current repository listing text and updated review credentials verified by
-readback at **03:11:51 UTC**. No review submission or public iOS release occurred.
+network-disabled cold-start claim. At the earlier **03:11:51 UTC** checkpoint,
+uploaded **1.30.0 (2)** was attached to a new **PREPARE_FOR_SUBMISSION** draft
+with **manual release**, current listing text and updated review credentials.
+That pre-submission snapshot is superseded by the App Store and TestFlight
+submission readbacks above. Public iOS release has not occurred.
 Physical-device APNs/StoreKit and provider flows remain open: the paired iPhone
 tunnel was still unavailable in the latest device discovery.
 

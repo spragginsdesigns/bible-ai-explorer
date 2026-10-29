@@ -7,6 +7,27 @@ linked), `device` (verified in simulator, device gate still open), `deferred`
 (only with Austin's written approval). Baseline 2026-10-07: iOS 1.9.0 (10),
 Android bar 1.79.0 (88).
 
+## Current release: 1.30.0 submitted, 2026-10-29
+
+The accepted Apple parity implementation is shipped on macOS as the notarized
+public **1.30.0 (39)** DMG. The user accepted simulator/native checks for this
+parity goal: **961 passed, one optional screenshot utility skipped, zero failed**
+in the signed unit suite, plus **seven** passing simulator UI acceptance cases.
+See [PARITY.md](../PARITY.md) for the bounded runtime evidence and historical
+requirement-row context below.
+
+On Austin's explicit ship-and-submit request, **iOS 1.30.0 (2)** was submitted
+to App Review at **06:12:34 Pacific**. Apple's readback is **WAITING_FOR_REVIEW**
+for the submission and version. The existing Friends and Church TestFlight
+group now has that same build; beta review was submitted at **06:13:16 Pacific**
+and reads **WAITING_FOR_BETA_REVIEW**. Testing notes are saved, the free reviewer
+account instructions are accurate, and all 16 screenshot assets are COMPLETE.
+
+The public iOS version remains **1.26.0**. Release remains **manual after
+approval**; submission does not establish Apple approval or public availability.
+No physical-device result is inferred from simulator acceptance.
+[Sanitized Apple submission receipt](evidence/release-1.30.0/submission.json).
+
 **2026-10-27 maintenance, bounded text sizing:** Apple 1.28.0 (macOS build 37)
 has the shared Standard / Large / Largest controls and typography changes.
 macOS compiles and its four native sizing tests pass; iOS compiles for both
@@ -31,6 +52,12 @@ physical iPhone/iPad pass is claimed. See the current
 | (f) Billing risk found 2026-10-07 (**Austin 2026-10-07: build StoreKit into v1.0**) | Guideline 3.1.3(b) (multiplatform services) lets an app unlock web/Play purchases only if the same items are also offered as in-app purchases. F1 (Pro unlocks on iOS with no StoreKit) is therefore a likely rejection. Recommendation: pull F2 StoreKit into v1.0. **Awaiting Austin.** |
 
 ## Requirements
+
+These rows preserve the original rollout's implementation checkpoints. Their
+`todo`, `source` and device notes are historical; consult the current release
+section above and [PARITY.md](../PARITY.md) for the accepted 1.30.0 evidence.
+They do not override the user's simulator acceptance or Apple's live
+submission state, and they are not blanket claims of physical-device proof.
 
 | ID | Lane | Status | Evidence |
 |---|---|---|---|

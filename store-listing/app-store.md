@@ -4,12 +4,14 @@ The exact text for SureWord's App Store page. Start at
 [`store-listing/README.md`](README.md); the Play twin is
 [`play-store.md`](play-store.md).
 
-**Prepared in App Store Connect (2026-10-28 Pacific):** the complete text below,
-including Ways to Serve and adjustable text, is saved to the **1.30.0** draft.
-`asc.py listing check` matches. Build **1.30.0 (2)** is attached; the draft remains
-`PREPARE_FOR_SUBMISSION` with manual release. Public version **1.26.0** stays
-unchanged until review and release. Receipt:
-`/tmp/sureword-parity-takeover/ios-130-store-draft-prepared-readback.json`.
+**Submitted in App Store Connect (2026-10-29 Pacific):** the complete text below,
+including Ways to Serve and adjustable text, matches `asc.py listing check`.
+Build **1.30.0 (2)** was submitted at **06:12:34 Pacific**; both the version and
+submission read back as `WAITING_FOR_REVIEW`. Release remains **manual after
+approval**. Public version **1.26.0** stays unchanged until review and release.
+The same build is attached to the existing Friends and Church TestFlight group
+and is `WAITING_FOR_BETA_REVIEW`; its testing notes and reviewer instructions
+were updated. [Submission receipt](../docs/ios/evidence/release-1.30.0/submission.json).
 
 Entered 2026-10-19: `asc.py listing apply` wrote this name, subtitle,
 promotional text, description and keywords to 1.21.0 and `listing check`
@@ -158,11 +160,14 @@ what people search for: KJV Bible, King James Version, audio Bible, verse of
 the day, daily devotional, Strong's concordance, Bible reading plans, prayer
 list, Scripture memory, Bible timeline, Bible study notes. Apple does not
 index the description for search (the name, subtitle and keywords do), but
-Play does, so the phrases earn their place there. Not yet entered in App
-Store Connect on 2026-10-19 (1.21.0).
+Play does, so the phrases earn their place there. The complete current
+description is saved in the submitted 1.30.0 version, as checked above.
 
-Verify before submitting (delete a line from the description if its row is
-not `verified` for the build being submitted):
+Historical verification checklist from the earlier 1.21.0-1.25.0 submissions:
+the `source` and "today" labels below are preserved from that period, not the
+current 1.30.0 release state. Current acceptance and its limits are recorded
+in [PARITY.md](../docs/PARITY.md), with submission evidence linked above.
+For future releases, remove any description claim unsupported by that build.
 
 - "/check" and "/reply" and voice messages: PROGRESS rows D6 and D7 are `source`
   today; both must be `verified`.
