@@ -155,7 +155,7 @@ function scanCitations(text: string, issues: ScriptureVerificationIssue[], origi
     if (originalIdentifiers.some((identifier) => start >= identifier.start && start < identifier.end)) continue;
     const book = bookFromMatch(match[1]);
     if (!book) continue;
-    const precedingVolume = scanText.slice(Math.max(0, start - 12), start).match(/(?:^|[^\p{L}\p{N}])([0-9IVX]+)\.?\s+$/iu);
+    const precedingVolume = scanText.slice(Math.max(0, start - 12), start).match(/(?:^|[^\p{L}\p{N}])([0-9IVX]+)(?:\.\s*|\s+)$/iu);
     const precedingNumberStart = precedingVolume ? start - precedingVolume[0].length + precedingVolume[0].lastIndexOf(precedingVolume[1]) : -1;
     // A preceding citation's coordinate is not a volume on the next book.
     // Only an already parsed citation span supplies this distinction.
@@ -192,14 +192,14 @@ function scanCitations(text: string, issues: ScriptureVerificationIssue[], origi
       parts.push({ book, chapter, verse, endChapter, endVerse });
       verseContext = verse !== undefined;
       cursor += tail[0].length;
-      const next = scanText.slice(cursor).match(/^\s*([,;])\s*(?:and\s+)?(?=\d)/i);
+      const next = scanText.slice(cursor).match(/^(?:\s*([,;])\s*(?:(?:and|y|und)\s+)?|\s+(?:and|y|und)\s+)(?=\d)/i);
       if (!next) break;
       const afterSeparator = scanText.slice(cursor + next[0].length);
       const nextBook = citationStart().exec(afterSeparator);
       // An unsupported volume must stay outside this group so it cannot
       // masquerade as an inherited verse and bypass the next book's guard.
-      if (nextBook?.index === 0 || (nextBook && /^\d+\.?\s+$/.test(afterSeparator.slice(0, nextBook.index)))) break;
-      separator = next[1];
+      if (nextBook?.index === 0 || (nextBook && /^\d+(?:\.\s*|\s+)$/.test(afterSeparator.slice(0, nextBook.index)))) break;
+      separator = next[1] ?? ",";
       cursor += next[0].length;
     }
     const remaining = scanText.slice(cursor);

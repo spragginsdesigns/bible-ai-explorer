@@ -651,6 +651,49 @@ test("dash prose after complete coordinates and ranges still verifies", async ()
   }
 });
 
+test("natural reference conjunctions do not require an Oxford comma", async () => {
+  for (const conjunction of ["and", "y", "und"]) {
+    const result = await check(`Psalms 11:4, 22:28 ${conjunction} 137:4.`);
+    assert.equal(result.ok, true, JSON.stringify(result.issues));
+    assert.deepEqual(result.references.map(item => item.reference), ["Psalms 11:4", "Psalms 22:28", "Psalms 137:4"]);
+    const inherited = await check(`John 3:16 ${conjunction} 18.`);
+    assert.equal(inherited.ok, true, JSON.stringify(inherited.issues));
+    assert.deepEqual(inherited.references.map(item => item.reference), ["John 3:16", "John 3:18"]);
+    const chapter = await check(`John 3:16 ${conjunction} 4:1.`);
+    assert.equal(chapter.ok, true, JSON.stringify(chapter.issues));
+    assert.deepEqual(chapter.references.map(item => item.reference), ["John 3:16", "John 4:1"]);
+  }
+});
+
+test("natural conjunctions preserve numbered-book boundaries and malformed-reference refusal", async () => {
+  for (const conjunction of ["and", "y", "und"]) {
+    const supported = await check(`John 3:16 ${conjunction} 1 John 1:1.`);
+    assert.equal(supported.ok, true, JSON.stringify(supported.issues));
+    assert.deepEqual(supported.references.map(item => item.reference), ["John 3:16", "1 John 1:1"]);
+    for (const ending of ["4 John 1:1", "9 John 1:1", "0 John 1:1", "１０ John 1:1", "Hezekiah 3:16", "999:4", "4:999", "4:1-."]) {
+      const invalid = await check(`John 3:16 ${conjunction} ${ending}`);
+      assert.equal(invalid.ok, false, `${conjunction} ${ending}`);
+    }
+    assert.equal((await check(`John 3:16; ${conjunction} 18`)).ok, false);
+  }
+  assert.equal((await check("John 3:16and 18")).ok, false);
+  assert.equal((await check("John 3:16 a\u200bnd 18")).ok, false);
+});
+
+test("a dotted unsupported volume cannot masquerade as an inherited verse", async () => {
+  for (const prefix of ["", "John 3:16, ", "John 3:16 and ", "John 3:16 y ", "John 3:16 und "]) {
+    for (const volume of ["4", "9", "0", "10", "IV"]) {
+      assert.equal((await check(`${prefix}${volume}.John 1:1`)).ok, false, `${prefix}${volume}.John 1:1`);
+    }
+  }
+  for (const prefix of ["", "John 3:16 and "]) {
+    assert.equal((await check(`${prefix}1.John 1:1`)).ok, true);
+  }
+  const adjacent = await check("Psalms 137:4.Psalm 29:8.");
+  assert.equal(adjacent.ok, true, JSON.stringify(adjacent.issues));
+  assert.deepEqual(adjacent.references.map(item => item.reference), ["Psalms 137:4", "Psalms 29:8"]);
+});
+
 test("inherited list numbers cannot conceal an unsupported book volume", async () => {
   for (const draft of [
     "John 3:16, and 4 John 1:1",
