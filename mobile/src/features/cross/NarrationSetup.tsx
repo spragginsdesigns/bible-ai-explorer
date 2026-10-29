@@ -9,6 +9,7 @@ import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { fetchNarrationVoices } from "@/features/notifications/api";
 import { radius, spacing, type Colors } from "@/theme";
 import { NARRATION_STYLES, type NarrationOptions, type NarrationStyle, type NarrationVoices } from "./narrationOptions";
+import { useVoiceAudioPlayback } from "@/features/voice/useVoiceAudioPlayback";
 
 const PREF_KEY = "sureword.narrationOptions";
 export function NarrationSetup({ onGenerate }: { onGenerate: (options: NarrationOptions) => void }) {
@@ -25,6 +26,7 @@ export function NarrationSetup({ onGenerate }: { onGenerate: (options: Narration
 	const [previewId, setPreviewId] = useState<string | null>(null);
 	const preview = useAudioPlayer(previewUrl, { updateInterval: 250 });
 	const previewStatus = useAudioPlayerStatus(preview);
+	const { play: playPreview, pause: pausePreview } = useVoiceAudioPlayback(preview, () => setError("This preview couldn't play. Try another voice."));
 	const previewStarted = useRef(false);
 	useEffect(() => {
 		let cancelled = false;
@@ -40,15 +42,15 @@ export function NarrationSetup({ onGenerate }: { onGenerate: (options: Narration
 		return () => { cancelled = true; };
 	}, [getToken, attempt]);
 	useEffect(() => {
-		if (previewStatus.isLoaded && previewId && !previewStarted.current) { previewStarted.current = true; preview.play(); }
+		if (previewStatus.isLoaded && previewId && !previewStarted.current) { previewStarted.current = true; void playPreview(); }
 		if (previewStatus.didJustFinish) { setPreviewId(null); setPreviewUrl(null); }
-	}, [preview, previewStatus.isLoaded, previewStatus.didJustFinish, previewId]);
+	}, [playPreview, previewStatus.isLoaded, previewStatus.didJustFinish, previewId]);
 	useEffect(() => {
 		if (!previewId || previewStatus.playing) return;
-		const timer = setTimeout(() => { setPreviewId(null); setPreviewUrl(null); setError("This preview couldn't play. Try another voice."); }, 10_000);
+		const timer = setTimeout(() => { pausePreview(); setPreviewId(null); setPreviewUrl(null); setError("This preview couldn't play. Try another voice."); }, 10_000);
 		return () => clearTimeout(timer);
-	}, [previewId, previewStatus.playing]);
-	const stopPreview = () => { preview.pause(); setPreviewId(null); setPreviewUrl(null); };
+	}, [previewId, previewStatus.playing, pausePreview]);
+	const stopPreview = () => { pausePreview(); setPreviewId(null); setPreviewUrl(null); };
 	const selected = catalog?.voices.find((v) => v.id === voiceId);
 	return <View style={styles.root}>
 		<View style={styles.headingRow}><Headphones size={24} color={colors.accent} style={{ marginTop: 4 }} /><View style={styles.headingText}><Text style={styles.heading}>Let today&apos;s word meet you in audio</Text><Text style={styles.body}>Your verse, reflection, study path and prayer, narrated when you choose.</Text></View></View>

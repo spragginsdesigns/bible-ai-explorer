@@ -17,6 +17,7 @@ struct GuideMessageCards: View {
         if let card = message.choiceCard, !message.isStreaming {
             GuideChoiceCard(
                 card: card,
+                messageID: message.id,
                 isActive: state?.active == true,
                 chosen: state?.answer,
                 answer: { label in app.onboarding.answer(card, with: label, messageID: message.id, app: app) },
@@ -36,9 +37,11 @@ struct GuideMessageCards: View {
 /// takes free text, and a quiet way past it. Only the newest card is live; an
 /// answered one stays as a record of the question and cannot be tapped again.
 struct GuideChoiceCard: View {
+    @Environment(AppModel.self) private var app
     @Environment(\.theme) private var theme
     @Environment(\.textScaleFactor) private var textScale
     let card: OnboardingChoiceCard
+    var messageID: String? = nil
     let isActive: Bool
     /// What the reader replied, so an answered card shows which option it was.
     var chosen: String? = nil
@@ -83,7 +86,10 @@ struct GuideChoiceCard: View {
             VStack(spacing: Spacing.sm) {
                 ForEach(card.options, id: \.self) { option in
                     if card.step == .dailyTime, option == OnboardingRules.pickATime {
-                        optionButton(option) { pickingHour.toggle() }
+                        optionButton(option) {
+                            pickingHour.toggle()
+                            if let messageID { app.onboarding.setHourPicker(messageID: messageID, open: pickingHour) }
+                        }
                     } else {
                         optionButton(option, preview: card.step == .textScale ? TextScale(label: option) : nil) {
                             answer(option)
@@ -126,6 +132,10 @@ struct GuideChoiceCard: View {
                     .foregroundStyle(theme.textSecondary)
             }
         }
+        .onChange(of: app.onboarding.hourPickerMessageID, initial: true) { (_: String?, newID: String?) in
+            if let newID, let messageID { pickingHour = newID == messageID }
+            else { pickingHour = false }
+        }
         .padding(Spacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(theme.accentSoft, in: .rect(cornerRadius: Radius.lg))
@@ -166,8 +176,12 @@ struct GuideChoiceCard: View {
                     typeOwn()
                 }
                 footerButton("Speak", systemImage: "mic") {
-                    speakHint = true
-                    typeOwn()
+                    if app.onboarding.voiceControls.input.isEligible {
+                        Task { await app.onboarding.voiceControls.start(app: app) }
+                    } else {
+                        speakHint = true
+                        typeOwn()
+                    }
                 }
                 .accessibilityLabel("Answer by speaking")
             }
@@ -460,7 +474,7 @@ private struct GuideVoiceDriver: ViewModifier {
     let chat: ChatViewModel
     let app: AppModel
 
-    private var isOn: Bool { app.settings.voiceMode && app.onboarding.isWelcome(chat) }
+    private var isOn: Bool { app.settings.voiceMode && app.onboarding.isWelcome(chat) && !app.onboarding.voiceControls.input.isEnabled }
 
     /// Changes whenever a message settles or arrives.
     private var settledKey: String {
@@ -470,15 +484,17 @@ private struct GuideVoiceDriver: ViewModifier {
     func body(content: Content) -> some View {
         content
             .onChange(of: isOn, initial: true) { _, on in
-                if on { app.onboarding.voice.update(messages: chat.messages) } else { app.onboarding.voice.stop() }
+                if on { app.onboarding.voice.update(messages: chat.messages) } else if !app.onboarding.voiceControls.input.isEnabled { app.onboarding.voice.stop() }
             }
             .onChange(of: settledKey) { _, _ in
                 guard isOn else { return }
                 app.onboarding.voice.update(messages: chat.messages)
             }
             .onChange(of: chat.activeConversationID) { _, _ in
-                if !isOn { app.onboarding.voice.stop() }
+                if !isOn && !app.onboarding.voiceControls.input.isEnabled { app.onboarding.voice.stop() }
             }
-            .onDisappear { app.onboarding.voice.stop() }
+            .onDisappear {
+                if !app.onboarding.voiceControls.input.isEnabled { app.onboarding.voice.stop() }
+            }
     }
 }

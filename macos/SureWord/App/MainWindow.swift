@@ -30,6 +30,7 @@ struct MainWindow: View {
                 .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 320)
         } detail: {
             detail
+                .nativeVoiceControls(app: app)
                 .spotlightTarget(app.section.primary.tabTarget)
                 .spotlightHost()
                 .safeAreaInset(edge: .top, spacing: 0) {

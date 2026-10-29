@@ -840,7 +840,7 @@ export function useSureWordChat(): SureWordChat {
 			pendingAnswerRef.current = conversationIdRef.current;
 			lastStreamActivityRef.current = Date.now();
 			staleAnswerIdsRef.current = [];
-			void sendUIMessage({
+			await sendUIMessage({
 				metadata: {
 					...(sendingAttachments.length > 0
 						? { attachmentIds: sendingAttachments.map((item) => item.id) }

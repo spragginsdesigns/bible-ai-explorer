@@ -10,7 +10,7 @@ import {
 	type StyleProp,
 	type ViewStyle,
 } from "react-native";
-import { useRouter, type Href } from "expo-router";
+import { usePathname, useRouter, type Href } from "expo-router";
 import Animated, {
 	cancelAnimation,
 	useAnimatedStyle,
@@ -24,6 +24,7 @@ import { radius, spacing, typography, type Colors } from "@/theme";
 import { useThemedStyles } from "@/features/settings/settingsStore";
 import { track as trackEvent, ANALYTICS_EVENTS } from "@/lib/analytics";
 import { hrefForTarget, isKnownTarget, SPOTLIGHT_NAVIGATION_OPTIONS } from "./spotlightRoutes";
+import { useVoiceControls } from "@/features/voice/VoiceControlProvider";
 
 /**
  * The gold spotlight (Walk with me): dims the app and rings one named place,
@@ -232,6 +233,11 @@ async function findTarget(target: string, isCurrent: () => boolean): Promise<Rec
 /** Rendered once, above the tabs. Draws whatever the spotlight store says. */
 export function SpotlightOverlay() {
 	const current = useSyncExternalStore(subscribe, () => state);
+	const voice = useVoiceControls();
+	const registerCard = voice?.registerCard;
+	const speak = voice?.speak;
+	const voiceEnabled = voice?.enabled;
+	const voicePath = usePathname();
 	const router = useRouter();
 	const styles = useThemedStyles(createStyles);
 	const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -239,6 +245,13 @@ export function SpotlightOverlay() {
 	const [rect, setRect] = useState<Rect | null>(null);
 	const pulse = useSharedValue(0);
 	const stop = current ? current.stops[current.index] : null;
+	useEffect(() => {
+		if (!current || !stop || !registerCard) return;
+		const next = current.index === current.stops.length - 1 ? "Got it" : "Next";
+		const unregister = registerCard({ question: stop.caption, options: [next, "Close tour"], choose: (label) => { if (label === "Close tour") finish(false); else advance(); } });
+		if (voiceEnabled) void speak?.(`${stop.caption} Option one. ${next}. Option two. Close tour.`);
+		return unregister;
+	}, [current, stop, registerCard, speak, voiceEnabled, voicePath]);
 	const viewport = useRef({ height: windowHeight, reduceMotion });
 	viewport.current = { height: windowHeight, reduceMotion };
 

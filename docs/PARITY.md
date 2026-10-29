@@ -7,6 +7,48 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
+## Account-restricted GPT-Live voice, 2026-10-29
+
+The isolated `codex/sureword-gpt-live-pro` worktree adds live voice at `/voice`,
+enabled only for the account with verified primary Clerk email
+`atmosphere9999@gmail.com`. Other Pro accounts are denied at the page, API
+and relay backend. The old `/voice-preview` path is an account-gated redirect.
+It delegates speech to the existing chat backend
+and retains canonical messages, memory and tools. Pro checks and server-owned
+session/daily/monthly time limits apply. It uses a separate Neon branch and
+does not change the released apps or production configuration.
+
+| Client | Trial status |
+| --- | --- |
+| Web | Owner-only local controls and 1.05x playback; final production build and media-exclusion tests pass; unpublished. GPT-Live remains experimental/off in production |
+| Android | Owner-only controls at 1.05x; async command fences, quiet recovery and app-audio exclusion pass typecheck/1,250 tests; signed 1.112.0/code131 build passes, device acceptance pending |
+| iOS | Shared Apple local speech controls implemented; build evidence recorded separately, microphone/VoiceOver acceptance pending |
+| macOS | Installed 1.31.0(49); actual owner microphone navigation, chat/follow-up, singular Stop, app-switch shutdown and relaunch/readback pass. Blind-user VoiceOver acceptance remains separate |
+
+This feature has **not** passed native parity, microphone/device acceptance
+or blind-user usability. See [the trial runbook](voice/README.md) for architecture,
+limits, setup, evidence and remaining release gates. The existing released
+voice-message feature and Apple acceptance receipts below are separate work.
+
+The [spoken-navigation update](voice/navigation-2026-10-29.md) covers the Mac
+choice-card problem: labels or option numbers run the same handlers as taps;
+freeform answers, reminder hours and tour controls are spoken. Commands keep
+working across the seven root destinations. New capture remains owner-only;
+ordinary saved chat responses and numbered choices are spoken before capture
+restarts. These local speech controls do not create paid GPT-Live sessions.
+Arbitrary nested reader/editor controls and physical blind-user acceptance
+are not established by this implementation.
+
+The [Mac owner-account receipt](voice/mac-owner-acceptance-2026-10-29.json)
+records real built-in microphone tests, separate from recognition fixtures:
+build 44 passed spoken choices, Bible/Notes/Chat/Settings navigation and Back,
+two normal saved chat turns, and listening after 40 seconds of quiet. Build 46
+reopened the stored conversation after relaunch. Speech-permission callback,
+idle restart, singular Stop and spoken acknowledgment corrections are included
+in the current candidate. Build 49 runs at 1.05x, passed actual Bible/Chat
+navigation and singular Stop, and stops capture on real Mac application
+switches without automatically rearming on return. Final combined Apple
+integration and distribution remain gated and unpublished.
 ## Concordance accuracy remediation, 2026-10-29
 
 The shared server now derives concordance examples from trusted original-word

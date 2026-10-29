@@ -121,6 +121,7 @@ struct TabShell: View {
 
     var body: some View {
         shellGuide
+        .nativeVoiceControls(app: app)
         // Providers, church and the memory count, warmed for this account so
         // Settings opens on its real content (PRD B7).
         .task { await SettingsDataStore.shared.prefetch(.live(app.api)) }

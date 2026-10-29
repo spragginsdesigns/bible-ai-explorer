@@ -1,6 +1,19 @@
 {
 	"releases": [
 		{
+			"version": "1.112.0",
+			"versionCode": 131,
+			"date": "2026-10-29",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Spoken onboarding guidance now plays a little faster."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.111.0",
 			"versionCode": 130,
 			"date": "2026-10-29",

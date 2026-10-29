@@ -1,0 +1,33 @@
+{
+  "version": "1.31.0",
+  "build": "41",
+  "oldCDHash": "33467a9ab03c1f1671a6ccc0da356e117b76c46e",
+  "newCDHash": "3532b0e8108561b9c6e8a898664b7d944f982a58",
+  "team": "389LLKGY3Y",
+  "signerCompatible": true,
+  "signatureVerified": true,
+  "newGate": "fresh verified Clerk owner + production billing Pro",
+  "installedPath": "/Applications/SureWord.app",
+  "installed": true,
+  "oldAppProcessesAtReplacement": [],
+  "verifiedAt": "2026-10-29T19:20:17.980997+00:00",
+  "launchRequested": true,
+  "installedBinaryRunningPids": [
+    13602
+  ],
+  "uiReadback": {
+    "boundPath": "/Applications/SureWord.app",
+    "window": "Welcome to SureWord",
+    "existingLoginPreserved": true,
+    "currentAccount": "non-owner reviewer (verified in account profile)",
+    "ownerVoiceControlBarVisible": false,
+    "otherProAccountDenied": true,
+    "noAccountSwitchOrSignOutPerformed": true,
+    "microphonePermissionOrSpeechCaptureRequested": false
+  },
+  "backupPath": "/tmp/sureword-mac-voice-install.noindex/backup/SureWord.app",
+  "sourceSnapshot": "/tmp/sureword-mac-voice-install.noindex",
+  "primaryHead": "4fe8322b4c42611d18e921d736662c8a95233f5c",
+  "sourceComposition": "primary current Apple working files plus voice feature and fresh owner/production billing gate; no primary checkout edits",
+  "publicRelease": false
+}

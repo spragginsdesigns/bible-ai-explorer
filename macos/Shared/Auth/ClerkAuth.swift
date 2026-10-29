@@ -9,6 +9,27 @@ import Foundation
 /// token never surfaces to the user as an error.
 @MainActor
 enum ClerkAuth {
+    /// Local voice controls must work with the installed production API too.
+    /// Identity comes from Clerk's verified primary address, never app settings.
+    static func isVoiceOwner(for account: String) -> Bool {
+        guard Clerk.shared.session != nil, let user = Clerk.shared.user,
+              let email = user.primaryEmailAddress else { return false }
+        return NativeVoiceRules.ownerIdentity(account: account, profileID: user.id,
+            email: email.emailAddress, verified: email.verification?.status == .verified)
+    }
+
+    static func refreshVoiceOwner(for account: String) async -> Bool {
+        guard let user = Clerk.shared.user, user.id == account,
+              let sessionID = Clerk.shared.session?.id else { return false }
+        do {
+            let fresh = try await user.reload()
+            guard Clerk.shared.session?.id == sessionID, Clerk.shared.user?.id == account,
+                  let email = fresh.primaryEmailAddress else { return false }
+            return NativeVoiceRules.ownerIdentity(account: account, profileID: fresh.id,
+                email: email.emailAddress, verified: email.verification?.status == .verified)
+        } catch { return false }
+    }
+
     static func token(fresh: Bool = false) async throws -> String? {
         guard let session = Clerk.shared.session else { return nil }
         return try await session.getToken(.init(skipCache: fresh))

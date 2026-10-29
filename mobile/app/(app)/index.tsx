@@ -10,6 +10,7 @@ import {
 import { AppText as Text } from "@/components/AppText";
 import { typography } from "@/theme";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useIsFocused } from "expo-router";
 import { useAuth } from "@clerk/expo";
 import { Screen } from "@/components/ui";
 import { ChatInputBar } from "@/features/chat/ChatInputBar";
@@ -46,6 +47,9 @@ import { useWelcomeConversationId } from "@/features/onboarding/onboardingStore"
 import { useWelcomeVoice } from "@/features/onboarding/useWelcomeVoice";
 import { WelcomeVoiceBar } from "@/features/onboarding/WelcomeVoiceBar";
 import { track, ANALYTICS_EVENTS } from "@/lib/analytics";
+import { apiJson } from "@/lib/api";
+import { useVoiceControls } from "@/features/voice/VoiceControlProvider";
+import { waitForSavedVoiceReply } from "@/features/voice/savedVoiceReply";
 
 // A render crash shows a Try again screen in place of this route instead of closing the app.
 export { RouteErrorBoundary as ErrorBoundary } from "@/components/RouteErrorBoundary";
@@ -53,6 +57,10 @@ export { RouteErrorBoundary as ErrorBoundary } from "@/components/RouteErrorBoun
 export default function ChatScreen() {
 	const router = useRouter();
 	const chat = useSureWordChat();
+	const focused = useIsFocused();
+	const voice = useVoiceControls();
+	const latestChat = useRef(chat);
+	latestChat.current = chat;
 	const styles = useThemedStyles(createStyles);
 	const { colors: themeColors } = useTheme();
 	const colors = chatColors(themeColors);
@@ -310,19 +318,46 @@ export default function ChatScreen() {
 	}, [editing, messages, leaveEdit]);
 
 	// A follow-up chip or opening question is always a new question.
+	const sendVoiceMessage = useCallback(async (text: string) => {
+		const prior = new Set(latestChat.current.messages.map((message) => message.id));
+		const account = userId;
+		await sendMessage(text);
+		// The SDK promise ends at EOF; allow its final React state to render.
+		await new Promise<void>((resolve) => setTimeout(resolve, 50));
+		const current = latestChat.current;
+		const reply = current.messages.filter((message) => message.role === "assistant" && !prior.has(message.id) && message.id !== "pending-assistant").at(-1);
+		const conversationId = current.activeConversationId;
+		if (!reply || !conversationId || current.error) throw new Error(current.error?.message ?? "The spoken question did not finish. Check the chat before trying again.");
+		await waitForSavedVoiceReply({
+			messageId: reply.id,
+			read: () => apiJson(getToken, `/api/conversations/${conversationId}`),
+			isCurrent: () => account === voiceAccount.current && latestChat.current.activeConversationId === conversationId,
+		});
+	}, [sendMessage, userId, getToken]);
+	const voiceAccount = useRef(userId);
+	voiceAccount.current = userId;
 	const send = useCallback(
-		(text: string) => {
+		async (text: string) => {
 			leaveEdit(true);
-			void sendMessage(text);
+			if (voice?.enabled) await sendVoiceMessage(text);
+			else await sendMessage(text);
 		},
-		[leaveEdit, sendMessage]
+		[leaveEdit, sendMessage, sendVoiceMessage, voice?.enabled]
 	);
+	const registerChat = voice?.registerChat;
+	const voiceChat = useMemo(() => ({ busy: busy || historyLoading || chat.uploadingAttachments || Boolean(chat.videoStatus) || historyOpen || modelPickerOpen,
+		error: error?.message ?? chat.attachmentError ?? null, send: sendVoiceMessage }),
+		[busy, historyLoading, chat.uploadingAttachments, chat.videoStatus, historyOpen, modelPickerOpen, error?.message, chat.attachmentError, sendVoiceMessage]);
+	useEffect(() => {
+		if (!focused || !registerChat) return;
+		return registerChat(voiceChat);
+	}, [focused, registerChat, voiceChat]);
 
 	// Walk with me: a tapped card does its device-side half (text size, the
 	// daily reminder, the tour) here, then answers SureWord with its label.
 	const onboardingActions = useMemo<OnboardingChatActions>(
 		() => ({
-			answer: (card, label) => {
+			answer: async (card, label) => {
 				const skipped = label === card.skipLabel;
 				track(ANALYTICS_EVENTS.onboardingStep, { step: card.step, outcome: skipped ? "skipped" : "answered" });
 				if (!skipped && card.step === "textScale") {
@@ -342,16 +377,16 @@ export default function ChatScreen() {
 					startSpotlight([...TOUR_STOPS], "tour", () => send(label));
 					return;
 				}
-				send(label);
+				await send(label);
 			},
 			typeOwn: (card) => {
 				track(ANALYTICS_EVENTS.onboardingStep, { step: card.step, outcome: "own" });
 				leaveEdit(true);
 				setFocusSignal((signal) => signal + 1);
 			},
-			ask: (card, question) => {
+			ask: async (card, question) => {
 				track(ANALYTICS_EVENTS.onboardingStep, { step: card.step, outcome: "asked" });
-				send(question);
+				await send(question);
 			},
 			showMe: (card) => {
 				if (card.target === "tour") startSpotlight([...TOUR_STOPS], "tour");
@@ -368,12 +403,13 @@ export default function ChatScreen() {
 				role: message.role,
 				isStreaming: message.isStreaming,
 				step: message.choiceCard?.step,
+				text: message.choiceCard ? `${message.content} ${message.choiceCard.question} ${[...message.choiceCard.options, message.choiceCard.skipLabel].map((label, index) => `Option ${index + 1}. ${label}.`).join(" ")}` : message.content,
 			})),
 		[messages]
 	);
 	// Not while the history loads: switching clears the list first, and a
 	// voice enabled over that empty list would read every old message aloud.
-	useWelcomeVoice({ enabled: inWelcome && voiceMode && !historyLoading, messages: voiceMessages, getToken });
+	useWelcomeVoice({ enabled: focused && !historyLoading && ((inWelcome && voiceMode) || Boolean(voice?.enabled)), messages: voiceMessages, getToken, deviceOnly: Boolean(voice?.enabled), conversationId: chat.activeConversationId, sessionKey: `${userId}:${chat.activeConversationId}` });
 
 	// Only the composer sends an edit. One that could not go out (an answer
 	// still running) keeps its words and stays open.

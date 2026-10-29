@@ -11,9 +11,10 @@ export interface VoiceMessage {
 	isStreaming?: boolean;
 	/** The card under the message, whose scripted question is read after it. */
 	step?: string;
+	text?: string;
 }
 
-export type VoiceItem = { messageId: string } | { step: string };
+export type VoiceItem = { messageId: string; text?: string } | { step: string };
 
 /** The ids to treat as already heard when voice mode turns on: all but the last SureWord message. */
 export function heardOnEnable(messages: readonly VoiceMessage[]): Set<string> {
@@ -27,7 +28,7 @@ export function takeUnheard(messages: readonly VoiceMessage[], heard: Set<string
 	for (const message of messages) {
 		if (message.role !== "assistant" || message.isStreaming || heard.has(message.id)) continue;
 		heard.add(message.id);
-		items.push({ messageId: message.id });
+		items.push({ messageId: message.id, ...(message.text ? { text: message.text } : {}) });
 		if (message.step && message.step !== "other") items.push({ step: message.step });
 	}
 	return items;

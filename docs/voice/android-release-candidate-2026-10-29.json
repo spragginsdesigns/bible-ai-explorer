@@ -1,0 +1,54 @@
+{
+  "verifiedAtUtc": "2026-10-29T21:45:03.3507177Z",
+  "sourceCommit": "16706c68647267e7dad26b5e3fe266f0e2aedcb8",
+  "sourceClean": true,
+  "sourceDirtyFiles": 0,
+  "sourceSha256": "236c7c4f22565bad70d8526b9b44c742d3911d6507210ad9d038ae48f35fe1ca",
+  "sourceListingSha256": "236c7c4f22565bad70d8526b9b44c742d3911d6507210ad9d038ae48f35fe1ca",
+  "versionName": "1.112.0",
+  "versionCode": 131,
+  "voicePlaybackRate": 1.05,
+  "typecheck": "PASS",
+  "tests": {
+    "filesPassed": 95,
+    "durationSeconds": 13.26,
+    "testsPassed": 1250,
+    "testsTotal": 1250,
+    "filesTotal": 95
+  },
+  "buildExitCode": 0,
+  "signerSha256": "5f7f48390a7486eb3b2ecd4a81b106e38ce5d9d21cf84743f88ba9b1c51fca6a",
+  "pinnedSignerCheck": "PASS",
+  "aab": {
+    "path": "C:/Users/Owner/.codex/worktrees/sureword-gpt-live-pro/bible-ai-explorer/mobile/android/app/build/outputs/bundle/release/app-release.aab",
+    "sha256": "c5a829ed5ae657b715a745883f12a6561eeee3680eaba8e8492f2d2c6837d87d",
+    "bytes": 108055243
+  },
+  "apk": {
+    "path": "C:/Users/Owner/.codex/worktrees/sureword-gpt-live-pro/bible-ai-explorer/mobile/android/app/build/outputs/apk/release/app-release.apk",
+    "sha256": "103ca670997dacf34c68e4b560dea0f94c34b2676986ac05bb6362386d953737",
+    "bytes": 170053009
+  },
+  "abis": [
+    "arm64-v8a",
+    "armeabi-v7a",
+    "x86",
+    "x86_64"
+  ],
+  "nativeRecognition": {
+    "recognitionServiceQuery": true,
+    "recordAudioPermission": true,
+    "moduleDexSymbol": true,
+    "googleSpeechPackageQuery": true
+  },
+  "primaryCheckout": {
+    "head": "4fe8322b4c42611d18e921d736662c8a95233f5c",
+    "dirtyEntries": 180
+  },
+  "logs": "C:/Users/Owner/AppData/Local/Temp/sureword-voice-16706c68",
+  "publicationPerformed": false,
+  "installationPerformed": false,
+  "adbPerformed": false,
+  "runtimeAcceptance": "NOT PERFORMED",
+  "microphoneAcceptance": "NOT PERFORMED; existing shared emulator input disabled and foreign claim preserved"
+}

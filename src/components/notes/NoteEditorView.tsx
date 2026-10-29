@@ -7,6 +7,7 @@ import NoteAIPanel from "./NoteAIPanel";
 import NoteInfoPanel from "./NoteInfoPanel";
 import type { NoteAppendEvent } from "@/hooks/useNoteAI";
 import type { UpdateNoteOptions } from "@/hooks/useNotes";
+import { registerVoiceDepartureGuard } from "@/lib/voice/web-departure";
 import { editorContentFor, type Note, type Folder, type Tag } from "@/types/notes";
 
 interface NoteEditorViewProps {
@@ -48,6 +49,20 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 	const currentNoteRef = useRef(note.id);
 	currentNoteRef.current = note.id;
 	const backBusy = useRef(false);
+
+	// Only voice navigation uses this guard; existing note/back flows retain
+	// their own save behavior. Do not leave on a failed or stale editor flush.
+	useEffect(() => registerVoiceDepartureGuard(async () => {
+		if (!editorRef.current || currentNoteRef.current !== note.id) return false;
+		try {
+			const ok = await editorRef.current.flush();
+			if (!ok && currentNoteRef.current === note.id) setSaveStatus("error");
+			return ok && currentNoteRef.current === note.id;
+		} catch {
+			if (currentNoteRef.current === note.id) setSaveStatus("error");
+			return false;
+		}
+	}), [note.id]);
 
 	useEffect(() => {
 		const mq = window.matchMedia("(max-width: 1023px)");
