@@ -11,6 +11,9 @@ import AppKit
 /// shared with two other clients. Here the text is exactly the document, so the
 /// worst a stray edit can do is edit the document.
 final class NoteTextView: NSTextView {
+    override var undoManager: UndoManager? { isEditable ? super.undoManager : nil }
+    func clearEditingUndo() { super.undoManager?.removeAllActions() }
+
 
     /// Gutter decorations, recomputed whenever the document changes and keyed
     /// by the character offset each paragraph starts at.
@@ -136,7 +139,7 @@ final class NoteTextView: NSTextView {
     /// the view already has focus.
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        if let offset = taskMarkerOffset(at: point) {
+        if isEditable, let offset = taskMarkerOffset(at: point) {
             if window?.firstResponder !== self { window?.makeFirstResponder(self) }
             onToggleTask?(offset)
             return
@@ -207,6 +210,7 @@ final class NoteTextView: NSTextView {
     /// vanish on the next save. Taking the plain string keeps what the user sees
     /// and what the other clients receive in agreement.
     override func paste(_ sender: Any?) {
+        guard isEditable else { return }
         pasteAsPlainText(sender)
     }
 

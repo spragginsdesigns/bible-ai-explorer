@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// The note editor — a port of `mobile/app/(app)/notes/[id].tsx`.
 ///
@@ -43,6 +44,7 @@ struct NoteEditorPane: View {
         HStack(spacing: 0) {
             VStack(spacing: 0) {
                 topBar
+                integrityStatus
                 Divider().overlay(theme.border)
                 NoteFormattingToolbar(
                     controller: model.controller,
@@ -52,6 +54,7 @@ struct NoteEditorPane: View {
                     },
                     onInsertWikilink: { isWikilinkPickerPresented = true }
                 )
+                .disabled(!model.allowsUserEditing)
                 .popover(isPresented: $isLinkPopoverPresented) { linkPopover }
                 .popover(isPresented: $isWikilinkPickerPresented) {
                     InsertWikilinkPopover(currentNoteID: noteID) { title in
@@ -67,6 +70,7 @@ struct NoteEditorPane: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     NoteEditorTextView(controller: model.controller)
+                        .disabled(!model.allowsUserEditing)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
@@ -95,7 +99,7 @@ struct NoteEditorPane: View {
                 model: model,
                 folderName: library.folders.first { $0.id == model.note?.folderId }?.name
             ) { id in
-                Task { if await model.flush() { library.selectedNoteID = id } }
+                Task { if await model.canLeaveEditor() { library.selectedNoteID = id } }
             }
         }
         .alert(
@@ -113,21 +117,25 @@ struct NoteEditorPane: View {
         ) {
             Button("Delete Note", role: .destructive) {
                 Task {
-                    if await model.delete() { library.selectedNoteID = nil }
+                    if await model.delete() {
+                        await model.finishEditing(flushPendingChanges: false)
+                        library.selectedNoteID = nil
+                    }
                 }
             }
         }
         .task {
-            app.noteDeparture.register(owner: departureID) { await model.flush() }
-            model.start()
-            ai.onNoteAppended = { event in
-                guard event.noteID == noteID else { return }
-                Task { await model.reloadAfterAIAppend() }
-            }
-            // A clicked `[[link]]` opens its note in this pane, as the info
-            // sheet's links do; `onDisappear` flushes this one first.
-            model.controller.onOpenWikilink = { id in
-                Task { if await model.flush() { library.selectedNoteID = id } }
+            let editor = model
+            let assistant = ai
+            let notesLibrary = library
+            app.noteDeparture.register(owner: departureID) { [editor] in await editor.canLeaveEditor() }
+            editor.start()
+            assistant.bindEditor(editor)
+            editor.controller.onOpenWikilink = { [weak editor, notesLibrary] id in
+                Task { @MainActor [weak editor, notesLibrary] in
+                    guard let editor, await editor.canLeaveEditor() else { return }
+                    notesLibrary.selectedNoteID = id
+                }
             }
         }
         .onChange(of: NotesStore.shared.notes) {
@@ -146,6 +154,21 @@ struct NoteEditorPane: View {
         }
     }
 
+    private var integrityStatus: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            if let message = model.integrityMessage {
+                Text(message).appFont(.footnote).foregroundStyle(theme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if model.canCheckCanonical {
+                    Button("Check saved note") {
+                        Task { if await model.retryCanonicalCheck() { ai.didReconcileNote() } }
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, Spacing.md)
+    }
+
     // MARK: Top bar
 
     /// Android's editor bar (`NoteEditorTopBar`): back, the title with its pin
@@ -156,7 +179,11 @@ struct NoteEditorPane: View {
             // The list stays beside the editor on a Mac, so back closes the
             // note instead of popping a screen. A failed save keeps it open.
             Button {
-                Task { if await model.flush() { library.selectedNoteID = nil } }
+                Task {
+                    guard await model.canLeaveEditor() else { return }
+                    await model.finishEditing()
+                    library.selectedNoteID = nil
+                }
             } label: {
                 Image(systemName: "chevron.left")
                     .foregroundStyle(theme.textMuted)
@@ -180,6 +207,7 @@ struct NoteEditorPane: View {
                         .appFont(.system(size: 16, weight: .semibold))
                         .focused($isTitleFocused)
                         .onSubmit(commitTitle)
+                        .disabled(!model.allowsUserEditing)
                 }
 
                 if model.isSaving {
@@ -285,7 +313,13 @@ struct NoteEditorPane: View {
 
     private func copyMarkdown() {
         do {
-            SharedAnswerPasteboard.copy(try NoteEditorMarkdown.markdown(title: NoteEditorMarkdown.exportTitle(draft: model.draftTitle), controller: model.controller))
+            let markdown = try NoteEditorMarkdown.markdown(title: NoteEditorMarkdown.exportTitle(draft: model.draftTitle), controller: model.controller)
+            SharedAnswerPasteboard.copy(markdown)
+            guard NSPasteboard.general.string(forType: .string) == markdown else {
+                exportError = "The draft could not be copied. Try again before leaving this note."
+                return
+            }
+            model.didCopyRetainedDraft()
             withAnimation { isCopiedVisible = true }
             Task {
                 try? await Task.sleep(for: .milliseconds(1200))

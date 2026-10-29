@@ -37,6 +37,8 @@ enum NoteSort: String, CaseIterable, Sendable, Identifiable {
 final class NotesLibraryModel {
     private let api: NotesAPI
     private let store: NotesStore
+    private let sessionEpoch: UUID
+    private var loadGeneration = 0
 
     private(set) var hasLoaded = false
     private(set) var isRefreshing = false
@@ -54,13 +56,14 @@ final class NotesLibraryModel {
     init(api: NotesAPI, store: NotesStore = .shared) {
         self.api = api
         self.store = store
+        self.sessionEpoch = store.epoch
     }
 
     // MARK: Derived
 
-    var folders: [Folder] { store.folders }
-    var tags: [Tag] { store.tags }
-    var totalNotes: Int { store.notes.count }
+    var folders: [Folder] { store.isCurrent(sessionEpoch) ? store.folders : [] }
+    var tags: [Tag] { store.isCurrent(sessionEpoch) ? store.tags : [] }
+    var totalNotes: Int { store.isCurrent(sessionEpoch) ? store.notes.count : 0 }
 
     /// With a hydrated cache there is something to show at once; the spinner is
     /// reserved for a first-ever load with nothing cached.
@@ -69,6 +72,7 @@ final class NotesLibraryModel {
     }
 
     var notes: [Note] {
+        guard store.isCurrent(sessionEpoch) else { return [] }
         let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let filtered = store.notes.filter { note in
             if let activeFolderID, note.folderId != activeFolderID { return false }
@@ -100,29 +104,33 @@ final class NotesLibraryModel {
     enum LoadMode { case initial, refresh, silent }
 
     func load(_ mode: LoadMode = .silent) async {
+        guard store.isCurrent(sessionEpoch) else { return }
+        loadGeneration += 1
+        let generation = loadGeneration
         if mode == .refresh { isRefreshing = true }
         defer {
-            hasLoaded = true
-            isRefreshing = false
+            if store.isCurrent(sessionEpoch), generation == loadGeneration {
+                hasLoaded = true
+                isRefreshing = false
+            }
         }
         do {
             async let notes = api.notes()
             async let folders = api.folders()
             async let tags = api.tags()
-            store.applyServerSnapshot(
-                notes: try await notes,
-                folders: try await folders,
-                tags: try await tags
-            )
+            let snapshot = try await (notes, folders, tags)
+            guard store.isCurrent(sessionEpoch), generation == loadGeneration else { return }
+            store.applyServerSnapshot(notes: snapshot.0, folders: snapshot.1, tags: snapshot.2, epoch: sessionEpoch)
             error = nil
         } catch {
-            // Cached data stays on screen; the banner is the only signal.
+            guard store.isCurrent(sessionEpoch), generation == loadGeneration else { return }
             self.error = (error as? APIError)?.message ?? "Could not load your notes."
         }
     }
 
     func start() async {
         await store.hydrate()
+        guard store.isCurrent(sessionEpoch) else { return }
         await load(.initial)
     }
 
@@ -136,9 +144,11 @@ final class NotesLibraryModel {
     /// leaves it out), Blank creates the ordinary Untitled Note. Throws so the
     /// sheet can show Android's "could not finish" message and stay open.
     func createNote(template: NoteTemplates.ID, church: (() async throws -> String?)? = nil) async throws -> Note {
+        guard store.isCurrent(sessionEpoch) else { throw APIError(message: "The account changed. Reopen Notes.") }
         var churchName: String?
         if template == .sermon, let church {
             churchName = try await church()
+            guard store.isCurrent(sessionEpoch) else { throw APIError(message: "The account changed. Reopen Notes.") }
         }
         let note: Note
         if let seed = NoteTemplates.build(template, churchName: churchName) {
@@ -146,18 +156,26 @@ final class NotesLibraryModel {
         } else {
             note = try await api.createNote(title: "Untitled Note", folderId: activeFolderID)
         }
-        store.upsert(note)
+        guard store.isCurrent(sessionEpoch) else { throw APIError(message: "The account changed. Reopen Notes.") }
+        store.upsert(note, epoch: sessionEpoch)
         selectedNoteID = note.id
         error = nil
         return note
     }
 
     func deleteNote(id: String) async {
-        store.removeNote(id: id)
+        guard store.isCurrent(sessionEpoch) else { return }
+        guard store.canMutateUnopenedNote(noteID: id, epoch: sessionEpoch) else {
+            error = "This note is open or waiting for an AI safety check. Use its editor, or close it after the check finishes."
+            return
+        }
+        store.removeNote(id: id, epoch: sessionEpoch)
         if selectedNoteID == id { selectedNoteID = nil }
         do {
             try await api.deleteNote(id: id)
+            guard store.isCurrent(sessionEpoch) else { return }
         } catch {
+            guard store.isCurrent(sessionEpoch) else { return }
             // The row is already gone locally; resync rather than resurrect it
             // from a stale copy.
             await load(.silent)
@@ -165,50 +183,75 @@ final class NotesLibraryModel {
     }
 
     func togglePin(id: String) async {
+        guard store.isCurrent(sessionEpoch) else { return }
+        guard store.canMutateUnopenedNote(noteID: id, epoch: sessionEpoch) else {
+            error = "This note is open or waiting for an AI safety check. Use its editor, or close it after the check finishes."
+            return
+        }
         guard let note = store.cachedNote(id: id) else { return }
         let isPinned = !note.isPinned
-        store.patch(id: id) { $0.isPinned = isPinned }
+        store.patch(id: id, epoch: sessionEpoch) { $0.isPinned = isPinned }
         do {
             _ = try await api.patchNote(id: id, .pinned(isPinned))
+            guard store.isCurrent(sessionEpoch) else { return }
         } catch {
-            store.patch(id: id) { $0.isPinned = note.isPinned }
+            guard store.isCurrent(sessionEpoch) else { return }
+            store.patch(id: id, epoch: sessionEpoch) { $0.isPinned = note.isPinned }
         }
     }
 
     func move(id: String, toFolder folderID: String?) async {
+        guard store.isCurrent(sessionEpoch) else { return }
+        guard store.canMutateUnopenedNote(noteID: id, epoch: sessionEpoch) else {
+            error = "This note is open or waiting for an AI safety check. Use its editor, or close it after the check finishes."
+            return
+        }
         guard let note = store.cachedNote(id: id) else { return }
-        store.patch(id: id) { $0.folderId = folderID }
+        store.patch(id: id, epoch: sessionEpoch) { $0.folderId = folderID }
         do {
             _ = try await api.patchNote(id: id, .folder(folderID))
+            guard store.isCurrent(sessionEpoch) else { return }
         } catch {
-            store.patch(id: id) { $0.folderId = note.folderId }
+            guard store.isCurrent(sessionEpoch) else { return }
+            store.patch(id: id, epoch: sessionEpoch) { $0.folderId = note.folderId }
         }
     }
 
     // MARK: Folders
 
     func createFolder(name: String) async {
+        guard store.isCurrent(sessionEpoch) else { return }
         do {
-            store.addFolder(try await api.createFolder(name: name))
+            let accepted = try await api.createFolder(name: name)
+            guard store.isCurrent(sessionEpoch) else { return }
+            store.addFolder(accepted, epoch: sessionEpoch)
         } catch {
+            guard store.isCurrent(sessionEpoch) else { return }
             self.error = (error as? APIError)?.message ?? "The folder could not be created."
         }
     }
 
     func renameFolder(id: String, name: String) async {
+        guard store.isCurrent(sessionEpoch) else { return }
         do {
-            store.renameFolder(try await api.renameFolder(id: id, name: name))
+            let accepted = try await api.renameFolder(id: id, name: name)
+            guard store.isCurrent(sessionEpoch) else { return }
+            store.renameFolder(accepted, epoch: sessionEpoch)
         } catch {
+            guard store.isCurrent(sessionEpoch) else { return }
             self.error = (error as? APIError)?.message ?? "The folder could not be renamed."
         }
     }
 
     func deleteFolder(id: String) async {
-        store.removeFolder(id: id)
+        guard store.isCurrent(sessionEpoch) else { return }
+        store.removeFolder(id: id, epoch: sessionEpoch)
         if activeFolderID == id { activeFolderID = nil }
         do {
             try await api.deleteFolder(id: id)
+            guard store.isCurrent(sessionEpoch) else { return }
         } catch {
+            guard store.isCurrent(sessionEpoch) else { return }
             await load(.silent)
         }
     }
@@ -216,19 +259,26 @@ final class NotesLibraryModel {
     // MARK: Tags
 
     func createTag(name: String, color: String) async {
+        guard store.isCurrent(sessionEpoch) else { return }
         do {
-            store.addTag(try await api.createTag(name: name, color: color))
+            let accepted = try await api.createTag(name: name, color: color)
+            guard store.isCurrent(sessionEpoch) else { return }
+            store.addTag(accepted, epoch: sessionEpoch)
         } catch {
+            guard store.isCurrent(sessionEpoch) else { return }
             self.error = (error as? APIError)?.message ?? "The tag could not be created."
         }
     }
 
     func deleteTag(id: String) async {
-        store.removeTag(id: id)
+        guard store.isCurrent(sessionEpoch) else { return }
+        store.removeTag(id: id, epoch: sessionEpoch)
         if activeTagID == id { activeTagID = nil }
         do {
             try await api.deleteTag(id: id)
+            guard store.isCurrent(sessionEpoch) else { return }
         } catch {
+            guard store.isCurrent(sessionEpoch) else { return }
             await load(.silent)
         }
     }

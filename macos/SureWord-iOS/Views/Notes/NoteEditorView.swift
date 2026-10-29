@@ -20,6 +20,7 @@ struct NoteEditorView: View {
     let noteID: String
     let api: APIClient
     let onDeleted: (() -> Void)?
+    let onClose: (() -> Void)?
 
     @State private var model: NoteEditorModel
     @State private var ai: NoteAIModel
@@ -42,8 +43,9 @@ struct NoteEditorView: View {
     @State private var departureID = UUID()
     @FocusState private var isTitleFocused: Bool
 
-    init(noteID: String, api: APIClient, onDeleted: (() -> Void)? = nil) {
+    init(noteID: String, api: APIClient, onDeleted: (() -> Void)? = nil, onClose: (() -> Void)? = nil) {
         self.onDeleted = onDeleted
+        self.onClose = onClose
         self.noteID = noteID
         self.api = api
         _model = State(initialValue: NoteEditorModel(noteID: noteID, api: NotesAPI(api: api)))
@@ -53,6 +55,7 @@ struct NoteEditorView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
+            integrityStatus
 
             if model.isLoading {
                 ProgressView()
@@ -67,7 +70,9 @@ struct NoteEditorView: View {
                         },
                         onInsertWikilink: { isWikilinkPickerPresented = true }
                     )
+                    .disabled(!model.allowsUserEditing)
                 }
+                .disabled(!model.allowsUserEditing)
             }
         }
         .background(theme.bg.ignoresSafeArea())
@@ -105,7 +110,8 @@ struct NoteEditorView: View {
             }
         }
         .navigationDestination(item: $linkedNoteID) { id in
-            NoteEditorView(noteID: id, api: api)
+            let destination = $linkedNoteID
+            NoteEditorView(noteID: id, api: api, onClose: { destination.wrappedValue = nil })
         }
         .sheet(item: $shareText) { share in
             NoteMarkdownShareSheet(text: share.text)
@@ -141,22 +147,24 @@ struct NoteEditorView: View {
             Button("Delete Note", role: .destructive) {
                 Task {
                     if await model.delete() {
-                        if let onDeleted { onDeleted() } else { dismiss() }
+                        await model.finishEditing(flushPendingChanges: false)
+                        if let onDeleted { onDeleted() } else { closeEditor() }
                     }
                 }
             }
         }
         .task {
-            app.noteDeparture.register(owner: departureID) { await model.flush() }
-            model.start()
-            ai.onNoteAppended = { event in
-                guard event.noteID == noteID else { return }
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
-                Task { await model.reloadAfterAIAppend() }
-            }
-            // A tapped `[[link]]` pushes its note, like the info sheet's links.
-            model.controller.onOpenWikilink = { id in
-                Task { if await model.flush() { linkedNoteID = id } }
+            let editor = model
+            let assistant = ai
+            let destination = $linkedNoteID
+            app.noteDeparture.register(owner: departureID) { [editor] in await editor.canLeaveEditor() }
+            editor.start()
+            assistant.bindEditor(editor)
+            editor.controller.onOpenWikilink = { [weak editor, destination] id in
+                Task { @MainActor [weak editor, destination] in
+                    guard let editor, await editor.canLeaveEditor() else { return }
+                    destination.wrappedValue = id
+                }
             }
         }
         .onChange(of: NotesStore.shared.notes) {
@@ -185,6 +193,27 @@ struct NoteEditorView: View {
         .sensoryFeedback(.impact(weight: .light), trigger: pinHapticTick)
     }
 
+    private var integrityStatus: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            if let message = model.integrityMessage {
+                Text(message).appFont(.footnote).foregroundStyle(theme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if model.canCheckCanonical {
+                    Button("Check saved note") {
+                        Task { if await model.retryCanonicalCheck() { ai.didReconcileNote() } }
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, Spacing.md)
+    }
+
+    /// The presenter owns this editor's selection. An inherited dismiss can
+    /// target the Study ancestor instead of this note's destination.
+    private func closeEditor() {
+        if let onClose { onClose() } else { dismiss() }
+    }
+
     // MARK: Header
 
     private var header: some View {
@@ -203,6 +232,7 @@ struct NoteEditorView: View {
                     .foregroundStyle(theme.text)
                     .focused($isTitleFocused)
                     .onSubmit(commitTitle)
+                    .disabled(!model.allowsUserEditing)
             }
 
             if model.isSaving {
@@ -230,7 +260,11 @@ struct NoteEditorView: View {
     private var toolbarItems: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
             Button {
-                Task { if await model.flush() { dismiss() } }
+                Task {
+                    guard await model.canLeaveEditor() else { return }
+                    await model.finishEditing()
+                    closeEditor()
+                }
             } label: {
                 Label("Notes", systemImage: "chevron.left")
             }
@@ -295,8 +329,14 @@ struct NoteEditorView: View {
 
     private func copyMarkdown() {
         do {
-            UIPasteboard.general.string = try NoteEditorMarkdown.markdown(title: NoteEditorMarkdown.exportTitle(draft: model.draftTitle), controller: model.controller)
+            let markdown = try NoteEditorMarkdown.markdown(title: NoteEditorMarkdown.exportTitle(draft: model.draftTitle), controller: model.controller)
+            UIPasteboard.general.string = markdown
+            guard UIPasteboard.general.string == markdown else {
+                exportError = "The draft could not be copied. Try again before leaving this note."
+                return
+            }
             copiedTick += 1
+            model.didCopyRetainedDraft()
             withAnimation { isCopiedVisible = true }
             Task {
                 try? await Task.sleep(for: .milliseconds(1200))

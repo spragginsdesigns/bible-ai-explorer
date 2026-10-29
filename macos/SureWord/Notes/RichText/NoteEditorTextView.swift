@@ -11,6 +11,7 @@ struct NoteEditorTextView: NSViewRepresentable {
     @Environment(\.textScaleFactor) private var appScale
     @ScaledMetric private var systemScale: CGFloat = 1
     @Environment(\.theme) private var theme
+    @Environment(\.isEnabled) private var isEnabled
 
     let controller: NoteRichTextController
 
@@ -56,6 +57,7 @@ struct NoteEditorTextView: NSViewRepresentable {
 
         controller.textScale = appScale * systemScale
         textView.textScale = controller.textScale
+        controller.isEditingSurfaceEnabled = isEnabled
         controller.textView = textView
         controller.theme = theme
         return scrollView
@@ -63,6 +65,7 @@ struct NoteEditorTextView: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         controller.textScale = appScale * systemScale
+        controller.isEditingSurfaceEnabled = isEnabled
         guard let textView = scrollView.documentView as? NoteTextView else { return }
         if controller.textView !== textView { controller.textView = textView }
         if controller.theme != theme { controller.theme = theme }
@@ -77,6 +80,10 @@ struct NoteEditorTextView: NSViewRepresentable {
 
         init(controller: NoteRichTextController) {
             self.controller = controller
+        }
+
+        func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
+            controller.allowsUserEditing && textView.isEditable
         }
 
         func textDidChange(_ notification: Notification) {

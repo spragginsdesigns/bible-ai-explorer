@@ -544,6 +544,13 @@ targets:
       # Pure Shared/ logic, so the macOS suite runs on iOS unchanged.
       - path: SureWordTests/VersePassagesTests.swift
       - path: SureWordTests/ShareCardsTests.swift
+      # The note mutation protocol and byte-stream lifecycle are shared by
+      # both apps; run them on the signed simulator test host as well.
+      - path: SureWordTests/NoteAPITests.swift
+      - path: SureWordTests/NoteAIStreamTests.swift
+      - path: SureWordTests/NoteAIIntegrityTests.swift
+      - path: SureWordTests/StreamFramingTests.swift
+      - path: SureWordTests/UIMessageStreamTests.swift
     dependencies:
       - target: SureWord-iOS
     settings:

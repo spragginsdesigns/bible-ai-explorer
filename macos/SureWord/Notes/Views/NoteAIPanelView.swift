@@ -19,10 +19,21 @@ struct NoteAIPanelView: View {
             if !ai.messages.isEmpty { suggestInline }
             if !ai.suggestions.isEmpty && !ai.isBusy { palette }
             Divider().overlay(theme.border)
+            if ai.status == .stopping || ai.status == .checking { Text("Checking the saved note…").appFont(.footnote).foregroundStyle(theme.textMuted) }
             composer
         }
         .background(theme.glassLight)
+        .environment(\.openURL, OpenURLAction(handler: openLink))
         .task { await ai.loadHistory() }
+    }
+
+    /// The window's existing deep-link route waits for the note save before
+    /// opening its reader. A failed save keeps this editor and draft visible.
+    private func openLink(_ url: URL) -> OpenURLAction.Result {
+        guard let raw = VerseLinks.reference(from: url) else { return .systemAction }
+        guard let reference = VerseLinks.readerReference(for: raw) else { return .handled }
+        PendingDeepLinks.shared.post(.verse(reference))
+        return .handled
     }
 
     // MARK: Chrome
@@ -69,7 +80,7 @@ struct NoteAIPanelView: View {
                             NoteAIMessageView(message: message).id(message.id)
                         }
                         if let error = ai.error {
-                            ErrorCard(message: "Something went wrong: \(error)", actionTitle: "Try again") {
+                            ErrorCard(message: "Something went wrong: \(error)", actionTitle: ai.retryActionTitle) {
                                 Task { await ai.retry() }
                             }
                         }
@@ -222,7 +233,7 @@ struct NoteAIMessageView: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     if !message.content.isEmpty {
-                        MarkdownBody(text: message.content, streaming: message.isStreaming)
+                        MarkdownBody(text: message.content, streaming: message.isStreaming, linksVerses: true)
                     } else if message.isStreaming, message.activity == nil {
                         TypingDots()
                     }

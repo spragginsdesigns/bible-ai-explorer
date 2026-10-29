@@ -13,6 +13,9 @@ enum UIMessageChunk: Sendable, Equatable {
     case startStep
     case finishStep
     case finish
+    /// The SDK's SSE transport closed normally. JSON `finish` is optional
+    /// when a route merges a model stream with sendFinish disabled.
+    case streamEnd
     case abort(reason: String?)
     case error(text: String)
 

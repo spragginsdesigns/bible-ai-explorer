@@ -186,6 +186,53 @@ struct NotesAPI: Sendable {
     func clearAIMessages(noteId: String) async throws {
         try await api.data("/api/notes/\(noteId)/ai-messages", method: "DELETE")
     }
+
+    // MARK: Per-note AI operation receipts
+
+    /// Reserve the same immutable request that will open the stream. A lost
+    /// response is recovered by cancellation, never by submitting it again.
+    func reserveAIOperation(_ request: NoteAIRequest) async throws -> NoteAIOperation {
+        guard let operationID = request.operationId else {
+            throw APIError(message: "The AI request has no safety identifier.")
+        }
+        let receipt = try await api.json(
+            "/api/note-ai/operations", method: "POST", body: request, as: NoteAIOperation.self
+        )
+        return try checked(receipt, operationID: operationID)
+    }
+
+    func aiOperation(id: String, noteId: String) async throws -> NoteAIOperation {
+        var query = URLComponents()
+        query.queryItems = [URLQueryItem(name: "noteId", value: noteId)]
+        let receipt = try await api.json(
+            "/api/note-ai/operations/\(id)?\(query.percentEncodedQuery ?? "")", as: NoteAIOperation.self
+        )
+        return try checked(receipt, operationID: id)
+    }
+
+    /// The server also creates a cancelled tombstone when reservation never
+    /// arrived, fencing a delayed reserve/stream after a lost response.
+    func cancelAIOperation(id: String, noteId: String) async throws -> NoteAIOperation {
+        struct Body: Encodable { let noteId: String }
+        let receipt = try await api.json(
+            "/api/note-ai/operations/\(id)/cancel", method: "POST", body: Body(noteId: noteId), as: NoteAIOperation.self
+        )
+        return try checked(receipt, operationID: id)
+    }
+
+    private func checked(_ receipt: NoteAIOperation, operationID: String) throws -> NoteAIOperation {
+        guard receipt.id.caseInsensitiveCompare(operationID) == .orderedSame else {
+            throw APIError(message: "The AI safety receipt did not match this request.")
+        }
+        return receipt
+    }
+}
+
+struct NoteAIOperation: Decodable, Equatable, Sendable {
+    enum State: String, Decodable, Sendable { case reserved, running, settled, cancelled }
+    let id: String
+    let state: State
+    var isTerminal: Bool { state == .settled || state == .cancelled }
 }
 
 /// Request body for `POST /api/note-ai`. The route requires a non-empty
@@ -196,4 +243,5 @@ struct NoteAIRequest: Encodable {
     var timezone: String = TimeZone.current.identifier
     var messages: [JSONValue]
     var noteId: String
+    var operationId: String? = nil
 }

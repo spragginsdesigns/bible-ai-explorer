@@ -53,6 +53,10 @@ final class NoteRichTextController {
 
     /// Fired on every user edit; the editor model debounces it into an autosave.
     var onChange: (@MainActor () -> Void)?
+    /// Set synchronously before AI preflight yields; native/custom edits share this gate.
+    var allowsUserEditing = true {
+        didSet { textView?.isEditable = allowsUserEditing }
+    }
 
     /// The note a `[[wikilink]]` target opens, or nil while none carries that
     /// name. The editor model points it at the notes library.
@@ -66,6 +70,7 @@ final class NoteRichTextController {
     @ObservationIgnored weak var textView: NoteTextView? {
         didSet {
             guard let textView else { return }
+            textView.isEditable = allowsUserEditing
             textScale = NoteAttributedText.Metrics.textScale(for: textView.traitCollection) * appTextScale
             textView.textScale = textScale
             wire(textView)
@@ -141,6 +146,7 @@ final class NoteRichTextController {
     // MARK: - Inline marks
 
     func toggle(_ kind: NoteMark.Kind) {
+        guard allowsUserEditing else { return }
         guard let textView else { return }
         let storage = textView.textStorage
         let selection = textView.selectedRange
@@ -180,6 +186,7 @@ final class NoteRichTextController {
     /// A link needs a value, so it is set rather than toggled. Passing `nil`
     /// removes it.
     func setLink(_ href: String?) {
+        guard allowsUserEditing else { return }
         guard let textView else { return }
         let storage = textView.textStorage
         let selection = textView.selectedRange
@@ -261,6 +268,7 @@ final class NoteRichTextController {
     // MARK: - Block structure
 
     func setBlockKind(_ kind: NoteBlock.Kind) {
+        guard allowsUserEditing else { return }
         mutateBlocks { blocks, range in
             for index in range {
                 let isSame = blocks[index].kind == kind
@@ -275,6 +283,7 @@ final class NoteRichTextController {
     }
 
     func toggleList(_ kind: NoteContainer.Kind) {
+        guard allowsUserEditing else { return }
         mutateBlocks { [self] blocks, range in
             let alreadyList = range.allSatisfy { blocks[$0].listContainer?.kind == kind }
 
@@ -304,6 +313,7 @@ final class NoteRichTextController {
     /// Nest the selected items one level deeper, the way TenTap's indent button
     /// does on Android.
     func indentList() {
+        guard allowsUserEditing else { return }
         var generator = ids
         mutateBlocks { blocks, range in
             // Front to back, so the second of two selected siblings nests into
@@ -318,6 +328,7 @@ final class NoteRichTextController {
     /// Lift the selected items one level out; at depth 1 they leave the list
     /// entirely and become paragraphs.
     func outdentList() {
+        guard allowsUserEditing else { return }
         var generator = ids
         mutateBlocks { blocks, range in
             // Back to front: lifting an item must not change the depth its
@@ -330,18 +341,21 @@ final class NoteRichTextController {
     }
 
     func indentListIfPossible() -> Bool {
+        guard allowsUserEditing else { return false }
         guard canIndentList else { return false }
         indentList()
         return true
     }
 
     func outdentListIfPossible() -> Bool {
+        guard allowsUserEditing else { return false }
         guard canOutdentList else { return false }
         outdentList()
         return true
     }
 
     func toggleBlockquote() {
+        guard allowsUserEditing else { return }
         mutateBlocks { [self] blocks, range in
             let quoted = range.allSatisfy { blocks[$0].isInBlockquote }
             if quoted {
@@ -363,6 +377,7 @@ final class NoteRichTextController {
     }
 
     func toggleCodeBlock() {
+        guard allowsUserEditing else { return }
         mutateBlocks { [self] blocks, range in
             let isCode = range.allSatisfy { blocks[$0].isInPreformatted }
             if isCode {
@@ -389,12 +404,14 @@ final class NoteRichTextController {
     }
 
     func setAlignment(_ alignment: NoteAlignment) {
+        guard allowsUserEditing else { return }
         mutateBlocks { blocks, range in
             for index in range { blocks[index].alignment = alignment }
         }
     }
 
     func insertHorizontalRule() {
+        guard allowsUserEditing else { return }
         mutateBlocks { blocks, range in
             var rule = NoteBlock()
             rule.kind = .horizontalRule
@@ -413,6 +430,7 @@ final class NoteRichTextController {
     /// Flip a task item's checkbox. `offset` is the character offset of the
     /// paragraph the user tapped, which is what `NoteTextView` hands back.
     func toggleTask(atParagraphOffset offset: Int) {
+        guard allowsUserEditing else { return }
         var document = currentDocument()
         let starts = Self.paragraphStarts(of: document)
         guard let index = starts.firstIndex(of: offset),
@@ -439,6 +457,7 @@ final class NoteRichTextController {
     /// Returns true when it handled the key (the delegate must reject the
     /// insertion, since the re-render already replaced the document).
     func handleReturnOutOfEmptyListItem() -> Bool {
+        guard allowsUserEditing else { return false }
         guard let textView else { return false }
         let selection = textView.selectedRange
         guard selection.length == 0 else { return false }
@@ -491,6 +510,7 @@ final class NoteRichTextController {
     /// path, so it autosaves. Android's wikilink insert does the same through
     /// `execCommand('insertText')` in the editor webview.
     func insertText(_ text: String) {
+        guard allowsUserEditing else { return }
         guard let textView, !text.isEmpty else { return }
         restoreTypingAttributes()
         recordEdit()
@@ -509,6 +529,7 @@ final class NoteRichTextController {
     // MARK: - Undo / redo
 
     func undo() {
+        guard allowsUserEditing else { return }
         guard let textView,
               let previous = history.undo(current: snapshot(of: textView))
         else { return }
@@ -516,6 +537,7 @@ final class NoteRichTextController {
     }
 
     func redo() {
+        guard allowsUserEditing else { return }
         guard let textView,
               let next = history.redo(current: snapshot(of: textView))
         else { return }
@@ -525,6 +547,7 @@ final class NoteRichTextController {
     /// Called by the coordinator before UIKit applies a keystroke, paste or
     /// dictation result - the only point where the pre-edit text still exists.
     func willChangeText(in range: NSRange, replacement: String) {
+        guard allowsUserEditing else { return }
         guard !isRendering, let textView else { return }
         history.recordTyping(
             before: snapshot(of: textView),

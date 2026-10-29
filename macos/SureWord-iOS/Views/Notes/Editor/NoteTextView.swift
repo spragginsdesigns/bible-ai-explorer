@@ -165,7 +165,7 @@ final class NoteTextView: UITextView {
     // MARK: - Checkbox hit testing
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        if let point = touches.first?.location(in: self),
+        if isEditable, let point = touches.first?.location(in: self),
            let offset = taskMarkerOffset(at: point) {
             onToggleTask?(offset)
             return
@@ -241,10 +241,10 @@ final class NoteTextView: UITextView {
         return (super.keyCommands ?? []) + commands
     }
 
-    @objc func indentFromKeyboard() { onIndent?() }
-    @objc func outdentFromKeyboard() { onOutdent?() }
-    @objc func undoFromKeyboard() { noteUndoManager.undo() }
-    @objc func redoFromKeyboard() { noteUndoManager.redo() }
+    @objc func indentFromKeyboard() { if isEditable { onIndent?() } }
+    @objc func outdentFromKeyboard() { if isEditable { onOutdent?() } }
+    @objc func undoFromKeyboard() { if isEditable { noteUndoManager.undo() } }
+    @objc func redoFromKeyboard() { if isEditable { noteUndoManager.redo() } }
 
     // MARK: - Paste
 
@@ -253,6 +253,7 @@ final class NoteTextView: UITextView {
     /// vanish on the next save. Taking the plain string keeps what the user sees
     /// and what the other clients receive in agreement.
     override func paste(_ sender: Any?) {
+        guard isEditable else { return }
         if let plain = UIPasteboard.general.string {
             insertText(plain)
         }

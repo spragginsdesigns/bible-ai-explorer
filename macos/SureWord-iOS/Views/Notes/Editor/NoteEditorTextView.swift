@@ -15,6 +15,7 @@ import UIKit
 struct NoteEditorTextView<Accessory: View>: UIViewRepresentable {
     @Environment(\.textScaleFactor) private var appScale
     @Environment(\.theme) private var theme
+    @Environment(\.isEnabled) private var isEnabled
 
     let controller: NoteRichTextController
     @ViewBuilder var accessory: () -> Accessory
@@ -40,7 +41,7 @@ struct NoteEditorTextView<Accessory: View>: UIViewRepresentable {
 
         let textView = NoteTextView(frame: .zero, textContainer: container)
         textView.backgroundColor = .clear
-        textView.isEditable = true
+        textView.isEditable = isEnabled && controller.allowsUserEditing
         textView.isSelectable = true
         textView.alwaysBounceVertical = true
         textView.textContainerInset = UIEdgeInsets(top: 4, left: 16, bottom: 24, right: 16)
@@ -70,6 +71,7 @@ struct NoteEditorTextView<Accessory: View>: UIViewRepresentable {
 
         controller.appTextScale = appScale
         controller.textView = textView
+        textView.isEditable = isEnabled && controller.allowsUserEditing
         controller.theme = theme
         return textView
     }
@@ -77,6 +79,7 @@ struct NoteEditorTextView<Accessory: View>: UIViewRepresentable {
     func updateUIView(_ textView: NoteTextView, context: Context) {
         controller.appTextScale = appScale
         if controller.textView !== textView { controller.textView = textView }
+        textView.isEditable = isEnabled && controller.allowsUserEditing
         if controller.theme != theme { controller.theme = theme }
         context.coordinator.accessoryHost?.rootView = accessoryView
     }
@@ -91,6 +94,7 @@ struct NoteEditorTextView<Accessory: View>: UIViewRepresentable {
                 .background(theme.surface)
                 .environment(\.theme, theme)
                 .environment(\.textScaleFactor, appScale)
+                .disabled(!isEnabled || !controller.allowsUserEditing)
         )
     }
 
@@ -116,6 +120,7 @@ struct NoteEditorTextView<Accessory: View>: UIViewRepresentable {
             shouldChangeTextIn range: NSRange,
             replacementText text: String
         ) -> Bool {
+            guard controller.allowsUserEditing, textView.isEditable else { return false }
             // Return on an empty list item leaves the list instead of adding a
             // blank bullet — the only way out of a list from the keyboard.
             if text == "\n", controller.handleReturnOutOfEmptyListItem() {

@@ -19,6 +19,7 @@ struct NoteAISheet: View {
                 if !ai.messages.isEmpty { suggestInline }
                 if !ai.suggestions.isEmpty && !ai.isBusy { palette }
                 Divider().overlay(theme.border)
+                if ai.status == .stopping || ai.status == .checking { Text("Checking the saved note…").appFont(.footnote).foregroundStyle(theme.textMuted) }
                 composer
             }
             .background(theme.bg.ignoresSafeArea())
@@ -49,7 +50,22 @@ struct NoteAISheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+        .environment(\.openURL, OpenURLAction(handler: openLink))
         .task { await ai.loadHistory() }
+    }
+
+    /// Note answers use Android's direct reader hop, rather than the main
+    /// chat's retrieved-passage sheet. Other links keep their system behavior.
+    private func openLink(_ url: URL) -> OpenURLAction.Result {
+        guard let raw = VerseLinks.reference(from: url) else { return .systemAction }
+        guard let reference = VerseLinks.readerReference(for: raw) else { return .handled }
+        dismiss()
+        NotificationCenter.default.post(
+            name: .openBibleVerse,
+            object: nil,
+            userInfo: ["reference": reference]
+        )
+        return .handled
     }
 
     // MARK: Messages
@@ -70,7 +86,7 @@ struct NoteAISheet: View {
                                 Text("Something went wrong: \(error)")
                                     .appFont(.subheadline)
                                     .foregroundStyle(theme.danger)
-                                Button("Try again") {
+                                Button(ai.retryActionTitle) {
                                     Task { await ai.retry() }
                                 }
                                 .buttonStyle(AccentButtonStyle())
@@ -177,6 +193,7 @@ struct NoteAISheet: View {
     private var composer: some View {
         HStack(alignment: .bottom, spacing: Spacing.sm) {
             TextField("Ask about your note…", text: $ai.input, axis: .vertical)
+                .accessibilityIdentifier("note-ai.composer")
                 .textFieldStyle(.plain)
                 .appFont(.body)
                 .lineLimit(1...6)
@@ -232,7 +249,7 @@ private struct NoteAIMessageView: View {
 
                 VStack(alignment: .leading, spacing: 6) {
                     if !message.content.isEmpty {
-                        NoteMarkdownText(content: message.content)
+                        ChatMarkdownBody(text: message.content, streaming: message.isStreaming, linksVerses: true)
                     } else if message.isStreaming, message.activity == nil {
                         TypingDots()
                     }
@@ -279,33 +296,6 @@ private struct NoteAIMessageView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-}
-
-/// Inline-markdown answer text. The Mac renders through its `MarkdownBody`;
-/// the panel's answers are prose with emphasis and lists, which
-/// `AttributedString(markdown:)` covers without pulling a renderer into this
-/// lane. Namespaced under Notes so the chat lane's own renderer cannot
-/// collide with it.
-private struct NoteMarkdownText: View {
-    @Environment(\.theme) private var theme
-    let content: String
-
-    var body: some View {
-        if let parsed = try? AttributedString(
-            markdown: content,
-            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
-        ) {
-            Text(parsed)
-                .appFont(.body)
-                .foregroundStyle(theme.text)
-                .textSelection(.enabled)
-        } else {
-            Text(content)
-                .appFont(.body)
-                .foregroundStyle(theme.text)
-                .textSelection(.enabled)
         }
     }
 }

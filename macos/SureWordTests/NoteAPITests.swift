@@ -75,15 +75,16 @@ struct NotePatchTests {
     }
 }
 
-/// The `addToNote` tool call is how the assistant writes into the open note.
+/// Completed append and rewrite tool calls notify the open note's editor.
 /// Every call must fire exactly once — restoring history re-delivers the same
 /// tool calls, and re-applying them would duplicate verses in the document.
-@Suite("Note AI addToNote calls")
+@Suite("Note AI mutation calls")
 struct NoteAICallTests {
 
     private func assistantMessage(
         id: String,
         toolCallID: String,
+        toolName: String = "addToNote",
         state: ToolState = .outputAvailable,
         output: JSONValue?
     ) -> UIMessage {
@@ -94,7 +95,7 @@ struct NoteAICallTests {
                 .tool(
                     ToolPart(
                         toolCallId: toolCallID,
-                        toolName: "addToNote",
+                        toolName: toolName,
                         state: state,
                         input: nil,
                         output: output
@@ -117,11 +118,41 @@ struct NoteAICallTests {
                 ])
             )
         ]
-        let calls = NoteAIModel.addToNoteCalls(in: messages)
+        let calls = NoteAIModel.noteChangeCalls(in: messages)
         #expect(calls.count == 1)
         #expect(calls[0].toolCallID == "call-1")
         #expect(calls[0].noteID == "n1")
-        #expect(calls[0].appendedHTML == "<p>verse</p>")
+    }
+
+    @Test("A completed rewrite refreshes the note without an appendedHtml field")
+    func collectsCompletedRewrite() {
+        let message = assistantMessage(
+            id: "rewrite",
+            toolCallID: "rewrite-1",
+            toolName: "updateNote",
+            output: .object([
+                "noteId": .string("n1"),
+                "noteTitle": .string("Romans"),
+                "previousWordCount": .number(6),
+                "wordCount": .number(6),
+            ])
+        )
+        #expect(NoteAIModel.noteChangeCalls(in: [message]) == [
+            NoteAIModel.NoteChangeCall(toolCallID: "rewrite-1", noteID: "n1"),
+        ])
+    }
+
+    @Test("In-flight, failed and malformed rewrites never claim a note changed")
+    func ignoresUnconfirmedRewrites() {
+        let messages = [
+            assistantMessage(id: "pending", toolCallID: "pending", toolName: "updateNote", state: .inputAvailable, output: nil),
+            assistantMessage(id: "failed", toolCallID: "failed", toolName: "updateNote", output: .object(["error": .string("Write refused"), "noteId": .string("n1")])),
+            assistantMessage(id: "partial", toolCallID: "partial", toolName: "updateNote", output: .object(["noteId": .string("n1")])),
+            assistantMessage(id: "empty-note", toolCallID: "empty-note", toolName: "updateNote", output: .object(["noteId": .string("")])),
+            assistantMessage(id: "empty-call", toolCallID: "", toolName: "updateNote", output: .object(["noteId": .string("n1")])),
+            UIMessage(id: "prose", role: .assistant, parts: [.text(id: "0", text: "I updated your note.")]),
+        ]
+        #expect(NoteAIModel.noteChangeCalls(in: messages).isEmpty)
     }
 
     @Test("Ignores calls that have not produced output yet")
@@ -129,7 +160,7 @@ struct NoteAICallTests {
         let messages = [
             assistantMessage(id: "m1", toolCallID: "call-1", state: .inputAvailable, output: nil)
         ]
-        #expect(NoteAIModel.addToNoteCalls(in: messages).isEmpty)
+        #expect(NoteAIModel.noteChangeCalls(in: messages).isEmpty)
     }
 
     @Test("Ignores malformed output rather than failing the message")
@@ -141,7 +172,7 @@ struct NoteAICallTests {
                 output: .object(["noteId": .string("n1")])
             )
         ]
-        #expect(NoteAIModel.addToNoteCalls(in: messages).isEmpty)
+        #expect(NoteAIModel.noteChangeCalls(in: messages).isEmpty)
     }
 
     @Test("Ignores user messages and other tools")
@@ -164,7 +195,7 @@ struct NoteAICallTests {
                 ]
             ),
         ]
-        #expect(NoteAIModel.addToNoteCalls(in: messages).isEmpty)
+        #expect(NoteAIModel.noteChangeCalls(in: messages).isEmpty)
     }
 
     @Test("Encodes the note-ai request the route expects")
@@ -180,5 +211,38 @@ struct NoteAICallTests {
         )
         let json = String(decoding: try encoder.encode(request), as: UTF8.self)
         #expect(json == #"{"messages":[{"role":"user"}],"noteId":"n1","timezone":"America\/Los_Angeles"}"#)
+    }
+
+    @Test("Operation requests encode the UUID alongside the same reading context and messages")
+    func encodesOperationRequest() throws {
+        let operationID = UUID().uuidString
+        let request = NoteAIRequest(
+            timezone: "America/Los_Angeles",
+            messages: [.object(["id": .string("question"), "role": .string("user")])],
+            noteId: "n1",
+            operationId: operationID
+        )
+        let json = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any])
+        #expect(json["operationId"] as? String == operationID)
+        #expect(json["timezone"] as? String == "America/Los_Angeles")
+        #expect(json["noteId"] as? String == "n1")
+        #expect((json["messages"] as? [[String: String]])?.first?["id"] == "question")
+    }
+
+    @Test("Only settled and cancelled operation receipts fence future writes")
+    func decodesOperationReceipts() throws {
+        for state in ["reserved", "running", "settled", "cancelled"] {
+            let receipt = try JSONDecoder().decode(NoteAIOperation.self, from: Data("{\"id\":\"operation\",\"state\":\"\(state)\"}".utf8))
+            #expect(receipt.isTerminal == ["settled", "cancelled"].contains(state))
+        }
+    }
+
+    @Test("Existing ledger attempts decode as legacy and operation markers survive restart")
+    func decodesAttemptProtocol() throws {
+        let legacy = try JSONDecoder().decode(NotesStore.AIAttempt.self, from: Data(#"{"id":"old-id","userMessageID":"question","terminal":false}"#.utf8))
+        #expect(legacy.operationProtocol == .legacy)
+        let operation = NotesStore.AIAttempt(id: UUID().uuidString, userMessageID: "question", operationProtocol: .operationReceipt)
+        let restored = try JSONDecoder().decode(NotesStore.AIAttempt.self, from: JSONEncoder().encode(operation))
+        #expect(restored == operation)
     }
 }

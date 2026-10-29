@@ -37,7 +37,7 @@ struct UIMessageAccumulator: Sendable {
             // id once collapsed every exchange onto one persisted row).
             if let messageId, !messageId.isEmpty { message.id = messageId }
 
-        case .startStep, .finishStep, .finish:
+        case .startStep, .finishStep, .finish, .streamEnd:
             break
 
         case .abort:
@@ -264,21 +264,25 @@ extension UIMessageChunk {
     /// Decode a live response body into chunks. This is the entry point callers
     /// should use — never `bytes.lines`, see `ServerSentEvents.lines(from:)`.
     static func stream(
-        fromBytes bytes: some AsyncSequence<UInt8, any Error> & Sendable
+        fromBytes bytes: some AsyncSequence<UInt8, any Error> & Sendable,
+        includingEnd: Bool = false
     ) -> AsyncThrowingStream<UIMessageChunk, any Error> {
-        stream(from: ServerSentEvents.lines(from: bytes))
+        stream(from: ServerSentEvents.lines(from: bytes), includingEnd: includingEnd)
     }
 
     /// Decode already-split lines. Blank lines must be preserved in `lines`.
     static func stream(
-        from lines: some AsyncSequence<String, any Error> & Sendable
+        from lines: some AsyncSequence<String, any Error> & Sendable,
+        includingEnd: Bool = false
     ) -> AsyncThrowingStream<UIMessageChunk, any Error> {
         let payloads = ServerSentEvents.payloads(from: lines)
         return AsyncThrowingStream { continuation in
             let task = Task {
                 do {
                     for try await payload in payloads {
-                        if let chunk = UIMessageChunk.decode(payload: payload) {
+                        if includingEnd, payload.trimmingCharacters(in: .whitespaces) == "[DONE]" {
+                            continuation.yield(.streamEnd)
+                        } else if let chunk = UIMessageChunk.decode(payload: payload) {
                             continuation.yield(chunk)
                         }
                     }

@@ -218,6 +218,7 @@ final class AppModel {
             highlights.clearCache()
             NotesStore.shared.clearCache()
         }
+        NotesStore.shared.bindAccount(userID)
     }
 
     /// The session ended. Signing out drops this model (see the `onChange` in

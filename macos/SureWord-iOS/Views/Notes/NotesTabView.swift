@@ -24,8 +24,13 @@ struct NotesTabView: View {
                         NotesLibraryView(library: library) { openNote($0) }
                             .navigationSplitViewColumnWidth(min: 260, ideal: 320, max: 400)
                     } detail: {
+                        let destination = $openedNoteID
                         if let openedNoteID {
-                            NoteEditorView(noteID: openedNoteID, api: app.api, onDeleted: { self.openedNoteID = nil })
+                            NoteEditorView(
+                                noteID: openedNoteID, api: app.api,
+                                onDeleted: { destination.wrappedValue = nil },
+                                onClose: { destination.wrappedValue = nil }
+                            )
                                 .id(openedNoteID)
                                 .analyticsScreen(AnalyticsScreen.note)
                         } else {
@@ -44,7 +49,8 @@ struct NotesTabView: View {
         .navigationTitle("Notes")
         .settingsGearToolbar()
         .navigationDestination(item: Binding(get: { sizeClass == .regular ? nil : openedNoteID }, set: { openNote($0) })) { noteID in
-            NoteEditorView(noteID: noteID, api: app.api)
+            let destination = $openedNoteID
+            NoteEditorView(noteID: noteID, api: app.api, onClose: { destination.wrappedValue = nil })
                 .analyticsScreen(AnalyticsScreen.note)
         }
         .task {
