@@ -107,6 +107,9 @@ export interface WebPushPayload {
 	/** Replaces an earlier notification with the same tag instead of stacking. */
 	tag: string;
 	data: Record<string, unknown>;
+	/** Same-origin art for this kind of notice (notificationArtFor), when it has one. */
+	icon?: string;
+	image?: string;
 }
 
 /**
@@ -126,7 +129,15 @@ export function buildWebPushPayload(message: {
 			: message.data.screen === "chat" && typeof message.data.conversationId === "string"
 				? `chat-${message.data.conversationId}`
 				: "sureword";
-	return { title: message.title, body: message.body, url, tag, data: message.data };
+	const art = notificationArtFor(message.data);
+	return {
+		title: message.title,
+		body: message.body,
+		url,
+		tag,
+		data: message.data,
+		...(art ? { icon: art.icon, image: art.image } : {}),
+	};
 }
 
 /**
@@ -216,11 +227,43 @@ export function mayRegisterExistingPushToken(
 }
 
 /**
- * Title of every "answer is ready" notice (server push, web tab, Mac). The
- * speech balloon sets it apart at a glance from "✝ Pick up your cross", whose
- * body is also Scripture. Mirrored by AnswerReadyNotification.title in Swift.
+ * Title of every "answer is ready" notice (server push, web tab, Mac),
+ * mirrored by AnswerReadyNotification.title in Swift. Plain words: the art
+ * below is what tells it apart from the Daily Cross, whose body is also
+ * Scripture.
  */
-export const ANSWER_READY_TITLE = "\u{1F4AC} Your answer is ready";
+export const ANSWER_READY_TITLE = "Your answer is ready";
+
+/** Title of every Daily Cross notice, mirrored by DailyCrossNotifications in Swift. */
+export const DAILY_CROSS_TITLE = "Pick up your cross";
+
+/**
+ * Each kind of notice has its own art, so the two never read alike in a tray:
+ * a cross before the rising day star for the Daily Cross, the open Word with a
+ * speech balloon for an answer. Android bundles it in the sureword-notifications
+ * module, Apple in macos/Shared/NotificationArt; the web serves the same files
+ * from public/notifications. `apnsCategory` picks the iOS long-press view
+ * (SureWord-iOS-NotificationContent) and `kind` the art the iOS Notification
+ * Service Extension attaches.
+ */
+export interface NotificationArt {
+	kind: "cross" | "answer";
+	/** Square mark: Android's closed view, the web notification icon, the iOS thumbnail. */
+	icon: string;
+	/** Wide banner: the expanded view everywhere. */
+	image: string;
+	apnsCategory: "SUREWORD_CROSS" | "SUREWORD_ANSWER";
+}
+
+export function notificationArtFor(data: Record<string, unknown>): NotificationArt | null {
+	if (data.screen === "cross") {
+		return { kind: "cross", icon: "/notifications/cross-mark.jpg", image: "/notifications/cross-wide.jpg", apnsCategory: "SUREWORD_CROSS" };
+	}
+	if (data.screen === "chat") {
+		return { kind: "answer", icon: "/notifications/answer-mark.jpg", image: "/notifications/answer-wide.jpg", apnsCategory: "SUREWORD_ANSWER" };
+	}
+	return null;
+}
 
 /**
  * One readable tray line from a markdown answer. Answers open with a quoted

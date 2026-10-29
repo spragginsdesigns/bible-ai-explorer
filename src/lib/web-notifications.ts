@@ -424,10 +424,13 @@ export function notifyAnswerReady(opts: { conversationId: string; title?: string
 		return;
 	}
 	const title = ANSWER_READY_TITLE;
-	const options: NotificationOptions = {
+	// `image` is real in Chromium but missing from TypeScript's DOM types.
+	const options: NotificationOptions & { image?: string } = {
 		body: opts.title?.trim() || "Tap to read it in SureWord.",
 		tag: `chat-${opts.conversationId}`,
-		icon: "/icon-192.png",
+		// The answer's own art, as the server push carries (notificationArtFor).
+		icon: "/notifications/answer-mark.jpg",
+		image: "/notifications/answer-wide.jpg",
 	};
 	try {
 		const notification = new Notification(title, options);

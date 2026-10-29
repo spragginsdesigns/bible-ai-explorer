@@ -75,13 +75,15 @@ enum DailyCrossNotifications {
 
     private static func schedule(hour: Int) async {
         let content = UNMutableNotificationContent()
-        // Same copy as the Android local notification, deliberately.
-        content.title = "✝ Pick up your cross"
+        // Same copy as the Android local notification and the server push
+        // (DAILY_CROSS_TITLE), deliberately; the art tells it from an answer.
+        content.title = "Pick up your cross"
         content.body = "Your word for today is ready."
         content.sound = .default
         // Android's local fallback carries the same data, and the tap handler
         // routes on it (see `NotificationTapTarget`).
         content.userInfo = ["screen": "cross"]
+        NotificationArt.cross.dress(content)
 
         var components = DateComponents()
         components.hour = min(max(hour, 0), 23)

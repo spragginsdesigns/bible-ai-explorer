@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { findTodayCross, generateDailyCross, storeDailyCross } from "@/lib/daily-cross";
 import { refreshSuggestedQuestions } from "@/lib/suggested-questions";
 import { sendPushMessages, type PendingPush } from "@/lib/push";
-import { recipientFromRow } from "@/lib/push-routing";
+import { DAILY_CROSS_TITLE, recipientFromRow } from "@/lib/push-routing";
 import { planMorningAudience } from "@/lib/push-audience";
 import { aiConsentedUserIds } from "@/lib/preferences-contract";
 import {
@@ -216,7 +216,7 @@ export async function GET(request: Request) {
 					const row = tokenRows.get(recipient.tokenId);
 					return row ? recipientFromRow(row) : recipient;
 				}),
-				title: "✝ Pick up your cross",
+				title: DAILY_CROSS_TITLE,
 				// subtitle renders on iOS only; Android carries the reference
 				// inside the body instead.
 				subtitle: reference,

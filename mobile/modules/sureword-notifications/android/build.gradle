@@ -1,0 +1,21 @@
+plugins {
+	id "com.android.library"
+	id "expo-module-gradle-plugin"
+}
+
+group = "com.spragginsdesigns.sureword"
+version = "1.0.0"
+
+android {
+	namespace "com.spragginsdesigns.sureword.notifications"
+	defaultConfig {
+		versionCode 1
+		versionName "1.0.0"
+	}
+}
+
+dependencies {
+	// The receiver and presentation delegate below extend expo-notifications'
+	// own classes, so its pipeline (channels, taps, JS listeners) stays intact.
+	implementation project(":expo-notifications")
+}

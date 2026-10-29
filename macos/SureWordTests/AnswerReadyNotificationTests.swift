@@ -41,7 +41,7 @@ struct AnswerReadyNotificationTests {
 
     @Test("Copy matches the server push and the web notice")
     func copyMatchesTheOtherClients() {
-        #expect(AnswerReadyNotification.title == "\u{1F4AC} Your answer is ready")
+        #expect(AnswerReadyNotification.title == "Your answer is ready")
         #expect(AnswerReadyNotification.body(conversationTitle: "Who is Melchizedek?") == "Who is Melchizedek?")
         #expect(AnswerReadyNotification.body(conversationTitle: "  Grace  \n") == "Grace")
     }

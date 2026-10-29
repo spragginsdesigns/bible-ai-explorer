@@ -28,7 +28,13 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 project_file="$script_dir/project.yml"
 work_dir="$script_dir/build-ios-release.noindex"
 bundle_id="com.spragginsdesigns.sureword"
-share_bundle_id="com.spragginsdesigns.sureword.share"
+# Every embedded extension as "bundle id:target", each signed with its own
+# App Store profile (target names as in project.yml).
+extensions=(
+	"com.spragginsdesigns.sureword.share:SureWord-iOS-Share"
+	"com.spragginsdesigns.sureword.notification-service:SureWord-iOS-NotificationService"
+	"com.spragginsdesigns.sureword.notification-content:SureWord-iOS-NotificationContent"
+)
 team_id="389LLKGY3Y"
 key_id="${ASC_KEY_ID:-7DQ48J77LB}"
 issuer_id="${ASC_ISSUER_ID:-cba57450-1b28-47ea-9be9-98c9125afeab}"
@@ -60,9 +66,15 @@ version="$(sed -nE 's/^[[:space:]]*MARKETING_VERSION:[[:space:]]*"?([^"[:space:]
 step "Generating the Xcode project"
 (cd -- "$script_dir" && xcodegen generate >/dev/null)
 
-# The share extension ships only once its target exists in project.yml.
+# An extension ships only once its target exists in project.yml.
 bundle_ids=("$bundle_id")
-if grep -q "$share_bundle_id" "$project_file"; then bundle_ids+=("$share_bundle_id"); fi
+shipped_extensions=()
+for entry in "${extensions[@]}"; do
+	if grep -q "${entry%%:*}" "$project_file"; then
+		bundle_ids+=("${entry%%:*}")
+		shipped_extensions+=("$entry")
+	fi
+done
 
 step "Provisioning profiles (${bundle_ids[*]})"
 profile_map="$(asc profiles "${bundle_ids[@]}")" || die "could not create or fetch App Store profiles"
@@ -89,10 +101,10 @@ xcconfig="$work_dir/distribution.xcconfig"
 	echo "DEVELOPMENT_TEAM = $team_id"
 	echo "CURRENT_PROJECT_VERSION = $build"
 	echo "SUREWORD_PROFILE_SureWord_iOS = $(profile_for "$bundle_id")"
-	if [ "${#bundle_ids[@]}" -gt 1 ]; then
-		# TARGET_NAME "SureWord-iOS-Share" as a c99 identifier (project.yml).
-		echo "SUREWORD_PROFILE_SureWord_iOS_Share = $(profile_for "$share_bundle_id")"
-	fi
+	for entry in "${shipped_extensions[@]}"; do
+		# TARGET_NAME as a c99 identifier: SureWord-iOS-Share -> SureWord_iOS_Share.
+		echo "SUREWORD_PROFILE_$(printf '%s' "${entry#*:}" | tr -c 'A-Za-z0-9\n' '_') = $(profile_for "${entry%%:*}")"
+	done
 	echo 'PROVISIONING_PROFILE_SPECIFIER = $(SUREWORD_PROFILE_$(TARGET_NAME:c99extidentifier))'
 } >"$xcconfig"
 

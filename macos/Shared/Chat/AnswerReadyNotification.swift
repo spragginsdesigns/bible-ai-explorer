@@ -18,7 +18,7 @@ import Foundation
 enum AnswerReadyNotification {
     /// The server push's and the web notice's title, word for word
     /// (`ANSWER_READY_TITLE` in `src/lib/push-routing.ts`).
-    static let title = "\u{1F4AC} Your answer is ready"
+    static let title = "Your answer is ready"
     /// The web notice's body for a conversation with no title yet.
     static let fallbackBody = "Tap to read it in SureWord."
 

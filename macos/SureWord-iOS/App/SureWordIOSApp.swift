@@ -76,6 +76,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // Must be set before any notification can be delivered, or a tap on the
         // morning reminder does nothing but foreground the app.
         UNUserNotificationCenter.current().delegate = self
+        // The Daily Cross and answer categories, whose long-press view is
+        // SureWord-iOS-NotificationContent.
+        UNUserNotificationCenter.current().setNotificationCategories(NotificationArt.categories)
         return true
     }
 }

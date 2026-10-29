@@ -27,7 +27,9 @@ self.addEventListener("push", (event) => {
 		self.registration.showNotification(title, {
 			body: typeof payload.body === "string" ? payload.body : "",
 			tag: typeof payload.tag === "string" ? payload.tag : undefined,
-			icon: "/icon-192.png",
+			// The kind's own art (notificationArtFor) when the payload names it.
+			icon: safePath(payload.icon) === "/" ? "/icon-192.png" : safePath(payload.icon),
+			image: safePath(payload.image) === "/" ? undefined : safePath(payload.image),
 			badge: "/favicon-96x96.png",
 			data: { url: safePath(payload.url) },
 		})

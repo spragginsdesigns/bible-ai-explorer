@@ -258,12 +258,30 @@ export function apnsCollapseId(data: Record<string, unknown>): string | undefine
  * Expo's nesting under `body`). No subtitle: the morning body already carries
  * the reference, as on Android and the web, so it is not repeated.
  */
+/**
+ * The iOS notification category for a push, which picks its long-press view
+ * (SureWord-iOS-NotificationContent). Mirrors notificationArtFor's
+ * apnsCategory in push-routing.ts, kept inline because this file imports
+ * types only; tests/apns.test.mjs holds the two in step.
+ */
+export function apnsCategoryFor(data: Record<string, unknown>): "SUREWORD_CROSS" | "SUREWORD_ANSWER" | undefined {
+	if (data.screen === "cross") return "SUREWORD_CROSS";
+	if (data.screen === "chat") return "SUREWORD_ANSWER";
+	return undefined;
+}
+
 export function buildApnsPayload(message: ApnsMessage): Record<string, unknown> {
 	const data = Object.fromEntries(Object.entries(message.data).filter(([key]) => key !== "aps"));
+	const category = apnsCategoryFor(message.data);
 	return {
 		aps: {
 			alert: { title: message.title, body: message.body },
 			sound: "default",
+			// mutable-content wakes the Notification Service Extension, which
+			// attaches the kind's art as the banner thumbnail; the category
+			// picks the long-press view. A build without the extensions shows
+			// the plain alert, so this is safe for older installs.
+			...(category ? { "mutable-content": 1, category } : {}),
 		},
 		...data,
 	};
