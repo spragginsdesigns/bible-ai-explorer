@@ -245,7 +245,7 @@ export default function PeterWaterWalk({ game, verses, initialAward }: { game: C
 			}
 			if (faithLabelRef.current) faithLabelRef.current.textContent = `${faith}%`;
 			if (distanceRef.current) distanceRef.current.style.width = `${(state.x / WALK_GOAL) * 100}%`;
-			if (distanceLabelRef.current) distanceLabelRef.current.textContent = `${Math.max(0, Math.ceil(WALK_GOAL - state.x))} cubits to Jesus`;
+			if (distanceLabelRef.current) distanceLabelRef.current.textContent = `${Math.min(100, Math.floor((state.x / WALK_GOAL) * 100))}% of the way to Jesus`;
 			if (balanceRef.current) balanceRef.current.style.left = `${50 + Math.max(-1, Math.min(1, state.tilt / 1.15)) * 50}%`;
 			if (hintRef.current) {
 				const ahead = state.swells.find((swell) => swell.outcome === null && swell.x > state.x);
@@ -412,7 +412,7 @@ export default function PeterWaterWalk({ game, verses, initialAward }: { game: C
 							<div ref={faithRef} className="h-full rounded-full bg-[#e5b664] data-[low=true]:bg-[#e2735a]" style={{ width: "80%" }} />
 						</div>
 						<div className="mt-2 flex items-center justify-between text-xs font-bold text-[#d9d1c3]">
-							<span ref={distanceLabelRef}>{WALK_GOAL} cubits to Jesus</span>
+							<span ref={distanceLabelRef}>0% of the way to Jesus</span>
 						</div>
 						<div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
 							<div ref={distanceRef} className="h-full rounded-full bg-[#f1eadc]/80" style={{ width: "0%" }} />

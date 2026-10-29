@@ -13,7 +13,11 @@
  * of verse 31. Reaching Jesus completes the walk.
  */
 
-/** Cubits from the ship to Jesus. */
+/**
+ * The walk's length in the game's own units (called cubits below). Matthew 14
+ * gives no distance, so the player is only ever shown how much of the way is
+ * walked, never a number of cubits.
+ */
 export const WALK_GOAL = 150;
 /** The simulation runs in fixed steps; the page accumulates frame time into them. */
 export const WALK_STEP = 1 / 60;

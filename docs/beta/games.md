@@ -12,7 +12,8 @@ immersive and slightly challenging, and get an award when you complete it."
 
 - **Peter's Water Walk** (`/beta/bible/games/water-walk`, Matthew 14:22-33).
   Peter steps out of the ship in the fourth watch and walks the storm to
-  Jesus, 150 cubits across the sea, in about half a minute when it goes well.
+  Jesus across the sea, in about half a minute when it goes well. The HUD
+  shows how much of the way is walked, never a distance: Matthew 14 gives none.
   - **Lean against the wind.** Gusts of the "wind boisterous" push him off
     balance; the rain and the streaks across the sky show which way. Hold left
     or right (arrow keys or A/D, the Lean buttons, or a thumb on each on a
