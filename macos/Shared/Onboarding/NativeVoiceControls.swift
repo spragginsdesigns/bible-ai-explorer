@@ -27,7 +27,7 @@ private struct NativeVoiceDriver: ViewModifier {
             }
             .task(id: scenePhase) {
                 guard scenePhase == .active else { return }
-                await input.checkEligibility(api: app.api)
+                await input.checkEligibility(api: app.api, account: app.userID)
             }
             .onChange(of: stateKey) { _, _ in session.synchronize(app: app) }
             .onChange(of: scenePhase, initial: true) { _, phase in session.setForeground(phase == .active, app: app, permissionPrompt: phase == .inactive) }

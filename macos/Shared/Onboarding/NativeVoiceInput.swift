@@ -23,12 +23,17 @@ final class NativeVoiceInput {
     @ObservationIgnored var onFinal: ((String) -> Void)?
     @ObservationIgnored var onFailure: ((String) -> Void)?
 
-    func checkEligibility(api: APIClient) async {
+    func checkEligibility(api: APIClient, account: String?) async {
         let current = generation
-        let result = try? await api.response("/api/voice/live", method: "GET")
+        guard let account, await ClerkAuth.refreshVoiceOwner(for: account), current == generation else {
+            if current == generation { isEligible = false; stop() }
+            return
+        }
+        let result = try? await api.response("/api/billing/status", method: "GET")
         guard current == generation, !Task.isCancelled else { return }
         let value = result.flatMap { try? JSONDecoder().decode(JSONValue.self, from: $0.data) }
-        isEligible = NativeVoiceRules.authorized(status: result?.status ?? 0, value: value)
+        isEligible = result?.status == 200 && value?["plan"]?.stringValue == "pro"
+            && ClerkAuth.isVoiceOwner(for: account)
         if !isEligible { stop() }
     }
 

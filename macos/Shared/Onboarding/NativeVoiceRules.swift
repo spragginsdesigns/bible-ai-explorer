@@ -6,6 +6,11 @@ enum NativeVoiceCommand: Equatable {
 }
 
 enum NativeVoiceRules {
+    static func ownerIdentity(account: String, profileID: String, email: String, verified: Bool) -> Bool {
+        !account.isEmpty && account == profileID && verified
+            && email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "atmosphere9999@gmail.com"
+    }
+
     static let playbackRate: Float = 1.15
     static let destinations = ["today", "bible", "chat", "connections", "study", "notes", "settings"]
 

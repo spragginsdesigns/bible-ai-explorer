@@ -72,6 +72,10 @@ struct NativeVoiceTests {
 
     @Test("Owner-only server authorization requires 200 and Pro; relay availability is independent")
     func ownerGate() {
+        #expect(NativeVoiceRules.ownerIdentity(account: "owner", profileID: "owner", email: "atmosphere9999@gmail.com", verified: true))
+        #expect(!NativeVoiceRules.ownerIdentity(account: "owner", profileID: "other", email: "atmosphere9999@gmail.com", verified: true))
+        #expect(!NativeVoiceRules.ownerIdentity(account: "owner", profileID: "owner", email: "other@gmail.com", verified: true))
+        #expect(!NativeVoiceRules.ownerIdentity(account: "owner", profileID: "owner", email: "atmosphere9999@gmail.com", verified: false))
         let owner: JSONValue = .object(["pro": .bool(true), "available": .bool(false)])
         #expect(NativeVoiceRules.authorized(status: 200, value: owner))
         #expect(!NativeVoiceRules.authorized(status: 403, value: owner))

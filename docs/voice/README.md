@@ -17,6 +17,16 @@ on-device/browser listening, choice selection and navigation, and 1.15x
 playback. Native verification is separate from the original GPT-Live browser
 connection receipts below.
 
+The actual Mac app is now installed locally as **1.31.0 (41)** at
+`/Applications/SureWord.app`. Its local controls use fresh verified Clerk
+identity and the existing production billing endpoint, so no relay deployment
+is needed to try navigation. The existing non-owner reviewer login was
+preserved, and its Pro status did not expose voice controls. Switch to
+`atmosphere9999@gmail.com` to try them. See the
+[local installation receipt](mac-local-install-2026-10-29.json). The build
+combines current primary Apple sources with this worktree's voice changes;
+it does not modify the primary checkout or publish a release.
+
 ## Product contract
 
 - Speech uses the existing `/api/ask-question` backend. Its doctrine, KJV

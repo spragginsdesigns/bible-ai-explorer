@@ -6,10 +6,13 @@ controls to the account shell on Android, Apple and web, so leaving Chat
 does not remove the controller.
 
 New listening controls remain restricted to the verified owner account
-`atmosphere9999@gmail.com`, with Pro required. Clients ask the authenticated
-`GET /api/voice/live` endpoint, whose server checks Clerk's verified primary
-email. Another account, failed verification, sign-out or non-200 disables
-capture. A successful owner response can enable local commands while the
+`atmosphere9999@gmail.com`, with Pro required. Web and Android ask the
+authenticated `GET /api/voice/live` endpoint. Apple refreshes its authenticated
+Clerk user and checks the returned verified primary email and account/session
+identity, then requires `plan: pro` from the existing `/api/billing/status`
+endpoint. This allows the installed Mac app to use the live production API
+without deploying the browser relay. Another account, failed verification,
+sign-out or a failed membership check disables capture. Owner eligibility can enable local commands while the
 paid relay is unavailable: local commands do not create GPT-Live sessions
 or consume its connected-time allowance.
 
@@ -58,9 +61,9 @@ recognition service. Browser controls require Web Speech recognition.
 Browser/Android recognition may use the platform's speech service; these
 controls are separate from GPT-Live.
 
-This branch does not update the installed Mac app or publish native builds.
-Native clients must target an API serving the owner eligibility endpoint
-before their Start button appears. Android needs a native rebuild for its
+The local Mac installation is recorded separately in the installation receipt;
+it does not publish a native release. Web/Android require an API serving their
+owner eligibility endpoint. Android needs a native rebuild for its
 new recognition module and microphone permission; a Metro bundle alone
 cannot install the module. Actual microphone/TCC, spoken recognition,
 speaker/Bluetooth routing, echo and blind-user VoiceOver/TalkBack acceptance

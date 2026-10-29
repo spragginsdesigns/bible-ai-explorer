@@ -68,7 +68,7 @@ final class NativeVoiceSession {
         lifecycle = current
         isStarting = true
         defer { if lifecycle == current { isStarting = false } }
-        await input.checkEligibility(api: app.api)
+        await input.checkEligibility(api: app.api, account: app.userID)
         guard lifecycle == current, !Task.isCancelled else { return }
         guard input.isEligible else {
             app.onboarding.voice.enqueueLocal("Voice controls are unavailable for this account right now.")
