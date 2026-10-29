@@ -7,17 +7,20 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
-## Private GPT-Live Pro trial, 2026-10-29
+## Account-restricted GPT-Live voice, 2026-10-29
 
-The isolated `codex/sureword-gpt-live-pro` worktree adds an opt-in browser
-prototype at `/voice-preview`. It delegates speech to the existing chat backend
+The isolated `codex/sureword-gpt-live-pro` worktree adds live voice at `/voice`,
+enabled only for the account with verified primary Clerk email
+`atmosphere9999@gmail.com`. Other Pro accounts are denied at the page, API
+and relay backend. The old `/voice-preview` path is an account-gated redirect.
+It delegates speech to the existing chat backend
 and retains canonical messages, memory and tools. Pro checks and server-owned
 session/daily/monthly time limits apply. It uses a separate Neon branch and
 does not change the released apps or production configuration.
 
 | Client | Trial status |
 | --- | --- |
-| Web | Private prototype; synthetic real-provider audio round trip and narrow layout checked |
+| Web | Account-restricted implementation; synthetic real-provider audio round trip and narrow layout checked |
 | Android | Not implemented; Android acceptance remains the first native release gate |
 | iOS | Not implemented or verified |
 | macOS | Not implemented or verified |

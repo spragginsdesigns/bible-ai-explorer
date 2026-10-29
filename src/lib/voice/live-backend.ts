@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getUserPlan } from "@/lib/entitlements";
 import { hasCurrentAiConsent } from "@/lib/preferences-contract";
+import { canUseLiveVoice } from "./live-access";
 import { liveAppOrigin } from "./live-policy";
 import { liveLedger } from "./live-runtime";
 
@@ -17,6 +18,7 @@ export async function authorizeLiveGrant(grant: Grant) {
 	if (grant.state !== "active" || grant.expiresAt <= Date.now()) throw new Error("Voice session has ended.");
 	const client = await clerkClient();
 	const session = await client.sessions.getSession(grant.clerkSessionId);
+	if (!await canUseLiveVoice(grant.userId)) throw new Error("Live voice is not enabled for this account.");
 	if (session.userId !== grant.userId || session.status !== "active" || await getUserPlan(grant.userId) !== "pro") throw new Error("An active SureWord Pro session is required.");
 	const user = await prisma.user.findUnique({ where: { id: grant.userId }, select: { aiConsentVersion: true, aiConsentAt: true } });
 	if (!hasCurrentAiConsent(user)) throw new Error("AI data sharing is turned off.");

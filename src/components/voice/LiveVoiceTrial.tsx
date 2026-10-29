@@ -110,7 +110,7 @@ export function LiveVoiceTrial({ conversationId, onConversationSaved }: {
 		void fetch("/api/voice/live", { signal: controller.signal, cache: "no-store" }).then(async response => {
 			const body = await responseBody(response);
 			if (controller.signal.aborted) return;
-			if (!response.ok) throw new Error(typeof body.message === "string" ? body.message : "Could not check voice availability.");
+			if (!response.ok) throw new Error(typeof body.message === "string" ? body.message : typeof body.error === "string" ? body.error : "Could not check voice availability.");
 			if (typeof body.available !== "boolean" || typeof body.pro !== "boolean" || !record(body.limits)
 				|| ![body.limits.sessionSeconds, body.limits.dailySeconds, body.limits.monthlySeconds].every(value => typeof value === "number" && Number.isFinite(value) && value >= 0)) {
 				throw new Error("Voice limits are unavailable. Try checking again.");
@@ -233,10 +233,10 @@ export function LiveVoiceTrial({ conversationId, onConversationSaved }: {
 	const running = phase === "active" || phase === "starting" || phase === "ending";
 	const permitted = availability?.available && availability.pro && availability.remainingSeconds !== 0;
 	return <Card>
-		<CardHeader><CardTitle>Talk to SureWord</CardTitle><CardDescription>Pro voice trial. You will hear an AI voice. Your words and answers are saved with chat. Microphone audio is sent only after you press Start.</CardDescription></CardHeader>
+		<CardHeader><CardTitle>Talk to SureWord</CardTitle><CardDescription>You will hear an AI voice. Your words and answers are saved with chat. Microphone audio is sent only after you press Start.</CardDescription></CardHeader>
 		<CardContent className="space-y-5">
 			<p className="text-sm text-muted-foreground">Keep this page in the foreground. Leaving it ends the session and releases your microphone. Use headphones when possible. With a screen reader, mute the microphone before navigating controls.</p>
-			{checking ? <p>Checking voice access…</p> : availability ? <p className="text-sm">{!availability.pro ? "Voice trials require SureWord Pro." : !availability.available ? (availability.message ?? "Voice trials are unavailable right now.") : availability.remainingSeconds === 0 ? "Your voice allowance has been used. Try again after it refreshes." : `Up to ${clock(availability.limits.sessionSeconds)} per session. Daily allowance: ${clock(availability.limits.dailySeconds)}. Monthly allowance: ${clock(availability.limits.monthlySeconds)}.${typeof availability.remainingSeconds === "number" ? ` Available now: ${clock(Math.max(0, Math.floor(availability.remainingSeconds)))}.` : ""}`}</p> : null}
+			{checking ? <p>Checking voice access…</p> : availability ? <p className="text-sm">{!availability.pro ? "Live voice requires SureWord Pro." : !availability.available ? (availability.message ?? "Live voice is unavailable right now.") : availability.remainingSeconds === 0 ? "Your voice allowance has been used. Try again after it refreshes." : `Up to ${clock(availability.limits.sessionSeconds)} per session. Daily allowance: ${clock(availability.limits.dailySeconds)}. Monthly allowance: ${clock(availability.limits.monthlySeconds)}.${typeof availability.remainingSeconds === "number" ? ` Available now: ${clock(Math.max(0, Math.floor(availability.remainingSeconds)))}.` : ""}`}</p> : null}
 			<p role="status" aria-live="polite" aria-atomic="true">{message}</p>
 			{remaining !== null && <p className="font-mono text-sm" aria-live="off">Session time remaining: {clock(remaining)}</p>}
 			{error && <p role="alert" className="rounded-lg border border-red-500/30 p-3 text-sm text-red-700 dark:text-red-300">{error.message} <span className="text-xs">({error.code})</span></p>}

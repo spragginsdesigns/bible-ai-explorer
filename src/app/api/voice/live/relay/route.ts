@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { readLiveBody } from "@/lib/voice/live-http";
+import { canUseLiveVoice } from "@/lib/voice/live-access";
 import { liveSecret, validRelaySignature } from "@/lib/voice/live-policy";
 import { liveConfigured, liveLedger } from "@/lib/voice/live-runtime";
 import { authorizeLiveGrant, delegateLiveTurn, liveHistory, saveLiveTranscript } from "@/lib/voice/live-backend";
@@ -29,6 +30,7 @@ export async function POST(req: Request) {
 		const { userId } = await auth();
 		if (!grant || !userId || grant.userId !== userId) return new Response(null, { status: 404 });
 		if (body.op === "transcript") {
+			if (!await canUseLiveVoice(userId)) return new Response(null, { status: 404 });
 			// A closed voice transport can still drain its own final captured transcript.
 			if (Date.now() > grant.expiresAt + 30_000) return new Response(null, { status: 410 });
 			await saveLiveTranscript(grant, body);

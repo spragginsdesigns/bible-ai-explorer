@@ -1,9 +1,16 @@
-# GPT-Live Pro trial
+# Account-restricted GPT-Live voice
 
-This branch contains a private browser trial of live, two-way voice for
-SureWord Pro. Austin approved reusing SureWord's server OpenAI key. It runs
-in its own worktree and against a separate Neon branch. It is not a shipped
-native feature or a production deployment.
+Live voice is enabled only for Austin's account, whose verified primary
+Clerk email is `atmosphere9999@gmail.com`. Other Pro accounts are denied.
+The page, availability endpoint, session bootstrap, delegated requests and
+transcript RPC all enforce the restriction on the server. A client-supplied
+email, an app database email, an unverified address or a secondary address
+cannot grant access. Identity-service failures deny access.
+
+Austin approved reusing SureWord's server OpenAI key. The implementation runs
+in its own worktree and against a separate Neon branch. It has not been
+deployed to production or shipped in native clients. Pro and time limits
+remain additional requirements for the allowed account.
 
 ## Product contract
 
@@ -127,9 +134,12 @@ pnpm exec next dev --hostname localhost --port 3144
 pnpm voice:relay
 ```
 
-Open [the private trial](http://localhost:3144/voice-preview), sign into the
-development Clerk instance with a Pro account in the isolated database, and
-accept the normal AI disclosure. Use `localhost` for the application origin:
+Open [Talk to SureWord](http://localhost:3144/voice), sign into the development
+Clerk instance with `atmosphere9999@gmail.com`, and accept the normal AI
+disclosure. That account must have Pro in the isolated database. Other
+accounts get a 404 at the page and a 403 from the availability/session API;
+they cannot receive a session ticket. The old `/voice-preview` link redirects
+to `/voice` only after the same account check. Use `localhost` for the origin:
 this Next/Clerk version normalizes a `127.0.0.1` application host during
 authenticated middleware rewrites. The relay itself binds to loopback.
 
@@ -175,10 +185,17 @@ provider usage instead of charging its full reservation. The Chrome fake-file
 microphone fixture initially emitted silence; replacing that fixture with a
 synthetic MediaStream established this proof without a physical microphone.
 
-The final focused suite passed **65/65** (55 new trial checks and 10 existing
+The original focused suite passed **65/65** (55 new trial checks and 10 existing
 voice-message checks). Typecheck, lint and the production build passed. The
 build was retried after an earlier disk-space failure. The sanitized
 [validation receipt](validation-2026-10-29.json) records the observed results.
+
+The subsequent account restriction adds regression checks for another Pro
+account, unverified/secondary/aliased email, identity-service failure,
+client-supplied email, bootstrap denial before reservation, delegated tools
+and signed transcript RPC. The previous receipt is historical; the
+[account-access receipt](account-access-2026-10-29.json) records verification
+of the stricter policy.
 
 Before a production release:
 

@@ -7,27 +7,48 @@ function fixture(consent={aiConsentVersion:1,aiConsentAt:new Date()}){
  const ledger={get:()=>grant,claimTurn:()=>({claimed:true}),finishTurn:()=>{}};
  const clerk={sessions:{getSession:async()=>({userId:'u',status:'active'}),getToken:async()=>({jwt:'private-test-token'})}};
  const prisma={user:{findUnique:async({select})=>Object.fromEntries(Object.keys(select).map(key=>[key,consent[key]]))},conversation:{findFirst:async()=>({id:'c'}),update:async()=>({})},message:{findMany:async()=>[],findUnique:async({where})=>records.get(where.id),findFirst:async()=>({id:'a',content:'Verified answer',metadata:{parts:[]}}),upsert:async({where,create,update})=>{records.set(where.id,records.has(where.id)?{...records.get(where.id),...update}:create);}},$queryRaw:async()=>[], $transaction:async fn=>fn(prisma)};
- const mods={'@clerk/nextjs/server':{clerkClient:async()=>clerk},'@prisma/client':{Prisma:{}},'@/lib/prisma':{prisma},'@/lib/preferences-contract':{hasCurrentAiConsent},'@/lib/entitlements':{getUserPlan:async()=>'pro'},'./live-policy':{liveAppOrigin:()=> 'http://localhost:3144'},'./live-runtime':{liveLedger:()=>ledger}};
+ let allowed=true;
+ const mods={'@clerk/nextjs/server':{clerkClient:async()=>clerk},'@prisma/client':{Prisma:{}},'@/lib/prisma':{prisma},'@/lib/preferences-contract':{hasCurrentAiConsent},'@/lib/entitlements':{getUserPlan:async()=>'pro'},'./live-access':{canUseLiveVoice:async()=>allowed},'./live-policy':{liveAppOrigin:()=> 'http://localhost:3144'},'./live-runtime':{liveLedger:()=>ledger}};
  const exports={};vm.runInNewContext(source,{exports,require:name=>{if(!(name in mods))throw Error(name);return mods[name];},Date,JSON,Promise,setTimeout,AbortSignal,TextDecoder,process:{env:{}},fetch:async()=>{fetches++;return new Response('data: {"type":"start","messageId":"a"}\n\ndata: [DONE]\n\n');}});
- return{api:exports,grant,clerk,records,get fetches(){return fetches;}};
+ return{api:exports,grant,clerk,records,setAllowed:value=>{allowed=value;},get fetches(){return fetches;}};
 }
 
-function bootstrapFixture(consent){
- let reservations=0,selection;
- const ledger={reserve:()=>{reservations++;return{id:'g',expiresAt:Date.now()+60000};}};
+function bootstrapFixture(consent,allowed=true){
+ let reservations=0,selection,planChecks=0;
+ const ledger={remaining:()=>120,reserve:()=>{reservations++;return{id:'g',expiresAt:Date.now()+60000};}};
  const mods={
   '@/lib/voice/live-http':{readLiveBody:async req=>req.text()},
   '@clerk/nextjs/server':{auth:async()=>({userId:'u',sessionId:'sid'})},
   'next/server':{NextResponse:{json:(body,init)=>Response.json(body,init)}},
-  '@/lib/entitlements':{getUserPlan:async()=>'pro'},
+  '@/lib/entitlements':{getUserPlan:async()=>{planChecks++;return 'pro';}},
+  '@/lib/voice/live-access':{canUseLiveVoice:async()=>allowed},
   '@/lib/prisma':{prisma:{user:{findUnique:async query=>{selection=query.select;return consent;}},conversation:{findFirst:async()=>({id:'c'})}}},
   '@/lib/preferences-contract':{hasCurrentAiConsent},
   '@/lib/voice/live-policy':{liveLimits:()=>({sessionSeconds:60,dailySeconds:120,monthlySeconds:600}),liveRelayUrl:()=> 'ws://127.0.0.1:3145',liveSecret:()=> 'private-test-secret',signLiveTicket:()=> 'signed-test-ticket'},
   '@/lib/voice/live-runtime':{liveConfigured:()=>true,liveLedger:()=>ledger},
  };
  const exports={};vm.runInNewContext(bootstrapSource,{exports,require:name=>{if(!(name in mods))throw Error(name);return mods[name];},Date,JSON,Promise,URL,Response,process:{env:{}},console});
- return{api:exports,get reservations(){return reservations;},get selection(){return selection;}};
+ return{api:exports,get reservations(){return reservations;},get selection(){return selection;},get planChecks(){return planChecks;}};
 }
+
+test('another Pro account cannot discover voice availability or obtain a paid ticket',async()=>{
+ const f=bootstrapFixture({aiConsentVersion:1,aiConsentAt:new Date()},false);
+ const available=await f.api.GET();assert.equal(available.status,403);
+ const hidden=await available.json();assert.equal(hidden.code,'live_account_required');assert.equal(hidden.relayUrl,undefined);
+ const started=await f.api.POST(new Request('http://localhost:3144/api/voice/live',{method:'POST',headers:{origin:'http://localhost:3144','content-type':'application/json'},body:JSON.stringify({conversationId:'c',email:'atmosphere9999@gmail.com'})}));
+ assert.equal(started.status,403);const body=await started.json();assert.equal(body.code,'live_account_required');assert.equal(body.ticket,undefined);
+ assert.equal(f.reservations,0);assert.equal(f.planChecks,0);assert.equal(f.selection,undefined);
+});
+
+test('the allowed account retains Pro availability and existing time limits',async()=>{
+ const f=bootstrapFixture({aiConsentVersion:1,aiConsentAt:new Date()});const result=await f.api.GET();assert.equal(result.status,200);
+ const body=await result.json();assert.equal(body.available,true);assert.equal(body.pro,true);assert.equal(body.remainingSeconds,120);assert.equal(body.limits.sessionSeconds,60);
+});
+
+test('backend rechecks account access before starting any delegated tool request',async()=>{
+ const f=fixture();f.setAllowed(false);await assert.rejects(f.api.authorizeLiveGrant(f.grant),/not enabled for this account/);
+ await assert.rejects(f.api.delegateLiveTurn(f.grant,{turnId:'turn',userMessageId:'human',text:'Save a note.'}),/not enabled for this account/);assert.equal(f.fetches,0);assert.equal(f.records.size,0);
+});
 
 test('backend rejects timestamp-only, unversioned and invalid-date consent before delegation',async()=>{
  for(const consent of [{aiConsentAt:new Date()},{aiConsentVersion:0,aiConsentAt:new Date()},{aiConsentVersion:1,aiConsentAt:new Date('invalid')},{aiConsentVersion:1,aiConsentAt:null}]){

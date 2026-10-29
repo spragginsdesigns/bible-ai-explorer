@@ -1,10 +1,11 @@
-import LiveVoiceTrial from "@/components/voice/LiveVoiceTrial";
-import type { Metadata } from "next";
+import { auth } from "@clerk/nextjs/server";
+import { notFound, redirect } from "next/navigation";
+import { canUseLiveVoice } from "@/lib/voice/live-access";
 
-export const metadata: Metadata = { title: "Talk to SureWord, Pro trial", robots: { index: false, follow: false } };
+export const dynamic = "force-dynamic";
 
-export default function VoicePreviewPage() {
-	return <main className="mx-auto min-h-screen max-w-3xl px-4 py-10 pb-28">
-		<LiveVoiceTrial />
-	</main>;
+export default async function VoicePreviewPage() {
+	const { userId } = await auth();
+	if (!userId || !await canUseLiveVoice(userId)) notFound();
+	redirect("/voice");
 }

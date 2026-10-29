@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { getUserPlan } from "@/lib/entitlements";
 import { prisma } from "@/lib/prisma";
 import { hasCurrentAiConsent } from "@/lib/preferences-contract";
+import { canUseLiveVoice } from "@/lib/voice/live-access";
 import { liveLimits, liveRelayUrl, liveSecret, signLiveTicket } from "@/lib/voice/live-policy";
 import { liveConfigured, liveLedger } from "@/lib/voice/live-runtime";
 
@@ -14,22 +15,24 @@ const noStore = { "Cache-Control": "no-store" };
 export async function GET() {
 	const { userId } = await auth();
 	if (!userId) return NextResponse.json({ error: "Sign in to use voice." }, { status: 401, headers: noStore });
+	if (!await canUseLiveVoice(userId)) return NextResponse.json({ error: "Live voice is not enabled for this account.", code: "live_account_required" }, { status: 403, headers: noStore });
 	const pro = await getUserPlan(userId) === "pro";
 	const available = liveConfigured();
 	const limits = liveLimits(process.env);
 	return NextResponse.json({ available, pro, limits,
 		...(available && pro ? { remainingSeconds: liveLedger().remaining(userId, limits), relayUrl: liveRelayUrl(process.env) } : {}),
-		message: !pro ? "Live voice is included only with SureWord Pro, with usage limits." : !available ? "The private voice trial is not available on this server." : undefined,
+		message: !pro ? "Live voice requires SureWord Pro, with usage limits." : !available ? "Live voice is not available on this server." : undefined,
 	}, { headers: noStore });
 }
 
 export async function POST(req: Request) {
 	try {
-		if (!liveConfigured()) return NextResponse.json({ error: "The private voice trial is unavailable." }, { status: 503, headers: noStore });
+		if (!liveConfigured()) return NextResponse.json({ error: "Live voice is unavailable." }, { status: 503, headers: noStore });
 		// Keep credentials and paid startup protected against cross-site requests.
 		if (req.headers.get("origin") !== new URL(req.url).origin) return NextResponse.json({ error: "Unexpected request origin." }, { status: 403, headers: noStore });
 		const { userId, sessionId } = await auth();
 		if (!userId || !sessionId) return NextResponse.json({ error: "Sign in to use voice." }, { status: 401, headers: noStore });
+		if (!await canUseLiveVoice(userId)) return NextResponse.json({ error: "Live voice is not enabled for this account.", code: "live_account_required" }, { status: 403, headers: noStore });
 		if (await getUserPlan(userId) !== "pro") return NextResponse.json({ error: "Live voice requires SureWord Pro.", code: "pro_required" }, { status: 403, headers: noStore });
 		const user = await prisma.user.findUnique({ where: { id: userId }, select: { aiConsentVersion: true, aiConsentAt: true } });
 		if (!hasCurrentAiConsent(user)) return NextResponse.json({ error: "Allow AI data sharing before starting voice.", code: "ai_consent_required" }, { status: 403, headers: noStore });
