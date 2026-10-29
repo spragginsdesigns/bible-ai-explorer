@@ -254,9 +254,25 @@ private final class AIConsentPresenter {
     }
 #elseif os(macOS)
     private var sheetWindow: NSWindow?
+    private var pendingPromptID: UUID?
+    private var sheetPromptID: UUID?
 
     func present(store: AIConsentStore, theme: SureWordColors) {
-        guard sheetWindow == nil else { return }
+        guard sheetWindow == nil, let promptID = store.prompt?.id,
+              pendingPromptID != promptID else { return }
+        pendingPromptID = promptID
+        // onChange runs inside SwiftUI's view update. Opening an AppKit sheet
+        // there can reenter its hosting view's constraint pass during attach.
+        DispatchQueue.main.async { [weak self, weak store] in
+            guard let self, self.pendingPromptID == promptID else { return }
+            self.pendingPromptID = nil
+            guard let store, store.prompt?.id == promptID else { return }
+            self.presentSheet(store: store, theme: theme)
+        }
+    }
+
+    private func presentSheet(store: AIConsentStore, theme: SureWordColors) {
+        guard sheetWindow == nil, let promptID = store.prompt?.id else { return }
         // The key window is the frontmost surface - Settings is a sheet over
         // the main window, and Memories a sheet over that - so walk to the
         // innermost attached sheet and stack on it.
@@ -268,17 +284,39 @@ private final class AIConsentPresenter {
 
         let controller = NSHostingController(
             rootView: AIConsentSheet(store: store).environment(\.theme, theme)
+                .onGeometryChange(for: CGSize.self) { $0.size } action: { [weak self, weak store] size in
+                    DispatchQueue.main.async { [weak self, weak store] in
+                        guard store?.prompt?.id == promptID else { return }
+                        self?.resizeSheet(to: size, promptID: promptID)
+                    }
+                }
         )
-        controller.sizingOptions = [.preferredContentSize]
+        // Continuous preferredContentSize propagation feeds sheet safe-area
+        // changes back into AppKit's constraint pass. Start at the fitted size
+        // and apply actual content-size changes after the current layout pass.
+        controller.sizingOptions = []
         let window = NSWindow(contentViewController: controller)
         window.styleMask = [.titled]
+        window.setContentSize(controller.view.fittingSize)
         window.title = AIConsent.title
         window.appearance = NSAppearance(named: theme.isDark ? .darkAqua : .aqua)
+        sheetPromptID = promptID
         sheetWindow = window
         parent.beginSheet(window)
     }
 
+    private func resizeSheet(to size: CGSize, promptID: UUID) {
+        guard sheetPromptID == promptID, let window = sheetWindow,
+              size.width.isFinite, size.height.isFinite, size.width > 0, size.height > 0,
+              let current = window.contentView?.bounds.size,
+              abs(current.width - size.width) > 0.5 || abs(current.height - size.height) > 0.5
+        else { return }
+        window.setContentSize(size)
+    }
+
     func dismiss() {
+        pendingPromptID = nil
+        sheetPromptID = nil
         guard let window = sheetWindow else { return }
         sheetWindow = nil
         if let parent = window.sheetParent {
