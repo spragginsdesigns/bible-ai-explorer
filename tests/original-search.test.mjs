@@ -3,6 +3,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { fileURLToPath } from "node:url";
+import { originalQueryTsQuery } from "../scripts/lib/original-query.mjs";
 
 // original-search.ts imports the Prisma client for its one database function;
 // strip the imports and evaluate the module for its pure half, the same way
@@ -25,6 +26,7 @@ const {
 	buildStrongsIndex,
 	resolveStrongsInIndex,
 } = new Function(
+	"originalQueryTsQuery",
 	`${stripTypeScriptTypes(source)}
 	return {
 		normalizeTranslit,
@@ -36,7 +38,7 @@ const {
 		buildStrongsIndex,
 		resolveStrongsInIndex,
 	};`
-)();
+)(originalQueryTsQuery);
 
 // Every non-ASCII string below is written as escapes so that no editor, shell
 // or tool that re-writes this file can silently flatten a Hebrew point or a
@@ -176,8 +178,9 @@ test("nothing searchable yields null rather than an empty tsquery", () => {
 	assert.equal(buildOriginalTsQuery(["", "  "]), null);
 });
 
-test("a quote in the input is doubled, never left to end the lexeme early", () => {
-	assert.equal(buildOriginalTsQuery("lord's"), "'lord''s':*");
+test("punctuation inside a query clause keeps adjacent safe prefix terms", () => {
+	assert.equal(buildOriginalTsQuery("lord's"), "('lord':* <-> 's':*)");
+	assert.equal(buildOriginalTsQuery("“θεος,”"), "'θεος':*");
 });
 
 /* ------------------------------------------------------ dictionary resolve */

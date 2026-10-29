@@ -14,6 +14,7 @@
 
 import { alignFromKjv, originalFragmentMatchesSource } from "../../../scripts/lib/original-versification.mjs";
 import { getKjvBook } from "./kjv";
+import { buildOriginalConcordance } from "../../../scripts/lib/original-concordance.mjs";
 
 /** chapters -> verses -> words, each word a [text, strongs, morph] triple. */
 type RawBook = string[][][][];
@@ -261,4 +262,24 @@ export async function getOriginalVerseForKjv(
     sourceVersification: order <= 39 ? "WLC" : "TR",
     sourceReferences: fragments.map((fragment) => ({ book: order, ...fragment })),
   };
+}
+
+
+const originalConcordanceCache = new Map<number, Promise<ReturnType<typeof buildOriginalConcordance>>>();
+
+/** Whole-source search candidates acquire KJV coordinates only through trusted word fragments. */
+export async function originalConcordanceRows(
+  book: number, chapter: number, verse: number,
+  options: { strongs?: readonly string[]; text?: string; mappedOnly?: boolean },
+) {
+  if (!validReference(book, chapter, verse)) return [];
+  let pending = originalConcordanceCache.get(book);
+  if (!pending) {
+    pending = Promise.all([getOriginalBook(book), getKjvBook(book)])
+      .then(([source, kjv]) => buildOriginalConcordance(book, source, kjv))
+      .catch(error => { originalConcordanceCache.delete(book); throw error; });
+    originalConcordanceCache.set(book, pending);
+  }
+  const project = await pending;
+  return project(chapter, verse, options);
 }

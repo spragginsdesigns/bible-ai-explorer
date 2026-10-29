@@ -15,6 +15,7 @@ export const maxDuration = 10;
 // a deploy-time backfill, so it is cached just as hard.
 const cacheHeaders = {
 	"Cache-Control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
+	"X-SureWord-Concordance-Version": "fragments-v1",
 };
 
 const STRONGS_NUMBER = /^[HG]\d{1,5}$/;
@@ -34,8 +35,9 @@ async function occurrencesFor(
 ): Promise<StrongsOccurrences> {
 	// Headroom for the reader's own verse and for rows the KJV numbering does
 	// not align (Psalm titles), both of which are dropped below.
-	const result = await searchOriginalVerses({ strongs: [number], limit: examples + 4 });
+	const result = await searchOriginalVerses({ strongs: [number], limit: examples + 4, mappedOnly: true });
 	const picked: StrongsOccurrence[] = [];
+	const seen = new Set<string>();
 	for (const row of result.rows) {
 		if (picked.length >= examples) break;
 		if (row.kjvBook === null || row.kjvChapter === null || row.kjvVerse === null) continue;
@@ -47,6 +49,8 @@ async function occurrencesFor(
 		) {
 			continue;
 		}
+		const target = `${row.kjvBook}:${row.kjvChapter}:${row.kjvVerse}`;
+		if (seen.has(target)) continue;
 		const name = bookByOrder(row.kjvBook)?.name;
 		if (!name) continue;
 		let text: string | undefined;
@@ -56,12 +60,13 @@ async function occurrencesFor(
 			continue;
 		}
 		if (!text) continue;
+		seen.add(target);
 		picked.push({
 			reference: `${name} ${row.kjvChapter}:${row.kjvVerse}`,
 			text: bibleVersePlainText(text),
 		});
 	}
-	return { total: result.total, examples: picked };
+	return { total: result.total, totalScope: result.totalScope, examples: picked };
 }
 
 /**

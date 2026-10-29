@@ -49,6 +49,29 @@ in the current candidate. Build 49 runs at 1.05x, passed actual Bible/Chat
 navigation and singular Stop, and stops capture on real Mac application
 switches without automatically rearming on return. Final combined Apple
 integration and distribution remain gated and unpublished.
+## Concordance accuracy remediation, 2026-10-29
+
+The shared server now derives concordance examples from trusted original-word
+fragments instead of the index's single legacy KJV coordinate. An original
+superscription or a query spanning fragments must not become a numbered KJV
+example. Occurrence totals retain their original-edition verse scope; they
+are not distinct numbered-KJV counts.
+
+The web reader versions its concordance request and in-memory cache and labels
+these totals as original verses. Unknown legacy count scopes show an occurrence
+action without a count. The built route passed authenticated split-verse and
+source-only chat checks, fail-closed controls, canonical Strong examples and
+readback. Source-index checks covered all 31,102 KJV and 31,170 WLC/TR rows.
+The regression suite passed 2,201 tests with 18 skipped; typecheck, lint and
+production build passed. Public deployment acceptance is pending.
+
+Android and shared Apple cache-version and count-label changes remain pending.
+Their existing cached responses and installed binaries are not retroactively
+invalidated by a server deployment. The shared API correction reaches fresh
+requests and server-side AI tools, but complete native cache/UI acceptance and
+distribution remain separate gates. This work does not establish 99.99 percent
+semantic answer accuracy or change the saved-believer foundation.
+
 ## Full Apple parity revalidation in progress, 2026-10-29
 
 The earlier simulator checkpoint below does **not** establish the new request

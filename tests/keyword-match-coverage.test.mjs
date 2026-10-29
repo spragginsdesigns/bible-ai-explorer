@@ -7,7 +7,6 @@ import path from "node:path";
 import { Prisma } from "@prisma/client";
 import ts from "typescript";
 
-const require = createRequire(import.meta.url);
 const sourceRoot = fileURLToPath(new URL("../", import.meta.url));
 const assetRoot = existsSync(path.join(sourceRoot, "src/data/books.json")) ? sourceRoot : path.resolve(sourceRoot, "../../..");
 const json = relative => JSON.parse(readFileSync(path.join(assetRoot, relative), "utf8"));
@@ -19,10 +18,11 @@ function load(relative, mocks = {}) {
 		compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
 	}).outputText);
 	const loadedModule = { exports: {} };
+	const localRequire = createRequire(filename);
 	new Function("require", "module", "exports", compiled.get(filename))(id => {
 		if (id in mocks) return mocks[id];
 		if (id.startsWith("@/")) return {};
-		return require(id);
+		return localRequire(id);
 	}, loadedModule, loadedModule.exports);
 	return loadedModule.exports;
 }
