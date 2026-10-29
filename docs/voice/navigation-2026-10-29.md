@@ -1,4 +1,4 @@
-# Spoken choices, navigation and 1.15x playback
+# Spoken choices, navigation and 1.05x playback
 
 The Mac screen Austin reported used welcome narration, which could read a
 question but did not listen or select its choices. This update adds voice
@@ -49,9 +49,15 @@ listening again. Save failures stop with an explanation instead of retrying
 a potentially completed action. Stop, account change, background and
 teardown cancel capture and fence late permission/recognition callbacks.
 
-Welcome narration and device speech now play at **1.15x**. Native streamed
+Apple resumes an empty listening window after a short, generation-fenced pause
+instead of requiring Start again. An actual question may run up to one minute;
+the quiet endpoint normally finishes it sooner. Accepted questions and choices
+receive a spoken acknowledgment while their normal backend work runs. Singular
+"stop voice control" and plural "stop voice controls" both stop locally.
+
+Welcome narration and device speech now play at **1.05x**. Native streamed
 audio, Android audio and browser HTML audio preserve pitch. Raw GPT-Live PCM
-also uses 1.15x with corrected chunk scheduling and queue accounting; that
+also uses 1.05x with corrected chunk scheduling and queue accounting; that
 browser path changes pitch slightly because AudioBufferSourceNode does not
 offer pitch-preserving stretch.
 
@@ -71,4 +77,5 @@ remain release checks. Headphones help keep screen-reader speech out of
 capture outside app-owned narration. No physical-device or store-release
 result is inferred from tests, builds or synthetic recognition events.
 
-Evidence: [navigation validation](navigation-validation-2026-10-29.json).
+Evidence: [fixture/build validation](navigation-validation-2026-10-29.json)
+and [current Mac owner runtime acceptance](mac-owner-acceptance-2026-10-29.json).

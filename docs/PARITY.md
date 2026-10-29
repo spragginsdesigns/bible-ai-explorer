@@ -20,8 +20,8 @@ does not change the released apps or production configuration.
 
 | Client | Trial status |
 | --- | --- |
-| Web | Account-restricted GPT-Live plus local speech controls; choice/time/tour callbacks, navigation and 1.15x playback implemented |
-| Android | Local speech controls and 1.15x playback implemented; unit/typecheck/bundle proof, native rebuild and device acceptance pending |
+| Web | Account-restricted GPT-Live plus local speech controls; choice/time/tour callbacks, navigation and 1.05x playback implemented |
+| Android | Local speech controls and 1.05x playback implemented; unit/typecheck/bundle proof, native rebuild and device acceptance pending |
 | iOS | Shared Apple local speech controls implemented; build evidence recorded separately, microphone/VoiceOver acceptance pending |
 | macOS | Local speech controls implemented; native build and 30 focused tests pass, microphone/VoiceOver acceptance pending |
 
@@ -38,6 +38,17 @@ ordinary saved chat responses and numbered choices are spoken before capture
 restarts. These local speech controls do not create paid GPT-Live sessions.
 Arbitrary nested reader/editor controls and physical blind-user acceptance
 are not established by this implementation.
+
+The [Mac owner-account receipt](voice/mac-owner-acceptance-2026-10-29.json)
+records real built-in microphone tests, separate from recognition fixtures:
+build 44 passed spoken choices, Bible/Notes/Chat/Settings navigation and Back,
+two normal saved chat turns, and listening after 40 seconds of quiet. Build 46
+reopened the stored conversation after relaunch. Speech-permission callback,
+idle restart, singular Stop and spoken acknowledgment corrections are included
+in the current candidate. Build 49 runs at 1.05x, passed actual Bible/Chat
+navigation and singular Stop, and stops capture on real Mac application
+switches without automatically rearming on return. Final combined Apple
+integration and distribution remain gated and unpublished.
 ## Full Apple parity revalidation in progress, 2026-10-29
 
 The earlier simulator checkpoint below does **not** establish the new request

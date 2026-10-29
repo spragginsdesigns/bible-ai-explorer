@@ -1,4 +1,9 @@
-# Account-restricted GPT-Live voice
+# Account-restricted voice
+
+There are two audio paths. Local speech controls use device/browser recognition,
+normal SureWord chat and spoken canonical answers. The separate GPT-Live browser
+trial supplies paid conversational audio and has additional infrastructure and
+connected-time limits. Production currently has no GPT-Live configuration.
 
 Live voice is enabled only for Austin's account, whose verified primary
 Clerk email is `atmosphere9999@gmail.com`. Other Pro accounts are denied.
@@ -13,19 +18,29 @@ deployed to production or shipped in native clients. Pro and time limits
 remain additional requirements for the allowed account.
 
 The [spoken-navigation update](navigation-2026-10-29.md) adds account-restricted
-on-device/browser listening, choice selection and navigation, and 1.15x
+on-device/browser listening, choice selection and navigation, and 1.05x
 playback. Native verification is separate from the original GPT-Live browser
 connection receipts below.
 
-The actual Mac app is now installed locally as **1.31.0 (41)** at
+The actual Mac app is now installed locally as **1.31.0 (49)** at
 `/Applications/SureWord.app`. Its local controls use fresh verified Clerk
 identity and the existing production billing endpoint, so no relay deployment
-is needed to try navigation. The existing non-owner reviewer login was
-preserved, and its Pro status did not expose voice controls. Switch to
-`atmosphere9999@gmail.com` to try them. See the
-[local installation receipt](mac-local-install-2026-10-29.json). The build
+is needed to try navigation. The owner signed in through the normal Google
+flow; the primary account email was read back in the app. An earlier check
+confirmed the non-owner reviewer's Pro status did not expose controls. See the
+[owner acceptance receipt](mac-owner-acceptance-2026-10-29.json), which separates
+runtime passes, corrections and remaining gates. The build
 combines current primary Apple sources with this worktree's voice changes;
 it does not modify the primary checkout or publish a release.
+
+Actual microphone testing on build 44 passed root navigation and Back, normal
+Bible questions and a contextual follow-up, a visible choice selected by spoken
+ordinal, and a 40-second quiet pause. Build 46 reopened the saved conversation
+after a normal quit/relaunch. Build 49 runs at the reduced 1.05x pace and
+passed real-microphone Bible/Chat navigation and singular Stop. Opening Chrome
+through Finder stops capture; reopening SureWord leaves it off. Final saved
+conversation readback and combined Apple integration remain in progress.
+No platform release has been published from this worktree.
 
 ## Product contract
 

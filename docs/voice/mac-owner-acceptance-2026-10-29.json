@@ -1,0 +1,162 @@
+{
+  "updatedAt": "2026-10-29T21:20:08.560696+00:00",
+  "sourceRevision": "787734bf",
+  "status": "in_progress",
+  "ownerAccount": "atmosphere9999@gmail.com",
+  "identityEvidence": {
+    "path": "installed /Applications/SureWord.app, normal Google OAuth",
+    "selectedGoogleAccount": "atmosphere9999@gmail.com",
+    "accountProfile": "Primary Linked atmosphere9999@gmail.com",
+    "displayName": "Austin Spraggins",
+    "reviewerNoteEditorClosedNormallyBeforeAccountSwitch": true,
+    "ownerVoiceBarVisibleAfterProductionEligibility": true
+  },
+  "installedBuildBeforeRefresh": "1.31.0 (40)",
+  "candidateBuild": "1.31.0 (49), signed universal installed; playback1.05x",
+  "mergedSourceChecks": {
+    "voiceChatAccessNavigationNotificationTests": {
+      "passed": 135,
+      "failed": 0,
+      "log": "/tmp/sureword-voice-merged-tests.log"
+    },
+    "typecheck": "passed after prisma generate, no database connection",
+    "android": {
+      "typecheck": "passed",
+      "focusedVoiceTests": {
+        "passed": 15,
+        "failed": 0
+      }
+    },
+    "productionWebBuild": {
+      "revision": "d636b9bb2bd15cf266434599cf52ee3772b0a3d8",
+      "result": "passed",
+      "exit": 0,
+      "durationSeconds": 81.418,
+      "node": "24.22.0",
+      "next": "15.5.21",
+      "staticPagesGenerated": 239,
+      "routes": [
+        "/api/voice/live",
+        "/api/voice/live/relay",
+        "/voice"
+      ],
+      "manifest": "/tmp/sureword-final-web-d636b9bb-48h1rs97.noindex/manifest.json",
+      "log": "/tmp/sureword-final-web-d636b9bb-48h1rs97.noindex/next-build.log",
+      "buildOnlyConfigVariation": "webpack.cache=false in isolated snapshot; source configuration unchanged"
+    },
+    "finalFocusedVoiceTests": {
+      "passed": 135,
+      "failed": 0,
+      "log": "/tmp/sureword-voice-final-tests.log"
+    },
+    "releaseFeedAndStoreParityTests": {
+      "passed": 12,
+      "failed": 0
+    }
+  },
+  "acceptance": {
+    "actualMicrophone": "passed command, choice and normal chat paths44; actual mic question49 saved and answered; final49 navigation/followup check in progress",
+    "spokenChoices": "passed on44: Choose the second option selected Read a proverb once via real visible card callback",
+    "rootNavigation": "passed on44: Bible, Notes, Back, Chat, Settings and Back; Today/Connections/Study remain source-and-unit verified only",
+    "questionAndFollowUp": "passed on44: Psalm23 quote followed by contextual shepherd explanation in the same chat",
+    "audibleResponses": "User confirmed actual spoken Bible answers were heard clearly",
+    "quietPauseRecovery": "passed on44: Open Bible succeeded after 40 seconds without UI input; Input source retained on46",
+    "savedChatReopened": "passed on46 after normal app quit/relaunch: both speech-created Bible turns and replies were read back from history",
+    "stopAndBackgroundCleanup": "passed49: spoken singular Stop voice control turned capture off; real Finder open Chrome stopped capture; Finder open SureWord return stayed off"
+  },
+  "distribution": {
+    "gate": "Do not publish before Mac owner-account microphone acceptance passes",
+    "web": "Earlier d636 build passed; final9756 Mac build hit heap limit; off-host Windows final build in progress, no deployment",
+    "android": "9756 signed1.112.0/code131 AAB+APK built on isolated Windows worktree, cert/manifest/module checks passed; no upload or device QA",
+    "iOS": "not uploaded; live 1.30.0 is DEVELOPER_REJECTED, public 1.26.0",
+    "macOS": "not published; public 1.30.0",
+    "appleIntegration": "Final public Apple source must preserve concurrent AppModel/auth/chat/notes and notification changes used by the local candidate"
+  },
+  "testAudioSource": "macOS say output through built-in speakers, captured by actual built-in microphone; no injected recognition events",
+  "physicalHumanSpeechClaimed": false,
+  "activationFailure": {
+    "crashReport": "/Users/spragginsdesigns/Library/Logs/DiagnosticReports/SureWord-2026-10-29-125614.ips",
+    "signal": "SIGTRAP",
+    "triggeredQueue": "com.apple.root.default-qos",
+    "stack": "_dispatch_assert_queue_fail -> _swift_task_checkIsolatedSwift -> closure in NativeVoiceInput.enable() -> TCC callback",
+    "rootCause": "Legacy Speech authorization callback inherited MainActor isolation but executes on a background queue",
+    "correction": "Explicit Sendable callback entry points and render-thread SpeechBufferSink; build43 stayed running through Speech + Microphone permission and actual capture"
+  },
+  "coordination": "User authorized coordination with Complete MacOS/iOS Parity; sent request to reserve installed app and owner account",
+  "actualRuntimeProbes": [
+    {
+      "build": 43,
+      "input": "Mac speakers -> built-in microphone -> on-device Speech, using say -r185",
+      "command": "Open Bible",
+      "result": "Bible window and selected Bible destination, no click after initial Start",
+      "atLocal": "2026-10-29T13:04:19.855018"
+    },
+    {
+      "build": 43,
+      "input": "same real microphone path",
+      "command": "Stop voice controls",
+      "result": "Voice controls are off, Start button restored, no Finish button"
+    }
+  ],
+  "quietPauseFailure": {
+    "build": 43,
+    "observed": "12-second empty capture ended with Speech could not be recognized and required Start",
+    "correction": "Generation-fenced silence rearm after 500ms; actual spoken questions allowed up to 60 seconds",
+    "retest": "passed44 after40seconds quiet"
+  },
+  "sourceComposition": {
+    "primaryHead": "0f1e228de6077e8a2ab5fe2f3ffe7ceadd47444d",
+    "primaryWorkingFilesIncluded": true,
+    "manifest": "/var/folders/jh/tc4znknd5xn57_8g614gl1km0000gn/T/sureword-mac-voice-refresh-to18b0fx.noindex/source-composition.json",
+    "nativeVoiceChanges": "current branch native voice files, with final callback, silence, stop and spoken-cue corrections",
+    "publicReleaseSourceStillNeedsCoherentAppleIntegration": true
+  },
+  "runtime44": {
+    "initialActivation": "one Start activation before the continuous navigation/question sequence",
+    "pointerClicksDuringNavigationQuestionsAndChoiceSelection": 0,
+    "choiceRequest": "normal voice question produced a real presentChoices card, no injected fixtures",
+    "choiceOrdinal": "Choose the second option",
+    "chosenCanonicalUserLabel": "Read a proverb",
+    "result": "Proverbs 3:5-6 rendered, saved-readback fence passed, spoken playback drained, listening resumed",
+    "simpleOptionTwoAttempt": "no observed selection; retry with spoken ordinal succeeded; raw recognized text unknown",
+    "savedChatTitle": "For this voice acceptance test only Psalm 23 verse one in th"
+  },
+  "final46Interruption": {
+    "observed": "Non-test speech entered the open microphone between probes; capture manually stopped",
+    "rawBackgroundSpeechRecordedInThisReceipt": false,
+    "currentCapture": "off",
+    "nextRequirement": "Quiet room confirmed; brief final candidate test running",
+    "noReleaseGatePassClaimed": true
+  },
+  "remainingUserInput": [],
+  "productionCompatibility": {
+    "vercelNodeVersion": "24.x",
+    "paidGPTLiveSettingsConfigured": false,
+    "existingPrimaryModelKeyConfigured": true,
+    "checkedWith": "existing authenticated Vercel CLI after connector project lookup returned404"
+  },
+  "testSetupCleanup": {
+    "capture": "off",
+    "guidedWelcomeCompletion": "restored through normal typed chat request, not counted as voice proof",
+    "toolReceipt": "Finishing getting to know you shown in latest completed work receipt",
+    "otherProfileOrReminderEdits": "none requested; no additional profile-setting tool shown"
+  },
+  "userConfirmations": {
+    "speakerPlayback": "Yes, I heard the answers clearly",
+    "releaseMode": "Ship the working voice mode first; keep GPT-Live experimental",
+    "quietRoom": "Other audio is paused; ready"
+  },
+  "playback": {
+    "previous": 1.15,
+    "current": 1.05,
+    "reason": "User reported speech too fast",
+    "installedBuild": 49
+  },
+  "runtime49": {
+    "realAppSwitch": "Finder open Google Chrome.app -> voice controls off",
+    "return": "Finder open SureWord.app -> voice remains off",
+    "spokenStop": "Stop voice control -> Start button and Voice controls are off",
+    "capture": "final short navigation test running",
+    "choiceRequest": "Normal completed-onboarding chat correctly has no presentChoices tool; text-only choices are not counted as a selectable card"
+  }
+}
