@@ -63,6 +63,7 @@ private struct NativeVoiceControlBar: View {
                 .accessibilityLabel("Voice status. \(input.status)")
                 .accessibilityAddTraits(.updatesFrequently)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .font(.callout)
         .padding(.horizontal, 16).padding(.vertical, 8)
         .foregroundStyle(theme.text)

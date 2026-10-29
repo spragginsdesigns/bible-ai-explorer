@@ -83,6 +83,10 @@ final class NativeVoiceSession {
         app.onboarding.voice.stop()
         spokenKey = nil
         input.onFailure = { [weak app] message in app?.onboarding.voice.enqueueLocal(message) }
+        input.onIdle = { [weak self, weak app] in
+            guard let self, let app else { return }
+            self.synchronize(app: app)
+        }
         input.onFinal = { [weak self, weak app] text in
             guard let self, let app else { return }
             self.handle(text, app: app)
@@ -98,7 +102,7 @@ final class NativeVoiceSession {
         verifyingKey = nil; savedKey = nil; spokenKey = nil
         spokenSpotlightID = nil; captureContext = nil; previous = []
         waitingForSave = false; handling = false
-        input.onFinal = nil; input.onFailure = nil
+        input.onFinal = nil; input.onFailure = nil; input.onIdle = nil
         input.stop()
     }
 

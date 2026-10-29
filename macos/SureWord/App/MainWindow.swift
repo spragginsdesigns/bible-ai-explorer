@@ -30,6 +30,7 @@ struct MainWindow: View {
                 .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 320)
         } detail: {
             detail
+                .nativeVoiceControls(app: app)
                 .spotlightTarget(app.section.primary.tabTarget)
                 .spotlightHost()
                 .safeAreaInset(edge: .top, spacing: 0) {
@@ -44,7 +45,6 @@ struct MainWindow: View {
                     }
                 }
         }
-        .nativeVoiceControls(app: app)
         // Walk with me starts itself once the AI consent sheet is settled.
         .task(id: app.aiConsent.isCurrent && app.aiConsent.prompt == nil) {
             await app.onboarding.autoStartIfNeeded(

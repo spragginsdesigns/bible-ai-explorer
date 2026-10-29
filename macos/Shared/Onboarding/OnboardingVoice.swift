@@ -180,7 +180,7 @@ final class OnboardingVoice {
                         }
                     })
                 }
-                statusObservation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
+                statusObservation = item.observe(\.status, options: [.new]) { @Sendable [weak self] item, _ in
                     guard item.status == .failed else { return }
                     Task { @MainActor [weak self] in
                         if self?.playbackGeneration == generation { self?.finishCurrent() }
