@@ -160,7 +160,13 @@ export default clerkMiddleware(
 		const signInUrl = new URL("/sign-in", request.url);
 		signInUrl.searchParams.set("redirect_url", request.url);
 		return NextResponse.redirect(signInUrl);
-});
+	},
+	{
+		// Optional public signing key for networkless JWT verification (including
+		// local QA with an existing Google session). Unset keeps Clerk's lookup.
+		jwtKey: process.env.CLERK_JWT_KEY?.replace(/\\n/g, "\n") || undefined,
+	},
+);
 
 export const config = {
 	matcher: [
