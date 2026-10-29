@@ -3,10 +3,11 @@ import test from 'node:test';
 import {createRequire} from 'node:module';
 import {generateKeyPairSync,sign} from 'node:crypto';
 import {readFileSync} from 'node:fs';
+import {pathToFileURL} from 'node:url';
 
 const require=createRequire(import.meta.url);
 const clerkRequire=createRequire(require.resolve('@clerk/nextjs/server'));
-const {verifyToken}=await import(clerkRequire.resolve('@clerk/backend'));
+const {verifyToken}=await import(pathToFileURL(clerkRequire.resolve('@clerk/backend')).href);
 const {publicKey,privateKey}=generateKeyPairSync('rsa',{modulusLength:2048});
 const jwtKey=publicKey.export({format:'pem',type:'spki'});
 function token(overrides={}){
