@@ -40,6 +40,10 @@ after a normal quit/relaunch. Build 49 runs at the reduced 1.05x pace and
 passed real-microphone Bible/Chat navigation and singular Stop. Opening Chrome
 through Finder stops capture; reopening SureWord leaves it off. Final saved
 conversation readback and combined Apple integration remain in progress.
+Final web source passed the Windows production build, including all 239
+static pages. Android 1.112.0/code131 is signed with the pinned certificate
+and passed typecheck plus 1,250 tests. Its microphone/device acceptance is
+still open; see the [Android candidate receipt](android-release-candidate-2026-10-29.json).
 No platform release has been published from this worktree.
 
 ## Product contract

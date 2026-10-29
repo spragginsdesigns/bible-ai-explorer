@@ -20,10 +20,10 @@ does not change the released apps or production configuration.
 
 | Client | Trial status |
 | --- | --- |
-| Web | Account-restricted GPT-Live plus local speech controls; choice/time/tour callbacks, navigation and 1.05x playback implemented |
-| Android | Local speech controls and 1.05x playback implemented; unit/typecheck/bundle proof, native rebuild and device acceptance pending |
+| Web | Owner-only local controls and 1.05x playback; final production build and media-exclusion tests pass; unpublished. GPT-Live remains experimental/off in production |
+| Android | Owner-only controls at 1.05x; async command fences, quiet recovery and app-audio exclusion pass typecheck/1,250 tests; signed 1.112.0/code131 build passes, device acceptance pending |
 | iOS | Shared Apple local speech controls implemented; build evidence recorded separately, microphone/VoiceOver acceptance pending |
-| macOS | Local speech controls implemented; native build and 30 focused tests pass, microphone/VoiceOver acceptance pending |
+| macOS | Installed 1.31.0(49); actual owner microphone navigation, chat/follow-up, singular Stop, app-switch shutdown and relaunch/readback pass. Blind-user VoiceOver acceptance remains separate |
 
 This feature has **not** passed native parity, microphone/device acceptance
 or blind-user usability. See [the trial runbook](voice/README.md) for architecture,

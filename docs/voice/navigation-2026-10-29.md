@@ -49,11 +49,16 @@ listening again. Save failures stop with an explanation instead of retrying
 a potentially completed action. Stop, account change, background and
 teardown cancel capture and fence late permission/recognition callbacks.
 
-Apple resumes an empty listening window after a short, generation-fenced pause
+Apple and Android resume an empty listening window after a short, generation-fenced pause
 instead of requiring Start again. An actual question may run up to one minute;
 the quiet endpoint normally finishes it sooner. Accepted questions and choices
 receive a spoken acknowledgment while their normal backend work runs. Singular
 "stop voice control" and plural "stop voice controls" both stop locally.
+
+Bible chapters, devotionals and narrator previews also exclude capture while
+they play. Android waits for native microphone shutdown before unmuting
+playback, including native media controls; stale player events cannot undo
+Pause or end newer playback. Hardware routing remains a separate check.
 
 Welcome narration and device speech now play at **1.05x**. Native streamed
 audio, Android audio and browser HTML audio preserve pitch. Raw GPT-Live PCM

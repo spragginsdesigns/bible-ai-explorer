@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-10-29T21:20:08.560696+00:00",
-  "sourceRevision": "787734bf",
-  "status": "in_progress",
+  "updatedAt": "2026-10-29T21:46:31.361557+00:00",
+  "sourceRevision": "16706c68",
+  "status": "mac_owner_flow_passed_release_gates_open",
   "ownerAccount": "atmosphere9999@gmail.com",
   "identityEvidence": {
     "path": "installed /Applications/SureWord.app, normal Google OAuth",
@@ -52,25 +52,54 @@
     "releaseFeedAndStoreParityTests": {
       "passed": 12,
       "failed": 0
+    },
+    "postConcordanceVoiceTests": {
+      "revision": "9c3a7a74",
+      "passed": 84,
+      "failed": 0,
+      "log": "/tmp/sureword-voice-9c3a-tests.log"
+    },
+    "finalProductionWebBuild": {
+      "revision": "174544d796003d1b40c31b352855e3af5c70bf99",
+      "result": "passed",
+      "exit": 0,
+      "durationSeconds": 97.734,
+      "node": "24.20.0",
+      "next": "15.5.21",
+      "staticPagesGenerated": 239,
+      "manifest": "/tmp/sureword-final-web-d636b9bb-48h1rs97.noindex/windows-final-174544d7/manifest.json",
+      "log": "/tmp/sureword-final-web-d636b9bb-48h1rs97.noindex/windows-final-174544d7/next-build.log",
+      "buildOnlyConfigVariation": "webpack.cache=false in isolated Windows snapshot"
+    },
+    "finalAndroidWindowsChecks": {
+      "revision": "16706c68647267e7dad26b5e3fe266f0e2aedcb8",
+      "typecheck": "passed after isolated frozen root install supplied existing declared react-dom types",
+      "testFiles": 95,
+      "tests": 1250,
+      "failed": 0,
+      "durationSeconds": 13.26,
+      "sourceDependenciesModified": false,
+      "signedRebuild": "passed, exit0",
+      "receipt": "android-release-candidate-2026-10-29.json"
     }
   },
   "acceptance": {
-    "actualMicrophone": "passed command, choice and normal chat paths44; actual mic question49 saved and answered; final49 navigation/followup check in progress",
+    "actualMicrophone": "passed command, choice and normal chat paths44; question/followup, Bible/Chat and singularStop49 at1.05x",
     "spokenChoices": "passed on44: Choose the second option selected Read a proverb once via real visible card callback",
     "rootNavigation": "passed on44: Bible, Notes, Back, Chat, Settings and Back; Today/Connections/Study remain source-and-unit verified only",
-    "questionAndFollowUp": "passed on44: Psalm23 quote followed by contextual shepherd explanation in the same chat",
+    "questionAndFollowUp": "passed44 and49;49 initial contextual followup was withheld by Scripture verifier, spoken retry returned grounded answer withreference",
     "audibleResponses": "User confirmed actual spoken Bible answers were heard clearly",
     "quietPauseRecovery": "passed on44: Open Bible succeeded after 40 seconds without UI input; Input source retained on46",
-    "savedChatReopened": "passed on46 after normal app quit/relaunch: both speech-created Bible turns and replies were read back from history",
+    "savedChatReopened": "passed46 and49 after normal app quit/relaunch: speech-created questions, answers, and verifier-withheld turn persisted",
     "stopAndBackgroundCleanup": "passed49: spoken singular Stop voice control turned capture off; real Finder open Chrome stopped capture; Finder open SureWord return stayed off"
   },
   "distribution": {
-    "gate": "Do not publish before Mac owner-account microphone acceptance passes",
-    "web": "Earlier d636 build passed; final9756 Mac build hit heap limit; off-host Windows final build in progress, no deployment",
-    "android": "9756 signed1.112.0/code131 AAB+APK built on isolated Windows worktree, cert/manifest/module checks passed; no upload or device QA",
+    "gate": "Mac owner microphone and saved-history acceptance passed. Hold publication for final Android build/runtime, final web runtime, and coherent Apple integration.",
+    "web": "Final174544d7 Windows production build passed with lint/typecheck and239staticpages; output ownership correction independently reviewed and tested; no deployment",
+    "android": "Final16706c68 signed1.112.0/code131 AAB+APK passed pinned cert/source digest/4ABI/native module checks. Windows typecheck/full95files1250tests passed. No upload or device QA.",
     "iOS": "not uploaded; live 1.30.0 is DEVELOPER_REJECTED, public 1.26.0",
     "macOS": "not published; public 1.30.0",
-    "appleIntegration": "Final public Apple source must preserve concurrent AppModel/auth/chat/notes and notification changes used by the local candidate"
+    "appleIntegration": "Parallel parity chat is still checking three failing StoreKit cases after7/10pass; final coherent Apple source and publication remain pending"
   },
   "testAudioSource": "macOS say output through built-in speakers, captured by actual built-in microphone; no injected recognition events",
   "physicalHumanSpeechClaimed": false,
@@ -156,7 +185,53 @@
     "realAppSwitch": "Finder open Google Chrome.app -> voice controls off",
     "return": "Finder open SureWord.app -> voice remains off",
     "spokenStop": "Stop voice control -> Start button and Voice controls are off",
-    "capture": "final short navigation test running",
-    "choiceRequest": "Normal completed-onboarding chat correctly has no presentChoices tool; text-only choices are not counted as a selectable card"
-  }
+    "capture": "off, spoken Stop verified before quit/relaunch",
+    "choiceRequest": "Normal completed-onboarding chat correctly has no presentChoices tool; text-only choices are not counted as a selectable card",
+    "rootNavigation": [
+      "Open Bible -> Bible selected",
+      "Open Chat -> Voice Test Choices chat selected"
+    ],
+    "firstBibleQuestion": {
+      "recognized": "Quotes on 23 verse one then briefly explain it",
+      "canonicalAnswer": "Psalms 23:1 (KJV) 1 The LORD is my shepherd; I shall not want. The verse pictures the LORD as a shepherd who cares for and guides his people. It expresses trust that he will provide what they truly need."
+    },
+    "followUp": {
+      "firstAttempt": "Existing Scripture verifier withheld the answer; voice resumed listening",
+      "recognizedRetry": "Please explain the shepherd image in Psalm 23 in a single sentence with its first reference",
+      "canonicalAnswer": "The shepherd image presents the LORD as the speaker\u2019s personal caretaker and provider (Psalms 23:1)."
+    },
+    "pointerClicksBetweenQuestionsAndNavigation": 0,
+    "choiceRetest": "No new choice proof claimed49; actual presentChoices callback proof44 remains recorded separately",
+    "savedChatReopened": {
+      "appQuitVerifiedByProcessCheck": true,
+      "normalRelaunch": "Today screen with owner Austin Spraggins",
+      "historySelection": "Voice Test Choices",
+      "persisted": [
+        "Psalm23:1 question and grounded answer",
+        "contextual follow-up and verifier-withheld answer",
+        "spoken retry and grounded single-sentence answer"
+      ],
+      "captureAfterRelaunch": "off"
+    }
+  },
+  "reviewBlockers": [
+    "Coherent Apple source must preserve concurrent parity changes",
+    "Android owner runtime acceptance still blocked on shared emulator claim; AVD microphone input disabled",
+    "No physical Android device attached to this Mac; microphone and remote-audio routing acceptance not established",
+    "Final publication and live web owner access readback remain pending"
+  ],
+  "sourceReview": {
+    "result": "PASS on final corrected source",
+    "androidRevision": "16706c68",
+    "webRevision": "174544d7",
+    "corrections": [
+      "Revalidate Android actions after spoken acknowledgments and editor save guards",
+      "Fence late errors and stale player events",
+      "Exclude Bible/devotional/preview output from browser and Android capture",
+      "Rearm empty Android recognition windows after native end with cancellation fences"
+    ],
+    "physicalOrPublicationAcceptanceInferred": false
+  },
+  "installed49BinarySHA256": "4b18d879fcee0509b213fb7e652e465d905076645d28bd40565c2a4e33130f2d",
+  "installed49VoiceControlsMatchCurrentSource": true
 }

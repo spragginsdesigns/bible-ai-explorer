@@ -160,7 +160,7 @@ actions. Commands open Today, Bible, Chat, Connections, Study, Notes or Settings
 go back through the editor's departure guard, repeat options, or stop voice
 controls. Questions use the normal chat sender and tools. A reply's exact saved
 assistant row is checked before narration/listening continues; failed saves
-never trigger an automatic resend. Narration runs at 1.15x, with pitch correction
+never trigger an automatic resend. Narration runs at 1.05x, with pitch correction
 for streamed audio. The microphone remains off through spoken cues, save checks,
 network requests and the entire output queue.
 
