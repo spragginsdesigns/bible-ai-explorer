@@ -89,7 +89,8 @@
 						"application/pdf"
 					]
 				}
-			]
+			],
+			"./plugins/withOkHttpFloor"
 		],
 		"experiments": {
 			"typedRoutes": true
