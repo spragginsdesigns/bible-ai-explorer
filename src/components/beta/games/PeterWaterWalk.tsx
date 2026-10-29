@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, ChevronsUp, Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import AwardMedal from "./AwardMedal";
 import { createStormAudio, type StormAudio } from "./water-walk-audio";
 import { drawWalkScene } from "./water-walk-scene";
-import { gradeFor, type ChapterGame, type GameAward } from "@/lib/beta/games/games-rules";
+import { AwardSaveStatus, GameHeader, Passage, PassageSection, StoryScreen, chapterHref as chapterHrefFor, useGameAward, useMuted, verseText } from "./shared";
+import type { ChapterGameProps } from "./types";
+import { gradeFor } from "@/lib/beta/games/games-rules";
 import {
 	WALK_GOAL,
 	WALK_STEP,
@@ -26,46 +28,12 @@ import {
  */
 
 type Screen = "intro" | "playing" | "paused" | "sinking" | "rescued" | "arrived";
-type Saving = { status: "idle" } | { status: "saving" } | { status: "saved" } | { status: "error"; message: string };
 
-interface Verse {
-	verse: number;
-	text: string;
-}
-
-const MUTE_KEY = "sureword.beta.games.muted";
 /** How long the rescue and the arrival play before their words come up. */
 const RESCUE_SCENE = 1.7;
 const ARRIVAL_SCENE = 2.2;
 
-function verseText(verses: readonly Verse[], from: number, to = from) {
-	return verses.filter((item) => item.verse >= from && item.verse <= to);
-}
-
-/** A story screen over the stage: its words scroll if they must, its buttons never leave the stage. */
-function StoryScreen({ children, actions, centered = false }: { children: ReactNode; actions: ReactNode; centered?: boolean }) {
-	return (
-		<div className="absolute inset-0 flex flex-col bg-[#070b12]/80 text-[#f1eadc]">
-			<div className={`min-h-0 flex-1 overflow-y-auto px-5 pt-5 sm:px-8 sm:pt-8 ${centered ? "flex flex-col items-center text-center" : ""}`}>{children}</div>
-			<div className={`flex shrink-0 flex-wrap items-center gap-3 px-5 pb-5 pt-3 sm:px-8 sm:pb-7 ${centered ? "justify-center" : ""}`}>{actions}</div>
-		</div>
-	);
-}
-
-function Passage({ verses, className = "" }: { verses: readonly Verse[]; className?: string }) {
-	return (
-		<blockquote className={`font-[family-name:var(--font-cormorant)] text-[19px] leading-7 ${className}`}>
-			{verses.map((item) => (
-				<span key={item.verse}>
-					<sup className="mr-1 font-sans text-xs font-bold text-[#e5b664]">{item.verse}</sup>
-					{item.text}{" "}
-				</span>
-			))}
-		</blockquote>
-	);
-}
-
-export default function PeterWaterWalk({ game, verses, initialAward }: { game: ChapterGame; verses: readonly Verse[]; initialAward: GameAward | null }) {
+export default function PeterWaterWalk({ game, verses, initialAward }: ChapterGameProps) {
 	const stageRef = useRef<HTMLDivElement>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const faithRef = useRef<HTMLDivElement>(null);
@@ -86,10 +54,9 @@ export default function PeterWaterWalk({ game, verses, initialAward }: { game: C
 	const scene = useRef({ rescueAt: null as number | null, arriveAt: null as number | null, flash: 0, nextFlash: 3, storm: 1, swellsSeen: 0 });
 
 	const [screen, setScreenState] = useState<Screen>("intro");
-	const [muted, setMuted] = useState(false);
+	const { muted, toggleMute } = useMuted(useCallback((next: boolean) => audio.current?.setMuted(next), []));
 	const [result, setResult] = useState<WalkResult | null>(null);
-	const [award, setAward] = useState<GameAward | null>(initialAward);
-	const [saving, setSaving] = useState<Saving>({ status: "idle" });
+	const { award, saving, save: saveRun, resetSaving } = useGameAward(game.slug, initialAward);
 	const [announcement, setAnnouncement] = useState("");
 	const [rescuing, setRescuing] = useState(false);
 
@@ -97,30 +64,6 @@ export default function PeterWaterWalk({ game, verses, initialAward }: { game: C
 		screenRef.current = next;
 		setScreenState(next);
 	}, []);
-
-	useEffect(() => {
-		setMuted(window.localStorage.getItem(MUTE_KEY) === "1");
-	}, []);
-
-	const saveRun = useCallback(
-		async (run: WalkResult) => {
-			setSaving({ status: "saving" });
-			try {
-				const response = await fetch(`/api/beta/games/${game.slug}/award`, {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ faithKept: run.faithKept, seconds: run.seconds, swellsCleared: run.swellsCleared }),
-				});
-				const data = (await response.json().catch(() => null)) as { award?: GameAward; error?: string } | null;
-				if (!response.ok || !data?.award) throw new Error(data?.error ?? "Your award could not be saved.");
-				setAward(data.award);
-				setSaving({ status: "saved" });
-			} catch (error) {
-				setSaving({ status: "error", message: error instanceof Error ? error.message : "Your award could not be saved." });
-			}
-		},
-		[game.slug],
-	);
 
 	const handleEvent = useCallback(
 		(event: WalkEvent, now: number) => {
@@ -279,7 +222,7 @@ export default function PeterWaterWalk({ game, verses, initialAward }: { game: C
 		queued.current = { jump: false, cry: false };
 		setResult(null);
 		setRescuing(false);
-		setSaving({ status: "idle" });
+		resetSaving();
 		if (!audio.current) audio.current = createStormAudio(muted);
 		audio.current?.resume();
 		setAnnouncement("You stepped out of the ship. Keep your eyes on Jesus.");
@@ -289,7 +232,7 @@ export default function PeterWaterWalk({ game, verses, initialAward }: { game: C
 		// The stage and the controls under it, together on a phone.
 		if (stage && stage.getBoundingClientRect().top < 0) stage.scrollIntoView({ block: "start" });
 		else if (stage && controlsRef.current && controlsRef.current.getBoundingClientRect().bottom > window.innerHeight) stage.scrollIntoView({ block: "start" });
-	}, [muted, setScreen]);
+	}, [muted, resetSaving, setScreen]);
 
 	const pause = useCallback(() => {
 		if (screenRef.current !== "playing") return;
@@ -302,15 +245,6 @@ export default function PeterWaterWalk({ game, verses, initialAward }: { game: C
 		setScreen("playing");
 		stageRef.current?.focus({ preventScroll: true });
 	}, [setScreen]);
-
-	const toggleMute = useCallback(() => {
-		setMuted((value) => {
-			const next = !value;
-			window.localStorage.setItem(MUTE_KEY, next ? "1" : "0");
-			audio.current?.setMuted(next);
-			return next;
-		});
-	}, []);
 
 	// Keyboard: arrows or A/D to lean, Up/W/Space to step up, P or Escape to pause.
 	useEffect(() => {
@@ -376,21 +310,13 @@ export default function PeterWaterWalk({ game, verses, initialAward }: { game: C
 
 	const playing = screen === "playing";
 	const grade = result ? gradeFor(result.faithKept) : null;
-	const chapterHref = `/bible/chapter?book=${game.book}&chapter=${game.chapter}`;
+	const chapterHref = chapterHrefFor(game);
 	const control =
 		"flex min-h-16 select-none touch-none flex-col items-center justify-center gap-0.5 rounded-2xl border text-sm font-bold transition-colors disabled:opacity-40 [-webkit-touch-callout:none] [-webkit-user-select:none]";
 
 	return (
 		<main className="mx-auto w-full max-w-4xl px-3 pb-[calc(var(--sureword-mobile-tab-clearance)+24px)] pt-3 sm:px-5 lg:px-8 lg:pb-16 lg:pt-8">
-			<Link href="/beta/bible/games" className="-ml-1 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-bold text-neutral-600 hover:bg-black/5 dark:text-[#bbb3a7] dark:hover:bg-white/5">
-				<ArrowLeft size={18} aria-hidden /> Chapter Games
-			</Link>
-			<header className="mt-1 flex flex-wrap items-end justify-between gap-x-4 gap-y-1 px-1">
-				<h1 className="font-[family-name:var(--font-cormorant)] text-[clamp(2rem,7vw,2.7rem)] font-semibold leading-[1.05]">{game.title}</h1>
-				<Link href={chapterHref} className="inline-flex min-h-11 items-center text-sm font-bold text-amber-800 underline-offset-2 hover:underline dark:text-[#e5b664]">
-					{game.reference} ›
-				</Link>
-			</header>
+			<GameHeader game={game} />
 
 			<div
 				ref={stageRef}
@@ -539,18 +465,7 @@ export default function PeterWaterWalk({ game, verses, initialAward }: { game: C
 						<p className="mt-1 text-sm text-[#d9d1c3]">
 							Faith kept {result.faithKept}% · {result.seconds}s · {result.swellsCleared} {result.swellsCleared === 1 ? "swell" : "swells"} stepped over
 						</p>
-						<p className="mt-1 min-h-5 text-xs text-[#bbb3a7]" aria-live="polite">
-							{saving.status === "saving" && "Saving your award…"}
-							{saving.status === "saved" && award && `Saved to your awards · best ${game.grades[award.grade]}, finished ${award.completions} ${award.completions === 1 ? "time" : "times"}`}
-							{saving.status === "error" && (
-								<>
-									{saving.message}{" "}
-									<button type="button" onClick={() => void saveRun(result)} className="min-h-11 font-bold text-[#e5b664] underline">
-										Try again
-									</button>
-								</>
-							)}
-						</p>
+						<AwardSaveStatus game={game} award={award} saving={saving} onRetry={() => void saveRun(result)} />
 						<Passage verses={verseText(verses, 32, 33)} className="mt-3 max-w-xl pb-2 text-left" />
 					</StoryScreen>
 				)}
@@ -588,19 +503,7 @@ export default function PeterWaterWalk({ game, verses, initialAward }: { game: C
 				{announcement}
 			</p>
 
-			<section aria-labelledby="water-walk-passage" className="mt-6 rounded-[22px] border border-black/[.09] bg-white/35 p-5 dark:border-white/[.09] dark:bg-white/[.025]">
-				<h2 id="water-walk-passage" className="text-xs font-bold uppercase tracking-[.2em] text-neutral-600 dark:text-[#b3ad9e]">
-					The passage · {game.reference} (KJV)
-				</h2>
-				<blockquote className="mt-3 font-[family-name:var(--font-cormorant)] text-[19px] leading-7">
-					{verses.map((item) => (
-						<span key={item.verse}>
-							<sup className="mr-1 font-sans text-xs font-bold text-amber-700 dark:text-[#e5b664]">{item.verse}</sup>
-							{item.text}{" "}
-						</span>
-					))}
-				</blockquote>
-			</section>
+			<PassageSection game={game} verses={verses} />
 		</main>
 	);
 }
