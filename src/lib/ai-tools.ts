@@ -79,7 +79,7 @@ import type { LearnStage } from "@/lib/learn-schedule";
 import { getKjvBookNumber, getKjvBookName } from "@/utils/kjvBible";
 import type { HighlightLabels } from "@/lib/preferences-contract";
 import { bookByOrder, resolveReference } from "@/lib/bible/books";
-import { findVersesFullText } from "@/lib/bible/verse-fulltext";
+import { findVersesFullTextDetailed, formatKeywordCoverageForModel, type KeywordMatchCoverage } from "@/lib/bible/verse-fulltext";
 import { indexedOccurrences } from "@/lib/bible/indexed-occurrences";
 import { canonicalPassage } from "@/lib/bible/passage-context";
 import { getCrossReferencesFor } from "@/lib/bible/crossRefs";
@@ -121,6 +121,10 @@ export interface PassageCoverage {
 }
 
 export interface ScriptureSearchToolOutput {
+	/** KJV lexical candidate coverage, separate from named-passage coverage. */
+	keywordCoverage?: KeywordMatchCoverage;
+	matchMode?: KeywordMatchCoverage["matchMode"];
+	relaxed?: boolean;
 	/** Present when findVerses received a reference rather than a word search. */
 	coverage?: PassageCoverage;
 	truncated?: boolean;
@@ -566,13 +570,16 @@ export function buildSureWordTools(context: SureWordToolContext) {
 			if (result.degraded) {
 				formatted = `NOTE: These are bounded keyword matches; broader topical coverage may be incomplete. Prefer getPassage for known references, and state a coverage limitation when it matters without technical jargon.\n${formatted}`;
 			}
+			if (result.keywordCoverage && (result.degraded || result.keywordCoverage.relaxed)) {
+				formatted = "Keyword candidate search: " + formatKeywordCoverageForModel(result.keywordCoverage, translation) + "\n" + formatted;
+			}
 			return { ...result, formatted };
 		},
 	});
 
 	const findVersesTool = tool({
 		description:
-			`Exact-word and phrase search of the KJV index, instant and free, returning bounded matches with the exact ${translation} quotation text. The index's wording is always KJV; never report its word matches as an exhaustive count in another translation. Use it for quoted or half-remembered wording ("be still and know") or terms ("loveth", "adder"). Quote a phrase in double quotes for exact ordered words; bare words match by prefix, so "lov" finds loveth and loved. Pass book to narrow the index; never put a book name in the query. Prefer searchScripture for meaning or topics, and getPassage for a named reference. A limited result page is not the whole count.`,
+			`Exact-word and phrase search of the KJV index, instant and free, returning bounded matches with the exact ${translation} quotation text. The index's wording is always KJV; never report its word matches as an exhaustive count in another translation. Use it for quoted or half-remembered wording ("be still and know") or terms ("loveth", "adder"). Quote a phrase in double quotes for exact ordered words; ordinary bare words match by prefix, so "lov" finds loveth and loved; apostrophe words keep their complete spelling. Pass book to narrow the index; never put a book name in the query. Prefer searchScripture for meaning or topics, and getPassage for a named reference. All clauses are required by default. After a strict miss, allowPartial may opt into some-word recall for bare words only; quoted phrases never relax. Partial candidates are not exact matches to the complete query. A limited result page is not the whole count.`,
 		inputSchema: z.object({
 			query: z
 				.string()
@@ -590,8 +597,9 @@ export function buildSureWordTools(context: SureWordToolContext) {
 				.max(20)
 				.optional()
 				.describe("How many verses to return (default 8)."),
+			allowPartial: z.boolean().optional().describe("Omit or false to require every search clause. Set true only to retry half-remembered bare wording after a strict miss; never for exhaustive counts. Quoted phrases stay mandatory."),
 		}),
-		execute: async ({ query, book, limit }): Promise<ScriptureSearchToolOutput> => {
+		execute: async ({ query, book, limit, allowPartial }): Promise<ScriptureSearchToolOutput> => {
 			let bookNumber: number | undefined;
 			if (book) {
 				bookNumber = scriptureBookNumber(book);
@@ -622,29 +630,27 @@ export function buildSureWordTools(context: SureWordToolContext) {
 				};
 			}
 
-			const hits = await findVersesFullText(query, limit ?? 8, { book: bookNumber });
+			const result = await findVersesFullTextDetailed(query, limit ?? 8, { book: bookNumber, allowPartial });
 			const verses: RetrievedVerse[] = await Promise.all(
-				hits.map(async (hit) => {
-					const bookName = getKjvBookName(hit.book) ?? `Book ${hit.book}`;
-					// The index is KJV, but the user reads their own translation, so
-					// the matched verse is quoted from theirs.
+				result.hits.map(async (hit) => {
+					const bookName = getKjvBookName(hit.book) ?? "Book " + hit.book;
+					// The index is KJV; quotations still come from the selected edition.
 					const text = await getVerseText(translation, hit.book, hit.chapter, hit.verse);
-					// An exact-word hit contains the words by definition, and ts_rank_cd
-					// is not a cosine, so it reports full strength like getPassage does;
-					// the index's rank only decides the order.
 					return {
-						reference: `${bookName} ${hit.chapter}:${hit.verse}`,
-						similarity: 1,
+						reference: bookName + " " + hit.chapter + ":" + hit.verse,
+						similarity: hit.similarity,
 						translation,
 						...(text ? { text } : {}),
 					};
 				})
 			);
-
+			const averageSimilarity = verses.length ? verses.reduce((sum, verse) => sum + verse.similarity, 0) / verses.length : 0;
+			const notice = formatKeywordCoverageForModel(result.coverage, translation);
 			return {
-				verses,
-				averageSimilarity: verses.length > 0 ? 1 : 0,
-				formatted: formatVersesForModel(verses, translation),
+				verses, averageSimilarity, keywordCoverage: result.coverage,
+				matchMode: result.coverage.matchMode, relaxed: result.coverage.relaxed,
+				truncated: result.coverage.truncated,
+				formatted: notice + (verses.length ? "\n" + formatVersesForModel(verses, translation) : ""),
 			};
 		},
 	});

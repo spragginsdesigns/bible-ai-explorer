@@ -43,7 +43,8 @@ function makeTools({ crossReferences = getCrossReferencesFor, loadChapter = getC
 		...books, ...kjv, ...passage, ...originals, tool, z,
 		getChapter: loadChapter, getVerseText, getCrossReferencesFor: crossReferences,
 		formatVersesForModel: verses => verses.map(verse => `${verse.reference}: ${verse.text}`).join("\n"),
-		findVersesFullText: async (...args) => { state.fullTextCalls.push(args); return []; },
+		findVersesFullTextDetailed: async (...args) => { state.fullTextCalls.push(args); return { hits: [], coverage: { indexedTranslation: "KJV", matchMode: "none", relaxed: false, requestedClauseCount: 4, returnedCount: 0, limit: args[1], truncated: false, totalMatches: null } }; },
+		formatKeywordCoverageForModel: () => "No KJV verses matched all search clauses.",
 		READING_PLAN_PRESETS: [], ATLAS_ERAS: [], HIGHLIGHT_COLORS: [],
 		MIN_PLAN_DAYS: 1, MAX_PLAN_DAYS: 100, MAX_HIGHLIGHT_VERSES: 30,
 		MAX_ORGANIZE_NAME_LENGTH: 100, MAX_ORGANIZE_TAGS: 10, NOTE_HOUSE_STYLE: "",
@@ -125,9 +126,11 @@ test("getPassage rejects invalid boundaries and conflicting findVerses book filt
 test("keyword searches still execute through fulltext with the requested limit and book", async () => {
 	const { tools, state } = makeTools();
 	const result = await execute(tools.findVerses, { query: "be still and know", book: "Ps", limit: 3 });
-	assert.deepEqual(state.fullTextCalls, [["be still and know", 3, { book: 19 }]]);
+	assert.deepEqual(state.fullTextCalls, [["be still and know", 3, { book: 19, allowPartial: undefined }]]);
 	assert.deepEqual(result.verses, []);
 	assert.equal(result.coverage, undefined);
+	assert.equal(result.keywordCoverage.matchMode, "none");
+	assert.equal(result.keywordCoverage.relaxed, false);
 });
 
 test("real cross-reference excerpts label actual text and disclose list coverage", async () => {

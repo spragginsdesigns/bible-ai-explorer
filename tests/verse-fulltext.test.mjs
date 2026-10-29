@@ -46,9 +46,13 @@ test("tsquery operators in the input cannot escape into the query", () => {
 	assert.equal(buildVerseTsQuery("faith & !hope | <->"), "'faith':* & 'hope':*");
 });
 
-test("apostrophes survive inside a lexeme, doubled for Postgres", () => {
-	assert.equal(buildVerseTsQuery("lord's"), "'lord''s':*");
+test("internal apostrophes use exact adjacent lexemes without a suffix wildcard", () => {
+	assert.equal(buildVerseTsQuery("lord's"), "'lord''s'");
+	assert.equal(buildVerseTsQuery("lord’s"), "'lord''s'");
+	assert.equal(buildVerseTsQuery("king's house"), "'king''s' & 'house':*");
+	assert.equal(buildVerseTsQuery("man's"), "'man''s'");
 	assert.equal(buildVerseTsQuery('"the lord\'s day"'), "'the' <-> 'lord''s' <-> 'day'");
+	assert.equal(buildVerseTsQuery('"the lord’s day"'), "'the' <-> 'lord''s' <-> 'day'");
 });
 
 test("a stray apostrophe never becomes an empty lexeme", () => {
@@ -66,8 +70,8 @@ test("queries with nothing searchable return null", () => {
 	assert.equal(buildVerseTsQuery('""'), null);
 });
 
-test("an unterminated quote degrades to bare words instead of breaking", () => {
-	assert.equal(buildVerseTsQuery('he said "be still'), "'he':* & 'said':* & 'be':* & 'still':*");
+test("an unterminated double quote rejects the search instead of dropping the phrase", () => {
+	assert.equal(buildVerseTsQuery('he said "be still'), null);
 });
 
 test("case is folded to match the simple dictionary's lexemes", () => {
@@ -82,4 +86,27 @@ test("a hyphen inside a word is folded away, in bare words and phrases", () => {
 	assert.equal(buildVerseTsQuery("Bethel"), "'bethel':*");
 	assert.equal(buildVerseTsQuery('"at Beer-sheba"'), "'at' <-> 'beersheba'");
 	assert.equal(buildVerseTsQuery("rich - poor"), "'rich':* & 'poor':*");
+});
+
+
+test("Unicode letters and numbers stay mandatory and canonical accents normalize", () => {
+	assert.equal(buildVerseTsQuery("ἀγάπη love"), "'ἀγάπη':* & 'love':*");
+	assert.equal(buildVerseTsQuery("愛 love"), "'愛':* & 'love':*");
+	assert.equal(buildVerseTsQuery("lové world"), "'lové':* & 'world':*");
+	assert.equal(buildVerseTsQuery("love\u0301 world"), "'lové':* & 'world':*");
+	assert.equal(buildVerseTsQuery('"love\u0301 world"'), "'lové' <-> 'world'");
+	assert.equal(buildVerseTsQuery("愛 １２"), "'愛':* & '１２':*");
+	assert.equal(buildVerseTsQuery("🫶 love!"), "'love':*");
+});
+
+
+test("standalone Unicode marks are ignored but combining marks in words survive", () => {
+	assert.equal(buildVerseTsQuery("🙏\uFE0F love"), "'love':*");
+	assert.equal(buildVerseTsQuery("\u0301 love"), "'love':*");
+	assert.equal(buildVerseTsQuery("\uFE0F"), null);
+	assert.equal(buildVerseTsQuery('"\u0301" love'), null);
+	assert.equal(buildVerseTsQuery('"🙏\uFE0F" love'), null);
+	for (const word of ["lové", "love\u0301", "कर्म", "שָׁלוֹם"]) {
+		assert.equal(buildVerseTsQuery(word), "'" + word.normalize("NFC") + "':*");
+	}
 });
