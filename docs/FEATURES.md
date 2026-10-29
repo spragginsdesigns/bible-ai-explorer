@@ -4387,6 +4387,7 @@ if Clerk fails after the commit).
 | ChatAttachment (incl. voice transcripts) | userId | cascade; blobs deleted by pathname |
 | Folder, Tag, Note | userId | cascade |
 | NoteTag, NoteAIMessage | note | cascade via Note |
+| NoteAIOperation | note AI execution fence and request hash, separate from history | cascade via User and Note |
 | NoteEmbedding (pgvector) | noteId + copied userId | cascade through the current Note owner |
 | NoteLink | sourceNoteId + copied userId | cascade through the current source Note owner |
 | PushToken, ReadingEvent, VerseHighlight, SuggestedQuestionSet, VerseMemory, LearnReviewReceipt, Feedback | userId | cascade |

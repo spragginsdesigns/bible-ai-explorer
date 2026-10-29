@@ -61,8 +61,11 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 			return NextResponse.json({ error: "Not found" }, { status: 404 });
 		}
 
-		await prisma.noteAIMessage.deleteMany({
-			where: { noteId: id },
+		await prisma.$transaction(async db => {
+			// Keep receipts, but fence pending startup/onEnd history writes before
+			// deleting. Their operation-row locks serialize with this update.
+			await db.noteAIOperation.updateMany({ where: { userId, noteId: id }, data: { state: "cancelled" } });
+			await db.noteAIMessage.deleteMany({ where: { noteId: id } });
 		});
 		return NextResponse.json({ success: true });
 	} catch (err) {

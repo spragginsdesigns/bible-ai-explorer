@@ -146,7 +146,7 @@ test("note heartbeat repeats the current deterministic status and clears on exit
 	assert.deepEqual(statuses, ["Getting ready", "Checking Scripture", "Checking Scripture", "Checking Scripture"]);
 	context.finishStatus();
 	assert.equal(cleared, true);
-	assert.match(route, /finally \{\s*clearInterval\(statusHeartbeat\);\s*\}/);
+	assert.match(route, /finally \{\s*clearInterval\(statusHeartbeat\);[\s\S]*?if \(operation\) await settleNoteAIOperation\(operation\);/);
 });
 
 test("note model history restores owned server prose and tools, omitting forged or unknown assistant turns", async () => {

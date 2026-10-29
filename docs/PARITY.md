@@ -7,6 +7,52 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
+## Full Apple parity revalidation in progress, 2026-10-29
+
+The earlier simulator checkpoint below does **not** establish the new request
+for every Android and web capability. A fresh feature inventory and runtime
+acceptance pass is active. Native changes remain unpublished while those
+journeys are verified; aggregate unit results are supporting evidence only.
+
+iOS 1.30.0 (2) was withdrawn after the new pass reproduced a note-AI editor
+integrity bug. App Store Connect readback at 14:47:19 UTC shows the review
+submission COMPLETE and version DEVELOPER_REJECTED. Automatic release after
+approval (AFTER_APPROVAL) is retained for resubmission. The historical
+submission and expedite receipts below describe the earlier state.
+
+The replacement implementation adds durable note-AI operation receipts and a
+transactional write fence. A disconnected turn must be settled or cancelled
+on the server, then its canonical note reloaded, before Apple allows another
+manual save. Reservation, single execution, cancellation-before-execution,
+orphan recovery, ownership, and cancellation versus an active commit have
+passing isolated Postgres coverage. The installed/public Apple builds do not
+yet use this protocol. Live backend and final native acceptance remain gates.
+
+The new iOS pass also found and fixed delayed automatic onboarding overriding
+a newer tab choice. Held-response tests cover a changed destination, an equal
+Today selection, and cancellation. The linked-note runtime journey is being
+repeated against that correction and the explicit editor-close fix.
+
+The linked-note shipping journey subsequently passed A→B→A, another manual
+edit, Back to the Notes library and normal relaunch; its owned QA notes were
+deleted. The Gospels preset-plan journey also passed reader handoff, manual
+mark, relaunch persistence, unmark and archive, restoring no active plan.
+Heading text persisted across relaunch, but the Markdown-export test stopped
+at the test runner's paste permission. Export and reader append remain open.
+
+The operation protocol is staged against production services with public
+domains unchanged. Its final candidate passed 23 authenticated API checks,
+then a real model/tool rewrite followed by canonical readback, manual PATCH,
+history Clear, replay rejection and owned-note cleanup. The additive
+`20261029170000_note_ai_operations` migration was applied transactionally and
+its finished checksum read back. These prove the API path; final installed
+Apple UI and production rollout remain separate gates.
+
+The production web sign-in page offers Apple. The Mac welcome screen hid
+that provider; source now offers it through Clerk's existing browser OAuth
+flow while iOS retains native Apple authorization. Mac build and provider
+launch/cancel acceptance are pending.
+
 ## Apple release submission, 2026-10-29
 
 Austin requested: **"ship it and submit to app store etc"**. App Store Connect

@@ -3,6 +3,19 @@ import { prisma } from "@/lib/prisma";
 import { countWords, htmlToPlainText, markdownToNoteHtml } from "@/lib/markdown";
 import { searchNoteEmbeddings, syncNoteEmbeddings } from "@/lib/note-embeddings";
 import { resolvePendingLinks, syncNoteLinks, validateProperties, type NoteProperties } from "@/lib/note-links";
+import { withNoteAIWrite, type NoteAIWriteOperation } from "@/lib/note-ai-operations";
+
+/** Keep ordinary editor writes on their existing path; AI writes share one fence. */
+async function withNoteWrite<T>(
+	userId: string,
+	operation: NoteAIWriteOperation | undefined,
+	write: (db: Prisma.TransactionClient) => Promise<T>
+): Promise<T> {
+	if (operation && operation.userId !== userId) {
+		throw new Error("Note operation does not belong to this user.");
+	}
+	return operation ? withNoteAIWrite(operation, write) : write(prisma);
+}
 
 export interface AppendToNoteResult {
 	noteId: string;
@@ -128,6 +141,7 @@ export async function appendMarkdownToNote(options: {
 	 * same content in two differently titled notes.
 	 */
 	matchExistingTitle?: boolean;
+	operation?: NoteAIWriteOperation;
 }): Promise<AppendToNoteResult> {
 	const markdown = options.markdown.slice(
 		0,
@@ -140,97 +154,98 @@ export async function appendMarkdownToNote(options: {
 	const appendedPlainText = htmlToPlainText(appendedHtml);
 
 	const requestedTitle = options.title?.trim();
-	const matchedNote =
-		!options.noteId && requestedTitle && options.matchExistingTitle
-			? await findNoteMatchingTitle(options.userId, requestedTitle)
-			: null;
-	const targetNoteId = options.noteId || matchedNote?.id;
+	const written = await withNoteWrite(options.userId, options.operation, async (db) => {
+		const linkDb = options.operation ? db : undefined;
+		const matchedNote =
+			!options.noteId && requestedTitle && options.matchExistingTitle
+				? await findNoteMatchingTitle(options.userId, requestedTitle, db)
+				: null;
+		const targetNoteId = options.noteId || matchedNote?.id;
 
-	if (targetNoteId) {
-		const note = await prisma.note.findFirst({
-			where: { id: targetNoteId, userId: options.userId },
-		});
-		if (!note) {
-			throw new Error("Note not found.");
+		if (targetNoteId) {
+			const note = await db.note.findFirst({
+				where: { id: targetNoteId, userId: options.userId },
+			});
+			if (!note) {
+				throw new Error("Note not found.");
+			}
+
+			const htmlContent = note.htmlContent
+				? `${note.htmlContent}\n${appendedHtml}`
+				: appendedHtml;
+			const plainText = note.plainText
+				? `${note.plainText}\n\n${appendedPlainText}`
+				: appendedPlainText;
+
+			await db.note.update({
+				where: { id: note.id },
+				data: {
+					htmlContent,
+					plainText,
+					content: htmlContent,
+					wordCount: countWords(plainText),
+				},
+			});
+			await syncNoteLinks({ userId: options.userId, noteId: note.id, plainText }, linkDb);
+
+			return {
+				result: {
+					noteId: note.id,
+					noteTitle: note.title,
+					appendedHtml,
+					created: false,
+					matchedExisting: matchedNote !== null,
+				},
+				index: { userId: options.userId, noteId: note.id, title: note.title, plainText },
+			};
 		}
 
-		const htmlContent = note.htmlContent
-			? `${note.htmlContent}\n${appendedHtml}`
-			: appendedHtml;
-		const plainText = note.plainText
-			? `${note.plainText}\n\n${appendedPlainText}`
-			: appendedPlainText;
-
-		await prisma.note.update({
-			where: { id: note.id },
+		const title = requestedTitle || "Note from SureWord";
+		const note = await db.note.create({
 			data: {
-				htmlContent,
-				plainText,
-				content: htmlContent,
-				wordCount: countWords(plainText),
+				userId: options.userId,
+				title,
+				content: appendedHtml,
+				htmlContent: appendedHtml,
+				plainText: appendedPlainText,
+				wordCount: countWords(appendedPlainText),
 			},
 		});
-		await syncNoteEmbeddings({
+		await syncNoteLinks({
 			userId: options.userId,
 			noteId: note.id,
-			title: note.title,
-			plainText,
-		});
-		await syncNoteLinks({ userId: options.userId, noteId: note.id, plainText });
+			plainText: appendedPlainText,
+		}, linkDb);
+		await resolvePendingLinks({
+			userId: options.userId,
+			noteId: note.id,
+			title,
+			aliases: note.aliases,
+		}, linkDb);
 
 		return {
-			noteId: note.id,
-			noteTitle: note.title,
-			appendedHtml,
-			created: false,
-			matchedExisting: matchedNote !== null,
+			result: {
+				noteId: note.id,
+				noteTitle: note.title,
+				appendedHtml,
+				created: true,
+				matchedExisting: false,
+			},
+			index: { userId: options.userId, noteId: note.id, title, plainText: appendedPlainText },
 		};
-	}
-
-	const title = requestedTitle || "Note from SureWord";
-	const note = await prisma.note.create({
-		data: {
-			userId: options.userId,
-			title,
-			content: appendedHtml,
-			htmlContent: appendedHtml,
-			plainText: appendedPlainText,
-			wordCount: countWords(appendedPlainText),
-		},
 	});
-	await syncNoteEmbeddings({
-		userId: options.userId,
-		noteId: note.id,
-		title,
-		plainText: appendedPlainText,
-	});
-	await syncNoteLinks({
-		userId: options.userId,
-		noteId: note.id,
-		plainText: appendedPlainText,
-	});
-	await resolvePendingLinks({
-		userId: options.userId,
-		noteId: note.id,
-		title,
-		aliases: note.aliases,
-	});
-
-	return {
-		noteId: note.id,
-		noteTitle: note.title,
-		appendedHtml,
-		created: true,
-		matchedExisting: false,
-	};
+	// Embedding generation does network I/O and must start after the fence commits.
+	await syncNoteEmbeddings(written.index);
+	return written.result;
 }
 
 /** The user's existing note whose title a new-note request duplicates, if any. */
 async function findNoteMatchingTitle(
 	userId: string,
-	title: string
+	title: string,
+	db: Prisma.TransactionClient
 ): Promise<{ id: string; title: string } | null> {
-	const candidates = await prisma.note.findMany({
+	const candidates = await db.note.findMany({
 		where: { userId },
 		orderBy: { updatedAt: "desc" },
 		take: TITLE_MATCH_CANDIDATE_LIMIT,
@@ -312,12 +327,13 @@ export class FolderNotFoundError extends Error {
  */
 export async function resolveOwnedFolderId(
 	userId: string,
-	folderId: unknown
+	folderId: unknown,
+	db: Prisma.TransactionClient = prisma
 ): Promise<string | null | undefined> {
 	if (folderId === undefined) return undefined;
 	if (folderId === null || folderId === "") return null;
 	if (typeof folderId !== "string") throw new FolderNotFoundError();
-	const folder = await prisma.folder.findFirst({ where: { id: folderId, userId }, select: { id: true } });
+	const folder = await db.folder.findFirst({ where: { id: folderId, userId }, select: { id: true } });
 	if (!folder) throw new FolderNotFoundError();
 	return folder.id;
 }
@@ -351,10 +367,37 @@ export async function patchUserNote(
 		 * route passes waitUntil so a slow sync never holds the response.
 		 */
 		deferEmbeddings?: (task: Promise<void>) => void;
+		operation?: NoteAIWriteOperation;
 	} = {}
 ) {
-	const folderId = await resolveOwnedFolderId(userId, patch.folderId);
-	const note = await prisma.note.update({
+	const note = await withNoteWrite(userId, options.operation, (db) =>
+		patchUserNoteWithClient(db, userId, noteId, patch, options.operation ? db : undefined)
+	);
+	// A failed sync only degrades AI note search, so it may run off the
+	// response path when the caller allows it. Never start it inside the fence.
+	if (patch.title !== undefined || patch.plainText !== undefined) {
+		const sync = syncNoteEmbeddings({
+			userId,
+			noteId: note.id,
+			title: note.title,
+			plainText: note.plainText,
+		});
+		if (options.deferEmbeddings) options.deferEmbeddings(sync);
+		else await sync;
+	}
+	return note;
+}
+
+/** Canonical patch + links only, so organize can use its already fenced client. */
+async function patchUserNoteWithClient(
+	db: Prisma.TransactionClient,
+	userId: string,
+	noteId: string,
+	patch: NotePatch,
+	linkDb?: Prisma.TransactionClient
+) {
+	const folderId = await resolveOwnedFolderId(userId, patch.folderId, db);
+	const note = await db.note.update({
 		where: { id: noteId, userId },
 		data: {
 			...(patch.title !== undefined && { title: patch.title }),
@@ -369,10 +412,10 @@ export async function patchUserNote(
 		},
 		include: { tags: { include: { tag: true } } },
 	});
-	// Awaited, unlike the embeddings below: the editor re-reads links right
-	// after a save, so a deferred sync would show the previous set.
+	// Always awaited: the editor re-reads links right after a save, so a
+	// deferred sync would show the previous set.
 	if (patch.plainText !== undefined) {
-		await syncNoteLinks({ userId, noteId: note.id, plainText: note.plainText });
+		await syncNoteLinks({ userId, noteId: note.id, plainText: note.plainText }, linkDb);
 	}
 	// A rename or a new alias can only resolve links, never unresolve them.
 	if (patch.title !== undefined || patch.aliases !== undefined) {
@@ -381,19 +424,7 @@ export async function patchUserNote(
 			noteId: note.id,
 			title: note.title,
 			aliases: note.aliases,
-		});
-	}
-	// A failed sync only degrades AI note search, so it may run off the
-	// response path when the caller allows it.
-	if (patch.title !== undefined || patch.plainText !== undefined) {
-		const sync = syncNoteEmbeddings({
-			userId,
-			noteId: note.id,
-			title: note.title,
-			plainText: note.plainText,
-		});
-		if (options.deferEmbeddings) options.deferEmbeddings(sync);
-		else await sync;
+		}, linkDb);
 	}
 	return note;
 }
@@ -431,6 +462,7 @@ export async function organizeUserNote(options: {
 	folderName?: string;
 	tags?: readonly string[];
 	pinned?: boolean;
+	operation?: NoteAIWriteOperation;
 }): Promise<OrganizeNoteResult> {
 	const { userId, noteId } = options;
 	// Models send empty strings for fields they mean to omit.
@@ -446,99 +478,112 @@ export async function organizeUserNote(options: {
 		throw new Error("Nothing to change: pass a title, folderName, tags, or pinned.");
 	}
 
-	const owned = await prisma.note.findFirst({ where: { id: noteId, userId }, select: { id: true } });
-	if (!owned) {
-		throw new Error("Note not found.");
-	}
+	const written = await withNoteWrite(userId, options.operation, async (db) => {
+		const owned = await db.note.findFirst({ where: { id: noteId, userId }, select: { id: true } });
+		if (!owned) {
+			throw new Error("Note not found.");
+		}
 
-	let folderId: string | undefined;
-	let createdFolder = false;
-	if (folderName) {
-		const folder = await prisma.folder.findFirst({
-			where: { userId, name: { equals: folderName, mode: "insensitive" } },
-			orderBy: { sortOrder: "asc" },
-			select: { id: true },
-		});
-		if (folder) {
-			folderId = folder.id;
-		} else {
-			// Appended last, the way POST /api/folders orders a new folder.
-			const count = await prisma.folder.count({ where: { userId } });
-			const created = await prisma.folder.create({
-				data: { userId, name: folderName, sortOrder: count },
+		let folderId: string | undefined;
+		let createdFolder = false;
+		if (folderName) {
+			const folder = await db.folder.findFirst({
+				where: { userId, name: { equals: folderName, mode: "insensitive" } },
+				orderBy: { sortOrder: "asc" },
 				select: { id: true },
 			});
-			folderId = created.id;
-			createdFolder = true;
-		}
-	}
-
-	const createdTags: string[] = [];
-	if (tagNames.length > 0) {
-		const existing = await prisma.tag.findMany({
-			where: {
-				userId,
-				OR: tagNames.map((name) => ({ name: { equals: name, mode: "insensitive" as const } })),
-			},
-			orderBy: { createdAt: "asc" },
-			select: { id: true, name: true },
-		});
-		const idByName = new Map<string, string>();
-		for (const tag of existing) {
-			const key = tag.name.toLowerCase();
-			if (!idByName.has(key)) idByName.set(key, tag.id);
-		}
-		const tagIds: string[] = [];
-		for (const name of tagNames) {
-			let tagId = idByName.get(name.toLowerCase());
-			if (!tagId) {
-				const created = await prisma.tag.create({
-					data: { userId, name, color: DEFAULT_TAG_COLOR },
+			if (folder) {
+				folderId = folder.id;
+			} else {
+				// Appended last, the way POST /api/folders orders a new folder.
+				const count = await db.folder.count({ where: { userId } });
+				const created = await db.folder.create({
+					data: { userId, name: folderName, sortOrder: count },
 					select: { id: true },
 				});
-				tagId = created.id;
-				createdTags.push(name);
+				folderId = created.id;
+				createdFolder = true;
 			}
-			tagIds.push(tagId);
 		}
-		await prisma.noteTag.createMany({
-			data: tagIds.map((tagId) => ({ noteId, tagId })),
-			skipDuplicates: true,
+
+		const createdTags: string[] = [];
+		if (tagNames.length > 0) {
+			const existing = await db.tag.findMany({
+				where: {
+					userId,
+					OR: tagNames.map((name) => ({ name: { equals: name, mode: "insensitive" as const } })),
+				},
+				orderBy: { createdAt: "asc" },
+				select: { id: true, name: true },
+			});
+			const idByName = new Map<string, string>();
+			for (const tag of existing) {
+				const key = tag.name.toLowerCase();
+				if (!idByName.has(key)) idByName.set(key, tag.id);
+			}
+			const tagIds: string[] = [];
+			for (const name of tagNames) {
+				let tagId = idByName.get(name.toLowerCase());
+				if (!tagId) {
+					const created = await db.tag.create({
+						data: { userId, name, color: DEFAULT_TAG_COLOR },
+						select: { id: true },
+					});
+					tagId = created.id;
+					createdTags.push(name);
+				}
+				tagIds.push(tagId);
+			}
+			await db.noteTag.createMany({
+				data: tagIds.map((tagId) => ({ noteId, tagId })),
+				skipDuplicates: true,
+			});
+		}
+
+		const patch: NotePatch = {
+			...(title !== undefined && { title }),
+			...(folderId !== undefined && { folderId }),
+			...(options.pinned !== undefined && { isPinned: options.pinned }),
+		};
+		let index: Parameters<typeof syncNoteEmbeddings>[0] | undefined;
+		if (Object.keys(patch).length > 0) {
+			const patched = await patchUserNoteWithClient(
+				db, userId, noteId, patch, options.operation ? db : undefined
+			);
+			if (title !== undefined) {
+				index = { userId, noteId, title: patched.title, plainText: patched.plainText };
+			}
+		}
+
+		const note = await db.note.findFirst({
+			where: { id: noteId, userId },
+			select: {
+				id: true,
+				title: true,
+				isPinned: true,
+				folder: { select: { name: true } },
+				tags: { select: { tag: { select: { name: true } } } },
+			},
 		});
-	}
-
-	const patch: NotePatch = {
-		...(title !== undefined && { title }),
-		...(folderId !== undefined && { folderId }),
-		...(options.pinned !== undefined && { isPinned: options.pinned }),
-	};
-	if (Object.keys(patch).length > 0) {
-		await patchUserNote(userId, noteId, patch);
-	}
-
-	const note = await prisma.note.findFirst({
-		where: { id: noteId, userId },
-		select: {
-			id: true,
-			title: true,
-			isPinned: true,
-			folder: { select: { name: true } },
-			tags: { select: { tag: { select: { name: true } } } },
-		},
+		if (!note) {
+			throw new Error("Note not found.");
+		}
+		return {
+			result: {
+				success: true as const,
+				noteId: note.id,
+				title: note.title,
+				folder: note.folder?.name ?? null,
+				tags: note.tags.map((noteTag) => noteTag.tag.name),
+				pinned: note.isPinned,
+				createdFolder,
+				createdTags,
+			},
+			index,
+		};
 	});
-	if (!note) {
-		throw new Error("Note not found.");
-	}
-	return {
-		success: true,
-		noteId: note.id,
-		title: note.title,
-		folder: note.folder?.name ?? null,
-		tags: note.tags.map((noteTag) => noteTag.tag.name),
-		pinned: note.isPinned,
-		createdFolder,
-		createdTags,
-	};
+	if (written.index) await syncNoteEmbeddings(written.index);
+	return written.result;
 }
 
 export interface RewriteNoteResult {
@@ -559,6 +604,7 @@ export async function rewriteNote(options: {
 	noteId: string;
 	markdown: string;
 	title?: string;
+	operation?: NoteAIWriteOperation;
 }): Promise<RewriteNoteResult> {
 	const markdown = options.markdown.slice(0, MAX_REWRITE_MARKDOWN_LENGTH);
 	const htmlContent = markdownToNoteHtml(markdown);
@@ -567,61 +613,63 @@ export async function rewriteNote(options: {
 	}
 	const plainText = htmlToPlainText(htmlContent);
 
-	const note = await prisma.note.findFirst({
-		where: { id: options.noteId, userId: options.userId },
-		select: {
-			id: true,
-			title: true,
-			aliases: true,
-			wordCount: true,
-			htmlContent: true,
-			plainText: true,
-		},
-	});
-	if (!note) {
-		throw new Error("Note not found.");
-	}
-	// readNote truncates very long notes, so a rewrite based on that read would
-	// silently drop the tail. Refuse rather than destroy content.
-	if ((note.htmlContent || note.plainText).length > MAX_READ_CONTENT_LENGTH) {
-		throw new Error(
-			"This note is too long to rewrite safely in one pass. Use addToNote for additions, or ask the user to split the note."
-		);
-	}
-
-	const title = options.title?.trim() || note.title;
-	await prisma.note.update({
-		where: { id: note.id },
-		data: {
-			title,
-			htmlContent,
-			plainText,
-			content: htmlContent,
-			wordCount: countWords(plainText),
-		},
-	});
-	await syncNoteEmbeddings({
-		userId: options.userId,
-		noteId: note.id,
-		title,
-		plainText,
-	});
-	await syncNoteLinks({ userId: options.userId, noteId: note.id, plainText });
-	if (title !== note.title) {
-		await resolvePendingLinks({
-			userId: options.userId,
-			noteId: note.id,
-			title,
-			aliases: note.aliases,
+	const written = await withNoteWrite(options.userId, options.operation, async (db) => {
+		const linkDb = options.operation ? db : undefined;
+		const note = await db.note.findFirst({
+			where: { id: options.noteId, userId: options.userId },
+			select: {
+				id: true,
+				title: true,
+				aliases: true,
+				wordCount: true,
+				htmlContent: true,
+				plainText: true,
+			},
 		});
-	}
+		if (!note) {
+			throw new Error("Note not found.");
+		}
+		// readNote truncates very long notes, so a rewrite based on that read would
+		// silently drop the tail. Refuse rather than destroy content.
+		if ((note.htmlContent || note.plainText).length > MAX_READ_CONTENT_LENGTH) {
+			throw new Error(
+				"This note is too long to rewrite safely in one pass. Use addToNote for additions, or ask the user to split the note."
+			);
+		}
 
-	return {
-		noteId: note.id,
-		noteTitle: title,
-		previousWordCount: note.wordCount,
-		wordCount: countWords(plainText),
-	};
+		const title = options.title?.trim() || note.title;
+		await db.note.update({
+			where: { id: note.id },
+			data: {
+				title,
+				htmlContent,
+				plainText,
+				content: htmlContent,
+				wordCount: countWords(plainText),
+			},
+		});
+		await syncNoteLinks({ userId: options.userId, noteId: note.id, plainText }, linkDb);
+		if (title !== note.title) {
+			await resolvePendingLinks({
+				userId: options.userId,
+				noteId: note.id,
+				title,
+				aliases: note.aliases,
+			}, linkDb);
+		}
+
+		return {
+			result: {
+				noteId: note.id,
+				noteTitle: title,
+				previousWordCount: note.wordCount,
+				wordCount: countWords(plainText),
+			},
+			index: { userId: options.userId, noteId: note.id, title, plainText },
+		};
+	});
+	await syncNoteEmbeddings(written.index);
+	return written.result;
 }
 
 export interface NoteSummary {

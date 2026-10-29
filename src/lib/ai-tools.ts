@@ -30,6 +30,7 @@ import {
 	type RewriteNoteResult,
 } from "@/lib/notes-io";
 import { NOTE_HOUSE_STYLE } from "@/utils/noteHouseStyle";
+import type { NoteAIWriteOperation } from "@/lib/note-ai-operations";
 import { getChapter, getVerseText, type TranslationId } from "@/lib/bible/translations";
 import { HIGHLIGHT_COLORS } from "@/lib/highlights";
 import {
@@ -517,6 +518,8 @@ export interface HighlightsToolOutput {
 }
 
 export interface SureWordToolContext extends ReadingToolContext, AgentActionContext {
+	/** Durable note-panel execution fence; absent on legacy clients and chat. */
+	noteOperation?: NoteAIWriteOperation;
 	/** Check every generated prose field before any note or study write. */
 	verifyGeneratedContent?: VerifyGeneratedContent;
 	/** Discovered server-owned study IDs; never supplied by the client. */
@@ -1283,6 +1286,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 			if (!verified) throw new Error(GENERATED_WRITE_VERIFICATION_ERROR);
 			return appendMarkdownToNote({
 				userId: context.userId,
+				...(context.noteOperation ? { operation: context.noteOperation } : {}),
 				markdown: verified[0].text,
 				noteId: targetNoteId,
 				title: verified[1]?.text,
@@ -1341,7 +1345,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 				...(title === undefined ? [] : [{ id: "title", text: title }]),
 			], "updateNote");
 			if (!verified) throw new Error(GENERATED_WRITE_VERIFICATION_ERROR);
-			return rewriteNote({ userId: context.userId, noteId: targetNoteId, markdown: verified[0].text, title: verified[1]?.text });
+			return rewriteNote({ userId: context.userId, ...(context.noteOperation ? { operation: context.noteOperation } : {}), noteId: targetNoteId, markdown: verified[0].text, title: verified[1]?.text });
 		},
 	});
 
@@ -1687,7 +1691,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 				...(tags ?? []).map((text, index) => ({ id: `tags.${index}`, text })),
 			];
 			// Pinning alone has no generated prose to verify.
-			if (!blocks.length) return organizeUserNote({ userId: context.userId, noteId: targetNoteId, title, folderName, tags, pinned });
+			if (!blocks.length) return organizeUserNote({ userId: context.userId, ...(context.noteOperation ? { operation: context.noteOperation } : {}), noteId: targetNoteId, title, folderName, tags, pinned });
 			const verified = await verifyGeneratedWriteBlocks(context.verifyGeneratedContent, blocks, "organizeNote");
 			if (!verified) throw new Error(GENERATED_WRITE_VERIFICATION_ERROR);
 			const text = new Map(verified.map(block => [block.id, block.text]));
@@ -1701,7 +1705,7 @@ export function buildSureWordTools(context: SureWordToolContext) {
 				tags: tags?.map((_, index) => text.get(`tags.${index}`)),
 			});
 			if (!checked.success) throw new Error(GENERATED_WRITE_VERIFICATION_ERROR);
-			return organizeUserNote({ userId: context.userId, noteId: targetNoteId, ...checked.data, pinned });
+			return organizeUserNote({ userId: context.userId, ...(context.noteOperation ? { operation: context.noteOperation } : {}), noteId: targetNoteId, ...checked.data, pinned });
 		},
 	});
 

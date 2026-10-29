@@ -54,6 +54,7 @@ import {
 	readStoredTestimony,
 } from "@/lib/preferences-contract";
 import { loadHighlightLegend } from "@/lib/highlight-legend";
+import { claimNoteAIOperation, noteAIOperationId, noteAIRequestHash, settleNoteAIOperation, withNoteAIHistory, NoteAIOperationError, type NoteAIWriteOperation } from "@/lib/note-ai-operations";
 import {
 	formatAboutMeBlock,
 	formatHighlightLegendBlock,
@@ -102,51 +103,58 @@ async function persistExchange(options: {
 	noteId: string;
 	userMessage: UIMessage;
 	responseMessage: UIMessage;
+	operation?: NoteAIWriteOperation;
 }): Promise<void> {
 	if (!hasPersistableContent(options.responseMessage)) return;
 	try {
-		const note = await prisma.note.findFirst({
-			where: { id: options.noteId, userId: options.userId },
-			select: { id: true },
-		});
-		if (!note) return;
+		const saved = await withNoteAIHistory(options.operation, async db => {
+			const note = await db.note.findFirst({
+				where: { id: options.noteId, userId: options.userId },
+				select: { id: true },
+			});
+			if (!note) return false;
 
-		const userText = extractText(options.userMessage);
-		const assistantText = extractAssistantText(options.responseMessage);
+			const userText = extractText(options.userMessage);
+			const assistantText = extractAssistantText(options.responseMessage);
 
-		if (userText) {
-			await prisma.noteAIMessage.upsert({
-				where: { id: options.userMessage.id },
-				update: {},
+			if (userText) {
+				await db.noteAIMessage.upsert({
+					where: { id: options.userMessage.id },
+					update: {},
+					create: {
+						id: options.userMessage.id,
+						noteId: note.id,
+						role: "user",
+						content: userText,
+					},
+				});
+			}
+
+			const metadataJson = JSON.parse(
+				JSON.stringify({ parts: persistableParts(options.responseMessage.parts) })
+			);
+
+			// Belt-and-braces: never upsert with an empty id (see generateMessageId).
+			const responseMessageId = options.responseMessage.id.trim()
+				? options.responseMessage.id
+				: generateMessageId();
+
+			await db.noteAIMessage.upsert({
+				where: { id: responseMessageId },
+				update: { content: assistantText, metadata: metadataJson },
 				create: {
-					id: options.userMessage.id,
+					id: responseMessageId,
 					noteId: note.id,
-					role: "user",
-					content: userText,
+					role: "assistant",
+					content: assistantText,
+					metadata: metadataJson,
 				},
 			});
-		}
-
-		const metadataJson = JSON.parse(
-			JSON.stringify({ parts: persistableParts(options.responseMessage.parts) })
-		);
-
-		// Belt-and-braces: never upsert with an empty id (see generateMessageId).
-		const responseMessageId = options.responseMessage.id.trim()
-			? options.responseMessage.id
-			: generateMessageId();
-
-		await prisma.noteAIMessage.upsert({
-			where: { id: responseMessageId },
-			update: { content: assistantText, metadata: metadataJson },
-			create: {
-				id: responseMessageId,
-				noteId: note.id,
-				role: "assistant",
-				content: assistantText,
-				metadata: metadataJson,
-			},
-		});
+			return true;
+		}, true);
+		if (!saved.accepted || !saved.value) return;
+		const userText = extractText(options.userMessage);
+		const assistantText = extractAssistantText(options.responseMessage);
 		await recordDeliveredActionProposal(options.userId, `note:${options.noteId}`, options.userMessage.id, assistantText, options.responseMessage.parts);
 
 		if (userText && !usedMemoryTools(options.responseMessage.parts)) {
@@ -164,6 +172,7 @@ export const POST = withIncludedAiRequest(handlePost, "note-ai");
 
 async function handlePost(req: Request): Promise<Response> {
 	const readingReceivedAt = new Date();
+	let claimedOperation: NoteAIWriteOperation | undefined;
 	try {
 		const userId = await getAuthUser();
 		const rate = noteAiLimiter.check(userId);
@@ -201,6 +210,9 @@ async function handlePost(req: Request): Promise<Response> {
 				{ status: 404 }
 			);
 		}
+		const operation: NoteAIWriteOperation | undefined = requestData.operationId === undefined ? undefined : {
+			id: noteAIOperationId(requestData.operationId), userId, noteId: note.id,
+		};
 
 		const userPrefs = await prisma.user.findUnique({
 			where: { id: userId },
@@ -232,6 +244,7 @@ async function handlePost(req: Request): Promise<Response> {
 		const readStudyIds = new Set<string>();
 		let contentVerifier: ((blocks: { id: string; text: string }[], purpose: string) => Promise<{ id: string; text: string }[] | null>) | undefined;
 		const tools = buildSureWordTools({ ...readingContext, ...actionContext, knownStudyIds, readStudyIds,
+			noteOperation: operation,
 			verifyGeneratedContent: async (blocks, purpose) => contentVerifier ? contentVerifier(blocks, purpose) : null,
 		});
 
@@ -261,6 +274,10 @@ async function handlePost(req: Request): Promise<Response> {
 		}
 		currentUserText = extractText(lastMessage);
 		currentMessageId = lastMessage.id;
+		if (operation) {
+			await claimNoteAIOperation(operation, noteAIRequestHash(requestData));
+			claimedOperation = operation;
+		}
 
 		if (process.env.SUREWORD_USAGE_ENABLED === "true" && await aiAccessFor(userId) === "house") {
 			await reserveIncludedRequest(userId);
@@ -268,15 +285,19 @@ async function handlePost(req: Request): Promise<Response> {
 
 		// Persist the user turn before tools run. The original server receipt
 		// timestamp anchors relative reading dates on retries across midnight.
-		const existingUserMessage = await prisma.noteAIMessage.findUnique({ where: { id: lastMessage.id }, select: { noteId: true, role: true, metadata: true } });
-		if (existingUserMessage && (existingUserMessage.noteId !== note.id || existingUserMessage.role !== "user")) {
-			throw new UserFacingError("Message ID is already in use.");
-		}
-		const savedUserMessage = await prisma.noteAIMessage.upsert({
-			where: { id: lastMessage.id }, update: {},
-			create: { id: lastMessage.id, noteId: note.id, role: "user", content: extractText(lastMessage), createdAt: readingReceivedAt, metadata: { readingTimezone: readingContext.timezone } },
-			select: { createdAt: true, metadata: true },
+		const savedUserTurn = await withNoteAIHistory(operation, async db => {
+			const existingUserMessage = await db.noteAIMessage.findUnique({ where: { id: lastMessage.id }, select: { noteId: true, role: true, metadata: true } });
+			if (existingUserMessage && (existingUserMessage.noteId !== note.id || existingUserMessage.role !== "user")) {
+				throw new UserFacingError("Message ID is already in use.");
+			}
+			return db.noteAIMessage.upsert({
+				where: { id: lastMessage.id }, update: {},
+				create: { id: lastMessage.id, noteId: note.id, role: "user", content: extractText(lastMessage), createdAt: readingReceivedAt, metadata: { readingTimezone: readingContext.timezone } },
+				select: { createdAt: true, metadata: true },
+			});
 		});
+		if (!savedUserTurn.accepted) throw new NoteAIOperationError(409, "This note request was cancelled.");
+		const savedUserMessage = savedUserTurn.value;
 		const originalReadingMetadata = savedUserMessage.metadata && typeof savedUserMessage.metadata === "object" && !Array.isArray(savedUserMessage.metadata) ? savedUserMessage.metadata : {};
 		readingContext.timezone = readingTimezone("readingTimezone" in originalReadingMetadata ? originalReadingMetadata.readingTimezone : readingContext.timezone);
 		readingReceivedAt.setTime(savedUserMessage.createdAt.getTime());
@@ -307,6 +328,7 @@ async function handlePost(req: Request): Promise<Response> {
 						noteId: note.id,
 						userMessage: lastMessage,
 						responseMessage,
+						operation,
 					})
 				);
 			},
@@ -443,6 +465,9 @@ async function handlePost(req: Request): Promise<Response> {
 					}
 				} finally {
 					clearInterval(statusHeartbeat);
+					// Serializes with every note-writing transaction. Even a provider
+					// still draining after a verification error cannot commit later.
+					if (operation) await settleNoteAIOperation(operation);
 				}
 			},
 		});
@@ -456,7 +481,12 @@ async function handlePost(req: Request): Promise<Response> {
 			})());
 		} });
 	} catch (error) {
+		if (claimedOperation) {
+			try { await settleNoteAIOperation(claimedOperation); }
+			catch { console.error("Note operation settlement failed; recovery must cancel it."); }
+		}
 		if (error instanceof Response) return error;
+		if (error instanceof NoteAIOperationError) return NextResponse.json(chatErrorPayload("invalid_input", error.message), { status: error.status });
 		console.error("Error in note-ai route:", error);
 		if (error instanceof UserFacingError) {
 			return NextResponse.json(chatErrorPayload(error.code, error.message), { status: 400 });

@@ -116,6 +116,7 @@ model User {
   createdAt              DateTime                @default(now())
   conversations          Conversation[]
   notes                  Note[]
+  noteAIOperations       NoteAIOperation[]
   folders                Folder[]
   tags                   Tag[]
   memories               UserMemory[]
@@ -601,6 +602,7 @@ model Note {
   user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   tags          NoteTag[]
   aiMessages    NoteAIMessage[]
+  aiOperations  NoteAIOperation[]
   embeddings    NoteEmbedding[]
   /// Hash of the last successfully indexed title/body and embedding space.
   embeddingSourceHash String?
@@ -737,6 +739,22 @@ model NoteAIMessage {
   createdAt DateTime @default(now())
 
   @@index([noteId])
+}
+
+/// A durable execution fence for a note-panel turn. Kept separately from
+/// conversation history, so clearing messages cannot erase a pending write.
+model NoteAIOperation {
+  id          String   @id
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  noteId      String
+  note        Note     @relation(fields: [noteId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  requestHash String?
+  state       String   @default("reserved") // reserved | running | settled | cancelled
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, noteId, createdAt])
 }
 
 /// Expo push token registered by the mobile app, with the delivery preference

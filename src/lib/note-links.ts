@@ -16,8 +16,9 @@ import { prisma } from "@/lib/prisma";
  * Renaming a note never unresolves an existing link; deleting the target
  * unresolves it through the FK's ON DELETE SET NULL.
  *
- * Like syncNoteEmbeddings, every sync here is best-effort: a failure only
- * degrades links and must never fail the note write that triggered it.
+ * Standalone syncs are best-effort. A caller that supplies a transaction
+ * includes links in its canonical write: errors must escape so an aborted
+ * transaction cannot return a successful note-write receipt.
  */
 
 /** Bounds one INSERT for a pathological note; ordinary notes hold a handful. */
@@ -108,17 +109,24 @@ export async function syncNoteLinks(note: {
 	userId: string;
 	noteId: string;
 	plainText: string;
-}): Promise<void> {
-	try {
+}, transaction?: Prisma.TransactionClient): Promise<void> {
+	const sync = async () => {
+		const db = transaction ?? prisma;
+		// Transaction-scoped for Neon's transaction pool. Cast void to text so
+		// Prisma can deserialize the advisory lock query's result.
+		const lock = (client: Prisma.TransactionClient) => client.$queryRaw`
+			SELECT pg_advisory_xact_lock(${NOTE_LINK_LOCK_NAMESPACE}::int4, ${advisoryLockKey(note.noteId)}::int4)::text
+		`;
+		if (transaction) await lock(transaction);
 		const links = parseWikilinks(note.plainText);
 		if (links.length === 0) {
-			await prisma.noteLink.deleteMany({ where: { sourceNoteId: note.noteId } });
+			await db.noteLink.deleteMany({ where: { sourceNoteId: note.noteId } });
 			return;
 		}
 
 		// Only notes that actually contain wikilinks pay for this scan, which is
 		// why the empty case returns above rather than falling through.
-		const candidates = await prisma.note.findMany({
+		const candidates = await db.note.findMany({
 			where: { userId: note.userId },
 			select: { id: true, title: true, aliases: true, updatedAt: true },
 		});
@@ -144,26 +152,31 @@ export async function syncNoteLinks(note: {
 			)
 		);
 
-		await prisma.$transaction([
-			// Transaction-scoped on purpose: it is released at commit, so it is
-			// safe over the pooled (transaction-pooling) Neon connection, which a
-			// session-scoped advisory lock would not be. The ::text cast matters:
-			// pg_advisory_xact_lock returns void, which $queryRaw cannot
-			// deserialize (P2010), and the whole sync dies in its catch.
-			prisma.$queryRaw`SELECT pg_advisory_xact_lock(${NOTE_LINK_LOCK_NAMESPACE}::int4, ${advisoryLockKey(note.noteId)}::int4)::text`,
-			prisma.$executeRaw`
+		const upsert = (client: Prisma.TransactionClient) => client.$executeRaw`
 				INSERT INTO "NoteLink" ("id","sourceNoteId","targetNoteId","targetKey","targetTitle","snippet","userId")
 				VALUES ${values}
 				ON CONFLICT ("sourceNoteId","targetKey") DO UPDATE SET
 					"targetNoteId" = EXCLUDED."targetNoteId",
 					"targetTitle" = EXCLUDED."targetTitle",
 					"snippet" = EXCLUDED."snippet"
-			`,
-			prisma.$executeRaw`
+			`;
+		const removeStale = (client: Prisma.TransactionClient) => client.$executeRaw`
 				DELETE FROM "NoteLink"
 				WHERE "sourceNoteId" = ${note.noteId} AND "targetKey" NOT IN (${Prisma.join(keys)})
-			`,
-		]);
+			`;
+		if (transaction) {
+			await upsert(transaction);
+			await removeStale(transaction);
+		} else {
+			await prisma.$transaction([lock(prisma), upsert(prisma), removeStale(prisma)]);
+		}
+	};
+	if (transaction) {
+		await sync();
+		return;
+	}
+	try {
+		await sync();
 	} catch (error) {
 		console.error(`Failed to sync note links for ${note.noteId}:`, error);
 	}
@@ -179,17 +192,24 @@ export async function resolvePendingLinks(note: {
 	noteId: string;
 	title: string;
 	aliases: string[];
-}): Promise<void> {
-	try {
+}, transaction?: Prisma.TransactionClient): Promise<void> {
+	const resolve = async () => {
 		const keys = [note.title, ...note.aliases]
 			.map((name) => name.trim().toLowerCase())
 			.filter(Boolean);
 		if (keys.length === 0) return;
 
-		await prisma.noteLink.updateMany({
+		await (transaction ?? prisma).noteLink.updateMany({
 			where: { userId: note.userId, targetNoteId: null, targetKey: { in: keys } },
 			data: { targetNoteId: note.noteId },
 		});
+	};
+	if (transaction) {
+		await resolve();
+		return;
+	}
+	try {
+		await resolve();
 	} catch (error) {
 		console.error(`Failed to resolve pending links for ${note.noteId}:`, error);
 	}
