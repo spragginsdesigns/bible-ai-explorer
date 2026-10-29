@@ -98,12 +98,12 @@ approved SureWord. [Gmail scopes](https://developers.google.com/workspace/gmail/
 
 All credentials are server-only. The existing AES-256-GCM helper requires
 `CREDENTIAL_ENCRYPTION_KEY`; production has that variable, while the local shell
-does not. Google, TickTick and Todoist credential pairs have been staged as six
+does not. Google, TickTick, Todoist and Notion credential pairs have been staged as eight
 production Secret variables. Values remain in ignored local storage and the
 server environment; they are never included in committed evidence.
 
 `node scripts/connections/stage-env.mjs --provider=google --provider=ticktick
---provider=todoist` reports a names-only plan. Add `--apply` to stage absent
+--provider=todoist --provider=notion` reports a names-only plan. Add `--apply` to stage absent
 credentials without overwriting existing ones. This command never enables or
 deploys the subsystem. `register-todoist.mjs` defaults to a registration plan;
 its `--apply` mode retains a private recovery receipt and refuses to retry an
@@ -196,8 +196,10 @@ saved records. Account deletion cascades all four new models.
 - Notion's owner accepted Developer Terms and created the public OAuth connection
   `408d872b-594c-8187-bbc8-003799cf665f` with the exact callback. Saved capabilities
   are Read content and Insert content; Update content and both comment permissions
-  are off. No user information is selected. The masked client secret needs an
-  owner refresh before secure capture/staging. Logo upload remains unfinished
+  are off. No user information is selected. The owner supplied the client secret
+  and explicitly authorized retaining it; the credential pair is staged as
+  production Secrets. A live grant has not validated the supplied pair yet.
+  Logo upload remains unfinished
   after the browser file chooser failed. Marketplace listing is unpublished.
 - Microsoft's portal rejected the saved personal account because it lacks access
   to an organization tenant. Organization-owner sign-in and verified publisher
