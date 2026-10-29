@@ -7,6 +7,26 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
+## Private GPT-Live Pro trial, 2026-10-29
+
+The isolated `codex/sureword-gpt-live-pro` worktree adds an opt-in browser
+prototype at `/voice-preview`. It delegates speech to the existing chat backend
+and retains canonical messages, memory and tools. Pro checks and server-owned
+session/daily/monthly time limits apply. It uses a separate Neon branch and
+does not change the released apps or production configuration.
+
+| Client | Trial status |
+| --- | --- |
+| Web | Private prototype; synthetic real-provider audio round trip and narrow layout checked |
+| Android | Not implemented; Android acceptance remains the first native release gate |
+| iOS | Not implemented or verified |
+| macOS | Not implemented or verified |
+
+This feature has **not** passed native parity, microphone/device acceptance
+or blind-user usability. See [the trial runbook](voice/README.md) for architecture,
+limits, setup, evidence and remaining release gates. The existing released
+voice-message feature and Apple acceptance receipts below are separate work.
+
 ## Apple release submission, 2026-10-29
 
 Austin requested: **"ship it and submit to app store etc"**. App Store Connect
