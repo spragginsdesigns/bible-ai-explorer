@@ -411,6 +411,40 @@ through the normal Gatekeeper path.
 
 ## Status
 
+### Accepted simulator gate for this parity goal, 2026-10-29
+
+Austin clarified: **“Goal doesn't need physical real devices just emulators to
+pass.”** This overrides the physical-iPhone requirement for this Apple parity
+takeover. Simulator/native test acceptance is sufficient for the engineering
+goal; hardware checks and App Store review/approval remain separate release
+status, not blockers to this goal.
+
+The unchanged Apple implementation has passing evidence:
+
+- Signed SW-C1 suite: **962 total, 961 passed, one skipped, zero failed**.
+  The skip is an opt-in membership screenshot utility, not a failed check.
+- Bundled Atlas simulator UI: **three passed**, covering Timeline, People,
+  family/journey/trace, Places, reader handoffs and Back behavior.
+- Real reviewer simulator acceptance: **one passed**, verifying account identity,
+  ASV across tab return and normal relaunch, then restoring KJV.
+- Final reader/audio simulator UI: **three passed, zero failed**.
+- Clean installed Mac acceptance: disclosure crash regression, footer sizing
+  through navigation and an eight-line draft, and long Atlas/reader navigation
+  passed. The notarized **1.30.0 (39)** DMG is published and download-verified.
+
+**Result: PASS. The engineering goal is complete under the accepted simulator
+gate.**
+
+The corresponding receipts are `ios-offline-notification-unit-final-summary.json`,
+`ios-atlas-ui-acceptance-6.xcresult`,
+`ios-authenticated-translation-final-summary.json`,
+`mac-footer-width-fix-safe-receipt.json` and
+`mac-atlas-clean-final-readback.json` under
+`/tmp/sureword-parity-takeover/`. No physical APNs, camera, audio, or sandbox
+purchase result is inferred from simulator results. iOS **1.30.0 (2)** is
+uploaded and attached to the prepared App Store draft; it has not been submitted
+or publicly released. The Android backlinks task remains outside this goal.
+
 ### Reviewer authentication and Mac follow-up, 2026-10-29
 
 The earlier credential and sign-in handoffs are resolved. Production Clerk

@@ -193,6 +193,13 @@ and the relevant route tests.
 
 ## 6. Verification protocol (applies to every requirement)
 
+**Scoped acceptance override, 2026-10-29:** Austin explicitly accepts emulator
+checks for the Apple parity takeover: “Goal doesn't need physical real devices
+just emulators to pass.” Step 3 below does not block that engineering goal.
+Keep hardware behavior, App Store review and public availability reported
+separately; simulator success is not a claim that hardware testing occurred.
+This override does not change the verification protocol for unrelated work.
+
 1. Gate: `cd macos && xcodegen && xcodebuild -scheme SureWord-iOS -destination 'platform=iOS Simulator,name=iPhone 18 Pro' -derivedDataPath build-<lane>.noindex test` green, plus macOS `-scheme SureWord` build green for any `Shared/` change (do not break macOS).
 2. Run the feature in the simulator signed in as the reviewer demo account against production; capture screenshots into `docs/ios/evidence/<id>/`.
 3. For anything involving audio, notifications, camera, haptics, sign-in with Apple/Google, StoreKit or APNs: a real iPhone run by Austin or on a connected device. These are release gates, not optional.
