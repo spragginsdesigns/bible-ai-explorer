@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { ANSWER_READY_TITLE, webPushTapUrl } from "@/lib/push-routing";
+import { ANSWER_READY_TITLE, notificationArtFor, webPushTapUrl } from "@/lib/push-routing";
 import {
 	adoptPhoneHour,
 	DEFAULT_WEB_NOTIFICATION_SETTINGS,
@@ -424,13 +424,14 @@ export function notifyAnswerReady(opts: { conversationId: string; title?: string
 		return;
 	}
 	const title = ANSWER_READY_TITLE;
+	// The answer's own art, as the server push carries.
+	const art = notificationArtFor({ screen: "chat" });
 	// `image` is real in Chromium but missing from TypeScript's DOM types.
 	const options: NotificationOptions & { image?: string } = {
 		body: opts.title?.trim() || "Tap to read it in SureWord.",
 		tag: `chat-${opts.conversationId}`,
-		// The answer's own art, as the server push carries (notificationArtFor).
-		icon: "/notifications/answer-mark.jpg",
-		image: "/notifications/answer-wide.jpg",
+		icon: art?.icon,
+		image: art?.image,
 	};
 	try {
 		const notification = new Notification(title, options);

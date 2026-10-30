@@ -16,8 +16,11 @@ enum NotificationArt: String, CaseIterable, Sendable {
     case answer
 
     /// The `screen` every SureWord notification carries for tap routing.
+    /// Like `NotificationTapTarget`, it reads Expo's nesting under "body" as
+    /// well as the top level (that type is not extension-safe to share).
     init?(userInfo: [AnyHashable: Any]) {
-        switch userInfo["screen"] as? String {
+        let data = (userInfo["body"] as? [AnyHashable: Any]) ?? userInfo
+        switch data["screen"] as? String {
         case "cross": self = .cross
         case "chat": self = .answer
         default: return nil

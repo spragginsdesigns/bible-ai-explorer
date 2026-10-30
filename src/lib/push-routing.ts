@@ -255,14 +255,17 @@ export interface NotificationArt {
 	apnsCategory: "SUREWORD_CROSS" | "SUREWORD_ANSWER";
 }
 
+const APNS_CATEGORY = { cross: "SUREWORD_CROSS", answer: "SUREWORD_ANSWER" } as const;
+
 export function notificationArtFor(data: Record<string, unknown>): NotificationArt | null {
-	if (data.screen === "cross") {
-		return { kind: "cross", icon: "/notifications/cross-mark.jpg", image: "/notifications/cross-wide.jpg", apnsCategory: "SUREWORD_CROSS" };
-	}
-	if (data.screen === "chat") {
-		return { kind: "answer", icon: "/notifications/answer-mark.jpg", image: "/notifications/answer-wide.jpg", apnsCategory: "SUREWORD_ANSWER" };
-	}
-	return null;
+	const kind = data.screen === "cross" ? "cross" : data.screen === "chat" ? "answer" : null;
+	if (!kind) return null;
+	return {
+		kind,
+		icon: `/notifications/${kind}-mark.jpg`,
+		image: `/notifications/${kind}-wide.jpg`,
+		apnsCategory: APNS_CATEGORY[kind],
+	};
 }
 
 /**

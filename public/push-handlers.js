@@ -23,13 +23,16 @@ self.addEventListener("push", (event) => {
 		payload = { body: event.data ? event.data.text() : "" };
 	}
 	const title = typeof payload.title === "string" && payload.title ? payload.title : "SureWord";
+	// The kind's own art (notificationArtFor) when the payload names it;
+	// safePath answers "/" for anything missing or off-origin.
+	const icon = safePath(payload.icon);
+	const image = safePath(payload.image);
 	event.waitUntil(
 		self.registration.showNotification(title, {
 			body: typeof payload.body === "string" ? payload.body : "",
 			tag: typeof payload.tag === "string" ? payload.tag : undefined,
-			// The kind's own art (notificationArtFor) when the payload names it.
-			icon: safePath(payload.icon) === "/" ? "/icon-192.png" : safePath(payload.icon),
-			image: safePath(payload.image) === "/" ? undefined : safePath(payload.image),
+			icon: icon === "/" ? "/icon-192.png" : icon,
+			image: image === "/" ? undefined : image,
 			badge: "/favicon-96x96.png",
 			data: { url: safePath(payload.url) },
 		})

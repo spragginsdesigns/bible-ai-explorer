@@ -16,12 +16,9 @@ android {
 
 // Expo 57 links expo-notifications as its precompiled artifact
 // (expo-module.config.json "publication"), not a Gradle project, so depend on
-// that same coordinate at the installed version.
+// that same coordinate at the installed version (mobile/node_modules).
 def expoNotificationsVersion = new groovy.json.JsonSlurper().parse(
-	new File(providers.exec {
-		workingDir(projectDir)
-		commandLine("node", "--print", "require.resolve('expo-notifications/package.json')")
-	}.standardOutput.asText.get().trim())
+	new File(projectDir, "../../../node_modules/expo-notifications/package.json")
 ).version
 
 dependencies {

@@ -253,12 +253,6 @@ export function apnsCollapseId(data: Record<string, unknown>): string | undefine
 }
 
 /**
- * The APNs JSON payload. `data` sits at the top level, where the Mac's
- * `NotificationTapTarget` reads `screen` and `conversationId` (it also reads
- * Expo's nesting under `body`). No subtitle: the morning body already carries
- * the reference, as on Android and the web, so it is not repeated.
- */
-/**
  * The iOS notification category for a push, which picks its long-press view
  * (SureWord-iOS-NotificationContent). Mirrors notificationArtFor's
  * apnsCategory in push-routing.ts, kept inline because this file imports
@@ -270,6 +264,12 @@ export function apnsCategoryFor(data: Record<string, unknown>): "SUREWORD_CROSS"
 	return undefined;
 }
 
+/**
+ * The APNs JSON payload. `data` sits at the top level, where the Mac's
+ * `NotificationTapTarget` reads `screen` and `conversationId` (it also reads
+ * Expo's nesting under `body`). No subtitle: the morning body already carries
+ * the reference, as on Android and the web, so it is not repeated.
+ */
 export function buildApnsPayload(message: ApnsMessage): Record<string, unknown> {
 	const data = Object.fromEntries(Object.entries(message.data).filter(([key]) => key !== "aps"));
 	const category = apnsCategoryFor(message.data);
