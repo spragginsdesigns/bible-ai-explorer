@@ -25,3 +25,4 @@ CREATE INDEX "PrivacyAuditEvent_sessionId_idx" ON "PrivacyAuditEvent"("sessionId
 CREATE INDEX "PrivacyNotice_ownerUserId_createdAt_idx" ON "PrivacyNotice"("ownerUserId","createdAt");
 -- PUBLIC must never gain incidental access to the sensitive search/key/support stores.
 REVOKE ALL ON "PrivateDataKey", "NoteSearchSource", "SupportGrant", "SupportSession", "PrivacyAuditEvent", "PrivacyNotice" FROM PUBLIC;
+
