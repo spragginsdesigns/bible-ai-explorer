@@ -124,7 +124,7 @@ function harness({ eligibility, welcome = false, welcomeRequest, scope = true, c
 	function Probe() {
 		controls = provider.useVoiceControls();
 		active = provider.useVoiceControlsActive();
-		
+
 		hook.useWelcomeVoice(welcomeActive, welcomeConversation, messages);
 		React.useLayoutEffect(() => { commits += 1; committed(); });
 		React.useEffect(() => { passiveCommits = commits; });
