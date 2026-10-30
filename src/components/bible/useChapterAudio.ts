@@ -10,6 +10,7 @@ import {
   resumeFromHandoff,
   verseAt,
   verseStart,
+  wordAt,
   type AudioEdition,
   type ChapterAudio,
   type ChapterAudioResponse,
@@ -39,6 +40,39 @@ interface Options {
   next: { book: number; chapter: number } | null;
 }
 
+/** The word being read (LC-17909): its verse, and its index among that verse's word timings. */
+export interface ReadingWord {
+  verse: number;
+  index: number;
+}
+
+/**
+ * The word being read changes several times a second, so it is kept out of
+ * the reader's state (which would re-render every verse on each word) and
+ * read only by the words of the verse being read, through useSyncExternalStore.
+ */
+export interface ReadingWordStore {
+  get: () => ReadingWord | null;
+  subscribe: (listener: () => void) => () => void;
+}
+
+function createReadingWordStore(): ReadingWordStore & { set: (next: ReadingWord | null) => void } {
+  let current: ReadingWord | null = null;
+  const listeners = new Set<() => void>();
+  return {
+    get: () => current,
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    set: (next) => {
+      if (next?.verse === current?.verse && next?.index === current?.index) return;
+      current = next;
+      for (const listener of listeners) listener();
+    },
+  };
+}
+
 export interface ChapterAudioPlayer {
   /** This chapter has narration the reader can start. */
   available: boolean;
@@ -47,6 +81,8 @@ export interface ChapterAudioPlayer {
   playing: boolean;
   /** The verse being read, for the reader's highlight; null between chapters. */
   verse: number | null;
+  /** The word being read, on a recording with word timings; null elsewhere. */
+  readingWord: ReadingWordStore;
   /** Paused after an hour with no interaction, waiting for "Keep listening". */
   stillListeningPrompt: boolean;
   audio: ChapterAudio | null;
@@ -96,6 +132,25 @@ function seekWhenReady(element: HTMLAudioElement, seconds: number) {
     return;
   }
   element.addEventListener("loadedmetadata", () => { element.currentTime = seconds; }, { once: true });
+}
+
+/**
+ * Light the verse, and the word when the recording has word timings, at the
+ * element's position.
+ */
+function followReading(
+  element: HTMLAudioElement,
+  current: ChapterAudio,
+  setVerse: (verse: number | null) => void,
+  readingWord: ReturnType<typeof createReadingWordStore>
+) {
+  const seconds = element.currentTime;
+  const reading = verseAt(current.verses, seconds);
+  setVerse(reading);
+  const words = reading === null ? undefined : current.verses.find((timing) => timing.verse === reading)?.words;
+  // From the verse's start its first word is next, so a skip to a verse lights it at once.
+  const index = words ? (wordAt(words, seconds) ?? 0) : null;
+  readingWord.set(reading !== null && index !== null ? { verse: reading, index } : null);
 }
 
 /** Where playback starts: the top of the chapter (0) or the start of a verse. */
@@ -154,6 +209,7 @@ export function useChapterAudio({
   const [playing, setPlaying] = useState(false);
   const [verse, setVerse] = useState<number | null>(null);
   const [stillListeningPrompt, setStillListeningPrompt] = useState(false);
+  const [readingWord] = useState(createReadingWordStore);
   const rate = usePreference(readListenRatePref, DEFAULT_LISTEN_RATE);
 
   const audioRef = useRef(audio);
@@ -189,8 +245,10 @@ export function useChapterAudio({
     const onPause = () => setPlaying(false);
     const onTime = () => {
       const current = audioRef.current;
-      if (!current) return;
-      setVerse(verseAt(current.verses, element.currentTime));
+      // A closed player shows nothing; following it would leave a stale word
+      // lit for the next Listen (pausing queues one last timeupdate).
+      if (!current || !openRef.current) return;
+      followReading(element, current, setVerse, readingWord);
       if (!element.paused && needsStillListening(lastActionAt.current, Date.now())) {
         element.pause();
         setStillListeningPrompt(true);
@@ -198,6 +256,7 @@ export function useChapterAudio({
     };
     const onEnded = () => {
       setVerse(null);
+      readingWord.set(null);
       if (endHandlers.current.nextNarrated) {
         pendingPlay.current = 0;
         endHandlers.current.onChapterEnd();
@@ -230,7 +289,8 @@ export function useChapterAudio({
       element.load();
       elementRef.current = null;
     };
-  }, []);
+    // readingWord is created once, so this still runs once.
+  }, [readingWord]);
 
   // Load this chapter's narration. A session already listening carries on
   // into the new chapter from the top; a paused one waits there.
@@ -238,6 +298,7 @@ export function useChapterAudio({
     setAudio(null);
     setRecordings({});
     setVerse(null);
+    readingWord.set(null);
     setStillListeningPrompt(false);
     if (!narrated) {
       // A chapter with no narration here (another translation) never carries a session on later.
@@ -300,7 +361,22 @@ export function useChapterAudio({
         if (!controller.signal.aborted) setAudio(null);
       });
     return () => controller.abort();
-  }, [book, chapter, narrated]);
+  }, [book, chapter, narrated, readingWord]);
+
+  // timeupdate fires about four times a second, slower than words are read,
+  // so a recording with word timings is followed every frame while it plays.
+  const wordTimed = useMemo(() => audio?.verses.some((timing) => timing.words) ?? false, [audio]);
+  useEffect(() => {
+    const element = elementRef.current;
+    if (!playing || !wordTimed || !element) return;
+    let frame = requestAnimationFrame(function tick() {
+      const current = audioRef.current;
+      // Same rule as timeupdate: stop() closes the player before this loop ends.
+      if (current && openRef.current) followReading(element, current, setVerse, readingWord);
+      frame = requestAnimationFrame(tick);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [playing, wordTimed, readingWord]);
 
   useEffect(() => {
     if (elementRef.current) elementRef.current.playbackRate = rate;
@@ -319,6 +395,7 @@ export function useChapterAudio({
       if (!element || !current) return;
       markAction();
       setStillListeningPrompt(false);
+      openRef.current = true;
       setOpen(true);
       if (element.getAttribute("src") !== current.audioUrl) element.src = current.audioUrl;
       element.playbackRate = readListenRatePref();
@@ -342,10 +419,14 @@ export function useChapterAudio({
     const element = elementRef.current;
     pendingPlay.current = null;
     setStillListeningPrompt(false);
+    // Now, not at the next render: the pause below queues a timeupdate that
+    // must find the player closed.
+    openRef.current = false;
     setOpen(false);
     setVerse(null);
+    readingWord.set(null);
     element?.pause();
-  }, []);
+  }, [readingWord]);
 
   const skipVerse = useCallback(
     (delta: 1 | -1) => {
@@ -454,6 +535,7 @@ export function useChapterAudio({
     open,
     playing,
     verse,
+    readingWord,
     stillListeningPrompt,
     audio,
     editions,

@@ -2,10 +2,13 @@ import { NextResponse } from "next/server";
 import { bookByOrder } from "@/lib/bible/books";
 import {
 	chapterTimingUrl,
+	chapterWordsUrl,
 	hasAlive,
 	hasNarration,
+	hasWordTimings,
 	parseChapterTiming,
 	parseEdition,
+	withWordTimings,
 	type ChapterAudioResponse,
 } from "@/lib/bible/audioBible";
 
@@ -28,6 +31,10 @@ const UNAVAILABLE: ChapterAudioResponse = { status: "unavailable" };
  * `edition=alive` asks for the book's Alive recording instead (LC-15532);
  * a book without one answers unavailable, so clients offer only the Listen
  * choices that exist.
+ *
+ * A recording with word timings (LC-17909) also carries `words` on each verse
+ * it could align, read from the `.words.json` beside the MP3 in the same
+ * request. A missing or broken words file only leaves them out.
  */
 export async function GET(request: Request) {
 	const params = new URL(request.url).searchParams;
@@ -52,12 +59,17 @@ export async function GET(request: Request) {
 		return NextResponse.json(UNAVAILABLE, { headers: { "Cache-Control": CACHE_CONTROL } });
 	}
 	try {
-		const response = await fetch(chapterTimingUrl(book, chapter, edition), {
-			next: { revalidate: 86400 },
-			signal: AbortSignal.timeout(10_000),
-		});
+		const read = (url: string, timeoutMs: number) =>
+			fetch(url, { next: { revalidate: 86400 }, signal: AbortSignal.timeout(timeoutMs) });
+		const [response, wordsResponse] = await Promise.all([
+			read(chapterTimingUrl(book, chapter, edition), 10_000),
+			// The words are extra: a slow bucket drops them rather than holding up the chapter.
+			hasWordTimings(book, edition) ? read(chapterWordsUrl(book, chapter, edition), 3_000).catch(() => null) : null,
+		]);
 		// The bucket answers 403 (not 404) for a key that does not exist yet.
-		const audio = response.ok ? parseChapterTiming(await response.json(), book, chapter, edition) : null;
+		const timing = response.ok ? parseChapterTiming(await response.json(), book, chapter, edition) : null;
+		const words = timing && wordsResponse?.ok ? await wordsResponse.json().catch(() => null) : null;
+		const audio = timing ? withWordTimings(timing, words) : null;
 		return NextResponse.json(audio ?? UNAVAILABLE, {
 			headers: { "Cache-Control": audio ? CACHE_CONTROL : UNAVAILABLE_CACHE_CONTROL },
 		});

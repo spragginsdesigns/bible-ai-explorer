@@ -19,6 +19,11 @@ import {
 	verseStart,
 	chapterAudioUrl,
 	chapterTimingUrl,
+	chapterWordsUrl,
+	hasWordTimings,
+	readAlongPieces,
+	withWordTimings,
+	wordAt,
 } from "../src/lib/bible/audioBible.ts";
 
 const read = (relativePath) =>
@@ -133,10 +138,13 @@ function loadRoute(fetchImpl) {
 		NextResponse,
 		bookByOrder: (order) => books.find((b) => b.order === order) ?? null,
 		chapterTimingUrl,
+		chapterWordsUrl,
 		hasAlive,
 		hasNarration,
+		hasWordTimings,
 		parseChapterTiming,
 		parseEdition,
+		withWordTimings,
 		fetch: fetchImpl,
 		console: { error() {} },
 	};
@@ -165,10 +173,12 @@ test("route: Matthew reads its timings from the drama folder and returns the dra
 	const requested = [];
 	const GET = loadRoute(async (url) => {
 		requested.push(url);
+		if (url.endsWith(".words.json")) return new Response("<Error/>", { status: 403 });
 		return new Response(JSON.stringify({ ...TIMING, book: 40, chapter: 2 }), { status: 200 });
 	});
 	const body = await (await call(GET, "book=40&chapter=2")).json();
-	assert.deepEqual(requested, [`${DRAMATIZED_BASE_URL}/40/2.json`]);
+	assert.deepEqual(requested, [`${DRAMATIZED_BASE_URL}/40/2.json`, `${DRAMATIZED_BASE_URL}/40/2.words.json`]);
+	assert.equal(body.verses.some((timing) => "words" in timing), false, "no words file, no words");
 	assert.equal(body.status, "ready");
 	assert.equal(body.audioUrl, `${DRAMATIZED_BASE_URL}/40/2.mp3`);
 });
@@ -252,4 +262,106 @@ test("the reader keeps one audio element for the app and hands a playing session
 	assert.match(hook, /if \(openRef\.current && !element\.paused && current\) \{\s*handoff = \{/, "only a playing session is handed on");
 	assert.match(hook, /resumeFromHandoff\(handoff, book, chapter, Date\.now\(\)\)/);
 	assert.match(hook, /if \(!narrated\) \{[^}]*handoff = null;/, "a chapter with no narration clears the session");
+});
+
+/** Matthew 1:1-2 as backend/scripts/bible_word_timings.py writes them (LC-17909), trimmed. */
+const MATTHEW_TIMING = {
+	book: 40,
+	chapter: 1,
+	duration: 184.61,
+	verses: [
+		{ verse: 1, start: 2.86, end: 7.62 },
+		{ verse: 2, start: 7.97, end: 13.69 },
+	],
+};
+const MATTHEW_WORDS = {
+	book: 40,
+	chapter: 1,
+	verses: [{ verse: 2, words: [[8.12, 8.48], [8.6, 8.9], [9.04, 9.28]] }],
+};
+
+test("Matthew's Regular recording has word timings beside its MP3, Alive and other books do not (LC-17909)", () => {
+	assert.equal(hasWordTimings(40, "regular"), true);
+	assert.equal(hasWordTimings(40, "alive"), false, "Alive reads the LC Greek, not the KJV on screen");
+	assert.equal(hasWordTimings(43, "regular"), false);
+	assert.equal(chapterWordsUrl(40, 1), `${DRAMATIZED_BASE_URL}/40/1.words.json`);
+});
+
+test("withWordTimings folds each aligned verse's words in and ignores anything else (LC-17909)", () => {
+	const audio = parseChapterTiming(MATTHEW_TIMING, 40, 1);
+	const timed = withWordTimings(audio, MATTHEW_WORDS);
+	assert.equal(timed.verses[0].words, undefined, "a verse the aligner left out keeps the verse highlight");
+	assert.deepEqual(timed.verses[1].words, MATTHEW_WORDS.verses[0].words);
+	assert.equal(audio.verses[1].words, undefined, "the original is not changed");
+	assert.equal(withWordTimings(audio, { ...MATTHEW_WORDS, chapter: 2 }), audio, "another chapter's file");
+	assert.equal(withWordTimings(audio, null), audio);
+	assert.equal(withWordTimings(audio, "<Error/>"), audio);
+	for (const words of [[], [[9, 8]], [[8.6, 8.9], [8.12, 8.48]], [[8.1, "8.4"]], [[8.1]], "8.1"]) {
+		const bad = withWordTimings(audio, { ...MATTHEW_WORDS, verses: [{ verse: 2, words }] });
+		assert.equal(bad.verses[1].words, undefined, JSON.stringify(words));
+	}
+});
+
+test("wordAt keeps the last word that has started lit, null before the first", () => {
+	const words = MATTHEW_WORDS.verses[0].words;
+	assert.equal(wordAt(words, 8.0), null);
+	assert.equal(wordAt(words, 8.12), 0);
+	assert.equal(wordAt(words, 8.55), 0, "the pause after a word keeps it lit");
+	assert.equal(wordAt(words, 8.6), 1);
+	assert.equal(wordAt(words, 20), 2);
+});
+
+test("readAlongPieces numbers words across red-letter segments, and refuses a text with another word count", () => {
+	const pieces = readAlongPieces(["And he saith unto them, ", "Follow me, and I will make you fish", "ers of men."], 15);
+	assert.notEqual(pieces, null);
+	const words = pieces.flat().filter((piece) => piece.word !== null);
+	assert.deepEqual(words.map((piece) => piece.word).slice(-4), [12, 12, 13, 14], "a segment break inside a word keeps one number");
+	assert.equal(pieces.flat().map((piece) => piece.text).join(""), "And he saith unto them, Follow me, and I will make you fishers of men.");
+	assert.equal(readAlongPieces(["Abraham begat Isaac;"], 3).flat().filter((p) => p.word === null).length, 2);
+	assert.equal(readAlongPieces(["Abraham begat Isaac;"], 4), null, "another text than the recording reads");
+	assert.equal(readAlongPieces([""], 0)?.length, 1);
+});
+
+test("route: Matthew folds its word timings into the verses; a broken words file only leaves them out (LC-17909)", async () => {
+	const answer = (words) =>
+		loadRoute(async (url) =>
+			url.endsWith(".words.json")
+				? typeof words === "function"
+					? words()
+					: new Response(words, { status: 200 })
+				: new Response(JSON.stringify(MATTHEW_TIMING), { status: 200 })
+		);
+	const body = await (await call(answer(JSON.stringify(MATTHEW_WORDS)), "book=40&chapter=1")).json();
+	assert.equal(body.status, "ready");
+	assert.deepEqual(body.verses[1].words, MATTHEW_WORDS.verses[0].words);
+	assert.equal(body.verses[0].words, undefined);
+	for (const broken of ["{not json", () => { throw new Error("network"); }, () => new Response("<Error/>", { status: 403 })]) {
+		const response = await call(answer(broken), "book=40&chapter=1");
+		const plain = await response.json();
+		assert.equal(plain.status, "ready", "the chapter still plays");
+		assert.equal(plain.verses.some((timing) => timing.words), false);
+		assert.match(response.headers.get("cache-control"), /s-maxage=86400/);
+	}
+});
+
+test("route: Alive and books without word timings never ask for a words file (LC-17909)", async () => {
+	const requested = [];
+	const GET = loadRoute(async (url) => {
+		requested.push(url);
+		return new Response(JSON.stringify({ ...MATTHEW_TIMING, book: Number(url.split("/").at(-2)) }), { status: 200 });
+	});
+	await call(GET, "book=40&chapter=1&edition=alive");
+	await call(GET, "book=43&chapter=1");
+	assert.equal(requested.some((url) => url.endsWith(".words.json")), false);
+});
+
+test("the reader lights words only where the recording reads the KJV on screen, outside its own state (LC-17909)", () => {
+	const reader = read("../src/components/bible/ChapterReader.tsx");
+	assert.match(reader, /beingRead && player\.edition === "regular" && !lcGreek && translation === "KJV"/);
+	assert.match(reader, /readAlongPieces\(segments\.map\(\(segment\) => segment\.text\), readWords\.length\)/);
+	const words = read("../src/components/bible/ReadAlongWords.tsx");
+	assert.match(words, /useSyncExternalStore\(store\.subscribe/, "only the read verse's words follow the word");
+	const hook = read("../src/components/bible/useChapterAudio.ts");
+	assert.equal(/useState<ReadingWord/.test(hook), false, "the word is not reader state");
+	assert.match(hook, /requestAnimationFrame\(function tick\(\)/);
 });

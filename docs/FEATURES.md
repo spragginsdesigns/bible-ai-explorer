@@ -1411,7 +1411,13 @@ from verse 1 and opens a floating player: the reference and verse being read
 (`Matthew 6:9`), previous/next verse, play/pause, the shared Listen speed chip
 (0.75x to 2x, the same account preference as the spoken devotional), close,
 and a scrubber. The verse being read takes the selection tint and stays in
-view unless the reader has scrolled away in the last few seconds. Tapping a
+view unless the reader has scrolled away in the last few seconds. On a
+recording with word timings (Matthew's Regular recording, web beta since
+LC-17909), the word being read is also lit inside that tint, word by word;
+the timings come from `<chapter>.words.json` beside each MP3 (forced
+alignment of the KJV text by Context-Pro-AI
+`backend/scripts/bible_word_timings.py`) and ride on the verses as `words`.
+Alive, the LC Greek and every other book keep the verse tint only. Tapping a
 verse adds a **Listen** chip to the verse sheet that plays from that verse; the
 player hides while the sheet is open and the audio carries on. When a chapter
 ends, the reader pages to the next one and keeps playing on the same audio

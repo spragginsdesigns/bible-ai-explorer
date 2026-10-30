@@ -123,11 +123,21 @@ function bookBaseUrl(book: number, edition: AudioEdition): string {
  */
 export const STILL_LISTENING_AFTER_MS = 60 * 60 * 1000;
 
+/** One word's [start, end], in seconds into the chapter MP3. */
+export type WordTiming = [number, number];
+
 export interface VerseTiming {
   verse: number;
   /** Seconds into the chapter MP3 where the verse starts. */
   start: number;
   end: number;
+  /**
+   * Where each word of the verse is read (LC-17909): one entry per
+   * whitespace-separated word of the KJV verse text, in order. Only on a
+   * recording that reads the KJV word for word (WORD_TIMED_BOOKS), and absent
+   * for a verse the aligner was not sure of; the verse highlight covers those.
+   */
+  words?: WordTiming[];
 }
 
 export interface ChapterAudio {
@@ -154,6 +164,105 @@ export function chapterAudioUrl(book: number, chapter: number, edition: AudioEdi
 
 export function chapterTimingUrl(book: number, chapter: number, edition: AudioEdition = "regular"): string {
   return `${bookBaseUrl(book, edition)}/${book}/${chapter}.json`;
+}
+
+/**
+ * Books whose Regular recording has word timings (LC-17909): a
+ * `<chapter>.words.json` beside each MP3, written by forced alignment of the
+ * KJV text to the finished recording (`backend/scripts/bible_word_timings.py`
+ * in Context-Pro-AI), so the reader can light each word as it is read.
+ * Matthew's full cast so far. Alive reads the LC Greek, not the KJV, so it
+ * keeps the verse highlight.
+ */
+export const WORD_TIMED_BOOKS: ReadonlySet<number> = new Set([40]);
+
+export function hasWordTimings(book: number, edition: AudioEdition): boolean {
+  return edition === "regular" && WORD_TIMED_BOOKS.has(book);
+}
+
+export function chapterWordsUrl(book: number, chapter: number, edition: AudioEdition = "regular"): string {
+  return `${bookBaseUrl(book, edition)}/${book}/${chapter}.words.json`;
+}
+
+function isWordTimings(raw: unknown): raw is WordTiming[] {
+  if (!Array.isArray(raw) || raw.length === 0) return false;
+  let previous = -Infinity;
+  for (const pair of raw) {
+    if (!Array.isArray(pair) || pair.length !== 2) return false;
+    const [start, end] = pair;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end < start || start < previous) return false;
+    previous = start;
+  }
+  return true;
+}
+
+/**
+ * The chapter with its word timings file folded into its verses. A file for
+ * another chapter, or one that is not the expected shape, adds nothing; a
+ * malformed verse is skipped and keeps the verse highlight.
+ */
+export function withWordTimings(audio: ChapterAudio, raw: unknown): ChapterAudio {
+  if (!raw || typeof raw !== "object") return audio;
+  const value = raw as Record<string, unknown>;
+  if (value.book !== audio.book || value.chapter !== audio.chapter || !Array.isArray(value.verses)) return audio;
+  const words = new Map<number, WordTiming[]>();
+  for (const entry of value.verses) {
+    const verse = entry as Record<string, unknown> | null;
+    if (verse && typeof verse.verse === "number" && isWordTimings(verse.words)) words.set(verse.verse, verse.words);
+  }
+  if (words.size === 0) return audio;
+  return {
+    ...audio,
+    verses: audio.verses.map((timing) => {
+      const found = words.get(timing.verse);
+      return found ? { ...timing, words: found } : timing;
+    }),
+  };
+}
+
+/**
+ * The word being read at `seconds`: the index of the last word that has
+ * started, so a word stays lit through the pause after it. Null before the
+ * first word.
+ */
+export function wordAt(words: readonly WordTiming[], seconds: number): number | null {
+  let current: number | null = null;
+  for (const [index, [start]] of words.entries()) {
+    if (start > seconds) break;
+    current = index;
+  }
+  return current;
+}
+
+/** A run of verse text and the word it belongs to, or null for the spaces between words. */
+export interface ReadAlongPiece {
+  text: string;
+  word: number | null;
+}
+
+/**
+ * The verse's rendered segments (red letters, italics) cut into words, each
+ * numbered as the word timings count them: whitespace-separated across the
+ * whole verse, so a segment boundary inside a word keeps one number. Null
+ * when the verse has a different number of words than it has timings, so a
+ * text that is not the one the recording reads falls back to the verse
+ * highlight instead of lighting the wrong words.
+ */
+export function readAlongPieces(texts: readonly string[], wordCount: number): ReadAlongPiece[][] | null {
+  let word = -1;
+  let inWord = false;
+  const pieces = texts.map((text) =>
+    (text.match(/\s+|\S+/g) ?? []).map((part) => {
+      if (/^\s/.test(part)) {
+        inWord = false;
+        return { text: part, word: null };
+      }
+      if (!inWord) word += 1;
+      inWord = true;
+      return { text: part, word };
+    })
+  );
+  return word + 1 === wordCount ? pieces : null;
 }
 
 /**

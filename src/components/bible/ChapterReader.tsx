@@ -10,7 +10,7 @@ import { useBrowserReading } from "./useBrowserReading";
 import { useReadingLogStatus } from "./readingLogClient";
 import { ChevronDown, Copy, GraduationCap, Headphones, Network, NotebookPen, Share2, Sparkles, Users } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
-import { EDITION_CHOICES, hasLcGreek, hasNarration, LC_GREEK } from "@/lib/bible/audioBible";
+import { EDITION_CHOICES, hasLcGreek, hasNarration, LC_GREEK, readAlongPieces } from "@/lib/bible/audioBible";
 import { bookByOrder } from "@/lib/bible/books";
 import { loadLcGreekChapter } from "@/lib/bible/lcGreek";
 import { CHAPTER_LOAD_ERROR, getChapter, isTranslationId, TRANSLATIONS, type TranslationId } from "@/lib/bible/translations";
@@ -56,6 +56,7 @@ import AddToNoteDialog from "../AddToNoteDialog";
 import QuizEntryCard from "../quiz/QuizEntryCard";
 import ShareCardDialog from "../share/ShareCardDialog";
 import type { ShareCardTarget } from "@/lib/share-cards/targets";
+import { ReadAlongWords } from "./ReadAlongWords";
 import { useChapterAudio } from "./useChapterAudio";
 import { useChapterHighlights } from "./useChapterHighlights";
 import { useChapterNotes } from "./useChapterNotes";
@@ -957,6 +958,16 @@ const ChapterReader: React.FC = () => {
                 const segments = readerVerseSegments(text, translation, order, chapter, verseNumber);
                 const selected = selectionIncludes(selection, verseNumber);
                 const beingRead = player.open && player.verse === verseNumber;
+                // Word by word only where the recording reads the words on
+                // screen: the Regular recording with the KJV shown (LC-17909).
+                // Alive and the LC Greek keep the verse highlight.
+                const readWords =
+                  beingRead && player.edition === "regular" && !lcGreek && translation === "KJV"
+                    ? player.audio?.verses.find((timing) => timing.verse === verseNumber)?.words
+                    : undefined;
+                const readAlong = readWords
+                  ? readAlongPieces(segments.map((segment) => segment.text), readWords.length)
+                  : null;
                 return (
                   <div key={verseNumber}>
                   {readerSectionHeadings(translation, order, chapter, verseNumber).map((heading, i) => <h3 key={i} className="mb-5 mt-8 font-serif text-2xl italic text-neutral-900 dark:text-neutral-100">{heading}</h3>)}
@@ -1030,7 +1041,16 @@ const ChapterReader: React.FC = () => {
                             backgroundColor: verseColor ? highlightWash(verseColor) : undefined,
                           }}
                         >
-                          {segment.text}
+                          {readAlong ? (
+                            <ReadAlongWords
+                              pieces={readAlong[i]}
+                              verse={verseNumber}
+                              store={player.readingWord}
+                              parchment={parchment}
+                            />
+                          ) : (
+                            segment.text
+                          )}
                         </span>
                       ))}
                       {formatted?.omitted ? <span className="text-sm text-neutral-500">Not included in this edition’s main text.</span> : null}
