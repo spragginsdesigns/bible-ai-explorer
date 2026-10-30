@@ -19,6 +19,9 @@ name)' or 'quiz' or 'next chapter' and it's on it's own page, and after you
 beat it, it's like 'quiz/minigame' (if one of them hasn't been completed yet)
 or 'continue to next chapter'", and a Listen session carrying on into the
 next chapter.
+LC-17908 (Austin, after LC-17905): "some of the games feel repetitive (we
+want each to feel unique) or maybe not really topical or too niche relative
+to the chapter ... chapter 1 also didn't really feel like a game".
 **Status:** building (all 28 chapters of Matthew have a game).
 
 ## The end of a chapter
@@ -109,42 +112,58 @@ setting silences the voice and the game's sound alike.
 Austin asked for the one best game of each passage from the first six
 (LC-17851): The Caravan was kept for Matthew 2 and Crest Hopper for Matthew
 14, both cut to fifteen-second rounds; Peter's Water Walk, Through the
-Storm, Follow the Star and Star Chart were retired
-(their awards stay in founders' study stores). The registry,
+Storm, Follow the Star and Star Chart were retired. LC-17908 then gave
+thirteen chapters a new game so that no two Matthew games play the same way
+and each one centres its chapter: Winnow the Floor, Treasures in Heaven, The
+Hem of His Garment, Rest for Your Souls, Known by His Fruit, The Coin in the
+Fish, Have Mercy on Us and The Wedding Garment were retired, and The
+Generations, Fishers of Men, Let Your Light Shine, The Sower and He Is Risen
+kept their names with a new way to play. A replaced game's award carries
+over to its chapter's new game (`formerly` in the registry, read by
+`readChapterGameAward`), so no founder loses a medal or a trophy; its
+study-store item takes the new game's name the next time it is won. The
+LC-17851 retirements stay in founders' study stores only. The registry,
 `CHAPTER_GAMES` in `src/lib/beta/games/games-rules.ts`, holds each game's
 passage, command, controls, tips, round length, fastest possible win, voiced
 verses, award, grades and medal.
 
 | Ch. | Game (slug) | Passage | Play |
 |---|---|---|---|
-| 1 | The Generations (`the-generations`) | 1:1-17 | Tap who begat whom, in order |
+| 1 | The Generations (`the-generations`) | 1:1-25 | Watch the line light up, then tap it back from memory |
 | 2 | The Caravan (`the-caravan`) | 2:1-12 | Run under the star: jump and duck |
-| 3 | Winnow the Floor (`winnow`) | 3:11-17 | Wheat to the garner, chaff to the fire |
-| 4 | Fishers of Men (`fishers-of-men`) | 4:18-22 | Catch the fish in the net |
-| 5 | Let Your Light Shine (`let-your-light-shine`) | 5:14-16 | Lift the bushels off the candles |
-| 6 | Treasures in Heaven (`treasures-in-heaven`) | 6:19-21 | Catch treasure, dodge moth and rust |
+| 3 | Baptized in Jordan (`baptized-in-jordan`) | 3:1-17 | Hold to lower each one under the water, let go in the band |
+| 4 | Fishers of Men (`fishers-of-men`) | 4:18-22 | Place the net and cast it where the shoal will be |
+| 5 | Let Your Light Shine (`let-your-light-shine`) | 5:14-16 | Turn the mirrors till the candle lights every lamp |
+| 6 | In Secret (`in-secret`) | 6:1-6 | Walk only while the hypocrites are not looking |
 | 7 | Built on the Rock (`house-on-the-rock`) | 7:24-27 | Stack the house true |
 | 8 | Lord, Save Us (`lord-save-us`) | 8:23-27 | Bail the ship, left and right |
-| 9 | The Hem of His Garment (`hem-of-his-garment`) | 9:20-22 | Weave through the crowd to the hem |
+| 9 | Take Up Thy Bed (`take-up-thy-bed`) | 9:2-8 | Keep the bed level on the way to Jesus |
 | 10 | Sheep Among Wolves (`sheep-among-wolves`) | 10:16-31 | Dodge the wolves |
-| 11 | Rest for Your Souls (`rest-for-your-souls`) | 11:28-30 | Lift burdens off the weary |
-| 12 | Known by His Fruit (`known-by-his-fruit`) | 12:33-35 | Pick the good fruit |
-| 13 | The Sower (`the-sower`) | 13:3-9 | Sow on the good ground |
+| 11 | Go and Shew John (`go-and-shew-john`) | 11:2-6 | Turn over pairs: the works of 11:5 |
+| 12 | A Bruised Reed (`a-bruised-reed`) | 12:14-21 | Turn the shield round the smoking flax |
+| 13 | The Sower (`the-sower`) | 13:3-9 | Sweep the seed over the good ground |
 | 14 | Crest Hopper (`crest-hopper`) | 14:22-33 | Hop the swells to Jesus |
 | 15 | Seven Baskets Full (`seven-baskets`) | 15:32-38 | Gather the fragments |
 | 16 | Whom Say Ye? (`whom-say-ye`) | 16:13-18 | Follow the true answer as it shuffles |
-| 17 | The Coin in the Fish (`coin-in-the-fish`) | 17:24-27 | Strike when the fish bites |
+| 17 | Hear Ye Him (`hear-ye-him`) | 17:1-8 | Spring up the high mountain into the bright cloud |
 | 18 | The Lost Sheep (`the-lost-sheep`) | 18:12-14 | Find the one gone astray |
 | 19 | The Eye of a Needle (`eye-of-a-needle`) | 19:23-26 | Thread the needles |
-| 20 | Have Mercy on Us (`have-mercy-on-us`) | 20:29-34 | Cry out above the crowd |
+| 20 | The Last Shall Be First (`the-last-shall-be-first`) | 20:1-16 | Swap the labourers into order, the last first |
 | 21 | Hosanna! (`hosanna`) | 21:1-11 | Spread branches in the way |
-| 22 | The Wedding Garment (`the-wedding-garment`) | 22:1-14 | Clothe each guest |
+| 22 | Bid to the Marriage (`bid-to-the-marriage`) | 22:1-14 | Run the highways and bid each guest before he goes his way; the bidden walk in themselves |
 | 23 | Under Her Wings (`under-her-wings`) | 23:37-39 | Gather the chickens |
 | 24 | Watch! (`watch`) | 24:42-44 | Tap the instant the lightning flashes |
 | 25 | The Sheep and the Goats (`sheep-and-goats`) | 25:31-40 | Sheep to the right, goats to the left |
 | 26 | Watch with Me (`watch-with-me`) | 26:36-41 | Keep Peter, James and John awake |
 | 27 | The Veil Was Rent (`the-veil-rent`) | 27:50-54 | Trace the veil from the top to the bottom |
-| 28 | He Is Risen (`he-is-risen`) | 28:1-10 | Run and tell his disciples |
+| 28 | He Is Risen (`he-is-risen`) | 28:1-20 | Tell the word and let it spread from one to the next |
+
+**Each game plays its own way** (LC-17908). Before changing a game's
+mechanic or adding one, check this table: no two games may share a way to
+play (catch, two-way sort, tap-before-the-timer, jump-only runner, Frogger,
+mash-a-meter, press-in-the-zone were each repeated once and are now held by
+one game each: Seven Baskets, The Sheep and the Goats, Watch with Me, The
+Caravan, Crest Hopper, Lord, Save Us and Hosanna!).
 
 Every game is played straight: reverent, KJV-rooted, Jesus drawn as a
 simple robed figure in light with no detailed face, and Matthew 27 shows
@@ -209,7 +228,7 @@ The player owns everything around the round; a game is three files:
    Safari plays nothing from a context opened later in the game loop.
 3. **Tests,** `tests/beta-games-<slug>.test.mjs`, to the bounds above.
 
-Have Mercy on Us (Matthew 20) is the reference. To add a chapter, add its
+Built on the Rock (Matthew 7) is a good small model. To add a chapter, add its
 registry entry, its three files and its line in `STAGES`
 (`ChapterGamePlayer.tsx`); `tests/beta-games.test.mjs` fails until all are
 there.
