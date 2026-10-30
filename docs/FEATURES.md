@@ -4313,13 +4313,18 @@ section; false or an omitted field shows the unavailable explanation, and
 an initial request failure shows a retry. Opening Pro details does not
 authorize a purchase. Settings retains that entry for recovery too.
 
-**2026-10-28 live check:** production reported `enabled=true`,
-`playCheckoutAvailable=false`, and `appStoreCheckoutAvailable=true`.
-Google's subscription GET initially returned 404 for `sureword_pro`.
-The product and its `monthly` base plan now exist in Play Console, with
-the existing benefits and an exact USD 15.00 US price. The plan remains
-`DRAFT`; checkout remains unavailable pending a controlled license-test
-purchase and lifecycle verification. See `docs/PARITY-TODO.md` section 1.1.
+**2026-10-30 Google Play checkpoint:** `sureword_pro` and its US `monthly`
+base plan are active at USD 15.00/month. Real no-charge Android license tests
+proved purchase/acknowledgement, Pro, Restore purchase, accelerated renewal,
+paid-through cancellation and expiry, decline, grace, hold, recovery and
+revocation. Cross-account rejection and real DELETE-handler cancellation
+failure/retry also passed. In-place QA APK reinstall preserved data and sign-in;
+clean-uninstall restoration was not exercised. No real charge, settlement or
+payout was made. See [the lifecycle evidence and fixture limits](billing-play-lifecycle.md).
+
+Billing commit `fe815467` preserves main notification commit `48cc35c2`.
+The combined source passed 262 focused tests (161 billing/account and 101
+notification), TypeScript and full-source ESLint. READY production deployment `dpl_B7ZdVVK1F6QBtmuMbNBzD3RwdW6d` serves `sureword.app` and `bible-ai-explorer.vercel.app`. Both authenticated status endpoints returned HTTP 200 with Pro and the same funded 20:06:56.365 to 20:11:56.365 UTC period and 600-message allowance on October 30. Actual RTDN type 2 at 20:07:02.987 UTC advanced the persisted funded period by 20:07:04.526 UTC while the app was backgrounded and the observation harness made no status requests.
 
 **Local testing.** `macos/StoreKit/SureWord.storekit` holds the product for
 the simulator and is the SureWord-iOS scheme's run-action StoreKit

@@ -13,7 +13,7 @@ The Android purchase path uses the `sureword_pro` product and `monthly` base pla
 
 ## Deployment and proof status
 
-The 14-file billing source passed on immutable, unpromoted candidate `dpl_8q1QZozEAKWzLXDEyYEczm4TQCVE`, exported from main `13d167da` plus the selected billing changes. Sales-disabled candidate `dpl_Ba7iJGwqbd3pHEtx5KKeCeLeZQ3Y` uses the same source with its checkout flag off. The release also preserves newer main notification commit `48cc35c2`; its nine files do not overlap the billing source. Public publication follows the combined-source check and is recorded after deployment.
+The 14-file billing source passed on immutable, unpromoted candidate `dpl_8q1QZozEAKWzLXDEyYEczm4TQCVE`, exported from main `13d167da` plus the selected billing changes. Sales-disabled candidate `dpl_Ba7iJGwqbd3pHEtx5KKeCeLeZQ3Y` uses the same source with its checkout flag off. Release commit `fe815467733aca8107ac628952726b33d2926db1` preserves notification commit `48cc35c2`; its nine files do not overlap the billing source. Combined verification passed 262 focused tests, TypeScript and full-source ESLint. READY production deployment `dpl_B7ZdVVK1F6QBtmuMbNBzD3RwdW6d` serves `sureword.app` and `bible-ai-explorer.vercel.app`. Both authenticated status endpoints returned HTTP 200 with Pro and the same funded 20:06:56.365 to 20:11:56.365 UTC period and 600-message allowance on October 30. Actual RTDN type 2 at 20:07:02.987 UTC advanced the persisted funded period by 20:07:04.526 UTC while the app was backgrounded and the observation harness made no status requests.
 
 Observed on October 30, 2026:
 
@@ -32,9 +32,10 @@ Observed on October 30, 2026:
 | Initial payment decline | Google's always-declines test instrument rejected the purchase. Android and the authenticated candidate retained Free. |
 | Grace | Captured RTDN type 6. Google reported grace, Android and the candidate retained Pro, and the existing allowance remained available. |
 | Account hold | Captured RTDN type 5. Google reported hold, Android and the candidate returned Free. |
-| Payment recovery | Restored the approving test instrument and captured RTDN type 1. Google returned active; candidate verification returned 200, Pro resumed and the new funded period started at 18:58:36.075 UTC with 600 period messages, retaining daily usage. |
+| Payment recovery | Restored the approving test instrument and captured RTDN type 1. Google returned active; candidate verification returned 200 and Pro resumed. Exact funded quota accounting was subsequently verified on the final immutable candidate and the public release below; earlier lifecycle probes predated the final accounting guards. |
 | New sales disabled | The isolated candidate returned `playCheckoutAvailable: false` and Pro. At the following period boundary it refreshed expiry and retained Pro with a matching status/quota snapshot. |
 | Merchant configuration | Google's merchant summary showed a linked payout bank and payout schedule. No real charge, transaction settlement or cash payout was performed. |
+| Public release | New native test purchase showed Pro on Android. Public cross-account receipt returned 403 and forged receipt returned 400. Both primary and legacy status APIs returned coherent Pro/funded quota. Actual RTDN renewal advanced the exact funded period without observation status requests. Test auto-renewal was then canceled with Google HTTP 204. |
 | Static and regression checks | The exact 14-file candidate passed 161 focused billing/account tests, TypeScript and full-source ESLint, plus independent review. The production build completed. |
 
 Pending slow test instruments were not offered for this configured checkout; the unit suite covers pending-purchase refusal. Known-token grace recovery with unchanged expiry and a changed paid order is covered by actual-flow regressions, including Orders outage followed by retry. These failed before the guard correction and passed afterward.
