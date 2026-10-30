@@ -139,7 +139,11 @@ struct ChatTabView: View {
         .navigationDestination(item: $studyRoute) { route in
             switch route {
             case .memories: ReceiptMemoriesScreen(api: app.api).analyticsScreen(AnalyticsScreen.memories)
-            case .settings: SettingsView()
+            case .settings:
+                SettingsView { destination in
+                    studyRoute = nil
+                    WhatsNewNavigation.open(destination, in: app)
+                }
             }
         }
         .sheet(isPresented: $isReadingHistoryPresented) {
@@ -206,7 +210,7 @@ struct ChatTabView: View {
             }
             .padding(Spacing.lg)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if chat.messages.isEmpty {
+        } else if chat.messages.isEmpty && chat.sendError == nil {
             ChatWelcomeState(
                 questions: app.suggestedQuestions.questions,
                 isLoading: app.suggestedQuestions.isLoading
@@ -304,19 +308,16 @@ struct ChatTabView: View {
             }
             openChapter(reference: reference, translation: translation)
         case .plan:
-            app.pendingDailyDestination = .plan
-            app.section = .today
+            app.openDaily(.plan)
         case .readingHistory:
-            app.pendingDailyDestination = .history
-            app.section = .today
+            app.openDaily(.history)
         case .cross:
             // The day the assistant just replaced is stale in the cached model,
             // so force a reload on the way into the sheet.
             app.dailyCross.load(force: true)
             NotificationCenter.default.post(name: .openDailyCross, object: nil)
         case .learn:
-            app.pendingDailyDestination = .learn
-            app.section = .today
+            app.openDaily(.learn)
         case .settings(let section):
             if let page = ReceiptLine.settingsPage(for: section) {
                 app.openSettings(page)

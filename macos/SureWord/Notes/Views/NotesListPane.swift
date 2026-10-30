@@ -11,7 +11,9 @@ struct NotesListPane: View {
     @Bindable var library: NotesLibraryModel
     /// For the sermon template's church name (`/api/church`).
     let api: APIClient
+    var isVisible = true
 
+    @FocusState private var isSearchFocused: Bool
     @State private var createKind: CreateKind?
     /// "+" opens Android's "Start a note" template sheet (PRD E1).
     @State private var isTemplatePickerPresented = false
@@ -49,6 +51,9 @@ struct NotesListPane: View {
                 list
             }
         }
+        .onChange(of: isVisible) { _, visible in
+            if !visible { isSearchFocused = false }
+        }
         .sheet(item: $createKind) { kind in
             CreateItemSheet(kind: kind) { name, color in
                 Task {
@@ -66,18 +71,21 @@ struct NotesListPane: View {
             }
         }
         .sheet(isPresented: $isTemplatePickerPresented) {
-            // `createNote(template:)` selects the new note, which opens it in
-            // the editor beside the list.
             NoteTemplatePickerSheet { template in
-                guard await app.noteDeparture.canLeave() else {
+                let request = app.beginNoteNavigation()
+                guard await app.performNoteNavigation(request, action: {}) else {
                     throw APIError(message: "Save the current note before opening another one.")
                 }
-                _ = try await library.createNote(template: template) {
+                let note = try await library.createNote(template: template, selectCreated: false) {
                     switch try await api.fetchChurch() {
                     case .unavailable: return nil
                     case .ok(let church): return church?.name
                     }
                 }
+                // Keep an accepted create in the library even if another tap
+                // superseded it while the server was working.
+                guard app.isCurrentNoteNavigationRequest(request) else { return }
+                library.selectedNoteID = note.id
             }
         }
         .confirmationDialog(
@@ -137,6 +145,8 @@ struct NotesListPane: View {
                 .foregroundStyle(theme.textFaint)
             TextField("Search notes", text: $library.searchQuery)
                 .textFieldStyle(.plain)
+                .focused($isSearchFocused)
+                .disabled(!isVisible)
                 .appFont(.system(size: 13))
             if !library.searchQuery.isEmpty {
                 Button {
@@ -247,9 +257,11 @@ struct NotesListPane: View {
                         // activation and an accessibility action for free, which
                         // a tap gesture on a VStack does not.
                         Button {
+                            let request = app.beginNoteNavigation()
                             Task {
-                                guard await app.noteDeparture.canLeave() else { return }
-                                library.selectedNoteID = note.id
+                                await app.performNoteNavigation(request) {
+                                    library.selectedNoteID = note.id
+                                }
                             }
                         } label: {
                             NoteRow(

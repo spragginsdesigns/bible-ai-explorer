@@ -107,6 +107,8 @@ struct ChatHistorySheet: View {
             }
             .contentShape(.rect)
         }
+        .accessibilityLabel(HistorySearch.displayTitle(conversation))
+        .accessibilityValue(conversation.id == chat.activeConversationID ? "Current conversation" : "")
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
                 actions.requestDelete(conversation)

@@ -14,6 +14,10 @@ import {
 export type SortOption = "updatedAt" | "createdAt" | "title";
 
 export interface UpdateNoteOptions {
+	/** An editor lease/session must still own a delayed mutation or readback. */
+	isCurrent?: () => boolean;
+	/** Adopt an authoritative GET result locally without issuing another PATCH. */
+	canonicalOnly?: boolean;
 	/**
 	 * Let the PATCH outlive the page (pagehide / tab close). Browsers cap
 	 * keepalive bodies at 64KB, so larger notes fall back to a normal request.
@@ -235,8 +239,10 @@ export function useNotes(userId: string) {
 	const createNote = useCallback(async (
 		folderId?: string | null,
 		title?: string,
-		seed?: { content: string; html: string; plainText: string; wordCount: number } | null
+		seed?: { content: string; html: string; plainText: string; wordCount: number } | null,
+		options?: { isCurrent?: () => boolean; activate?: boolean }
 	): Promise<Note> => {
+		if (options?.isCurrent?.() === false) throw new Error("The note destination changed.");
 		const body = {
 			title: title?.trim() || "Untitled Note",
 			content: seed?.content ?? "",
@@ -255,9 +261,10 @@ export function useNotes(userId: string) {
 		if (!res.ok) throw new Error("Failed to create note");
 		const data: NoteApiResponse = await res.json();
 		const note = toNote(data);
+		if (!mounted.current || options?.isCurrent?.() === false) return note;
 		touch(note.id);
 		setNotes((prev) => [note, ...prev.filter((n) => n.id !== note.id)]);
-		setActiveNoteId(note.id);
+		if (options?.activate !== false) setActiveNoteId(note.id);
 		return note;
 	}, [activeFolderId, touch]);
 
@@ -266,6 +273,13 @@ export function useNotes(userId: string) {
 		changes: Partial<Note>,
 		options?: UpdateNoteOptions
 	): Promise<boolean> => {
+		if (options?.isCurrent?.() === false) return false;
+		if (options?.canonicalOnly) {
+			if (!mounted.current) return false;
+			touch(id);
+			setNotes(prev => options.isCurrent?.() === false ? prev : prev.map(note => note.id === id ? { ...note, ...changes } : note));
+			return true;
+		}
 		const previous = notesRef.current.find((n) => n.id === id);
 		const tick = touch(id);
 		// Optimistic update
@@ -289,12 +303,12 @@ export function useNotes(userId: string) {
 			const updated = toNote(data);
 			// A newer local change to this note is still in flight; its own
 			// response will reconcile the row.
-			if (mounted.current && isLatest(id, tick)) {
+			if (mounted.current && options?.isCurrent?.() !== false && isLatest(id, tick)) {
 				setNotes((prev) => prev.map((n) => (n.id === id ? updated : n)));
 			}
 			return true;
 		} catch {
-			if (!mounted.current) return false;
+			if (!mounted.current || options?.isCurrent?.() === false) return false;
 			if (previous && isLatest(id, tick)) {
 				const restore: Partial<Note> = {};
 				let changed = false;

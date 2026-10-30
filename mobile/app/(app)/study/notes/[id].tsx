@@ -6,6 +6,7 @@ import {
 	AppState,
 	BackHandler,
 	KeyboardAvoidingView,
+	Pressable,
 	Share,
 	StyleSheet,
 	View,
@@ -28,7 +29,8 @@ import {
 	type NoteRichEditorHandle,
 } from "@/features/notes/components/NoteRichEditor";
 import { NoteTagSheet } from "@/features/notes/components/NoteTagSheet";
-import type { NoteAppendEvent } from "@/features/notes/useNoteAI";
+import type { NoteAIOperationController } from "@/features/notes/noteAIOperation";
+import { useNoteAIOperation } from "@/features/notes/useNoteAIOperation";
 import { useNoteEditorData } from "@/features/notes/useNoteEditorData";
 import { initialHtmlFor } from "@/features/notes/utils";
 import { useNotesSnapshot } from "@/features/notes/notesStore";
@@ -37,19 +39,30 @@ import { formatWikilink, resolveWikilinkTarget, wikilinkTargetKeys } from "@/fea
 /** Height of the parent layout's floating glass tab bar, which overlays this screen. */
 
 export default function NoteEditorScreen() {
- const { userId, isLoaded } = useAuth();
+ const { userId, sessionId, isLoaded } = useAuth();
  const params = useLocalSearchParams<{ id: string | string[] }>();
  const noteId = Array.isArray(params.id) ? params.id[0] : (params.id ?? "");
- if (!isLoaded || !userId) return <Screen><Text>Sign in to open your notes.</Text></Screen>;
- return <NoteEditorSession key={`${userId}:${noteId}`} noteId={noteId} />;
+ if (!isLoaded || !userId || !sessionId) return <Screen><Text>Sign in to open your notes.</Text></Screen>;
+ return <NoteEditorSession key={`${userId}:${sessionId}:${noteId}`} noteId={noteId} />;
 }
 function NoteEditorSession({ noteId }: { noteId: string }) {
  const router = useRouter();
  const { colors } = useTheme();
  const styles = useThemedStyles(createStyles);
 
-	const data = useNoteEditorData(noteId);
+	const safetyRef = useRef<NoteAIOperationController | null>(null);
 	const editorRef = useRef<NoteRichEditorHandle>(null);
+	const data = useNoteEditorData(noteId, {
+		isCurrent: () => safetyRef.current?.isCurrent() === true,
+		canSave: () => safetyRef.current?.canSave() === true,
+	});
+	const safety = useNoteAIOperation(noteId, {
+		prepare: async () => (await editorRef.current?.flush()) === true && await data.flushMutations(),
+		canonical: data.refetchHtml,
+		adopt: async html => (await editorRef.current?.replaceContent(html)) === true,
+		lock: locked => editorRef.current?.setReadOnly(locked),
+	});
+	safetyRef.current = safety.controller;
 	const [aiOpen, setAiOpen] = useState(false);
 	const [tagsOpen, setTagsOpen] = useState(false);
 	const [infoOpen, setInfoOpen] = useState(false);
@@ -98,13 +111,17 @@ function NoteEditorSession({ noteId }: { noteId: string }) {
 		router.dismissTo("/study/notes");
 	}, [data.removeNote, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
+	const canLeave = useCallback(async () => {
+		if (!safety.controller.canEdit() && !await safety.controller.recover()) return false;
+		return safety.controller.isCurrent() && (await editorRef.current?.flush()) === true;
+	}, [safety.controller]);
+
 	const goBack = useCallback(async () => {
-		const flushed = await editorRef.current?.flush();
-		if (flushed === false) return;
+		if (!await canLeave()) return;
 		// Always land on the notes hub: pops to it when it's in the stack,
 		// replaces otherwise (plain back() could fall out to another tab).
 		router.dismissTo("/study/notes");
-	}, [router]);
+	}, [router, canLeave]);
 
 	useFocusEffect(
 		useCallback(() => {
@@ -123,8 +140,8 @@ function NoteEditorSession({ noteId }: { noteId: string }) {
 	// stack removal is too late to keep a failed save visible on the Notes tab.
 	useFocusEffect(
 		useCallback(() => {
-			return registerTabDepartureGuard(async () => (await editorRef.current?.flush()) !== false);
-		}, [])
+			return registerTabDepartureGuard(canLeave);
+		}, [canLeave])
 	);
 
 	useEffect(() => {
@@ -136,9 +153,15 @@ function NoteEditorSession({ noteId }: { noteId: string }) {
 
 	const openAI = useCallback(async () => {
 		// Save first so the assistant reads the current text, not the last autosave.
-		if ((await editorRef.current?.flush()) === false) return;
+		if (!await canLeave()) return;
 		setAiOpen(true);
-	}, []);
+	}, [canLeave]);
+
+	const closeAI = useCallback(async () => {
+		if (!await safety.controller.recover() || !mounted.current) return false;
+		setAiOpen(false);
+		return true;
+	}, [safety.controller]);
 
 	// Links are parsed server-side from the saved text, so an unflushed
 	// [[wikilink]] would be missing from the sheet that is meant to show it.
@@ -169,14 +192,6 @@ function NoteEditorSession({ noteId }: { noteId: string }) {
 		[noteId, router]
 	);
 
-	const handleNoteAppended = useCallback(
-		async (event: NoteAppendEvent) => {
-			if (event.noteId !== noteId) return;
-			const html = await data.refetchHtml();
-			if (html !== null) editorRef.current?.replaceContent(html);
-		},
-		[noteId, data]
-	);
 
 	const note = data.note;
 	// Keyed on id + body availability: a cached summary row (no body yet) must
@@ -197,10 +212,11 @@ function NoteEditorSession({ noteId }: { noteId: string }) {
 					title={note?.title ?? ""}
 					isPinned={note?.isPinned ?? false}
 					isSaving={data.isSaving}
-					saveError={note ? data.error : null}
+					saveError={safety.error ?? (note ? data.error : null)}
+					readOnly={safety.locked}
 					aiOpen={aiOpen}
 					onBack={() => void goBack()}
-					onRename={(title) => void data.renameNote(title)}
+					onRename={(title) => { if (safety.controller.canEdit()) void data.renameNote(title); }}
 					onToggleAI={() => void openAI()}
 					onOpenMenu={() => setMenuOpen(true)}
 				/>
@@ -214,6 +230,8 @@ function NoteEditorSession({ noteId }: { noteId: string }) {
                         key={noteId}
 						ref={editorRef}
 						initialHtml={initialHtml}
+						readOnly={safety.locked}
+						canSave={safety.controller.canSave}
 						onSave={data.save}
 						onCaptureError={data.reportSaveError}
 						bottomInset={bottomInset}
@@ -228,12 +246,21 @@ function NoteEditorSession({ noteId }: { noteId: string }) {
 				)}
 			</KeyboardAvoidingView>
 
+			{safety.locked ? (
+				<View accessibilityLiveRegion="polite" style={{ padding: spacing.md }}>
+					<Text>{safety.error ?? "Editing is paused while SureWord checks the saved note."}</Text>
+					<Pressable accessibilityRole="button" onPress={() => void safety.controller.recover()}>
+						<Text>Check saved note</Text>
+					</Pressable>
+				</View>
+			) : null}
+
 			<NoteTagSheet
 				visible={tagsOpen}
 				tags={data.tags}
 				noteTagIds={note?.tagIds ?? []}
 				onClose={() => setTagsOpen(false)}
-				onToggleTag={(tagId) => void data.toggleTag(tagId)}
+				onToggleTag={(tagId) => { if (safety.controller.canEdit()) void data.toggleTag(tagId); }}
 				onCreateTag={(name, color) => void data.createTag(name, color)}
 			/>
 
@@ -250,8 +277,8 @@ function NoteEditorSession({ noteId }: { noteId: string }) {
 					note={note}
 					folderName={data.folders.find((folder) => folder.id === note.folderId)?.name ?? null}
 					onClose={() => setInfoOpen(false)}
-					onSaveAliases={(aliases) => void data.setAliases(aliases)}
-					onSaveProperties={(properties) => void data.setProperties(properties)}
+					onSaveAliases={(aliases) => { if (safety.controller.canEdit()) void data.setAliases(aliases); }}
+					onSaveProperties={(properties) => { if (safety.controller.canEdit()) void data.setProperties(properties); }}
 					onCreateLinkedNote={data.createLinkedNote}
 				/>
 			) : null}
@@ -261,9 +288,9 @@ function NoteEditorSession({ noteId }: { noteId: string }) {
 					note={note}
 					folders={data.folders}
 					onClose={() => setMenuOpen(false)}
-					onTogglePin={() => void data.togglePin()}
-					onMoveToFolder={(_id, folderId) => void data.moveToFolder(folderId)}
-					onDelete={() => void deleteNote()}
+					onTogglePin={() => { if (safety.controller.canEdit()) void data.togglePin(); }}
+					onMoveToFolder={(_id, folderId) => { if (safety.controller.canEdit()) void data.moveToFolder(folderId); }}
+					onDelete={() => { if (safety.controller.canEdit()) void deleteNote(); }}
 					tagCount={note.tagIds.length}
 					onOpenTags={() => openFromMenu(() => setTagsOpen(true))}
 					onOpenInfo={() => openFromMenu(() => void openInfo())}
@@ -276,8 +303,10 @@ function NoteEditorSession({ noteId }: { noteId: string }) {
 				<NoteAIPanel
 					noteId={note.id}
 					visible={aiOpen}
-					onClose={() => setAiOpen(false)}
-					onNoteAppended={(event) => void handleNoteAppended(event)}
+					onClose={closeAI}
+					operation={safety.controller}
+					beforeNavigate={canLeave}
+					onNavigated={() => setAiOpen(false)}
 				/>
 			) : null}
 		</Screen>

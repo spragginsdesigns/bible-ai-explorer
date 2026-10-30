@@ -34,6 +34,9 @@ struct NoteFormattingToolbar: View {
                     headingButton(1)
                     headingButton(2)
                     headingButton(3)
+                    headingButton(4)
+                    headingButton(5)
+                    headingButton(6)
                 }
                 separator
                 group {

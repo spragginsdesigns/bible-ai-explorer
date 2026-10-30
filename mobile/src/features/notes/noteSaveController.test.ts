@@ -148,3 +148,17 @@ describe("createNoteSaveController", () => {
 		expect(saved).toEqual(["latest draft"]);
 	});
 });
+
+it("blocks delayed captures and last-chance saves while an AI safety fence is held", async () => {
+	let editable = true;
+	let release!: (value: string) => void;
+	const capture = new Promise<string>(done => { release = done; });
+	const saved: string[] = [];
+	const controller = createNoteSaveController("old", () => capture, async html => { saved.push(html); }, undefined, () => editable);
+	const pending = controller.enqueue();
+	const rejected = expect(pending).rejects.toThrow("Check the saved AI result");
+	await Promise.resolve(); editable = false; release("stale draft"); await rejected;
+	expect(await controller.flush()).toBe(false);
+	await expect(controller.lastChance()).rejects.toThrow("Check the saved AI result");
+	expect(saved).toEqual([]);
+});

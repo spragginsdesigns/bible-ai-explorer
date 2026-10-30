@@ -4,6 +4,7 @@ import { API_URL } from "@/lib/api";
 import { setListenRate, useSettings } from "@/features/settings/settingsStore";
 import { nextListenRate } from "@/features/cross/listen";
 import { LISTEN_ORDER, adjacentVerse, hasNarration, needsStillListening, verseAt, verseStart, type AudioEdition, type ChapterAudio } from "./audioBible";
+import { VoiceAudioPlayback } from "@/features/voice/VoiceAudioPlayback";
 
 type Recordings = Partial<Record<AudioEdition, ChapterAudio>>;
 
@@ -38,6 +39,7 @@ export function useChapterAudio(options: {
   const latest = useRef({ options, rate }); latest.current = { options, rate };
   const audioRef = useRef<ChapterAudio | null>(null);
   const player = useRef<AudioPlayer | null>(null);
+  const playback = useRef<VoiceAudioPlayback | null>(null);
   const subscription = useRef<{ remove: () => void } | null>(null);
   const watchdog = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sessionOpen = useRef(false);
@@ -52,6 +54,7 @@ export function useChapterAudio(options: {
     if (watchdog.current) clearTimeout(watchdog.current);
     watchdog.current = null;
     subscription.current?.remove(); subscription.current = null;
+    playback.current?.dispose(); playback.current = null;
     const old = player.current; player.current = null;
     if (old) { old.pause(); old.setActiveForLockScreen(false); old.remove(); }
   }, []);
@@ -60,6 +63,10 @@ export function useChapterAudio(options: {
     releasePlayer();
     const item = createAudioPlayer({ uri: recording.audioUrl }, { updateInterval: 250 });
     player.current = item;
+    const protectedPlayback = new VoiceAudioPlayback(item, () => {
+      if (player.current === item) setError("Couldn't play narration. Try Listen again.");
+    });
+    playback.current = protectedPlayback;
     finishedPlayer.current = null;
     const generation = run.current;
     const operation = playOperation.current;
@@ -77,7 +84,7 @@ export function useChapterAudio(options: {
     const handle = (status: AudioStatus) => {
       if (!current() || status.id !== item.id) return;
       if (status.error) {
-        pendingStart = null; item.pause(); setPlaying(false); setReady(false);
+        pendingStart = null; protectedPlayback.pause(); setPlaying(false); setReady(false);
         setError("Couldn't play narration. Try Listen again."); return;
       }
       setReady(status.isLoaded); setPlaying(status.playing); setElapsed(status.currentTime);
@@ -89,14 +96,14 @@ export function useChapterAudio(options: {
       if (Math.abs(status.currentTime - lastTime) > 3) markAction();
       wasPlaying = status.playing; lastTime = status.currentTime;
       if (status.playing && needsStillListening(lastAction.current, Date.now())) {
-        item.pause(); setStillListeningPrompt(true);
+        protectedPlayback.pause(); setStillListeningPrompt(true);
       }
       if (status.isLoaded && pendingStart !== null) {
         item.setPlaybackRate(latest.current.rate, "high");
         const verse = pendingStart; pendingStart = null;
         void item.seekTo(verse > 0 ? verseStart(recording.verses, verse) : 0).then(() => {
-          if (current() && operation === playOperation.current) { programmaticPlay = true; item.play(); }
-        }).catch(() => { if (current()) setError("Couldn't play narration. Try Listen again."); });
+          if (current() && operation === playOperation.current) { programmaticPlay = true; void protectedPlayback.play(); }
+        }).catch(() => { if (current()) { protectedPlayback.pause(); setError("Couldn't play narration. Try Listen again."); } });
       }
       if (status.didJustFinish && !finished) {
         finished = true;
@@ -109,7 +116,7 @@ export function useChapterAudio(options: {
     };
     subscription.current = item.addListener("playbackStatusUpdate", handle);
     watchdog.current = setTimeout(() => {
-      if (current() && !item.isLoaded) { setError("Couldn't load narration. Check your connection and try Listen again."); setReady(false); }
+      if (current() && !item.isLoaded) { protectedPlayback.pause(); setError("Couldn't load narration. Check your connection and try Listen again."); setReady(false); }
     }, 12_000);
     handle(item.currentStatus);
   }, [markAction, releasePlayer]);
@@ -180,7 +187,7 @@ export function useChapterAudio(options: {
     markAction(); const item = player.current;
     if (!item?.isLoaded || error || finishedPlayer.current === item.id) { void play(); return; }
     if (stillListeningPrompt) return;
-    if (item.playing) item.pause(); else item.play();
+    if (item.playing) playback.current?.pause(); else void playback.current?.play();
   }, [error, markAction, play, stillListeningPrompt]);
   const seek = useCallback((seconds: number) => {
     markAction(); const item = player.current; const recording = audioRef.current;
@@ -202,6 +209,6 @@ export function useChapterAudio(options: {
       if (audio && target !== null) seek(verseStart(audio.verses, target));
     },
     cycleRate: () => { markAction(); setListenRate(nextListenRate(rate)); },
-    keepListening: () => { markAction(); setStillListeningPrompt(false); if (player.current?.isLoaded) player.current.play(); },
+    keepListening: () => { markAction(); setStillListeningPrompt(false); if (player.current?.isLoaded) void playback.current?.play(); },
   };
 }

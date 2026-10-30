@@ -4,6 +4,8 @@ The exact text for SureWord's App Store page. Start at
 [`store-listing/README.md`](README.md); the Play twin is
 [`play-store.md`](play-store.md).
 
+**PENDING 1.31.0 release:** saved-answer checking and original downloads are in the copy below. Apply after final acceptance. Live API readback on 2026-10-30 shows 1.30.0 (2) is `DEVELOPER_REJECTED`; public 1.26.0 (2) remains `READY_FOR_SALE`. The following submission receipt is historical.
+
 **Submitted in App Store Connect (2026-10-29 Pacific):** the complete text below,
 including Ways to Serve and adjustable text, matches `asc.py listing check`.
 Build **1.30.0 (2)** was submitted at **06:12:34 Pacific**; both the version and
@@ -86,7 +88,8 @@ ASK THE BIBLE ANYTHING
 • Find the verse you half remember, by meaning or by exact words
 • Cross-reference map: trace any verse through the whole Bible
 • Hebrew and Greek word study with Strong's concordance numbers
-• Copy, edit, retry, share, save or rate any answer
+• Copy, edit, retry, share, save or rate checked answers
+• Check saved answers or download originals unchanged
 • Answers in English, Spanish or German
 
 TEST EVERYTHING BY SCRIPTURE
@@ -106,7 +109,7 @@ READ AND LISTEN TO THE KJV BIBLE
 • Send a verse and a word of encouragement to someone you love
 
 DAILY DEVOTIONAL: PICK UP YOUR CROSS
-• A verse of the day chosen for you from your own reading, questions and notes, with how to live it today (Luke 9:23)
+• A verse of the day from your reading, questions and notes, with how to live it today (Luke 9:23)
 • Stay with today's word, or ask for a fresh one
 • Share today's word as a card
 • A daily reminder at the hour you choose
@@ -129,7 +132,7 @@ A BIBLE GUIDE THAT KNOWS YOU
 
 BIBLE STUDY NOTES
 • Notes with folders, tags, templates and linked notes
-• SureWord can find, read, add to and tidy your notes when you ask
+• Ask SureWord to find, read, add to or tidy your notes
 
 SUREWORD AI
 • SureWord AI works the moment you sign in, no setup needed

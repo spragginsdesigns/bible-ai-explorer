@@ -13,7 +13,8 @@ export function createNoteSaveController(
 	initialHtml: string,
 	capture: () => Promise<string | null>,
 	save: (html: string) => Promise<void>,
-	onCaptureError?: (message: string) => void
+	onCaptureError?: (message: string) => void,
+	canSave: () => boolean = () => true
 ): NoteSaveController {
 	let savedHtml = initialHtml;
 	let latestHtml = initialHtml;
@@ -22,6 +23,7 @@ export function createNoteSaveController(
 
 	const persist = async (html: string, jobGeneration: number) => {
 		if (jobGeneration !== generation) return;
+		if (!canSave()) throw new Error("Check the saved AI result before editing this note.");
 		latestHtml = html;
 		if (html === savedHtml) return;
 		await save(html);
@@ -30,6 +32,7 @@ export function createNoteSaveController(
 
 	const enqueue = () =>
 		enqueueJob(async () => {
+			if (!canSave()) throw new Error("Check the saved AI result before editing this note.");
 			const jobGeneration = generation;
 			const html = await capture();
 			if (jobGeneration !== generation) return;

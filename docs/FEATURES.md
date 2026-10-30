@@ -1092,6 +1092,7 @@ routing reads: `cross` is the Daily Cross, `chat` is an answer, anything else
 |--------|-----|-------|
 | Android | `SureWordNotificationsService` subclasses expo-notifications' `NotificationsService` at receiver priority 0 (Expo's own is -1, so Expo routes every event to ours) and swaps in `SureWordPresentationDelegate`. Expo still builds the notification (channel, tap intent, extras, sound); the delegate re-dresses it with `Notification.DecoratedCustomViewStyle` and two RemoteViews: closed is a 40dp mark beside one-line title and text, expanded puts the wide banner above the words, never behind them, per Android's custom-notification guide. Any failure posts Expo's notification unchanged. Art is pre-rounded WebP because RemoteViews cannot clip. | `mobile/modules/sureword-notifications/` |
 | iOS | The server sets `mutable-content: 1` and a category (`SUREWORD_CROSS` / `SUREWORD_ANSWER`, `apnsCategoryFor` in `src/lib/apns.ts`). `SureWord-iOS-NotificationService` attaches the mark as the banner thumbnail; `SureWord-iOS-NotificationContent` draws the long-press view (wide art over title and body). Apple keeps the header and app icon. Local notices (the Daily Cross fallback, the Mac's answer notice) are dressed the same way in-app. | `macos/Shared/NotificationArt/`, both extension folders |
+| macOS | Pending 1.31.0 verification: a native service extension reuses bundled thumbnail attachment logic for APNs, and an AppKit content extension draws the wide art over wrapping title/body text. Both helpers are sandboxed without network or shared-account access. Local notifications use the same categories. | `macos/SureWord-macOS-NotificationContent/`, `macos/project.yml` |
 | Web | `buildWebPushPayload` adds `icon` and `image` from `notificationArtFor`; the service worker shows them, and the local hidden-tab notice uses the same files. | `public/notifications/`, `public/push-handlers.js` |
 
 Regenerate: `node scripts/generate-notification-art.mjs` (gpt-image-2.5-sunburst
@@ -2276,8 +2277,12 @@ Exodus 14.
   so the screen works with no network, exactly like the Bible reader.
 - **Web reads the same data over the API** (`src/components/atlas/useAtlas.ts`),
   so the browser never downloads the atlas.
-- **macOS and iOS use the same authenticated API contract** through
-  `macos/Shared/Atlas/AtlasModel.swift`, with platform-native explorer views.
+- **macOS and iOS query the bundled corpus locally** through
+  `macos/Shared/Atlas/AtlasModel.swift` and `BundledAtlas`. All seven operations
+  use the shared core in JavaScriptCore and decode the same response shapes;
+  they require neither an auth token nor a network connection. The explorer
+  views remain native. Current offline/runtime and release acceptance is tracked
+  separately in [`PARITY.md`](PARITY.md).
 
 ### API
 
@@ -2591,6 +2596,14 @@ checkout has this code. Reminders (push before an event) are deliberately not
 in v1.
 
 ## Note wikilinks, backlinks, and properties
+
+The Mac Notes layout adapts to the available content width. Below 740 points,
+the selected editor fills the pane and Back returns to the full library.
+Wider panes show the 320-point library beside the editor. If the editor has
+less than 680 points, its AI assistant temporarily fills that pane; closing it
+returns to the same editor. Width changes preserve the editor model, draft,
+write lease and AI input instead of creating another editor. This is verified
+in the local 1.31.0 (40) build; public release status is in `PARITY.md`.
 
 *Shipped 2026-08-30 · Android 1.41.0 + web; macOS/iOS pending their next Mac
 build cycle (tracked in `PARITY.md`)*
@@ -4313,13 +4326,18 @@ section; false or an omitted field shows the unavailable explanation, and
 an initial request failure shows a retry. Opening Pro details does not
 authorize a purchase. Settings retains that entry for recovery too.
 
-**2026-10-28 live check:** production reported `enabled=true`,
-`playCheckoutAvailable=false`, and `appStoreCheckoutAvailable=true`.
-Google's subscription GET initially returned 404 for `sureword_pro`.
-The product and its `monthly` base plan now exist in Play Console, with
-the existing benefits and an exact USD 15.00 US price. The plan remains
-`DRAFT`; checkout remains unavailable pending a controlled license-test
-purchase and lifecycle verification. See `docs/PARITY-TODO.md` section 1.1.
+**2026-10-30 Google Play checkpoint:** `sureword_pro` and its US `monthly`
+base plan are active at USD 15.00/month. Real no-charge Android license tests
+proved purchase/acknowledgement, Pro, Restore purchase, accelerated renewal,
+paid-through cancellation and expiry, decline, grace, hold, recovery and
+revocation. Cross-account rejection and real DELETE-handler cancellation
+failure/retry also passed. In-place QA APK reinstall preserved data and sign-in;
+clean-uninstall restoration was not exercised. No real charge, settlement or
+payout was made. See [the lifecycle evidence and fixture limits](billing-play-lifecycle.md).
+
+Billing commit `fe815467` preserves main notification commit `48cc35c2`.
+The combined source passed 262 focused tests (161 billing/account and 101
+notification), TypeScript and full-source ESLint. READY production deployment `dpl_B7ZdVVK1F6QBtmuMbNBzD3RwdW6d` serves `sureword.app` and `bible-ai-explorer.vercel.app`. Both authenticated status endpoints returned HTTP 200 with Pro and the same funded 20:06:56.365 to 20:11:56.365 UTC period and 600-message allowance on October 30. Actual RTDN type 2 at 20:07:02.987 UTC advanced the persisted funded period by 20:07:04.526 UTC while the app was backgrounded and the observation harness made no status requests.
 
 **Local testing.** `macos/StoreKit/SureWord.storekit` holds the product for
 the simulator and is the SureWord-iOS scheme's run-action StoreKit

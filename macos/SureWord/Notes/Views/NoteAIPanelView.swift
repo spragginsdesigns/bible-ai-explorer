@@ -9,7 +9,10 @@ import SwiftUI
 struct NoteAIPanelView: View {
     @Environment(\.theme) private var theme
     @Bindable var ai: NoteAIModel
+    var occupiesCompactPane = false
     var onClose: () -> Void
+    @FocusState private var isComposerFocused: Bool
+    @State private var hasRequestedFocus = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,6 +27,16 @@ struct NoteAIPanelView: View {
         }
         .background(theme.glassLight)
         .environment(\.openURL, OpenURLAction(handler: openLink))
+        .task(id: occupiesCompactPane) {
+            guard occupiesCompactPane || !hasRequestedFocus else { return }
+            // AppKit editor focus can move outside SwiftUI's focus graph.
+            // Re-arm the request when that editor becomes hidden on resize.
+            isComposerFocused = false
+            await Task.yield()
+            guard !Task.isCancelled else { return }
+            isComposerFocused = true
+            hasRequestedFocus = true
+        }
         .task { await ai.loadHistory() }
     }
 
@@ -77,7 +90,13 @@ struct NoteAIPanelView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: Spacing.md) {
                         ForEach(ai.messages) { message in
-                            NoteAIMessageView(message: message).id(message.id)
+                            if message.savedAnswerReview != nil {
+                                SavedAnswerReviewView(message: message, api: ai.savedAnswerReviewAPI) { checked in
+                                    AnyView(NoteAIMessageView(message: checked, onClose: onClose))
+                                }.id(message.id)
+                            } else {
+                                NoteAIMessageView(message: message, onClose: onClose).id(message.id)
+                            }
                         }
                         if let error = ai.error {
                             ErrorCard(message: "Something went wrong: \(error)", actionTitle: ai.retryActionTitle) {
@@ -182,6 +201,7 @@ struct NoteAIPanelView: View {
         HStack(alignment: .bottom, spacing: Spacing.sm) {
             TextField("Ask about your note…", text: $ai.input, axis: .vertical)
                 .textFieldStyle(.plain)
+                .focused($isComposerFocused)
                 .appFont(.system(size: 13))
                 .lineLimit(1...6)
                 .onSubmit { Task { await ai.submit() } }
@@ -212,6 +232,7 @@ struct NoteAIPanelView: View {
 struct NoteAIMessageView: View {
     @Environment(\.theme) private var theme
     let message: ChatViewMessage
+    var onClose: () -> Void
 
     var body: some View {
         if message.role == .user {
@@ -257,26 +278,7 @@ struct NoteAIMessageView: View {
                             }
                         }
                     }
-                    ForEach(message.noteActions) { action in
-                        HStack(spacing: 6) {
-                            Image(systemName: "pencil")
-                                .appFont(.system(size: 10))
-                                .foregroundStyle(theme.accent)
-                            Text(action.created ? "Created note" : "Added to note")
-                                .foregroundStyle(theme.textSecondary)
-                            Text(action.noteTitle)
-                                .foregroundStyle(theme.accent)
-                                .fontWeight(.semibold)
-                        }
-                        .appFont(.system(size: 11.5))
-                        .padding(.horizontal, Spacing.md)
-                        .padding(.vertical, 6)
-                        .background(theme.accentSoft, in: .rect(cornerRadius: Radius.sm))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: Radius.sm)
-                                .strokeBorder(theme.accentBorder, lineWidth: 1)
-                        }
-                    }
+                    NoteAIReceiptLine(receipts: message.receipts, onClose: onClose)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

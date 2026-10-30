@@ -32,6 +32,8 @@ final class NoteAIModel {
     private var uiMessages: [UIMessage] = []
 
     private let api: APIClient
+    /// The same owner-guarded transport used to load this note's AI history.
+    var savedAnswerReviewAPI: APIClient { api }
     private let notes: NotesAPI
     private let noteID: String
     private let store: NotesStore

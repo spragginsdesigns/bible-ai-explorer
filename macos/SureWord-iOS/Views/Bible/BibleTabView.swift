@@ -110,19 +110,21 @@ struct BibleTabView: View {
         // A verse reference tapped in chat lands here. Consume it once: the
         // tab root is long-lived, so leaving the value set would re-push the
         // same verse every time the Bible tab reappears.
-        .onChange(of: app.pendingVerseReference, initial: true) { _, pending in
-            guard let pending else { return }
-            if let reference = Bible.resolveReference(pending) {
-                model.open(reference)
-                readerRequest = BibleReaderRequest(
-                    order: reference.order,
-                    chapter: reference.chapter,
-                    verse: reference.verse,
-                    translation: app.pendingVerseTranslation
-                )
+        .onChange(of: app.pendingVerseRoute, initial: true) { _, route in
+            guard let route else { return }
+            Task {
+                await app.consumeVerse(route) { target in
+                    if let reference = Bible.resolveReference(target.reference) {
+                        model.open(reference)
+                        readerRequest = BibleReaderRequest(
+                            order: reference.order,
+                            chapter: reference.chapter,
+                            verse: reference.verse,
+                            translation: target.translation
+                        )
+                    }
+                }
             }
-            app.pendingVerseReference = nil
-            app.pendingVerseTranslation = nil
         }
     }
 

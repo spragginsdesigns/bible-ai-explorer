@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
-import { composeNoteFromAnswer } from "@/lib/note-composer";
+import { composeNoteFromAnswer, COMPOSE_WORKFLOW_MS } from "@/lib/note-composer";
 import { appendMarkdownToNote } from "@/lib/notes-io";
 
 // Whole chat answers can be much longer than an AI addToNote tool call
 // (which uses the 8000-char default in notes-io).
 const MAX_APPEND_MARKDOWN_LENGTH = 32000;
 
-// The composer's own budget is 45s (see note-composer), and Prisma writes plus
-// the embedding sync follow it.
-export const maxDuration = 90;
+// The 150s workflow reserves 45s composition, 75s checking and 30s persistence.
+// The route and clients allow transport margin outside that workflow.
+export const maxDuration = 180;
 
 /**
  * Append markdown to an existing note, or create a new note when noteId is
@@ -31,6 +31,7 @@ export const POST = withIncludedAiRequest(handlePost, "note-compose");
 
 async function handlePost(req: Request) {
 	try {
+		const deadlineAt = Date.now() + COMPOSE_WORKFLOW_MS;
 		const userId = await getAuthUser();
 		const body = await req.json().catch(() => null);
 
@@ -42,6 +43,8 @@ async function handlePost(req: Request) {
 				{ status: 400 }
 			);
 		}
+
+		if (markdown.length > MAX_APPEND_MARKDOWN_LENGTH) return NextResponse.json({ error: "This note is too long to save without cutting its content." }, { status: 400 });
 
 		const noteId =
 			body && typeof body.noteId === "string" && body.noteId
@@ -58,25 +61,30 @@ async function handlePost(req: Request) {
 		const compose = !(body && body.compose === false);
 
 		const composed = compose
-			? await composeNoteFromAnswer({ userId, markdown, noteId, conversationId })
+			? await composeNoteFromAnswer({ userId, markdown, noteId, conversationId, deadlineAt, signal: req.signal })
 			: null;
 
-		const result = await appendMarkdownToNote({
-			userId,
-			markdown: composed?.markdown ?? markdown,
-			noteId,
-			// The composed title names the note; the client's conversation title (a
-			// 60-character slice of the question) is the fallback.
-			title: composed?.title ?? title,
-			maxLength: MAX_APPEND_MARKDOWN_LENGTH,
-		});
+		if (req.signal.aborted) return NextResponse.json({ error: "The request was cancelled before saving." }, { status: 499 });
+
+		if (compose && (!composed || !composed.composed)) {
+			return NextResponse.json({ error: "The note could not be checked, so it was not saved. Please try again." }, { status: composed && !composed.composed && composed.reason === "not-found" ? 404 : 503 });
+		}
+		// An explicit compose:false request is user-verbatim provenance; it is
+		// never represented as checked AI output or used after an AI failure.
+		const save = composed?.composed
+			? { markdown: composed.markdown, title: composed.title, provenance: composed.provenance }
+			: { markdown, title, provenance: "user-verbatim" as const };
+		if (save.markdown.length > MAX_APPEND_MARKDOWN_LENGTH) return NextResponse.json({ error: "This note is too long to save without cutting its content." }, { status: 400 });
+		if (compose && Date.now() >= deadlineAt) return NextResponse.json({ error: "The note could not be checked in time, so it was not saved." }, { status: 503 });
+		// This preflight stops already-aborted jobs, not a commit racing cancellation.
+		if (req.signal.aborted) return NextResponse.json({ error: "The request was cancelled before saving." }, { status: 499 });
+		const result = await appendMarkdownToNote({ userId, markdown: save.markdown, noteId, title: save.title, maxLength: MAX_APPEND_MARKDOWN_LENGTH });
 
 		return NextResponse.json({
 			noteId: result.noteId,
 			noteTitle: result.noteTitle,
 			created: result.created,
-			// False when the answer was stored verbatim, either because the caller
-			// asked for that or because composition failed.
+			// False only for the explicit user-verbatim path. AI failures never save.
 			composed: composed?.composed ?? false,
 		});
 	} catch (err) {

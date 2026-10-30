@@ -21,6 +21,7 @@ import {
 } from "@/components/cross/listen";
 import { readListenRatePref } from "@/lib/preferences";
 import { setListenRatePreference, usePreference } from "@/lib/preferencesSync";
+import { coordinateMediaNarration } from "@/lib/voice/web-narration";
 
 const FAILURE_TEXT = "Couldn't prepare audio - try again";
 
@@ -91,6 +92,12 @@ function playbackSrc(audio: DailyCrossAudio | null): string | undefined {
  */
 export default function ListenCard({ reference }: { reference?: string | null }) {
 	const audioRef = useRef<HTMLAudioElement | null>(null);
+	const narrationRef = useRef<ReturnType<typeof coordinateMediaNarration> | null>(null);
+	const attachAudio = useCallback((element: HTMLAudioElement | null) => {
+		narrationRef.current?.dispose();
+		audioRef.current = element;
+		narrationRef.current = element ? coordinateMediaNarration(element) : null;
+	}, []);
 	const [audio, setAudio] = useState<DailyCrossAudio | null>(null);
 	const [urlFetchedAt, setUrlFetchedAt] = useState<number | null>(null);
 	const [failed, setFailed] = useState(false);
@@ -259,9 +266,9 @@ export default function ListenCard({ reference }: { reference?: string | null })
 	const togglePlay = useCallback(() => {
 		const element = audioRef.current;
 		if (!element) return;
-		if (element.paused) void element.play();
+		if (element.paused) void narrationRef.current?.play().catch(() => void handlePlaybackError());
 		else element.pause();
-	}, []);
+	}, [handlePlaybackError]);
 
 	const scrub = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
 		const element = audioRef.current;
@@ -338,7 +345,7 @@ export default function ListenCard({ reference }: { reference?: string | null })
 
 				{/* eslint-disable-next-line jsx-a11y/media-has-caption -- the full transcript is rendered below as "Read along". */}
 				<audio
-					ref={audioRef}
+					ref={attachAudio}
 					src={playbackSrc(audio)}
 					preload="metadata"
 					onPlay={() => {
@@ -360,7 +367,7 @@ export default function ListenCard({ reference }: { reference?: string | null })
 							resumeAtRef.current = 0;
 							if (resumePlayingRef.current) {
 								resumePlayingRef.current = false;
-								void element.play();
+								void narrationRef.current?.play().catch(() => void handlePlaybackError());
 							}
 						}
 					}}

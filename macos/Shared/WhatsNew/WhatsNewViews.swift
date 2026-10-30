@@ -459,8 +459,7 @@ enum WhatsNewNavigation {
             NotificationCenter.default.post(name: .openDailyCross, object: nil)
             #endif
         case .daily(let daily):
-            app.pendingDailyDestination = daily
-            app.section = .today
+            app.openDaily(daily)
         case .study(let page):
             StudyHubNavigation.open(page, in: app)
         }

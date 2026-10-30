@@ -112,12 +112,9 @@ struct SignInView: View {
                 Rectangle().fill(theme.border).frame(height: 1)
             }
 
-            // App Review 4.8: an app offering Google sign-in must offer Sign in
-            // with Apple alongside it. Only the iOS target carries the
-            // entitlement; the Mac ships outside the App Store.
-            #if os(iOS)
+            // iOS uses native Apple authorization; macOS uses Clerk's existing
+            // browser OAuth callback, matching the web's Apple provider.
             providerButton(.apple, identifier: "auth-apple")
-            #endif
             providerButton(.google, identifier: "auth-google")
 
             if let message {
@@ -165,11 +162,15 @@ struct SignInView: View {
         busyProvider = provider
         defer { busyProvider = nil }
         do {
+            #if os(iOS)
             let result: TransferFlowResult = if provider == .apple {
                 try await Clerk.shared.auth.signInWithApple()
             } else {
                 try await Clerk.shared.auth.signInWithOAuth(provider: provider)
             }
+            #else
+            let result = try await Clerk.shared.auth.signInWithOAuth(provider: provider)
+            #endif
             // A complete result has already activated the session, and the app
             // root swaps this screen out on its own.
             switch result {
@@ -209,11 +210,7 @@ enum AuthSheetMode: String, Identifiable {
 /// stay in step with `mobile/src/features/auth/authErrors.ts`.
 enum AuthWelcomeCopy {
     static var providerFootnote: String {
-        #if os(iOS)
         "Apple and Google work for new and existing accounts."
-        #else
-        "Google works for new and existing accounts."
-        #endif
     }
 
     /// The provider came back without a session: Clerk wants a step the

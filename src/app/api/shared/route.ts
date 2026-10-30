@@ -5,13 +5,11 @@ import { getAuthUser } from "@/lib/auth";
 import { createRateLimiter, rateLimitKey } from "@/lib/rateLimit";
 import { captureServerEvent } from "@/lib/analytics/server";
 import { ANALYTICS_EVENTS, platformFromHeaders } from "@/lib/analytics/events";
-import { stripFollowUpMarkers } from "@/utils/assistantMarkdown";
+import { checkedShareSource } from "@/lib/ai/history/shared-boundary.server";
+import { sharedSnapshotMatches } from "@/lib/ai/history/shared-boundary";
 import {
 	createSharedAnswerId,
-	extractReferences,
-	shareAnswer,
 	shareQuestion,
-	shareTranslation,
 	sharedAnswerUrl,
 } from "@/lib/shared-answer";
 
@@ -21,9 +19,8 @@ import {
  *
  * POST takes a conversation and one of its assistant messages and writes a
  * SNAPSHOT: the question, the answer text and the references are copied into
- * SharedAnswer so the public page never reads Message. Editing or deleting the
- * conversation afterwards therefore cannot change or leak what a link shows,
- * and revoking is the only way to take a link back.
+ * SharedAnswer. Public reads require the snapshot to match the current checked
+ * source. Failed or stale checks hide it without rewriting the saved snapshot.
  *
  * Sharing is idempotent on the message: a second tap on an already-shared
  * answer returns the same link rather than minting a second capability for the
@@ -111,14 +108,19 @@ export async function POST(req: Request) {
 			return NextResponse.json({ error: "Only an answer can be shared." }, { status: 400 });
 		}
 
+		const checked = await checkedShareSource({ userId, conversationId: conversation.id, messageId: message.id });
+		const reviewRequired = () => NextResponse.json({ error: "Check this saved answer before sharing it." }, { status: 409 });
+		if (!checked) return reviewRequired();
+
 		const existing = await prisma.sharedAnswer.findUnique({
 			where: { messageId: message.id },
-			select: { id: true, userId: true, createdAt: true, revokedAt: true },
+			select: { id: true, userId: true, createdAt: true, revokedAt: true, answer: true, references: true, translation: true },
 		});
 		if (existing) {
 			if (existing.userId !== userId) {
 				return NextResponse.json({ error: "Not found" }, { status: 404 });
 			}
+			if (!sharedSnapshotMatches(existing, checked)) return reviewRequired();
 			// Re-sharing after a revoke reuses the id rather than leaving the old
 			// one dead and minting a second capability for the same text.
 			if (existing.revokedAt) {
@@ -146,27 +148,12 @@ export async function POST(req: Request) {
 			select: { content: true },
 		});
 
-		const account = await prisma.user.findUnique({
-			where: { id: userId },
-			select: { translation: true },
-		});
-
-		// Assistant rows are persisted already stripped, but rows written before
-		// that was true are not, and the public page has no client-side stripper
-		// to fall back on.
-		const answer = shareAnswer(stripFollowUpMarkers(message.content, { streaming: false }));
-		if (!answer) {
-			return NextResponse.json({ error: "That answer is empty." }, { status: 400 });
-		}
-
 		const data = {
 			userId,
 			conversationId: conversation.id,
 			messageId: message.id,
 			question: shareQuestion(prompt?.content ?? ""),
-			answer,
-			references: extractReferences(message.metadata),
-			translation: shareTranslation(message.metadata, account?.translation),
+			...checked,
 		};
 
 		try {
@@ -185,9 +172,9 @@ export async function POST(req: Request) {
 			) {
 				const raced = await prisma.sharedAnswer.findUnique({
 					where: { messageId: message.id },
-					select: { id: true, createdAt: true },
+					select: { id: true, createdAt: true, answer: true, references: true, translation: true },
 				});
-				if (raced) {
+				if (raced && sharedSnapshotMatches(raced, checked)) {
 					captureShare(false);
 					return shareResponse(raced);
 				}

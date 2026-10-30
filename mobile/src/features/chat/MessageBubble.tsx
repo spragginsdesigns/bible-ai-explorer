@@ -13,7 +13,7 @@ import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
 import { SureWordGuideAvatar } from "@/components/SureWordGuideAvatar";
 import { guidePhase } from "@/components/guideMotion";
-import type { ChatViewMessage } from "@/lib/chatView";
+import { dbMessageToUIMessage, toViewMessage, type ChatViewMessage } from "@/lib/chatView";
 import { normalizeAssistantMarkdown } from "@/lib/assistantMarkdown";
 import { radius, spacing, typography } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
@@ -25,6 +25,7 @@ import {
 	type SetAnswerFeedback,
 } from "@/lib/answerFeedback";
 import { ShareCardSheet } from "@/features/shareCards/ShareCardSheet";
+import { HistoryReviewCard } from "./HistoryReviewCard";
 import { AddToNoteSheet } from "./AddToNoteSheet";
 import { FeedbackSheet } from "./FeedbackSheet";
 import { FollowUpChips } from "./FollowUpChips";
@@ -70,7 +71,16 @@ interface MessageBubbleProps {
 	onRetry?: () => void;
 }
 
-export const MessageBubble = React.memo(function MessageBubble({
+export const MessageBubble = React.memo(function MessageBubble(props: MessageBubbleProps) {
+	const review = props.message.historyVerification;
+	if (props.message.role === "assistant" && review) {
+		return <HistoryReviewCard review={review} locator={{ surface: "chat", parentId: props.conversationId ?? "", messageId: props.message.id }}
+			renderVerified={row => <MessageBubbleContent {...props} message={{ ...toViewMessage(dbMessageToUIMessage(row), { isStreaming: false }), feedback: props.message.feedback }} />} />;
+	}
+	return <MessageBubbleContent {...props} />;
+});
+
+const MessageBubbleContent = React.memo(function MessageBubbleContent({
 	message,
 	onFollowUp,
 	defaultNoteTitle,

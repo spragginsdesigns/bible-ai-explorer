@@ -1,3 +1,4 @@
+import { useAuth } from "@clerk/expo";
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as api from "./api";
 import {
@@ -23,8 +24,32 @@ import { useStableGetToken } from "./useStableGetToken";
  * writes through to the store, keeping the list screen in sync with no
  * pull-to-refresh.
  */
-export function useNoteEditorData(noteId: string) {
-	const getToken = useStableGetToken();
+export function useNoteEditorData(noteId: string, ownership?: { isCurrent: () => boolean; canSave: () => boolean }) {
+	const rawToken = useStableGetToken();
+	const { userId, sessionId } = useAuth();
+	const identity = useRef({ userId, sessionId });
+	identity.current = { userId, sessionId };
+	const ownershipRef = useRef(ownership);
+	ownershipRef.current = ownership;
+	const readGeneration = useRef(0);
+	const writes = useRef(new Set<Promise<unknown>>());
+	const trackWrite = <T,>(promise: Promise<T>): Promise<T> => {
+		writes.current.add(promise);
+		void promise.then(() => writes.current.delete(promise), () => writes.current.delete(promise));
+		return promise;
+	};
+	const flushMutations = useCallback(async () => {
+		try { await Promise.all([...writes.current]); return true; } catch { return false; }
+	}, []);
+	const getToken = useCallback(async (flags?: { fresh?: boolean }) => {
+		if (!mounted.current || identity.current.userId !== userId || identity.current.sessionId !== sessionId || ownershipRef.current?.isCurrent() === false) throw new Error("The note or reading account changed.");
+		const token = await rawToken(flags);
+		if (!mounted.current || identity.current.userId !== userId || identity.current.sessionId !== sessionId || ownershipRef.current?.isCurrent() === false) throw new Error("The note or reading account changed.");
+		return token;
+	}, [rawToken, userId, sessionId]);
+	const tokenOwner = useRef(getToken);
+	tokenOwner.current = getToken;
+	const requestIsCurrent = () => tokenOwner.current === getToken && mounted.current && ownershipRef.current?.isCurrent() !== false;
 	const { folders, tags } = useNotesSnapshot();
 
 	const [note, setNote] = useState<Note | null>(() => getCachedNote(noteId));
@@ -45,11 +70,12 @@ export function useNoteEditorData(noteId: string) {
 
 	useEffect(() => {
 		let cancelled = false;
+		const generation = readGeneration.current;
 
 		(async () => {
 			// The cache may still be hydrating (deep link straight to a note).
 			await hydrateNotesCache();
-			if (cancelled) return;
+			if (cancelled || !requestIsCurrent() || generation !== readGeneration.current) return;
 			const cached = getCachedNote(noteId);
 			if (cached) {
 				setNote((prev) => prev ?? cached);
@@ -58,12 +84,12 @@ export function useNoteEditorData(noteId: string) {
 
 			try {
 				const loaded: Note = { ...toNote(await api.fetchNote(getToken, noteId)), hasBody: true };
-				if (cancelled) return;
+				if (cancelled || !requestIsCurrent() || generation !== readGeneration.current) return;
 				setNote(loaded);
 				upsertNoteInCache(loaded);
 				setError(null);
 			} catch (err) {
-				if (cancelled) return;
+				if (cancelled || !requestIsCurrent() || generation !== readGeneration.current) return;
 				setError(err instanceof Error ? err.message : "Could not open this note.");
 			} finally {
 				if (!cancelled) setIsLoading(false);
@@ -75,7 +101,7 @@ export function useNoteEditorData(noteId: string) {
 					api.fetchTags(getToken),
 					api.fetchFolders(getToken),
 				]);
-				if (cancelled) return;
+				if (cancelled || !requestIsCurrent() || generation !== readGeneration.current) return;
 				applyFoldersAndTags(folderRows, tagRows);
 			} catch {
 				// Tag/folder controls stay empty.
@@ -89,26 +115,33 @@ export function useNoteEditorData(noteId: string) {
 
 	const save = useCallback(
 		async (payload: NoteSavePayload) => {
+			if (ownershipRef.current?.canSave() === false) throw new Error("Check the saved AI result before editing this note.");
+			const generation = ++readGeneration.current;
 			setIsSaving(true);
 			try {
 				const updated: Note = {
-					...toNote(await api.patchNote(getToken, noteId, payload)),
+					...toNote(await api.patchNote(async flags => {
+						const token = await getToken(flags);
+						if (ownershipRef.current?.canSave() === false) throw new Error("Editing is paused while the assistant finishes.");
+						return token;
+					}, noteId, payload)),
 					hasBody: true,
 				};
+				if (!requestIsCurrent() || generation !== readGeneration.current) return;
 				if (mounted.current) {
 					setNote(updated);
 					setError(null);
 				}
 				upsertNoteInCache(updated);
 			} catch (err) {
-				if (mounted.current) {
+				if (requestIsCurrent()) {
 					setError(err instanceof Error ? err.message : "Changes could not be saved.");
 				}
 				// Keep the failure visible, but let the editor keep the document
 				// dirty so a later flush can retry this payload.
 				throw err;
 			} finally {
-				if (mounted.current) setIsSaving(false);
+				if (requestIsCurrent()) setIsSaving(false);
 			}
 		},
 		[getToken, noteId]
@@ -123,9 +156,9 @@ export function useNoteEditorData(noteId: string) {
 			setNote((prev) => (prev ? { ...prev, title: trimmed } : prev));
 			patchNoteInCache(noteId, { title: trimmed });
 			try {
-				await api.patchNote(getToken, noteId, { title: trimmed });
+				await trackWrite(api.patchNote(getToken, noteId, { title: trimmed }));
 			} catch (err) {
-				if (!mounted.current) return;
+				if (!requestIsCurrent()) return;
 				setNote(previous);
 				if (previous) upsertNoteInCache(previous);
 				setError(err instanceof Error ? err.message : "The title could not be saved.");
@@ -144,9 +177,9 @@ export function useNoteEditorData(noteId: string) {
 		});
 		patchNoteInCache(noteId, { isPinned: !previous?.isPinned });
 		try {
-			await api.patchNote(getToken, noteId, { isPinned: next });
+			await trackWrite(api.patchNote(getToken, noteId, { isPinned: next }));
 		} catch (err) {
-			if (!mounted.current) return;
+			if (!requestIsCurrent()) return;
 			setNote(previous);
 			if (previous) upsertNoteInCache(previous);
 			setError(err instanceof Error ? err.message : "The pin could not be saved.");
@@ -159,9 +192,9 @@ export function useNoteEditorData(noteId: string) {
 			setNote((prev) => (prev ? { ...prev, folderId } : prev));
 			patchNoteInCache(noteId, { folderId });
 			try {
-				await api.patchNote(getToken, noteId, { folderId });
+				await trackWrite(api.patchNote(getToken, noteId, { folderId }));
 			} catch (err) {
-				if (!mounted.current) return;
+				if (!requestIsCurrent()) return;
 				setNote(previous);
 				if (previous) upsertNoteInCache(previous);
 				setError(err instanceof Error ? err.message : "The move could not be saved.");
@@ -182,9 +215,9 @@ export function useNoteEditorData(noteId: string) {
 			setNote((prev) => (prev ? { ...prev, tagIds } : prev));
 			patchNoteInCache(noteId, { tagIds });
 			try {
-				await api.toggleNoteTag(getToken, noteId, tagId);
+				await trackWrite(api.toggleNoteTag(getToken, noteId, tagId));
 			} catch (err) {
-				if (!mounted.current) return;
+				if (!requestIsCurrent()) return;
 				setNote(previous);
 				if (previous) upsertNoteInCache(previous);
 				setError(err instanceof Error ? err.message : "The tag could not be saved.");
@@ -199,9 +232,9 @@ export function useNoteEditorData(noteId: string) {
 			setNote((prev) => (prev ? { ...prev, aliases } : prev));
 			patchNoteInCache(noteId, { aliases });
 			try {
-				await api.patchNote(getToken, noteId, { aliases });
+				await trackWrite(api.patchNote(getToken, noteId, { aliases }));
 			} catch (err) {
-				if (!mounted.current) return;
+				if (!requestIsCurrent()) return;
 				setNote(previous);
 				if (previous) upsertNoteInCache(previous);
 				setError(err instanceof Error ? err.message : "The aliases could not be saved.");
@@ -216,9 +249,9 @@ export function useNoteEditorData(noteId: string) {
 			setNote((prev) => (prev ? { ...prev, properties } : prev));
 			patchNoteInCache(noteId, { properties });
 			try {
-				await api.patchNote(getToken, noteId, { properties });
+				await trackWrite(api.patchNote(getToken, noteId, { properties }));
 			} catch (err) {
-				if (!mounted.current) return;
+				if (!requestIsCurrent()) return;
 				setNote(previous);
 				if (previous) upsertNoteInCache(previous);
 				setError(err instanceof Error ? err.message : "The properties could not be saved.");
@@ -242,7 +275,7 @@ export function useNoteEditorData(noteId: string) {
 				upsertNoteInCache(created);
 				return created.id;
 			} catch (err) {
-				if (mounted.current) {
+				if (requestIsCurrent()) {
 					setError(err instanceof Error ? err.message : "The note could not be created.");
 				}
 				return null;
@@ -265,7 +298,7 @@ export function useNoteEditorData(noteId: string) {
 			await api.deleteNote(getToken, noteId);
 			removeNoteFromCache(noteId);
 		} catch (err) {
-			if (!mounted.current) return;
+			if (!requestIsCurrent()) return;
 			setError(err instanceof Error ? err.message : "The note could not be deleted.");
 		}
 	}, [getToken, noteId]);
@@ -275,9 +308,11 @@ export function useNoteEditorData(noteId: string) {
 	 * back the HTML so the open editor can be re-seeded with it.
 	 */
 	const refetchHtml = useCallback(async (): Promise<string | null> => {
+		const generation = ++readGeneration.current;
 		try {
 			const fresh: Note = { ...toNote(await api.fetchNote(getToken, noteId)), hasBody: true };
-			if (mounted.current) setNote(fresh);
+			if (!requestIsCurrent() || generation !== readGeneration.current) return null;
+			if (requestIsCurrent()) setNote(fresh);
 			upsertNoteInCache(fresh);
 			return initialHtmlFor(fresh);
 		} catch {
@@ -304,5 +339,6 @@ export function useNoteEditorData(noteId: string) {
 		createTag,
 		removeNote,
 		refetchHtml,
+		flushMutations,
 	};
 }

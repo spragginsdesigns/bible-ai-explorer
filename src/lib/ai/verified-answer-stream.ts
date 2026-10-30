@@ -1,7 +1,7 @@
 import type { UIMessageChunk } from "ai";
 import type { AnswerBlock, GatedAnswer } from "./answer-gate";
 
-type Field = { id: string; object: Record<string, unknown>; key: string; text: string; max: number };
+type Field = { id: string; object: Record<string, unknown>; key: string; text: string; max: number; withheldText?: "your note" };
 const object = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 
 /** Only fields actually projected into answer cards; opaque action IDs stay exact. */
@@ -13,10 +13,13 @@ function cardFields(chunks: UIMessageChunk[]): Field[] {
 		if (chunk.type !== "tool-output-available") continue;
 		const name = names.get(chunk.toolCallId);
 		const output = object(chunk.output);
-		const add = (target: Record<string, unknown>, key: string, suffix: string, max = 2000) => {
+		const add = (target: Record<string, unknown>, key: string, suffix: string, max = 2000, withheldText?: "your note") => {
 			const text = target[key];
-			if (typeof text === "string" && text.trim()) fields.push({ id: `card:${chunk.toolCallId}:${suffix}`, object: target, key, text, max });
+			if (typeof text === "string" && text.trim()) fields.push({ id: `card:${chunk.toolCallId}:${suffix}`, object: target, key, text, max, withheldText });
 		};
+		// A completed note write still needs a receipt when its prose/title is withheld.
+		// Only an existing, nonempty title field can receive this fixed display text.
+		const noteReceiptFallback = chunk.preliminary !== true && typeof output.noteId === "string" && output.noteId.trim() && output.success !== false && !("error" in output) ? "your note" : undefined;
 		if (name === "presentChoices") {
 			add(output, "question", "question", 400);
 			add(output, "skipLabel", "skipLabel", 160);
@@ -26,8 +29,9 @@ function cardFields(chunks: UIMessageChunk[]): Field[] {
 			if (Array.isArray(output.stops)) output.stops.forEach((stop, i) => add(object(stop), "caption", `stop-${i}`, 400));
 		} else if (name === "setDailyCross") {
 			add(output, "reason", "reason");
-		} else if (name === "addToNote" || name === "updateNote") add(output, "noteTitle", "noteTitle", 300);
-		else if (name === "organizeNote" || name === "startReadingPlan") add(output, "title", "title", 300);
+		} else if (name === "addToNote" || name === "updateNote") add(output, "noteTitle", "noteTitle", 300, noteReceiptFallback);
+		else if (name === "organizeNote") add(output, "title", "title", 300, noteReceiptFallback);
+		else if (name === "startReadingPlan") add(output, "title", "title", 300);
 	}
 	return fields;
 }
@@ -71,10 +75,10 @@ export async function releaseVerifiedAnswer<CHUNK extends UIMessageChunk>(option
 	let result = await options.verify(allBlocks);
 	const verified = new Map(result.blocks.map(block => [block.id, block.text]));
 	// Card text cannot turn into a multi-paragraph canonical passage or exceed
-	// its client contract during repair. A rejected card remains hidden.
+	// its client contract during repair. Rejected model-authored card text stays hidden.
 	const invalidCard = fields.some(field => !verified.has(field.id) || verified.get(field.id)!.length > field.max || /\[\[SCRIPTURE:/i.test(verified.get(field.id)!));
 	if (invalidCard && result.verified) throw new Error("Verified card text violates its display contract");
-	for (const field of fields) field.object[field.key] = result.verified ? verified.get(field.id)! : "";
+	for (const field of fields) field.object[field.key] = result.verified ? verified.get(field.id)! : field.withheldText ?? "";
 	// Input deltas are never replayed, and model-authored card arguments must
 	// not preserve rejected text in the delivered/persisted tool part either.
 	for (const chunk of chunks) {

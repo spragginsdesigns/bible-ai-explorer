@@ -123,6 +123,7 @@ const AddToNoteDialog: React.FC<AddToNoteDialogProps> = ({
 		setErrorKey(null);
 		try {
 			const res = await fetch("/api/notes/append", {
+				signal: AbortSignal.timeout(180_000),
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({

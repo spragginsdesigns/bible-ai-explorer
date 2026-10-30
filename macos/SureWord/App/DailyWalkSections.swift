@@ -12,15 +12,12 @@ struct TodaySection: View {
             switch destination {
             case .plan:
                 ReadingPlanPane(model: app.bible.plan, onOpenReading: { reading in
-                    app.pendingVerseReference = "\(reading.book) \(reading.chapter)"
-                    app.section = .bible
+                    app.openVerse("\(reading.book) \(reading.chapter)")
                 }, onDismiss: { destination = nil })
             case .learn: LearnPane(backTitle: "Today", onDismiss: { destination = nil })
             case .history:
                 ReadingHistoryView(model: app.bible.reading, onOpen: { target in
-                    app.pendingVerseReference = ConnectionsPlace(order: target.book, chapter: target.chapter, verse: target.verse).reference
-                    app.pendingVerseTranslation = target.translation
-                    app.section = .bible
+                    app.openVerse(ConnectionsPlace(order: target.book, chapter: target.chapter, verse: target.verse).reference, translation: target.translation)
                 }, onTalk: { prompt in
                     if let prompt { app.chat.input = prompt }
                     app.section = .chat
@@ -35,8 +32,9 @@ struct TodaySection: View {
                               onServe: { destination = .serve })
             }
         }
-        .onChange(of: app.pendingDailyDestination, initial: true) { _, pending in
-            if let pending { destination = pending; app.pendingDailyDestination = nil }
+        .onChange(of: app.pendingDailyRoute, initial: true) { _, route in
+            guard let route else { return }
+            Task { await app.consumeDaily(route) { destination = $0 } }
         }
         // Walk with me lights a Today card: back to the home first.
         .onChange(of: app.onboarding.pendingRootReset.contains(.today), initial: true) { _, pending in
@@ -63,8 +61,7 @@ struct StudySection: View {
                 AtlasExplorerPane(
                     model: app.atlas,
                     onOpenReference: { reference in
-                        app.pendingVerseReference = reference
-                        app.section = .bible
+                        app.openVerse(reference)
                     },
                     onDismiss: { destination = nil },
                     initialMode: AtlasExplorerMode(rawValue: destinationRaw) ?? .timeline,
@@ -81,10 +78,9 @@ struct StudySection: View {
             }
         }
         // What's new "Try it": that page, in place of whatever was showing.
-        .onChange(of: app.pendingStudyDestination, initial: true) { _, pending in
-            guard let pending else { return }
-            app.pendingStudyDestination = nil
-            open(pending)
+        .onChange(of: app.pendingStudyRoute, initial: true) { _, route in
+            guard let route else { return }
+            Task { await app.consumeStudy(route) { open($0) } }
         }
         // Walk with me lights a Study row: back to the home first.
         .onChange(of: app.onboarding.pendingRootReset.contains(.study), initial: true) { _, pending in

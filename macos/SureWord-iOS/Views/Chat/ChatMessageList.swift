@@ -85,6 +85,7 @@ struct ChatMessageList: View {
                 .padding(.vertical, Spacing.xl)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .accessibilityIdentifier("chat.messages")
             .scrollDismissesKeyboard(.interactively)
             // Android's `usePlayUpgrade`: the status is read only while the
             // card asks for it, so a Pro reader never pays for the request.

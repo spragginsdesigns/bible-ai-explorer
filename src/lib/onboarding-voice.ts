@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { get, head, put } from "@vercel/blob";
+import { readReviewedHistoryRow } from "@/lib/ai/history/read-boundary.server";
 import { prisma } from "@/lib/prisma";
 import { synthesizeSpeech } from "@/lib/daily-cross-audio";
 import { devotionalStreamResponseInit, isSpeechConfigured } from "@/lib/daily-cross-audio-script";
@@ -91,10 +92,15 @@ async function wordsFor(userId: string, request: { messageId?: string; step?: On
 			conversationId: user.onboardingConversationId,
 			conversation: { userId },
 		},
-		select: { content: true },
+		select: { id: true, role: true, content: true, metadata: true, createdAt: true },
 	});
 	if (!message) throw new NotFound();
-	return spokenText(message.content);
+	const raw = spokenText(message.content);
+	// Fixed server-authored welcome lines need no inference. Every generated
+	// reply, including an older saved one, uses the same safe history boundary.
+	if (SCRIPTED_LINES.includes(raw)) return raw;
+	const checked = await readReviewedHistoryRow(userId, { surface: "chat", parentId: user.onboardingConversationId, messageId: message.id }, message);
+	return spokenText(checked.content);
 }
 
 /**
@@ -124,7 +130,7 @@ export async function requestOnboardingVoice(
 	const modelId = scripted ? SCRIPTED_MODEL_ID : REPLY_MODEL_ID;
 	const key = audioKey(text, voiceId, modelId);
 	const pathname = scripted ? sharedPathname(key) : personalPathname(userId, key);
-	const streamUrl = `${ONBOARDING_VOICE_STREAM_PATH}?key=${scripted ? "shared" : "mine"}-${key}`;
+	const streamUrl = `${ONBOARDING_VOICE_STREAM_PATH}?key=${scripted ? "shared" : "mine"}-${key}${!scripted && request.messageId ? `&messageId=${encodeURIComponent(request.messageId)}` : ""}`;
 
 	if (await exists(pathname)) {
 		return { status: "ready", streamUrl, source: scripted ? "shared" : "cached", characters };
@@ -135,7 +141,12 @@ export async function requestOnboardingVoice(
 	if (!scripted) {
 		const ceiling = onboardingVoiceCharCeiling();
 		const reserved = await prisma.user.updateMany({
-			where: { id: userId, onboardingVoiceChars: { lte: Math.max(-1, ceiling - characters) } },
+			where: {
+				id: userId, onboardingVoiceChars: { lte: Math.max(-1, ceiling - characters) },
+				// Cached/device playback stays available. Sending private words
+				// for new narration requires recorded sharing consent at reserve.
+				aiConsentVersion: { gte: 1 }, aiConsentAt: { not: null },
+			},
 			data: { onboardingVoiceChars: { increment: characters } },
 		});
 		if (reserved.count === 0) return device("ceiling");
@@ -169,6 +180,19 @@ export function streamPathname(userId: string, raw: string | null): string | nul
 	return match[1] === "shared" ? sharedPathname(match[2]) : personalPathname(userId, match[2]);
 }
 
+/** A cached reply must still match the currently checked text before playback. */
+export async function checkedOnboardingStreamPath(userId: string, raw: string | null, messageId: string | null): Promise<string | null> {
+	const pathname = streamPathname(userId, raw);
+	if (!pathname || !raw) return null;
+	const voiceId = defaultNarrationVoiceId();
+	if (raw.startsWith("shared-")) return SCRIPTED_LINES.some(text => raw === `shared-${audioKey(text, voiceId, SCRIPTED_MODEL_ID)}`) ? pathname : null;
+	if (!messageId || messageId.length > 200) return null;
+	try {
+		const text = await wordsFor(userId, { messageId });
+		return raw === `mine-${audioKey(text, voiceId, REPLY_MODEL_ID)}` ? pathname : null;
+	} catch (error) { if (error instanceof NotFound) return null; throw error; }
+}
+
 /** Proxy a cached narration through our own origin, Range included (see the Listen stream route). */
 export async function openOnboardingVoiceStream(pathname: string, range: string | null) {
 	const result = await get(pathname, { access: "private", ...(range ? { headers: { Range: range } } : {}) });
@@ -178,17 +202,18 @@ export async function openOnboardingVoiceStream(pathname: string, range: string 
 		contentLength: result.headers.get("content-length"),
 		contentRange: result.headers.get("content-range"),
 	});
-	return { status, headers, body: result.stream };
+	return { status, headers: { ...headers, "Cache-Control": "private, no-store" }, body: result.stream };
 }
 
 export async function describeOnboardingVoiceStream(pathname: string) {
 	try {
 		const metadata = await head(pathname);
-		return devotionalStreamResponseInit({
+		const init = devotionalStreamResponseInit({
 			contentType: metadata.contentType,
 			contentLength: String(metadata.size),
 			contentRange: null,
 		});
+		return { ...init, headers: { ...init.headers, "Cache-Control": "private, no-store" } };
 	} catch {
 		return null;
 	}

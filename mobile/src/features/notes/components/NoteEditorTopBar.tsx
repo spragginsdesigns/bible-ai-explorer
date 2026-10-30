@@ -18,6 +18,7 @@ import { GlyphButton, LUCIDE_STROKE } from "./primitives";
  */
 export function NoteEditorTopBar({
 	title,
+	readOnly = false,
 	isPinned,
 	isSaving,
 	saveError,
@@ -28,6 +29,7 @@ export function NoteEditorTopBar({
 	onOpenMenu,
 }: {
 	title: string;
+	readOnly?: boolean;
 	isPinned: boolean;
 	isSaving: boolean;
 	/** Set when the last save/mutation failed; shown in place of "Saving…". */
@@ -52,7 +54,7 @@ export function NoteEditorTopBar({
 
 	const commit = () => {
 		setEditing(false);
-		if (draft.trim() !== title) onRename(draft);
+		if (!readOnly && draft.trim() !== title) onRename(draft);
 	};
 
 	return (
@@ -63,6 +65,7 @@ export function NoteEditorTopBar({
 				{editing ? (
 					<TextInput
 						autoFocus
+						editable={!readOnly}
 						value={draft}
 						onChangeText={setDraft}
 						onBlur={commit}
@@ -77,6 +80,7 @@ export function NoteEditorTopBar({
 					<Pressable
 						accessibilityRole="button"
 						accessibilityLabel={`Rename note, ${draft || "Untitled Note"}${isPinned ? ", pinned" : ""}`}
+						disabled={readOnly}
 						onPress={() => setEditing(true)}
 						style={styles.titleRow}
 					>

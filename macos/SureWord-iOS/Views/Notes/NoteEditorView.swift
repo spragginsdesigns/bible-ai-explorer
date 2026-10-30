@@ -41,6 +41,7 @@ struct NoteEditorView: View {
     @State private var copiedTick = 0
     @State private var isCopiedVisible = false
     @State private var departureID = UUID()
+    @State private var acceptedDeletionEpoch: UUID?
     @FocusState private var isTitleFocused: Bool
 
     init(noteID: String, api: APIClient, onDeleted: (() -> Void)? = nil, onClose: (() -> Void)? = nil) {
@@ -106,12 +107,27 @@ struct NoteEditorView: View {
                 folderName: NotesStore.shared.folders
                     .first { $0.id == model.note?.folderId }?.name
             ) { id in
-                linkedNoteID = id
+                let request = app.beginNoteNavigation()
+                Task {
+                    await app.performNoteNavigation(request) {
+                        linkedNoteID = id
+                    }
+                }
             }
         }
         .navigationDestination(item: $linkedNoteID) { id in
             let destination = $linkedNoteID
-            NoteEditorView(noteID: id, api: api, onClose: { destination.wrappedValue = nil })
+            NoteEditorView(
+                noteID: id, api: api,
+                onDeleted: {
+                    guard destination.wrappedValue == id else { return }
+                    destination.wrappedValue = nil
+                },
+                onClose: {
+                    guard destination.wrappedValue == id else { return }
+                    destination.wrappedValue = nil
+                }
+            )
         }
         .sheet(item: $shareText) { share in
             NoteMarkdownShareSheet(text: share.text)
@@ -145,10 +161,17 @@ struct NoteEditorView: View {
             titleVisibility: .visible
         ) {
             Button("Delete Note", role: .destructive) {
+                let request = app.beginNoteNavigation()
                 Task {
+                    guard app.isCurrentNoteNavigationRequest(request) else { return }
                     if await model.delete() {
                         await model.finishEditing(flushPendingChanges: false)
-                        if let onDeleted { onDeleted() } else { closeEditor() }
+                        guard NotesStore.shared.isCurrent(request.epoch) else { return }
+                        // Do not pop a linked child. Close this accepted
+                        // deletion when that child returns and the presenter
+                        // still owns this id, including a same-note reselect.
+                        acceptedDeletionEpoch = request.epoch
+                        closeAcceptedDeletionIfOwned()
                     }
                 }
             }
@@ -160,12 +183,19 @@ struct NoteEditorView: View {
             app.noteDeparture.register(owner: departureID) { [editor] in await editor.canLeaveEditor() }
             editor.start()
             assistant.bindEditor(editor)
-            editor.controller.onOpenWikilink = { [weak editor, destination] id in
+            editor.controller.onOpenWikilink = { [weak editor, weak app, destination] id in
+                guard editor != nil, let app else { return }
+                let request = app.beginNoteNavigation()
                 Task { @MainActor [weak editor, destination] in
-                    guard let editor, await editor.canLeaveEditor() else { return }
-                    destination.wrappedValue = id
+                    guard editor != nil else { return }
+                    await app.performNoteNavigation(request) {
+                        destination.wrappedValue = id
+                    }
                 }
             }
+        }
+        .onChange(of: linkedNoteID) { _, id in
+            if id == nil { closeAcceptedDeletionIfOwned() }
         }
         .onChange(of: NotesStore.shared.notes) {
             // A note created, renamed or aliased can resolve a drawn link.
@@ -214,6 +244,12 @@ struct NoteEditorView: View {
         if let onClose { onClose() } else { dismiss() }
     }
 
+    private func closeAcceptedDeletionIfOwned() {
+        guard let epoch = acceptedDeletionEpoch, NotesStore.shared.isCurrent(epoch),
+              linkedNoteID == nil else { return }
+        if let onDeleted { onDeleted() } else { closeEditor() }
+    }
+
     // MARK: Header
 
     private var header: some View {
@@ -260,10 +296,12 @@ struct NoteEditorView: View {
     private var toolbarItems: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
             Button {
+                let request = app.beginNoteNavigation()
                 Task {
-                    guard await model.canLeaveEditor() else { return }
-                    await model.finishEditing()
-                    closeEditor()
+                    guard await app.performNoteNavigation(request, action: {
+                        closeEditor()
+                    }) else { return }
+                    await model.finishEditing(flushPendingChanges: false)
                 }
             } label: {
                 Label("Notes", systemImage: "chevron.left")

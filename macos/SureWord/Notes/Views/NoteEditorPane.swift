@@ -41,44 +41,57 @@ struct NoteEditorPane: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            VStack(spacing: 0) {
-                topBar
-                integrityStatus
-                Divider().overlay(theme.border)
-                NoteFormattingToolbar(
-                    controller: model.controller,
-                    onEditLink: {
-                        linkTarget = ""
-                        isLinkPopoverPresented = true
-                    },
-                    onInsertWikilink: { isWikilinkPickerPresented = true }
-                )
-                .disabled(!model.allowsUserEditing)
-                .popover(isPresented: $isLinkPopoverPresented) { linkPopover }
-                .popover(isPresented: $isWikilinkPickerPresented) {
-                    InsertWikilinkPopover(currentNoteID: noteID) { title in
-                        isWikilinkPickerPresented = false
-                        model.controller.insertText(NoteWikilinks.format(title))
+        GeometryReader { geometry in
+            let compactAssistant = geometry.size.width < 680
+            HStack(spacing: 0) {
+                VStack(spacing: 0) {
+                    topBar
+                    integrityStatus
+                    Divider().overlay(theme.border)
+                    NoteFormattingToolbar(
+                        controller: model.controller,
+                        onEditLink: {
+                            linkTarget = ""
+                            isLinkPopoverPresented = true
+                        },
+                        onInsertWikilink: { isWikilinkPickerPresented = true }
+                    )
+                    .disabled(!model.allowsUserEditing)
+                    .popover(isPresented: $isLinkPopoverPresented) { linkPopover }
+                    .popover(isPresented: $isWikilinkPickerPresented) {
+                        InsertWikilinkPopover(currentNoteID: noteID) { title in
+                            isWikilinkPickerPresented = false
+                            model.controller.insertText(NoteWikilinks.format(title))
+                        }
+                    }
+                    Divider().overlay(theme.border)
+
+                    if model.isLoading {
+                        ProgressView()
+                            .controlSize(.small)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        NoteEditorTextView(controller: model.controller)
+                            .disabled(!model.allowsUserEditing)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
-                Divider().overlay(theme.border)
+                // Keep this editor mounted while the assistant takes the compact
+                // pane. Recreating it on resize would drop its draft and lease.
+                .frame(width: isAIOpen && compactAssistant ? 0 : nil)
+                .clipped()
+                .opacity(isAIOpen && compactAssistant ? 0 : 1)
+                .accessibilityHidden(isAIOpen && compactAssistant)
+                .allowsHitTesting(!(isAIOpen && compactAssistant))
+                .disabled(isAIOpen && compactAssistant)
 
-                if model.isLoading {
-                    ProgressView()
-                        .controlSize(.small)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    NoteEditorTextView(controller: model.controller)
-                        .disabled(!model.allowsUserEditing)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                if isAIOpen {
+                    Divider().overlay(theme.border)
+                        .frame(width: compactAssistant ? 0 : 1)
+                        .opacity(compactAssistant ? 0 : 1)
+                    NoteAIPanelView(ai: ai, occupiesCompactPane: compactAssistant) { isAIOpen = false }
+                        .frame(width: compactAssistant ? max(0, geometry.size.width) : 380)
                 }
-            }
-
-            if isAIOpen {
-                Divider().overlay(theme.border)
-                NoteAIPanelView(ai: ai) { isAIOpen = false }
-                    .frame(width: 380)
             }
         }
         .overlay(alignment: .top) {
@@ -99,7 +112,12 @@ struct NoteEditorPane: View {
                 model: model,
                 folderName: library.folders.first { $0.id == model.note?.folderId }?.name
             ) { id in
-                Task { if await model.canLeaveEditor() { library.selectedNoteID = id } }
+                let request = app.beginNoteNavigation()
+                Task {
+                    await app.performNoteNavigation(request) {
+                        library.selectedNoteID = id
+                    }
+                }
             }
         }
         .alert(
@@ -116,9 +134,15 @@ struct NoteEditorPane: View {
             titleVisibility: .visible
         ) {
             Button("Delete Note", role: .destructive) {
+                let request = app.beginNoteNavigation()
                 Task {
+                    guard app.isCurrentNoteNavigationRequest(request) else { return }
                     if await model.delete() {
                         await model.finishEditing(flushPendingChanges: false)
+                        // An accepted delete owns this note even if it was
+                        // reselected during the request; never close another note.
+                        guard NotesStore.shared.isCurrent(request.epoch),
+                              library.selectedNoteID == noteID else { return }
                         library.selectedNoteID = nil
                     }
                 }
@@ -131,10 +155,14 @@ struct NoteEditorPane: View {
             app.noteDeparture.register(owner: departureID) { [editor] in await editor.canLeaveEditor() }
             editor.start()
             assistant.bindEditor(editor)
-            editor.controller.onOpenWikilink = { [weak editor, notesLibrary] id in
+            editor.controller.onOpenWikilink = { [weak editor, weak app, notesLibrary] id in
+                guard editor != nil, let app else { return }
+                let request = app.beginNoteNavigation()
                 Task { @MainActor [weak editor, notesLibrary] in
-                    guard let editor, await editor.canLeaveEditor() else { return }
-                    notesLibrary.selectedNoteID = id
+                    guard editor != nil else { return }
+                    await app.performNoteNavigation(request) {
+                        notesLibrary.selectedNoteID = id
+                    }
                 }
             }
         }
@@ -179,10 +207,12 @@ struct NoteEditorPane: View {
             // The list stays beside the editor on a Mac, so back closes the
             // note instead of popping a screen. A failed save keeps it open.
             Button {
+                let request = app.beginNoteNavigation()
                 Task {
-                    guard await model.canLeaveEditor() else { return }
-                    await model.finishEditing()
-                    library.selectedNoteID = nil
+                    guard await app.performNoteNavigation(request, action: {
+                        library.selectedNoteID = nil
+                    }) else { return }
+                    await model.finishEditing(flushPendingChanges: false)
                 }
             } label: {
                 Image(systemName: "chevron.left")

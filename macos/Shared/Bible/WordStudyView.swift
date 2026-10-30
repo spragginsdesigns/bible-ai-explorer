@@ -356,11 +356,7 @@ struct WordStudyView: View {
         if let head, let number = head.strongsNumber {
             let lemma = VerseWordsModel.headword(head)
             let translit = VerseWordsModel.headTranslit(row: row, word: head)
-            // No count until the occurrence list lands: "Every verse \u{00B7} 0"
-            // would be a lie the moment before it became a number.
-            let total = entry?.occurrences?.total
-            let everyVerseLabel =
-                total.map { "Every verse \u{00B7} \($0)" } ?? "Every verse"
+            let occurrenceLabel = VerseWordsModel.occurrenceActionLabel(entry?.occurrences)
 
             HStack(spacing: Spacing.sm) {
                 actionButton("Ask about this word", primary: true) {
@@ -374,7 +370,7 @@ struct WordStudyView: View {
                         true
                     )
                 }
-                actionButton(everyVerseLabel, primary: false) {
+                actionButton(occurrenceLabel, primary: false) {
                     onAsk(
                         VerseWordsModel.everyVersePrompt(
                             language: language,

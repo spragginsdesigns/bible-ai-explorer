@@ -27,6 +27,15 @@ final class ProPurchaseStore {
     /// Bumped on every attach/detach so a request that started for one
     /// account never lands its result on the next.
     @ObservationIgnored private var generation = 0
+    @ObservationIgnored private let finishTransaction: @MainActor (Transaction) async -> Void
+
+    init(
+        finishTransaction: @escaping @MainActor (Transaction) async -> Void = { transaction in
+            await transaction.finish()
+        }
+    ) {
+        self.finishTransaction = finishTransaction
+    }
 
     /// Called at app launch. Renewals, Ask to Buy approvals, refunds and
     /// purchases made on another device arrive here.
@@ -46,7 +55,8 @@ final class ProPurchaseStore {
         self.api = api
         self.userID = userID
         state = PurchaseState()
-        Task { await reconcile() }
+        let attachedGeneration = generation
+        Task { await reconcile(generation: attachedGeneration) }
     }
 
     /// Called on sign-out. Unfinished transactions stay with StoreKit and are
@@ -94,10 +104,12 @@ final class ProPurchaseStore {
 
     /// Handles what the payment sheet returned.
     func handle(_ result: Product.PurchaseResult) async {
+        let started = generation
         switch result {
         case .success(let verification):
             apply(.verifying)
-            let outcome = await process(verification)
+            let outcome = await process(verification, generation: started)
+            guard started == generation else { return }
             apply(.verified(outcome ?? .retryLater("Your purchase couldn't be confirmed yet. SureWord will try again shortly.")))
         case .userCancelled:
             apply(.userCancelled)
@@ -117,37 +129,49 @@ final class ProPurchaseStore {
     /// Restore Purchases: `AppStore.sync()` (which may ask for the Apple
     /// Account password), then re-verify current entitlements.
     func restore() async {
+        let started = generation
         apply(.restoreStarted)
         do {
             try await AppStore.sync()
         } catch {
             // A cancelled sign-in still lets the local entitlements be checked.
         }
-        let (anyActive, note) = await verifyCurrentEntitlements()
+        guard started == generation else { return }
+        let (anyActive, note) = await verifyCurrentEntitlements(generation: started)
+        guard started == generation else { return }
         apply(.restoreFinished(anyActive: anyActive, note: note))
     }
 
     // MARK: - Verification
 
-    private func reconcile() async {
+    private func reconcile(generation started: Int) async {
+        guard started == generation else { return }
         for await result in Transaction.unfinished {
-            await process(result)
+            guard started == generation else { return }
+            await process(result, generation: started)
+            guard started == generation else { return }
         }
-        _ = await verifyCurrentEntitlements()
+        guard started == generation else { return }
+        _ = await verifyCurrentEntitlements(generation: started)
     }
 
-    private func verifyCurrentEntitlements() async -> (anyActive: Bool, note: String?) {
+    private func verifyCurrentEntitlements(generation started: Int) async -> (anyActive: Bool, note: String?) {
+        guard started == generation else { return (false, nil) }
         var anyActive = false
         var note: String?
         for await result in Transaction.currentEntitlements {
+            guard started == generation else { return (false, nil) }
             guard case .verified(let transaction) = result,
                   transaction.productID == AppStoreBilling.productID else { continue }
-            switch await process(result) {
+            let outcome = await process(result, generation: started)
+            guard started == generation else { return (false, nil) }
+            switch outcome {
             case .accepted(active: true): anyActive = true
             case .belongsToAnotherAccount(let message), .retryLater(let message): note = message
             default: break
             }
         }
+        guard started == generation else { return (false, nil) }
         return (anyActive, note)
     }
 
@@ -155,14 +179,19 @@ final class ProPurchaseStore {
     /// answer. Returns nil when it is not SureWord Pro, failed StoreKit's own
     /// verification, or no account is signed in (left for later).
     @discardableResult
-    private func process(_ result: VerificationResult<Transaction>) async -> AppStoreBilling.VerifyOutcome? {
-        guard case .verified(let transaction) = result,
+    private func process(
+        _ result: VerificationResult<Transaction>,
+        generation expectedGeneration: Int? = nil
+    ) async -> AppStoreBilling.VerifyOutcome? {
+        let started = expectedGeneration ?? generation
+        guard started == generation,
+              case .verified(let transaction) = result,
               transaction.productID == AppStoreBilling.productID,
               let api else { return nil }
-        let started = generation
         let outcome = await Self.verify(jws: result.jwsRepresentation, api: api)
         guard started == generation else { return nil }
-        if outcome.shouldFinish { await transaction.finish() }
+        if outcome.shouldFinish { await finishTransaction(transaction) }
+        guard started == generation else { return nil }
         if case .accepted(active: true) = outcome, state.phase != .verifying, state.phase != .restoring {
             apply(.verified(outcome))
         }

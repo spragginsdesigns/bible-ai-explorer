@@ -5,7 +5,7 @@ import SwiftUI
 struct MessageBubble: View {
     @Environment(\.theme) private var theme
 
-    let message: ChatViewMessage
+    var message: ChatViewMessage
     /// The receipts line's undo fragment talks to `/api/memories` itself.
     let api: APIClient
     var onVerseCopy: (RetrievedVerse) -> Void
@@ -92,6 +92,18 @@ struct MessageBubble: View {
     }
 
     var body: some View {
+        if message.savedAnswerReview != nil {
+            SavedAnswerReviewView(message: message, api: api) { replacement in
+                var bubble = self
+                bubble.message = replacement.preservingLiveFeedback(from: message)
+                return AnyView(bubble)
+            }
+        } else {
+            messageBody
+        }
+    }
+
+    private var messageBody: some View {
         VStack(alignment: isUser ? .trailing : .leading, spacing: Spacing.md) {
             if isUser {
                 userBubble

@@ -26,7 +26,7 @@ export function consentPolicy(path: string, method: string, body?: unknown): "ta
   }
   if (write && (route === "/api/verse-insight" || route === "/api/verse-words")) return "automatic";
   if (route === "/api/suggested-questions" || route === "/api/reading-log/reflection") return "automatic";
-  if (write && (route === "/api/ask-question" || route === "/api/guest/ask" || route === "/api/note-ai" || /^\/api\/notes\/[^/]+\/ai$/.test(route)
+  if (write && (route === "/api/ai/history/recheck" || route === "/api/ask-question" || route === "/api/guest/ask" || route === "/api/note-ai" || /^\/api\/notes\/[^/]+\/ai$/.test(route)
     || route === "/api/memories/summary" || route === "/api/verse-of-day/today"
     || route === "/api/verse-of-day/audio" || route === "/api/chat/attachments" || route === "/api/cards/encouragement" || route === "/api/cards/word" || route === "/api/bible/connections/explain" || route === "/api/quiz"
     || /^\/api\/chat\/attachments\/[^/]+\/complete$/.test(route))) return "tap";

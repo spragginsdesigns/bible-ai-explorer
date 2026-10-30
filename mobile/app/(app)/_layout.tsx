@@ -20,6 +20,7 @@ import { isPrimaryTabRoute, type PrimaryTabRoute } from "@/lib/primaryTabs";
 import { afterTabDepartureGuard } from "@/lib/tabDeparture";
 import { SpotlightAnchor, SpotlightOverlay } from "@/features/onboarding/Spotlight";
 import { WelcomeLauncher } from "@/features/onboarding/WelcomeLauncher";
+import { VoiceControlProvider } from "@/features/voice/VoiceControlProvider";
 
 // A render crash shows a Try again screen in place of this route instead of closing the app.
 export { RouteErrorBoundary as ErrorBoundary } from "@/components/RouteErrorBoundary";
@@ -151,7 +152,7 @@ export default function AppLayout() {
 	if (isLoaded && !isSignedIn) return <Redirect href="/sign-in" />;
 
 	return (
-		<AIConsentPresenter><Tabs
+		<VoiceControlProvider><AIConsentPresenter><Tabs
 			initialRouteName="today"
 			tabBar={(props) => <SolidTabBar {...props} />}
 			// Back returns to the previously focused screen instead of always
@@ -180,7 +181,7 @@ export default function AppLayout() {
 		<WhatsNewPresenter />
 		{/* Walk with me: a brand-new account lands in its welcome; the spotlight draws over every tab. */}
 		<WelcomeLauncher />
-		<SpotlightOverlay /></AIConsentPresenter>
+		<SpotlightOverlay /></AIConsentPresenter></VoiceControlProvider>
 	);
 }
 

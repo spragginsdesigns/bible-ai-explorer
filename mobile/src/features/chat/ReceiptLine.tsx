@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { AppText as Text } from "@/components/AppText";
 import { useRouter } from "expo-router";
+import { afterTabDepartureGuard } from "@/lib/tabDeparture";
 import type { ChatReceipt } from "@/lib/receipts";
 import { receiptDestinationLabel, receiptNavigation } from "@/lib/receiptRoutes";
 import { ApiError } from "@/lib/api";
@@ -29,6 +30,8 @@ import type { Colors } from "@/theme";
 type UndoState = "idle" | "pending" | "forgotten";
 
 interface ReceiptLineProps {
+	beforeNavigate?: () => Promise<boolean>;
+	onNavigated?: () => void;
 	receipts: readonly ChatReceipt[];
 }
 
@@ -36,7 +39,7 @@ function errorMessage(err: unknown, fallback: string): string {
 	return err instanceof Error && err.message ? err.message : fallback;
 }
 
-export function ReceiptLine({ receipts }: ReceiptLineProps) {
+export function ReceiptLine({ receipts, beforeNavigate, onNavigated }: ReceiptLineProps) {
 	const styles = useThemedStyles(createStyles);
 	const router = useRouter();
 	const getToken = useStableGetToken();
@@ -44,6 +47,7 @@ export function ReceiptLine({ receipts }: ReceiptLineProps) {
 	// The authority on "already fired": two taps in one frame both pass a state
 	// check, because the re-render has not happened yet.
 	const fired = useRef<Set<string>>(new Set());
+	const navigationPending = useRef(false);
 	const mounted = useRef(true);
 	useEffect(() => {
 		mounted.current = true;
@@ -53,11 +57,19 @@ export function ReceiptLine({ receipts }: ReceiptLineProps) {
 	}, []);
 
 	const open = useCallback(
-		(receipt: ChatReceipt) => {
-			const { href, withAnchor } = receiptNavigation(receipt.target);
-			router.push(href, withAnchor ? { withAnchor: true } : undefined);
+		async (receipt: ChatReceipt) => {
+			if (navigationPending.current) return;
+			navigationPending.current = true;
+			try {
+				if (beforeNavigate && !await beforeNavigate()) return;
+				if (!mounted.current) return;
+				const { href, withAnchor } = receiptNavigation(receipt.target);
+				await afterTabDepartureGuard(() => {
+					if (mounted.current) { router.push(href, withAnchor ? { withAnchor: true } : undefined); onNavigated?.(); }
+				});
+			} finally { navigationPending.current = false; }
 		},
-		[router],
+		[router, beforeNavigate, onNavigated],
 	);
 
 	const forget = useCallback(

@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import { useVoiceActionScope, useVoiceControls } from "../voice/VoiceControlProvider";
 import { X } from "lucide-react";
 import type { AppTarget } from "@/lib/onboarding-rules";
 import { routeForTarget } from "@/lib/guide-cards";
@@ -79,6 +80,7 @@ function sameBox(a: Box | null, b: Box): boolean {
  */
 export default function SpotlightOverlay() {
 	const router = useRouter();
+	const voice = useVoiceControls();
 	const state = useSyncExternalStore(subscribeSpotlight, getSpotlight, getServerSpotlight);
 	const [element, setElement] = useState<HTMLElement | null>(null);
 	const [box, setBox] = useState<Box | null>(null);
@@ -243,6 +245,26 @@ export default function SpotlightOverlay() {
 		if (shown) primaryRef.current?.focus({ preventScroll: true });
 	}, [element, shown]);
 
+	const nextLabel = isTour && !isLastStop ? "Next" : isTour ? "Done" : "Got it";
+	useVoiceActionScope(stop && shown ? {
+		key: `spotlight:${seq}:${target}`,
+		priority: 100,
+		narrateQuestion: true,
+		question: stop.caption,
+		actions: [
+			{ label: nextLabel, run: () => {
+				const current = getSpotlight();
+				if (current.kind === "idle" || current.seq !== seq) return voice?.speak("The tour step changed. Say read options to hear the current step.");
+				next();
+			} },
+			{ label: "Close", run: () => {
+				const current = getSpotlight();
+				if (current.kind === "idle" || current.seq !== seq) return voice?.speak("The tour step changed. Say read options to hear the current step.");
+				close();
+			} },
+		],
+	} : null);
+
 	if (!stop || !box || typeof document === "undefined") return null;
 
 	const viewportHeight = window.innerHeight;
@@ -293,7 +315,7 @@ export default function SpotlightOverlay() {
 						onClick={next}
 						className="min-h-12 rounded-xl bg-[#e5b664] px-5 font-bold text-[#1c2118] transition-colors hover:bg-[#f0c77f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-600"
 					>
-						{isTour && !isLastStop ? "Next" : isTour ? "Done" : "Got it"}
+						{nextLabel}
 					</button>
 				</div>
 			</div>

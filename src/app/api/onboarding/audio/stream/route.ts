@@ -3,7 +3,7 @@ import { getAuthUser } from "@/lib/auth";
 import {
 	describeOnboardingVoiceStream,
 	openOnboardingVoiceStream,
-	streamPathname,
+	checkedOnboardingStreamPath,
 } from "@/lib/onboarding-voice";
 
 /**
@@ -16,14 +16,15 @@ import {
  */
 export const maxDuration = 60;
 
-function pathnameFor(request: Request, userId: string): string | null {
-	return streamPathname(userId, new URL(request.url).searchParams.get("key"));
+async function pathnameFor(request: Request, userId: string): Promise<string | null> {
+	const query = new URL(request.url).searchParams;
+	return checkedOnboardingStreamPath(userId, query.get("key"), query.get("messageId"));
 }
 
 export async function GET(request: Request): Promise<Response> {
 	try {
 		const userId = await getAuthUser();
-		const pathname = pathnameFor(request, userId);
+		const pathname = await pathnameFor(request, userId);
 		if (!pathname) return NextResponse.json({ error: "Unknown audio." }, { status: 404 });
 		const audio = await openOnboardingVoiceStream(pathname, request.headers.get("range"));
 		if (!audio) return NextResponse.json({ error: "Unknown audio." }, { status: 404 });
@@ -38,7 +39,7 @@ export async function GET(request: Request): Promise<Response> {
 export async function HEAD(request: Request): Promise<Response> {
 	try {
 		const userId = await getAuthUser();
-		const pathname = pathnameFor(request, userId);
+		const pathname = await pathnameFor(request, userId);
 		const init = pathname ? await describeOnboardingVoiceStream(pathname) : null;
 		if (!init) return new Response(null, { status: 404 });
 		return new Response(null, { status: init.status, headers: init.headers });

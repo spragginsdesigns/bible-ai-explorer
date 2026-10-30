@@ -1,0 +1,11 @@
+import type {HistoryBinding,HistoryContext,HistoryCorePolicy,HistoryProjectionResult,HistoryRenderer,HistorySource} from "./contracts";
+export declare const CORE_VERSION: string;
+export declare const LIMITS: Readonly<Record<string,number>>;
+export declare const SUPPORTED_TOOLS: readonly string[];
+export declare const KNOWN_INERT_READ_TOOLS: readonly string[];
+export declare const FIXED_NOTICES: Readonly<Record<string,string>>;
+export declare function canonicalJSON(value: unknown): string;
+export declare function digest(value: unknown): string;
+export declare function historyAISourceRow(row:import("./contracts").StoredHistoryRow):import("./contracts").StoredHistoryRow;
+export declare function projectHistory(input: {source: HistorySource; context: HistoryContext; policy: HistoryCorePolicy}, renderer: HistoryRenderer): HistoryProjectionResult;
+export declare function matchesStoredReview(candidate: HistoryProjectionResult, stored: Partial<HistoryBinding> & {status?: string; canonicalPassed?: boolean; semanticPassed?: boolean; actionProofPassed?: boolean}): boolean;

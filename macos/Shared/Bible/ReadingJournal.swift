@@ -175,8 +175,8 @@ final class ReadingJournal {
     typealias FetchHistory = @MainActor (String) async throws -> ReadingJournalPage
     typealias RetryWait = @MainActor (TimeInterval) async throws -> Void
     typealias FetchOverview = @MainActor (String) async throws -> ReadingOverview
-    /// The reflection route may generate before it answers (Android allows 60 s).
-    static let reflectionTimeout: TimeInterval = 60
+    /// The reflection route includes generation and source checking (all clients allow 150 s).
+    static let reflectionTimeout: TimeInterval = 150
     private var state: State
     private let fileURL: URL?
     private let send: Send

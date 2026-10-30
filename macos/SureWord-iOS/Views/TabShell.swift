@@ -24,6 +24,7 @@ struct TabShell: View {
 
     private var tabContent: some View {
         TabView(selection: Binding(get: { selectedTab }, set: { tab in
+            app.recordNavigationIntent()
             guard tab != selectedTab else { return }
             navigate { selectedTab = tab }
         })) {
@@ -121,17 +122,20 @@ struct TabShell: View {
 
     var body: some View {
         shellGuide
+        .nativeVoiceControls(app: app)
         // Providers, church and the memory count, warmed for this account so
         // Settings opens on its real content (PRD B7).
         .task { await SettingsDataStore.shared.prefetch(.live(app.api)) }
-        .onReceive(NotificationCenter.default.publisher(for: .openDailyCross)) { _ in
-            openCross()
+        .onReceive(NotificationCenter.default.publisher(for: .openDailyCross)) { note in
+            if let id = PendingDeepLinks.eventID(from: note) { openPendingLinks(eventID: id) }
+            else { openCross() }
         }
         // A preference changed on the Mac or the web should be here by the time
         // the app is looked at again. `refresh` throttles itself.
         .onChange(of: scenePhase) { _, phase in
             app.bible.reading.setForeground(phase == .active)
             guard phase == .active else { return }
+            app.chat.refreshConversationsIfIdle()
             app.preferences.refresh()
             Task { await PushRegistration.syncAll(api: app.api, settings: app.settings, accountID: app.userID) }
             // Android reloads the open day on resume, so a Cross left up
@@ -160,11 +164,13 @@ struct TabShell: View {
         // the reader at the reference. `BibleModel.open` sets the pending verse
         // Lane 2's reader scrolls to and flashes.
         .onReceive(NotificationCenter.default.publisher(for: .openVerseReference)) { note in
-            openVerse(note.object as? String)
+            if let id = PendingDeepLinks.eventID(from: note) { openPendingLinks(eventID: id) }
+            else { openVerse(note.object as? String) }
         }
         // A tapped "your answer is ready" push: that conversation, on Chat.
         .onReceive(NotificationCenter.default.publisher(for: .openConversation)) { note in
-            if let id = note.object as? String { openConversation(id) }
+            if let id = PendingDeepLinks.eventID(from: note) { openPendingLinks(eventID: id) }
+            else if let id = note.object as? String { openConversation(id) }
         }
         // A verse card tapped in chat: same journey as a verse deep link, with
         // the reference in userInfo instead of the object (Lane 3's
@@ -176,15 +182,11 @@ struct TabShell: View {
                 translation: note.userInfo?["translation"] as? String
             )
         }
-        // A note receipt tapped in chat: stage the note for the Notes tab root
-        // (the `pendingVerseReference` pattern) and switch tabs; the root
-        // pushes the editor itself.
+        // AppModel publishes the Notes section and pending id together after
+        // departure succeeds; Study and Notes consume that single handoff.
         .onReceive(NotificationCenter.default.publisher(for: .openNote)) { note in
             guard let noteID = note.userInfo?["noteId"] as? String, !noteID.isEmpty else { return }
-            navigate {
-                app.pendingNoteID = noteID
-                selectedTab = .study
-            }
+            app.openNote(noteID)
         }
         // The reader's "Ask AI" / "Expand with AI" actions have already put the
         // passage on `app.chat.attachment`; the shell just switches tabs.
@@ -194,18 +196,7 @@ struct TabShell: View {
         // Links that arrived before this shell existed — the cold start from a
         // notification tap, where the app delegate fired before Clerk restored
         // the session.
-        .task {
-            // Draining removes the waiting links; keep them queued if the
-            // current note cannot be saved.
-            guard await app.noteDeparture.canLeave() else { return }
-            for link in PendingDeepLinks.shared.drain() {
-                switch link {
-                case .cross: openCross()
-                case .verse(let reference): openVerse(reference)
-                case .chat(let conversationID): openConversation(conversationID)
-                }
-            }
-        }
+        .task { openPendingLinks(startup: true) }
         .sheet(isPresented: $isCrossPresented) {
             NavigationStack {
                 CrossView(
@@ -239,7 +230,10 @@ struct TabShell: View {
             set: { app.isSettingsPresented = $0 }
         )) {
             NavigationStack {
-                SettingsView()
+                SettingsView { destination in
+                    app.isSettingsPresented = false
+                    WhatsNewNavigation.open(destination, in: app)
+                }
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
                             Button("Done") { app.isSettingsPresented = false }
@@ -270,20 +264,77 @@ struct TabShell: View {
             defer { isOpeningShare = false }
             // takeDraft consumes the inbox, so a failed save must stop before
             // the detached read, not merely before selecting Chat.
-            guard await mayNavigate(requestID) else { return }
-            if pendingShareDraft == nil {
-                pendingShareDraft = await Task.detached(priority: .userInitiated) {
-                    ShareInboxIntake.takeDraft(from: store)
-                }.value
-            }
+            var intake: Task<SharedChatDraft?, Never>?
+            guard await performNavigation(requestID, action: {
+                if pendingShareDraft == nil {
+                    intake = Task.detached(priority: .userInitiated) {
+                        ShareInboxIntake.takeDraft(from: store)
+                    }
+                }
+            }) else { return }
+            if let intake { pendingShareDraft = await intake.value }
             // Reading photos can take time. Save any newer typing too, and
             // retain the decoded payload if another route won in the meantime.
-            guard await mayNavigate(requestID), let draft = pendingShareDraft else { return }
-            isCrossPresented = false
-            app.chat.isHistoryPresented = false
-            selectedTab = .chat
-            pendingShareDraft = nil
+            var selectedDraft: SharedChatDraft?
+            guard await performNavigation(requestID, action: {
+                guard !app.chat.uploadingAttachments, let draft = pendingShareDraft else { return }
+                selectedDraft = draft
+                isCrossPresented = false
+                app.chat.isHistoryPresented = false
+                selectedTab = .chat
+                pendingShareDraft = nil
+            }), let draft = selectedDraft else { return }
+            // The guarded action has returned through an async boundary. Check
+            // again immediately before the async composer reset/upload starts.
+            guard isCurrentNavigation(requestID), !app.chat.uploadingAttachments else {
+                if pendingShareDraft == nil { pendingShareDraft = draft }
+                return
+            }
             await app.chat.startSharedChat(draft)
+        }
+    }
+
+    private func openPendingLinks(eventID: UUID? = nil, startup: Bool = false) {
+        let queue = PendingDeepLinks.shared
+        let events = eventID.map { id in queue.event(id: id).map { [$0] } ?? [] } ?? queue.events
+        let allowNewIntent = !startup || !app.hasNavigationIntent
+        for event in events {
+            if case .verse(let reference) = event.link, Bible.resolveReference(reference) == nil {
+                queue.discard(event.id)
+                continue
+            }
+            if case .chat(let id) = event.link, id.isEmpty {
+                queue.discard(event.id)
+                continue
+            }
+            guard let delivery = queue.adopt(event, ownerID: app.navigationOwnerID, allowNewIntent: allowNewIntent, makeRequest: {
+                app.beginNoteNavigation()
+            }) else { continue }
+            Task {
+                await queue.perform(delivery, isCurrent: app.isCurrentNoteNavigationRequest, departure: app.noteDeparture) { link in
+                    switch link {
+                    case .cross:
+                        guard app.commitNavigationSection(.today, request: delivery.request) else { return false }
+                        app.chapterAudio.close()
+                        selectedTab = .today
+                        isCrossPresented = true
+                        app.dailyCross.load(force: true)
+                    case .verse(let reference):
+                        guard app.commitVerse(reference, translation: nil, request: delivery.request) else { return false }
+                        selectedTab = .bible
+                    case .chat(let id):
+                        guard !id.isEmpty, app.commitNavigationSection(.chat, request: delivery.request) else { return false }
+                        isCrossPresented = false
+                        app.chat.isHistoryPresented = false
+                        selectedTab = .chat
+                        Task {
+                            guard app.isCurrentNoteNavigationRequest(delivery.request) else { return }
+                            await app.chat.switchConversation(to: id)
+                        }
+                    }
+                    return true
+                }
+            }
         }
     }
 
@@ -303,11 +354,7 @@ struct TabShell: View {
         // resolution is the consumer's job, and an unresolvable reference is
         // dropped there exactly as Android no-ops it.
         guard let raw, Bible.resolveReference(raw) != nil else { return }
-        navigate {
-            app.pendingVerseTranslation = translation.flatMap(TranslationID.init(rawValue:))
-            app.pendingVerseReference = raw
-            selectedTab = .bible
-        }
+        app.openVerse(raw, translation: translation.flatMap(TranslationID.init(rawValue:)))
     }
 
     /// Android's `router.push("/", { conversationId })` for a chat push tap.
@@ -327,24 +374,45 @@ struct TabShell: View {
         let requestID = beginNavigation()
         guard app.noteDeparture.hasEditor else {
             action()
+            if app.section.primary != selectedTab {
+                app.commitNavigationSection(selectedTab, request: requestID.note)
+            }
             return
         }
         Task {
-            guard await mayNavigate(requestID) else { return }
-            action()
+            await performNavigation(requestID, action: action)
         }
     }
 
-    private func beginNavigation() -> UUID {
+    private func beginNavigation() -> (id: UUID, note: AppModel.NoteNavigationRequest) {
+        app.recordNavigationIntent()
         let requestID = UUID()
         navigationRequestID = requestID
-        return requestID
+        return (requestID, app.currentNoteNavigationRequest())
     }
 
-    private func mayNavigate(_ requestID: UUID) async -> Bool {
-        guard navigationRequestID == requestID else { return false }
-        guard await app.noteDeparture.canLeave() else { return false }
-        return navigationRequestID == requestID
+    private func isCurrentNavigation(_ request: (id: UUID, note: AppModel.NoteNavigationRequest)) -> Bool {
+        navigationRequestID == request.id && app.isCurrentNoteNavigationRequest(request.note)
+    }
+
+    @discardableResult
+    private func performNavigation(
+        _ request: (id: UUID, note: AppModel.NoteNavigationRequest),
+        action: @MainActor () -> Void
+    ) async -> Bool {
+        guard isCurrentNavigation(request) else { return false }
+        var performed = false
+        await app.performNoteNavigation(request.note) {
+            guard navigationRequestID == request.id else { return }
+            action()
+            // Mirror before yielding so selectedTab's observer cannot record
+            // a fresh intent and supersede this route's own share handoff.
+            if app.section.primary != selectedTab {
+                guard app.commitNavigationSection(selectedTab, request: request.note) else { return }
+            }
+            performed = true
+        }
+        return performed
     }
 
     /// Everything the notification sync depends on, so a change to any of
@@ -360,7 +428,17 @@ extension View {
     /// modifier on their own roots so the gear stays reachable everywhere.
     /// `help` adds Walk with me's "?" beside the gear, for the main screens.
     func settingsGearToolbar(help: HelpScreen? = nil) -> some View {
-        toolbar {
+        modifier(SettingsGearToolbarModifier(help: help))
+    }
+}
+
+private struct SettingsGearToolbarModifier: ViewModifier {
+    @Environment(AppModel.self) private var app
+    @State private var settingsPresented = false
+    let help: HelpScreen?
+
+    func body(content: Content) -> some View {
+        content.toolbar {
             ToolbarItem(placement: .topBarTrailing) { TextSizeQuickButton() }
             if let help {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -368,12 +446,20 @@ extension View {
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink {
-                    SettingsView()
+                Button {
+                    settingsPresented = true
                 } label: {
                     Image(systemName: "gearshape")
                 }
                 .accessibilityLabel("Settings")
+            }
+        }
+        .navigationDestination(isPresented: $settingsPresented) {
+            SettingsView { destination in
+                // Explicit owner state survives a tab switch, so returning
+                // cannot resurrect Settings or its nested release journal.
+                settingsPresented = false
+                WhatsNewNavigation.open(destination, in: app)
             }
         }
     }

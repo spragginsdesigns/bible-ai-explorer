@@ -135,9 +135,38 @@ Known Windows gotchas (all pre-solved in the checked-in config):
   notification - **a prebuild is mandatory for that feature to work at all**.
   After one, confirm with:
   `grep -c FOREGROUND_SERVICE_MEDIA_PLAYBACK android/app/src/main/AndroidManifest.xml`
-  (expect `1`). `recordAudioAndroid: false` must stay - SureWord records nothing,
-  and the manifest's `RECORD_AUDIO` line carries `tools:node="remove"`, which is
-  the *removal* directive, not a granted permission.
+  (expect `1`). Voice controls require `recordAudioAndroid: true` and a string
+  `expo-image-picker.microphonePermission`: setting either to `false` removes
+  `RECORD_AUDIO` from the generated manifest, even when the speech recognition
+  plugin requests it. Inspect the final manifest, not only `app.json`.
+
+### Spoken choices and navigation
+
+The authenticated root mounts device speech controls only after a successful
+`GET /api/voice/live` with `pro: true`. The server owns account eligibility;
+the client does not compare email addresses. Relay availability does not gate
+these local controls. Other accounts retain the existing welcome narration.
+
+`expo-speech-recognition` 57.x supplies native speech recognition for Expo SDK
+57. Its config plugin requires a new native build; an old APK reports that
+speech recognition is missing when Start is pressed. The microphone permission
+prompt appears only after Start, and errors stop capture until another Start.
+Finish ends the current utterance; Stop ends the session. Backgrounding and
+account changes also stop it.
+
+Final utterances select the currently visible onboarding label or numbered
+option through its tap callback, including text size, reminder time and tour
+actions. Commands open Today, Bible, Chat, Connections, Study, Notes or Settings,
+go back through the editor's departure guard, repeat options, or stop voice
+controls. Questions use the normal chat sender and tools. A reply's exact saved
+assistant row is checked before narration/listening continues; failed saves
+never trigger an automatic resend. Narration runs at 1.05x, with pitch correction
+for streamed audio. The microphone remains off through spoken cues, save checks,
+network requests and the entire output queue.
+
+Native microphone recognition, speech service availability, TalkBack interaction
+and physical audio routing still need Android device/emulator acceptance. A
+successful Metro export, typecheck or mocked lifecycle test does not prove them.
 
 ### Pushing to the phone
 
@@ -257,7 +286,10 @@ over its env files.
    The website discovers the newest `android-v*` release containing
    `SureWord.apk`, so it needs no separate Android version edit.
 2. `npx tsc --noEmit` clean.
-3. Test on the emulator when the change is risky (AVD `SureWord_Test`).
+3. Test risky changes on the host's single existing shared Android emulator.
+   On Windows, claim `Pixel_10_Pro_-_LC_Phone` (`emulator-5554`) through
+   `C:\Users\Owner\.android\one-emulator.claim` before use. Reuse the existing
+   Mac AVD when testing here. Never create or boot a second AVD on either host.
 4. Treat Android as the primary acceptance path: run
    `bash mobile/scripts/push-phone.sh`. It bumps `versionCode`, publishes the
    signed AAB to the Play internal track, promotes the same bundle to closed

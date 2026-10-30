@@ -6,12 +6,23 @@ import { guidePhase } from "@/components/guideMotion";
 import { radius, spacing, typography } from "@/theme";
 import { useThemedStyles } from "@/features/settings/settingsStore";
 import type { Colors } from "@/theme";
-import type { ChatViewMessage } from "@/lib/chatView";
+import { dbMessageToUIMessage, toViewMessage, type ChatViewMessage } from "@/lib/chatView";
 import { normalizeAssistantMarkdown } from "@/lib/assistantMarkdown";
+import { HistoryReviewCard } from "@/features/chat/HistoryReviewCard";
+import { ReceiptLine } from "@/features/chat/ReceiptLine";
 import { NoteMarkdown } from "./NoteMarkdown";
 import { TypingDots } from "./TypingDots";
 
-export function NoteAIMessage({ message }: { message: ChatViewMessage }) {
+interface NoteAIMessageProps { message: ChatViewMessage; noteId: string; beforeNavigate: () => Promise<boolean>; onNavigated: () => void }
+export function NoteAIMessage(props: NoteAIMessageProps) {
+	const review = props.message.historyVerification;
+	if (props.message.role === "assistant" && review) {
+		return <HistoryReviewCard review={review} locator={{ surface: "note", parentId: props.noteId, messageId: props.message.id }}
+			renderVerified={row => <NoteAIMessageContent {...props} message={toViewMessage(dbMessageToUIMessage(row), { isStreaming: false })} />} />;
+	}
+	return <NoteAIMessageContent {...props} />;
+}
+function NoteAIMessageContent({ message, beforeNavigate, onNavigated }: NoteAIMessageProps) {
 	const styles = useThemedStyles(createStyles);
 
 	if (message.role === "user") {
@@ -43,15 +54,7 @@ export function NoteAIMessage({ message }: { message: ChatViewMessage }) {
 				{message.isStreaming && message.activity ? (
 					<Text style={styles.activity}>{message.activity}…</Text>
 				) : null}
-				{message.noteActions?.map((action, index) => (
-					<View key={`${action.noteId}-${index}`} style={styles.noteAction}>
-						<Text style={styles.noteActionGlyph}>✎</Text>
-						<Text style={styles.noteActionText} numberOfLines={2}>
-							{action.created ? "Created note " : "Added to note "}
-							<Text style={styles.noteActionTitle}>{action.noteTitle}</Text>
-						</Text>
-					</View>
-				))}
+				{message.receipts?.length ? <ReceiptLine receipts={message.receipts} beforeNavigate={beforeNavigate} onNavigated={onNavigated} /> : null}
 			</View>
 		</View>
 	);

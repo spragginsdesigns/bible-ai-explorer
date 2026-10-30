@@ -19,7 +19,7 @@ export function appendAnswerToNote(
 	return apiJson<AppendToNoteResult>(getToken, "/api/notes/append", {
 		method: "POST",
 		body,
-	});
+	}, { timeoutMs: 180_000 });
 }
 
 /** Case-insensitive match on title or body preview; a blank query keeps every note. */

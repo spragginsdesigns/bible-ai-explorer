@@ -1,0 +1,189 @@
+{
+  "verifiedAt": "2026-10-29T16:37:02.171717+00:00",
+  "scope": "private browser prototype, isolated worktree and Neon database branch",
+  "model": "gpt-live-1",
+  "audioSource": "synthetic speech and synthetic browser MediaStream; no physical microphone",
+  "providerRoundTrip": {
+    "environment": "isolated worktree and Neon branch",
+    "model": "gpt-live-1",
+    "audioSource": "synthetic macOS speech replay, not a microphone",
+    "checks": [
+      {
+        "name": "free denied before session or chat creation",
+        "status": 403,
+        "body": {
+          "error": "Live voice requires SureWord Pro.",
+          "code": "pro_required"
+        },
+        "conversationCountUnchanged": true
+      },
+      {
+        "name": "pro available",
+        "status": 200,
+        "body": {
+          "available": true,
+          "pro": true,
+          "limits": {
+            "sessionSeconds": 300,
+            "dailySeconds": 600,
+            "monthlySeconds": 3600
+          },
+          "remainingSeconds": 568,
+          "relayUrl": "ws://127.0.0.1:3145/"
+        }
+      },
+      {
+        "name": "pro ticket issued",
+        "status": 201
+      },
+      {
+        "name": "concurrent session blocked",
+        "status": 429,
+        "body": {
+          "error": "End your other voice conversation first.",
+          "code": "live_session_active"
+        }
+      },
+      {
+        "name": "real provider session ready",
+        "expiresAt": "2026-10-29T16:21:51.668Z"
+      },
+      {
+        "name": "actual audio output",
+        "bytes": 3547200
+      },
+      {
+        "name": "saved chat readback",
+        "messages": [
+          {
+            "role": "user",
+            "content": "SureWord, please read John chapter 3 verse 16 in the King James Version",
+            "toolNames": [],
+            "spokenSegments": 1
+          },
+          {
+            "role": "assistant",
+            "content": "Sure! Let me pull that up.",
+            "toolNames": [],
+            "spokenSegments": 1
+          },
+          {
+            "role": "assistant",
+            "content": "> For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n> John 3:16, KJV",
+            "toolNames": [
+              "tool-getPassage"
+            ],
+            "spokenSegments": 1
+          },
+          {
+            "role": "user",
+            "content": " Please save a new note called \"Voice Trial Test\" with this sentence: John 3:16 tells us God loves the world",
+            "toolNames": [],
+            "spokenSegments": 1
+          },
+          {
+            "role": "assistant",
+            "content": " Okay, I'll take care of that.",
+            "toolNames": [],
+            "spokenSegments": 1
+          },
+          {
+            "role": "assistant",
+            "content": "Saved a new note titled **Voice Trial Test** with: \u201cJohn 3:16 tells us God loves the world.\u201d",
+            "toolNames": [
+              "tool-findNotes",
+              "tool-addToNote"
+            ],
+            "spokenSegments": 1
+          }
+        ]
+      },
+      {
+        "name": "follow-up note tool readback",
+        "notesCreated": 1,
+        "notes": [
+          {
+            "title": "Voice Trial Test",
+            "plainText": "John 3:16 tells us God loves the world"
+          }
+        ]
+      }
+    ],
+    "endMessage": "Conversation ended. Saved turns remain in chat.",
+    "transcripts": [
+      {
+        "role": "user",
+        "text": "SureWord, please read John chapter 3 verse 16 in the King James Version"
+      },
+      {
+        "role": "assistant",
+        "text": "Sure! Let me pull that up."
+      },
+      {
+        "role": "assistant",
+        "text": " For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life. John 3:16."
+      },
+      {
+        "role": "user",
+        "text": " Please save a new note called \"Voice Trial Test\" with this sentence: John 3:16 tells us God loves the world"
+      },
+      {
+        "role": "assistant",
+        "text": " Okay, I'll take care of that."
+      },
+      {
+        "role": "assistant",
+        "text": " Done! I saved a new note titled \"Voice Trial Test\" with that sentence."
+      }
+    ],
+    "savedAcknowledgments": 3,
+    "result": "passed"
+  },
+  "browserCapture": {
+    "result": "passed",
+    "nonzeroPcmFrames": 227,
+    "peakPcm16": 23323,
+    "scheduledPlaybackChunks": 660,
+    "savedKjvTranscriptVisible": true,
+    "mutingStoppedPcmDelivery": true,
+    "viewportWidth": 375,
+    "documentWidth": 375
+  },
+  "browserEnd": {
+    "kind": "browser explicit End with synthetic MediaStream, no physical microphone",
+    "ending": {
+      "status": "Microphone off. Finishing the conversation and checking saved turns.",
+      "contexts": [
+        "closed",
+        "closed"
+      ],
+      "disabled": true
+    },
+    "usage": {
+      "state": "settled",
+      "seconds": 100,
+      "chargedSeconds": 0,
+      "confirmed": 1
+    },
+    "finalStatus": true,
+    "unconfirmedError": false
+  },
+  "automatedChecks": {
+    "focusedTests": {
+      "total": 65,
+      "passed": 65,
+      "failed": 0
+    },
+    "typecheck": "passed",
+    "lint": "passed",
+    "productionBuild": "passed"
+  },
+  "remainingGates": [
+    "Android implementation and acceptance first",
+    "native iOS and macOS parity",
+    "physical microphone/routing/echo/interruption checks",
+    "TalkBack, VoiceOver and blind-user acceptance",
+    "shared production quota store, account retention/deletion and global spend controls"
+  ],
+  "releaseStatus": "not deployed, merged or released"
+}

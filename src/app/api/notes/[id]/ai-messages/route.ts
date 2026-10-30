@@ -1,23 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
+import { readReviewedHistoryList } from "@/lib/ai/history/read-boundary.server";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
 	try {
 		const userId = await getAuthUser();
 		const { id } = await params;
-		const note = await prisma.note.findFirst({
-			where: { id, userId },
-		});
-		if (!note) {
-			return NextResponse.json({ error: "Not found" }, { status: 404 });
-		}
-
-		const messages = await prisma.noteAIMessage.findMany({
-			where: { noteId: id },
-			orderBy: { createdAt: "asc" },
-		});
-		return NextResponse.json(messages);
+		const batch = await readReviewedHistoryList(userId, "note", id);
+		if (!batch) return NextResponse.json({ error: "Not found" }, { status: 404 });
+		return NextResponse.json(batch.rows, { headers: { "Cache-Control": "private, no-store" } });
 	} catch (err) {
 		if (err instanceof Response) return err;
 		return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -36,6 +28,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 		}
 
 		const body = await req.json();
+		// Assistant history is written only by the checked server stream.
+		if (body?.role !== "user" || typeof body.content !== "string" || !body.content.trim() || body.content.length > 50_000) {
+			return NextResponse.json({ error: "A user message of 1 to 50000 characters is required." }, { status: 400 });
+		}
 		const message = await prisma.noteAIMessage.create({
 			data: {
 				noteId: id,

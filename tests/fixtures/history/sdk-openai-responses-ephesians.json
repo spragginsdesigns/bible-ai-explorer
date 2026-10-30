@@ -1,0 +1,121 @@
+{
+  "provenance": {
+    "kind": "actual-openai-responses-ui-envelope",
+    "archiveSHA256": "870fd5c2675888d782d07ee49ba8fd9d57a2b182377e687775783d8713c0a962",
+    "scope": "Public KJV Ephesians2:8-9 QA request; primary gate passed; no final approval asserted"
+  },
+  "row": {
+    "id": "msg-YRivy9SWtWHrgIshtyCwNpZS",
+    "role": "assistant",
+    "content": "> **Ephesians 2:8-9 (KJV)**\n> 8 For by grace are ye saved through faith; and that not of yourselves: it is the gift of God:\n> 9 Not of works, lest any man should boast.\n\nPaul teaches that salvation is God’s gift, not something we earn or produce in ourselves. Grace is God’s undeserved favor; faith is how we receive salvation, trusting in Jesus Christ and His saving work. Even this leaves no room for boasting, because salvation does not come from our works.\n\nWorks are not the price of salvation. They are its fruit: the next verse says believers are created in Christ Jesus unto good works (Ephesians 2:10). So we are saved by grace through faith, not by works, and a living faith leads to obedience and good works.",
+    "metadata": {
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "tool-getPassage",
+          "input": {
+            "book": "Ephesians",
+            "chapter": 2,
+            "verseEnd": 9,
+            "verseStart": 8
+          },
+          "state": "output-available",
+          "output": {
+            "verses": [
+              {
+                "text": "For by grace are ye saved through faith; and that not of yourselves: it is the gift of God:",
+                "reference": "Ephesians 2:8",
+                "similarity": 1,
+                "translation": "KJV"
+              },
+              {
+                "text": "Not of works, lest any man should boast.",
+                "reference": "Ephesians 2:9",
+                "similarity": 1,
+                "translation": "KJV"
+              }
+            ],
+            "coverage": {
+              "truncated": false,
+              "returnedReference": "Ephesians 2:8-9",
+              "requestedReference": "Ephesians 2:8-9",
+              "returnedVerseCount": 2,
+              "requestedVerseCount": 2
+            },
+            "formatted": "Ephesians 2:8 KJV: \"For by grace are ye saved through faith; and that not of yourselves: it is the gift of God:\"\nEphesians 2:9 KJV: \"Not of works, lest any man should boast.\"\nRead all 2 requested verses: Ephesians 2:8-9.\n\nSurrounding context (not part of the requested quotation):\nEphesians 2:5 KJV: \"Even when we were dead in sins, hath quickened us together with Christ, (by grace ye are saved;)\"\nEphesians 2:6 KJV: \"And hath raised us up together, and made us sit together in heavenly places in Christ Jesus:\"\nEphesians 2:7 KJV: \"That in the ages to come he might shew the exceeding riches of his grace in his kindness toward us through Christ Jesus.\"\nEphesians 2:10 KJV: \"For we are his workmanship, created in Christ Jesus unto good works, which God hath before ordained that we should walk in them.\"\nEphesians 2:11 KJV: \"Wherefore remember, that ye being in time past Gentiles in the flesh, who are called Uncircumcision by that which is called the Circumcision in the flesh made by hands;\"\nEphesians 2:12 KJV: \"That at that time ye were without Christ, being aliens from the commonwealth of Israel, and strangers from the covenants of promise, having no hope, and without God in the world:\"",
+            "reference": "Ephesians 2:8-9",
+            "truncated": false,
+            "contextVerses": [
+              {
+                "text": "Even when we were dead in sins, hath quickened us together with Christ, (by grace ye are saved;)",
+                "reference": "Ephesians 2:5",
+                "similarity": 1,
+                "translation": "KJV"
+              },
+              {
+                "text": "And hath raised us up together, and made us sit together in heavenly places in Christ Jesus:",
+                "reference": "Ephesians 2:6",
+                "similarity": 1,
+                "translation": "KJV"
+              },
+              {
+                "text": "That in the ages to come he might shew the exceeding riches of his grace in his kindness toward us through Christ Jesus.",
+                "reference": "Ephesians 2:7",
+                "similarity": 1,
+                "translation": "KJV"
+              },
+              {
+                "text": "For we are his workmanship, created in Christ Jesus unto good works, which God hath before ordained that we should walk in them.",
+                "reference": "Ephesians 2:10",
+                "similarity": 1,
+                "translation": "KJV"
+              },
+              {
+                "text": "Wherefore remember, that ye being in time past Gentiles in the flesh, who are called Uncircumcision by that which is called the Circumcision in the flesh made by hands;",
+                "reference": "Ephesians 2:11",
+                "similarity": 1,
+                "translation": "KJV"
+              },
+              {
+                "text": "That at that time ye were without Christ, being aliens from the commonwealth of Israel, and strangers from the covenants of promise, having no hope, and without God in the world:",
+                "reference": "Ephesians 2:12",
+                "similarity": 1,
+                "translation": "KJV"
+              }
+            ]
+          },
+          "toolCallId": "call_lvmwHmACzFjffQ00z20nnHLT",
+          "callProviderMetadata": {
+            "openai": {
+              "itemId": "fc_06066776193b2ca8006ae4e806612087d08b46378845b8a9e0"
+            }
+          },
+          "resultProviderMetadata": {
+            "openai": {
+              "itemId": "fc_06066776193b2ca8006ae4e806612087d08b46378845b8a9e0"
+            }
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "text": "> **Ephesians 2:8-9 (KJV)**\n> 8 For by grace are ye saved through faith; and that not of yourselves: it is the gift of God:\n> 9 Not of works, lest any man should boast.\n\nPaul teaches that salvation is God’s gift, not something we earn or produce in ourselves. Grace is God’s undeserved favor; faith is how we receive salvation, trusting in Jesus Christ and His saving work. Even this leaves no room for boasting, because salvation does not come from our works.\n\nWorks are not the price of salvation. They are its fruit: the next verse says believers are created in Christ Jesus unto good works (Ephesians 2:10). So we are saved by grace through faith, not by works, and a living faith leads to obedience and good works.",
+          "type": "text",
+          "state": "done",
+          "providerMetadata": {
+            "openai": {
+              "phase": "final_answer",
+              "itemId": "msg_07c1eeb5a1ad9af7006ae4e807d76c87d084264ae4af856410"
+            }
+          }
+        }
+      ],
+      "modelId": "openai/gpt-6-luna",
+      "translation": "KJV"
+    },
+    "createdAt": "2026-10-30T18:55:11.531Z"
+  }
+}

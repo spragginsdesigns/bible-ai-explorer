@@ -2,6 +2,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { EditorContent } from "@tiptap/react";
 import { TenTapStartKit, useTenTap } from "@10play/tentap-editor";
+import { CanonicalAdoptionWebBridge } from "./CanonicalAdoptionWebBridge";
 import { WikilinkWebBridge } from "./WikilinkWebBridge";
 
 declare global {
@@ -12,7 +13,7 @@ declare global {
 
 // TenTap's simple editor plus the wikilink bridge. useTenTap drops any bridge
 // the native side did not register, exactly as the stock bundle does.
-const bridges = [...TenTapStartKit, WikilinkWebBridge];
+const bridges = [...TenTapStartKit, WikilinkWebBridge, CanonicalAdoptionWebBridge];
 
 function Tiptap() {
 	const editor = useTenTap({ bridges });

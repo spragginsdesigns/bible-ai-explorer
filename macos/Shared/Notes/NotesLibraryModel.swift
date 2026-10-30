@@ -143,7 +143,7 @@ final class NotesLibraryModel {
     /// for the saved church's name first (an unavailable Places key just
     /// leaves it out), Blank creates the ordinary Untitled Note. Throws so the
     /// sheet can show Android's "could not finish" message and stay open.
-    func createNote(template: NoteTemplates.ID, church: (() async throws -> String?)? = nil) async throws -> Note {
+    func createNote(template: NoteTemplates.ID, selectCreated: Bool = true, church: (() async throws -> String?)? = nil) async throws -> Note {
         guard store.isCurrent(sessionEpoch) else { throw APIError(message: "The account changed. Reopen Notes.") }
         var churchName: String?
         if template == .sermon, let church {
@@ -158,7 +158,7 @@ final class NotesLibraryModel {
         }
         guard store.isCurrent(sessionEpoch) else { throw APIError(message: "The account changed. Reopen Notes.") }
         store.upsert(note, epoch: sessionEpoch)
-        selectedNoteID = note.id
+        if selectCreated { selectedNoteID = note.id }
         error = nil
         return note
     }

@@ -9,6 +9,7 @@ datasource db {
 }
 
 model User {
+  aiAnswerReviews AiAnswerReview[]
   id                     String                  @id // Clerk userId used directly
   email                  String?
   name                   String?
@@ -473,6 +474,7 @@ model ChatNotificationStop {
 }
 
 model Message {
+  aiAnswerReviews AiAnswerReview[]
   id                 String           @id @default(cuid())
   role               String // "user" | "assistant"
   content            String           @db.Text
@@ -730,6 +732,7 @@ model NoteTag {
 }
 
 model NoteAIMessage {
+  aiAnswerReviews AiAnswerReview[]
   id        String   @id @default(cuid())
   noteId    String
   note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
@@ -1527,4 +1530,51 @@ model BetaRoomPost {
   @@index([roomId, createdAt])
   @@index([authorId])
   @@index([parentId])
+}
+
+enum AiAnswerReviewState {
+  pending
+  verified
+  withheld
+  notice
+}
+model AiAnswerReview {
+  id                  String @id @default(cuid())
+  ownerId             String
+  owner               User @relation(fields: [ownerId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "AiAnswerReview_owner_fkey")
+  mainMessageId       String?
+  mainMessage         Message? @relation(fields: [mainMessageId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "AiAnswerReview_main_fkey")
+  noteAiMessageId     String?
+  noteAiMessage       NoteAIMessage? @relation(fields: [noteAiMessageId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "AiAnswerReview_note_fkey")
+  sourceDigest        String @db.Char(64)
+  contextDigest       String @db.Char(64)
+  policyDigest        String @db.Char(64)
+  displayDigest       String @db.Char(64)
+  reviewDigest        String @db.Char(64)
+  envelopeDigest      String @db.Char(64)
+  state               AiAnswerReviewState @default(pending)
+  // EXACT TARGET ONLY, never a prefix/context snapshot. Context is reloaded transiently and digested.
+  sourceSnapshot      Json
+  sanitizedDisplay    Json
+  // Immutable current-run execution attestations, never an archived context prefix.
+  freshEvidence       Json?
+  requiresActionProof Boolean @default(false)
+  canonicalPassed     Boolean @default(false)
+  semanticPassed      Boolean @default(false)
+  actionProofPassed   Boolean @default(false)
+  reviewerModelId     String?
+  issueCodes          String[] @default([])
+  leaseToken          String? @db.Uuid
+  expiresAt           DateTime?
+  retryAfter          DateTime?
+  attemptCount        Int @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @default(now()) @updatedAt
+  checkedAt           DateTime?
+  // All non-null; avoids nullable source-FK unique-index holes. sourceDigest includes owner/source IDs.
+  @@unique([ownerId, sourceDigest, contextDigest, policyDigest, displayDigest, reviewDigest, envelopeDigest], name: "owner_binding", map: "AiAnswerReview_owner_binding_key")
+  @@index([ownerId, state, expiresAt], map: "AiAnswerReview_owner_state_expiry")
+  @@index([mainMessageId, createdAt], map: "AiAnswerReview_main_created")
+  @@index([noteAiMessageId, createdAt], map: "AiAnswerReview_note_created")
+  // SQL additionally enforces exactly one source, immutable payload, verified-proof flags and one pending/account.
 }

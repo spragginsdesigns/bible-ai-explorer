@@ -10,10 +10,16 @@ import {
 	toUIMessageStream,
 	validateUIMessages,
 	type UIMessage,
+	type UIMessageChunk,
 } from "ai";
 import { plainDashes } from "@/lib/ai/plain-dashes";
 import { SCRIPTURE_OUTPUT_GUIDANCE, verifyGeneratedAnswer } from "@/lib/ai/verified-generation";
 import { releaseVerifiedAnswer } from "@/lib/ai/verified-answer-stream";
+import { releaseCertifiedFreshTurn,releaseFreshRequestRefusal } from "@/lib/ai/history/fresh-stream";
+import { historyService,createCurrentRequestReview } from "@/lib/ai/history/runtime.server";
+import {preparedRequestReviewContext} from "@/lib/ai/history/prepared-request.mjs";
+import { reviewedAssistantTurns } from "@/lib/ai/history/model-context";
+import type { ExecutedHistoryAction } from "@/lib/ai/history/contracts";
 import { readSavedNoteEvidence, successfulNoteWriteId } from "@/lib/ai/note-write-evidence";
 import { withoutOrphanedOpenAIReferences } from "@/lib/chat/modelHistory";
 import { assistantHistoryIds, HISTORY_EVIDENCE_GUIDANCE, trustedAssistantHistory } from "@/lib/chat/trusted-history";
@@ -104,6 +110,7 @@ async function persistExchange(options: {
 	userMessage: UIMessage;
 	responseMessage: UIMessage;
 	operation?: NoteAIWriteOperation;
+	alreadyCertified?: boolean;
 }): Promise<void> {
 	if (!hasPersistableContent(options.responseMessage)) return;
 	try {
@@ -139,7 +146,7 @@ async function persistExchange(options: {
 				? options.responseMessage.id
 				: generateMessageId();
 
-			await db.noteAIMessage.upsert({
+			if (!options.alreadyCertified) await db.noteAIMessage.upsert({
 				where: { id: responseMessageId },
 				update: { content: assistantText, metadata: metadataJson },
 				create: {
@@ -158,7 +165,11 @@ async function persistExchange(options: {
 		await recordDeliveredActionProposal(options.userId, `note:${options.noteId}`, options.userMessage.id, assistantText, options.responseMessage.parts);
 
 		if (userText && !usedMemoryTools(options.responseMessage.parts)) {
-			await extractAndStoreMemories({ userId: options.userId, userText });
+			// The certified source is durable before EOF; a separate utility
+			// call for user memory must not delay native response drain/rearm.
+			waitUntil(extractAndStoreMemories({ userId: options.userId, userText }).catch(error =>
+				console.error("Failed to extract note AI memories:", error),
+			));
 		}
 	} catch (error) {
 		console.error("Failed to persist note AI exchange:", error);
@@ -254,10 +265,11 @@ async function handlePost(req: Request): Promise<Response> {
 		const storedAssistantTurns = assistantIds.length > 0
 			? await prisma.noteAIMessage.findMany({
 				where: { id: { in: assistantIds }, role: "assistant", noteId: note.id, note: { userId } },
-				select: { id: true, content: true, metadata: true },
+				select: { id: true, content: true, metadata: true,createdAt:true },
 			})
 			: [];
-		const trustedMessages = trustedAssistantHistory(recentMessages, storedAssistantTurns);
+		const reviewedTurns = await reviewedAssistantTurns(historyService,userId,"note",note.id,storedAssistantTurns);
+		const trustedMessages = trustedAssistantHistory(recentMessages, reviewedTurns);
 		const messages = await validateUIMessages<SureWordUIMessage>({
 			messages: trustedMessages.map((message: UIMessage) => ({
 				...message, parts: Array.isArray(message?.parts) ? message.parts.filter(part => !part.type?.startsWith("data-")) : message?.parts,
@@ -307,10 +319,12 @@ async function handlePost(req: Request): Promise<Response> {
 		const toolReceipts: { tool: string; output: unknown }[] = [];
 		const noteWriteIds = new Set<string>();
 		const verificationBudget = () => {
-			const remaining = 285_000 - (Date.now() - turnStartedAtMs);
+			const remaining = 225_000 - (Date.now() - turnStartedAtMs);
 			if (remaining < 1000) throw new Error("Note verification budget exhausted");
 			return Math.min(75_000, remaining);
 		};
+		let freshCertified=false;
+		const executedActions: ExecutedHistoryAction[]=[];
 		const stream = createUIMessageStream<SureWordUIMessage>({
 			originalMessages: messages,
 			generateId: () => responseMessageId,
@@ -320,19 +334,21 @@ async function handlePost(req: Request): Promise<Response> {
 				}
 				return streamErrorText(error);
 			},
-			onEnd: ({ responseMessage, isAborted }) => {
+			onEnd: async ({ responseMessage, isAborted }) => {
 				if (isAborted) return;
-				waitUntil(
-					persistExchange({
+				await persistExchange({
 						userId,
 						noteId: note.id,
 						userMessage: lastMessage,
 						responseMessage,
 						operation,
-					})
-				);
+						alreadyCertified:freshCertified,
+					});
 			},
 			execute: async ({ writer }) => {
+				const finalChunks:UIMessageChunk[]=[];
+				let preparedRequest:object|undefined;
+				let preparedContext="";
 				const emitStatus = startStatusNarration(writer, responseMessageId);
 				let lastStatus = "Getting ready";
 				const writeStatus = (label: string) => { lastStatus = label; emitStatus(label); };
@@ -362,7 +378,7 @@ async function handlePost(req: Request): Promise<Response> {
 					contentVerifier = async (blocks, purpose) => {
 						const checked = await verifyGeneratedAnswer(blocks, {
 						model: verificationModel, providerOptions, translation: "KJV", question: currentUserText, purpose,
-							context: `Verify text for ${purpose}. Preserve existing note material unless the user requested a change.`,
+							context: `Verify text for ${purpose}. Preserve existing note material unless the user requested a change.\n\n${preparedContext}`,maxContextChars:64_000,requireCompleteContext:true,
 							timeoutMs: verificationBudget(),
 						});
 						return checked.verified ? checked.blocks : null;
@@ -382,6 +398,15 @@ async function handlePost(req: Request): Promise<Response> {
 
 					writeStatus("Thinking");
 					let lastStepFinishReason: string | null = null;
+					try {
+						preparedRequest=await historyService.prepareRequest(userId,{surface:"note",parentId:note.id,messageId:responseMessageId},{
+							messages,sources:messages.map(message=>message.role==="user"?{id:message.id,role:message.role,content:extractText(message)}:{...storedAssistantTurns.find(row=>row.id===message.id)!,role:"assistant"}),attachments:[],systemContext:fullSystem,mediaParts:[],...createCurrentRequestReview(definition,verificationModel,providerOptions),
+						});
+						preparedContext=preparedRequestReviewContext(preparedRequest).context;
+					} catch {
+						await releaseFreshRequestRefusal({ownerId:userId,locator:{surface:"note",parentId:note.id,messageId:responseMessageId},translation:"KJV",operation,service:historyService,write:chunk=>writer.write(chunk as Parameters<typeof writer.write>[0])});
+						freshCertified=true;return;
+					}
 					const result = streamText({
 						model,
 						system: promptCache.system,
@@ -423,6 +448,8 @@ async function handlePost(req: Request): Promise<Response> {
 						},
 						onToolExecutionEnd: ({ toolCall, toolOutput }) => {
 							if (toolOutput.type === "tool-result") {
+								const outcome=toolOutput.output && typeof toolOutput.output==="object" ? toolOutput.output as {success?:unknown;error?:unknown} : undefined;
+								if (outcome?.success!==false && !outcome?.error) executedActions.push({tool:toolCall.toolName,toolCallId:toolCall.toolCallId,success:true,output:JSON.parse(JSON.stringify(toolOutput.output) ?? "null")});
 								toolReceipts.push({ tool: toolCall.toolName, output: toolOutput.output });
 								const noteId = successfulNoteWriteId(toolCall.toolName, toolOutput.output);
 								if (noteId) {
@@ -440,7 +467,7 @@ async function handlePost(req: Request): Promise<Response> {
 						stream: toUIMessageStream<SureWordTools, SureWordUIMessage>({
 							stream: result.stream, tools, sendStart: false, sendFinish: false, sendReasoning: false,
 						}),
-						write: chunk => writer.write(chunk),
+						write: chunk => finalChunks.push(chunk),
 						onChecking: () => writeStatus("Checking Scripture"),
 						verify: async blocks => {
 							// Upstream EOF means all tool callbacks have settled. Read final state
@@ -449,8 +476,8 @@ async function handlePost(req: Request): Promise<Response> {
 								where: { id, userId }, select: { id: true, title: true, plainText: true },
 							}))));
 							return verifyGeneratedAnswer(blocks, {
-								model: verificationModel, providerOptions, translation: "KJV", question: currentUserText,
-								context: JSON.stringify({ latestNoteWrites, evidenceRule: "Latest note readbacks prove the final saved state after all successful writes settled. Earlier tool receipts or open-note text can precede those writes. Bible quotation words still require fresh canonical verification.", toolReceipts, openNote: note.plainText.slice(0, MAX_NOTE_CONTENT_LENGTH), noteAuthority: "User material, not Scripture authority" }),
+								model: verificationModel, providerOptions, translation: "KJV", question: currentUserText,maxContextChars:64_000,requireCompleteContext:true,
+								context: JSON.stringify({ preparedRequest:preparedContext,latestNoteWrites, evidenceRule: "Latest note readbacks prove the final saved state after all successful writes settled. Earlier tool receipts or open-note text can precede those writes. Bible quotation words still require fresh canonical verification.", toolReceipts, openNote: note.plainText.slice(0, MAX_NOTE_CONTENT_LENGTH), noteAuthority: "User material, not Scripture authority" }),
 								timeoutMs: verificationBudget(),
 							});
 						},
@@ -459,10 +486,12 @@ async function handlePost(req: Request): Promise<Response> {
 					const notice = incompleteAgentNotice(lastStepFinishReason, Date.now() - turnStartedAtMs);
 					if (notice) {
 						const textId = `${responseMessageId}-limit`;
-						writer.write({ type: "text-start", id: textId });
-						writer.write({ type: "text-delta", id: textId, delta: `\n\n${notice}` });
-						writer.write({ type: "text-end", id: textId });
+						finalChunks.push({ type: "text-start", id: textId });
+						finalChunks.push({ type: "text-delta", id: textId, delta: `\n\n${notice}` });
+						finalChunks.push({ type: "text-end", id: textId });
 					}
+					await releaseCertifiedFreshTurn({ownerId:userId,locator:{surface:"note",parentId:note.id,messageId:responseMessageId},chunks:finalChunks,preparedRequest,translation:"KJV",actions:executedActions,operation,service:historyService,signal:AbortSignal.timeout(Math.max(1,Math.min(60_000,270_000-(Date.now()-turnStartedAtMs)))),write:chunk=>writer.write(chunk as Parameters<typeof writer.write>[0])});
+					freshCertified=true;
 				} finally {
 					clearInterval(statusHeartbeat);
 					// Serializes with every note-writing transaction. Even a provider

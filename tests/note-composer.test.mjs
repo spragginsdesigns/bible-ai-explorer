@@ -3,8 +3,7 @@
  * Saving an answer used to store it verbatim, so a note opened in the chat's
  * second-person voice and was titled with the truncated question. These tests
  * drive the composer with a fake model: they pin what the prompt carries, what
- * the validator refuses, and - the part that matters most - that every failure
- * path still stores the user's content.
+ * the validator refuses, and - the part that matters most - that failure leaves notes untouched while explicit verbatim saves remain separate.
  */
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -28,13 +27,13 @@ const EM_DASH = "—";
  * is evaluated with those injected instead of imported (same approach as
  * tests/note-title-match.test.mjs).
  */
-function loadComposer({ generateText, prisma, resolveModel } = {}) {
+function loadComposer({ generateText, prisma, resolveModel, verifyStructuredProse } = {}) {
 	const source = read("../src/lib/note-composer.ts")
 		.replace(/^import[^\r\n]*(?:\r?\n|$)/gm, "")
 		.replace(/^export\s+/gm, "");
 	const factory = new Function(
 		"generateText", "Output", "z", "resolveModel", "prisma", "htmlToPlainText",
-		"NOTE_HOUSE_STYLE", "systemPrompt",
+		"NOTE_HOUSE_STYLE", "systemPrompt", "checkedStructuredProseModel", "beforeProseDeadline", "remainingProseTime", "verifyStructuredProse", "isTranslationId",
 		`${stripTypeScriptTypes(source)}
 return { normalizeForMatch, answersMatch, findConversationForAnswer, loadConversationTranscript,
 	buildTranscriptBlock, composerInstructions, buildComposerPrompt, validateComposedNote,
@@ -48,7 +47,12 @@ return { normalizeForMatch, answersMatch, findConversationForAnswer, loadConvers
 		prisma ?? emptyPrisma(),
 		(html) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(),
 		NOTE_HOUSE_STYLE,
-		systemPrompt
+		systemPrompt,
+		value => value,
+		async (_deadline, _reserve, work) => work(45_000),
+		(deadline, ceiling, reserve = 0) => Math.min(ceiling, deadline - Date.now() - reserve),
+		verifyStructuredProse ?? (async payload => payload),
+		value => ["KJV", "NKJV", "BSB", "ASV", "RV1909", "LUT1912"].includes(value)
 	);
 }
 
@@ -153,7 +157,8 @@ test("the composer prompt carries the house style, the persona and the transcrip
 	assert.ok(call.instructions.includes(systemPrompt), "the persona rides in the instructions");
 	assert.match(call.prompt, /THE ANSWER THE USER IS SAVING:/);
 	assert.match(call.prompt, /Why do I need to go to church\?/);
-	assert.match(call.prompt, /SureWord: Austin, the Bible has a great deal/);
+	assert.match(call.prompt, /THE ANSWER THE USER IS SAVING:\nAustin, the Bible has a great deal/);
+	assert.match(call.prompt, /SureWord: \[The complete answer is supplied in THE ANSWER/);
 });
 
 test("the instructions state every rule the composed note must follow", () => {
@@ -235,7 +240,7 @@ test("a rejected note is retried once, with the correction, then composed", asyn
 	assert.match(prompts[1].prompt, /previous attempt was rejected/);
 });
 
-test("two rejected attempts store the answer verbatim", async () => {
+test("two rejected attempts return failure without saveable content", async () => {
 	const badNote = {
 		title: "Church",
 		markdown: "## Why you should go\n\nYou asked about church.",
@@ -249,20 +254,19 @@ test("two rejected attempts store the answer verbatim", async () => {
 
 	assert.equal(prompts.length, 2, "never more than one retry");
 	assert.deepEqual(result, {
-		markdown: "the original answer",
 		composed: false,
 		reason: "rejected",
 	});
 });
 
-test("a model error stores the original markdown, never nothing", async () => {
+test("a model error or empty output never returns unchecked fallback bytes", async () => {
 	const { generateText } = scriptedModel([new Error("provider exploded")]);
 	const composer = loadComposer({ generateText, prisma: recordingPrisma().prisma });
 
 	const result = await quietly(() =>
 		composer.composeNoteFromAnswer({ userId: "alice", markdown: "the original answer" })
 	);
-	assert.deepEqual(result, { markdown: "the original answer", composed: false, reason: "error" });
+	assert.deepEqual(result, { composed: false, reason: "verification" });
 
 	// An empty structured result is the same story.
 	const empty = loadComposer({
@@ -272,7 +276,7 @@ test("a model error stores the original markdown, never nothing", async () => {
 	const emptyResult = await quietly(() =>
 		empty.composeNoteFromAnswer({ userId: "alice", markdown: "the original answer" })
 	);
-	assert.deepEqual(emptyResult, { markdown: "the original answer", composed: false, reason: "empty" });
+	assert.deepEqual(emptyResult, { composed: false, reason: "empty" });
 
 	// A provider that cannot be resolved at all must not lose the content either.
 	const noModel = loadComposer({
@@ -285,7 +289,7 @@ test("a model error stores the original markdown, never nothing", async () => {
 		noModel.composeNoteFromAnswer({ userId: "alice", markdown: "the original answer" })
 	);
 	assert.equal(noModelResult.composed, false);
-	assert.equal(noModelResult.markdown, "the original answer");
+	assert.equal(noModelResult.markdown, undefined);
 });
 
 test("appending to an existing note passes its content and keeps its title", async () => {
@@ -388,15 +392,15 @@ test("the transcript keeps the newest turns and stays inside its budget", () => 
 	assert.equal(composer.buildTranscriptBlock([{ role: "user", content: "   " }]), "");
 });
 
-test("the route composes by default, can be told not to, and never drops content", () => {
+test("the route rejects failed AI composition before writes and keeps explicit verbatim semantics", () => {
 	const route = read("../src/app/api/notes/append/route.ts");
 	assert.match(route, /const compose = !\(body && body\.compose === false\)/);
-	assert.match(route, /composeNoteFromAnswer\(\{ userId, markdown, noteId, conversationId \}\)/);
-	assert.match(route, /markdown: composed\?\.markdown \?\? markdown/);
-	assert.match(route, /title: composed\?\.title \?\? title/);
-	assert.match(route, /composed: composed\?\.composed \?\? false/);
-	// The 32000 cap is what keeps a whole chat answer intact; the 8000 default
-	// in notes-io is for the AI tool call.
+	assert.match(route, /composeNoteFromAnswer\(\{ userId, markdown, noteId, conversationId, deadlineAt, signal: req\.signal \}\)/);
+	assert.match(route, /if \(compose && \(!composed \|\| !composed\.composed\)\)/);
+	assert.ok(route.indexOf("if (compose && (!composed") < route.indexOf("await appendMarkdownToNote"));
+	assert.match(route, /markdown: save\.markdown/);
+	assert.match(route, /provenance: "user-verbatim"/);
+	assert.match(route, /save\.markdown\.length > MAX_APPEND_MARKDOWN_LENGTH/);
 	assert.match(route, /MAX_APPEND_MARKDOWN_LENGTH = 32000/);
 });
 
@@ -412,4 +416,13 @@ test("the assistant's own addToNote tool keeps writing what it composed", () => 
 	assert.match(block, /appendMarkdownToNote\(\{/);
 	assert.doesNotMatch(block, /notes\/append/);
 	assert.doesNotMatch(tools, /composeNoteFromAnswer/);
+});
+
+
+test("failed verification does not return a rewritten or original answer", async () => {
+	const { generateText } = scriptedModel([GOOD_NOTE]);
+	const composer = loadComposer({ generateText, verifyStructuredProse: async () => { throw Error("withheld"); } });
+	const result = await quietly(() => composer.composeNoteFromAnswer({ userId: "alice", markdown: "unchecked client suffix" }));
+	assert.deepEqual(result, { composed: false, reason: "verification" });
+	assert.equal("markdown" in result, false);
 });

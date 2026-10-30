@@ -26,6 +26,7 @@ import { createNoteSaveController, type NoteSaveController } from "../noteSaveCo
 import { noteDocumentToMarkdown } from "../noteMarkdownExport";
 import Link from "lucide-react-native/icons/link";
 import { GlyphButton } from "./primitives";
+import { createCanonicalAdoptionBridge, type CanonicalAdoptionEditorInstance } from "./canonicalAdoptionBridge";
 import { createWikilinkBridge, type WikilinkEditorInstance } from "./wikilinkBridge";
 import { editorHtml } from "../../../../editor-web/generated/editorHtml";
 
@@ -270,12 +271,15 @@ export interface NoteRichEditorHandle {
 	flush: () => Promise<boolean>;
  getMarkdown: (title: string) => Promise<string>;
 	/** Re-seed the document, e.g. after the AI appended to this note. */
-	replaceContent: (html: string) => void;
+	replaceContent: (html: string) => Promise<boolean>;
+	setReadOnly: (locked: boolean) => void;
 	/** Write text at the caret, restoring focus first. */
 	insertText: (text: string) => void;
 }
 
 interface NoteRichEditorProps {
+	readOnly?: boolean;
+	canSave?: () => boolean;
 	/** Read once on mount - remount (via key) to load a different note. */
 	initialHtml: string;
 	onSave: (payload: NoteSavePayload) => Promise<void> | void;
@@ -292,7 +296,7 @@ interface NoteRichEditorProps {
 
 export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorProps>(
 	function NoteRichEditor(
-		{ initialHtml, onSave, onCaptureError, bottomInset, onRequestWikilink, linkTargets, onOpenWikilink },
+		{ readOnly = false, canSave, initialHtml, onSave, onCaptureError, bottomInset, onRequestWikilink, linkTargets, onOpenWikilink },
 		ref
 	) {
 		const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -307,15 +311,21 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 			() => createWikilinkBridge((target) => onOpenWikilinkRef.current(target)),
 			[]
 		);
-		const extensions = useMemo(() => bridgeExtensions(colors, wikilinkBridge), [colors, wikilinkBridge]);
+		const canonicalAdoption = useMemo(createCanonicalAdoptionBridge, []);
+		useEffect(() => () => canonicalAdoption.dispose(), [canonicalAdoption]);
+		const extensions = useMemo(() => [...bridgeExtensions(colors, wikilinkBridge), canonicalAdoption.bridge], [colors, wikilinkBridge, canonicalAdoption]);
 		const theme = useMemo(() => editorTheme(colors, textScaleFactor), [colors, textScaleFactor]);
 
+		const lockedRef = useRef(readOnly);
+		const canSaveRef = useRef(canSave);
+		canSaveRef.current = canSave;
 		const onSaveRef = useRef(onSave);
 		onSaveRef.current = onSave;
 		const onCaptureErrorRef = useRef(onCaptureError);
 		onCaptureErrorRef.current = onCaptureError;
 
 		const editor = useEditorBridge({
+			editable: !readOnly,
 			initialContent: initialHtml,
 			// TenTap's stock editor plus the wikilink plugin (mobile/editor-web).
 			customSource: editorHtml,
@@ -329,6 +339,7 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 		// the imperative handle and timers do not churn.
 		const editorRef = useRef(editor);
 		editorRef.current = editor;
+		useEffect(() => { lockedRef.current = readOnly; editorRef.current.setEditable(!readOnly); }, [readOnly]);
 
 		// Same condition the Toolbar applies to itself, lifted so the wikilink
 		// button appears and disappears with it as one bar.
@@ -363,7 +374,8 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 						wordCount: countWords(plainText),
 					});
 				},
-				(message) => onCaptureErrorRef.current(message)
+				(message) => onCaptureErrorRef.current(message),
+				() => canSaveRef.current?.() !== false
 			);
 		}
 		const saveController = saveControllerRef.current;
@@ -373,6 +385,7 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 		}, [saveController]);
 
 		const scheduleSave = useCallback(() => {
+			if (lockedRef.current) return;
 			if (timerRef.current) clearTimeout(timerRef.current);
 			timerRef.current = setTimeout(() => {
 				timerRef.current = null;
@@ -397,16 +410,23 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
                     if (document === null) throw new Error("Could not read the editor. Please try again.");
                     return noteDocumentToMarkdown(title, document);
                 },
-				replaceContent: (html: string) => {
+				setReadOnly: (locked: boolean) => {
+					lockedRef.current = locked;
+					editorRef.current.setEditable(!locked);
+					if (locked && timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+				},
+				replaceContent: async (html: string) => {
 					if (timerRef.current) {
 						clearTimeout(timerRef.current);
 						timerRef.current = null;
 					}
-					saveController.replaceContent(html);
-					editorRef.current.setContent(html);
+					const result = await (editorRef.current as typeof editor & CanonicalAdoptionEditorInstance).replaceCanonicalNote(html);
+					if (!result.matched || typeof result.html !== "string") return false;
+					saveController.replaceContent(result.html);
+					return true;
 				},
 				insertText: (text: string) => {
-					if (!text) return;
+					if (!text || lockedRef.current) return;
 					// `null` restores the selection the editor held before the sheet
 					// took focus, rather than jumping the caret.
 					editorRef.current.focus(null);
@@ -429,11 +449,11 @@ export const NoteRichEditor = forwardRef<NoteRichEditorHandle, NoteRichEditorPro
 			<View style={styles.container}>
 				<RichText editor={editor} allowFileAccess textZoom={Math.round(fontScale * 100)} />
 				<View style={[styles.toolbarWrap, { paddingBottom: bottomInset }]}>
-					<View style={[styles.toolbarRow, toolbarHidden && styles.toolbarRowHidden]}>
+					<View style={[styles.toolbarRow, (toolbarHidden || readOnly) && styles.toolbarRowHidden]}>
 						<GlyphButton
 							Icon={Link}
 							accessibilityLabel="Link to a note"
-							onPress={onRequestWikilink}
+							onPress={() => { if (!lockedRef.current) onRequestWikilink(); }}
 							size={48}
 							style={styles.wikilinkButton}
 						/>

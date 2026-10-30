@@ -7,6 +7,48 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
+## Account-restricted GPT-Live voice, 2026-10-29
+
+The isolated `codex/sureword-gpt-live-pro` worktree adds live voice at `/voice`,
+enabled only for the account with verified primary Clerk email
+`atmosphere9999@gmail.com`. Other Pro accounts are denied at the page, API
+and relay backend. The old `/voice-preview` path is an account-gated redirect.
+It delegates speech to the existing chat backend
+and retains canonical messages, memory and tools. Pro checks and server-owned
+session/daily/monthly time limits apply. It uses a separate Neon branch and
+does not change the released apps or production configuration.
+
+| Client | Trial status |
+| --- | --- |
+| Web | Owner-only local controls and 1.05x playback; final production build and media-exclusion tests pass; unpublished. GPT-Live remains experimental/off in production |
+| Android | Owner-only controls at 1.05x; async command fences, quiet recovery and app-audio exclusion pass typecheck/1,250 tests; signed 1.112.0/code131 build passes, device acceptance pending |
+| iOS | Shared Apple local speech controls implemented; build evidence recorded separately, microphone/VoiceOver acceptance pending |
+| macOS | Installed 1.31.0(49); actual owner microphone navigation, chat/follow-up, singular Stop, app-switch shutdown and relaunch/readback pass. Blind-user VoiceOver acceptance remains separate |
+
+This feature has **not** passed native parity, microphone/device acceptance
+or blind-user usability. See [the trial runbook](voice/README.md) for architecture,
+limits, setup, evidence and remaining release gates. The existing released
+voice-message feature and Apple acceptance receipts below are separate work.
+
+The [spoken-navigation update](voice/navigation-2026-10-29.md) covers the Mac
+choice-card problem: labels or option numbers run the same handlers as taps;
+freeform answers, reminder hours and tour controls are spoken. Commands keep
+working across the seven root destinations. New capture remains owner-only;
+ordinary saved chat responses and numbered choices are spoken before capture
+restarts. These local speech controls do not create paid GPT-Live sessions.
+Arbitrary nested reader/editor controls and physical blind-user acceptance
+are not established by this implementation.
+
+The [Mac owner-account receipt](voice/mac-owner-acceptance-2026-10-29.json)
+records real built-in microphone tests, separate from recognition fixtures:
+build 44 passed spoken choices, Bible/Notes/Chat/Settings navigation and Back,
+two normal saved chat turns, and listening after 40 seconds of quiet. Build 46
+reopened the stored conversation after relaunch. Speech-permission callback,
+idle restart, singular Stop and spoken acknowledgment corrections are included
+in the current candidate. Build 49 runs at 1.05x, passed actual Bible/Chat
+navigation and singular Stop, and stops capture on real Mac application
+switches without automatically rearming on return. Final combined Apple
+integration and distribution remain gated and unpublished.
 ## Concordance accuracy remediation, 2026-10-29
 
 The shared server now derives concordance examples from trusted original-word
@@ -23,19 +65,97 @@ readback. Source-index checks covered all 31,102 KJV and 31,170 WLC/TR rows.
 The regression suite passed 2,201 tests with 18 skipped; typecheck, lint and
 production build passed. Public deployment acceptance is pending.
 
-Android and shared Apple cache-version and count-label changes remain pending.
-Their existing cached responses and installed binaries are not retroactively
-invalidated by a server deployment. The shared API correction reaches fresh
-requests and server-side AI tools, but complete native cache/UI acceptance and
-distribution remain separate gates. This work does not establish 99.99 percent
-semantic answer accuracy or change the saved-believer foundation.
+Shared Apple source now requests `fragments-v1`, includes that alignment in its
+memory-cache keys, and labels recognized counts as original verses. Unknown
+count scopes show Find occurrences without a count. Nineteen iOS unit tests
+pass, including captured requests and actual model cache reuse and isolation.
+The normal iOS reader passed John 1:1 Words, the God row's Strong's definition,
+the visible and usable **Original verses · 1174** action, and a See also
+reference jump followed by Back to John 1:1. A retained screenshot shows the
+whole label; a fresh public response reports the same source scope and count.
+Word-to-Chat handoffs, failure controls, final Mac runtime and distribution
+remain pending; Android's cache-version and count-label change is separate.
+Existing installed binaries are not retroactively updated by a server
+deployment. This work does not establish 99.99 percent semantic answer
+accuracy or change the saved-believer foundation.
 
 ## Full Apple parity revalidation in progress, 2026-10-29
 
 The earlier simulator checkpoint below does **not** establish the new request
 for every Android and web capability. A fresh feature inventory and runtime
-acceptance pass is active. Native changes remain unpublished while those
+acceptance pass is active. Native binaries remain unpublished while those
 journeys are verified; aggregate unit results are supporting evidence only.
+
+**Evidence recovery, 2026-10-29:** the continuation found the previous
+`/tmp/sureword-parity-complete` directory and its reader-test process missing.
+The source checkpoint commits remain, but that reader run has no recoverable
+result and is not accepted. Earlier observations below remain historical;
+their missing temporary receipts cannot certify the current integrated tree.
+Fresh runs now retain their raw results outside `/tmp`. The rebuilt Atlas
+support check passes 31 tests with no failures; this alone does not establish
+current app navigation or offline runtime acceptance.
+
+The fresh iOS Atlas directory journey passes in 191.336 seconds (one test,
+no failures or skips). It observes all 14 Exodus people, the Between
+Testaments empty state, ranked Saul/John/James results, an unknown query's
+empty state and the 12-result cap, then restores query, era and navigation.
+This is bounded online navigation evidence; all directories, offline access,
+AI responses and Mac runtime remain separate gates.
+
+The fresh normal-launch iOS reader journey passes in 304.724 seconds (one
+test, no failures or skips): KJV, NKJV, BSB, ASV, RV1909 and LUT1912 phrase
+results each open Genesis 1:1 with their exact expected wording. Genesis 1
+disables Previous, Genesis 50 advances to Exodus 1 and returns, and Revelation
+22 disables Next. This does not cover the other reader controls, account
+translation persistence or Mac behavior. The navigation changes under review
+still require final integrated regression before release.
+
+The fresh Words/Strong's/See-also journey passes in 88.907 seconds (one test,
+no failures or skips). Its retained screenshot shows the whole usable
+**Original verses · 1174** action. It opens a cited reader target and returns
+to John 1:1 without resurrecting the dismissed overlay. A separate original-
+languages journey passes in 74.482 seconds: invalid John 3:999 preserves the
+previous valid target, Genesis 1:1 loads Hebrew metadata, and rapid submissions
+leave the latest target stable. Word-to-Chat and deterministic held-response
+race coverage remain separate gates.
+
+The integrated Notes navigation correction now orders rows, Back, receipts,
+section changes and template completion by intent and account epoch. A newer
+intent invalidates pending note payloads; successful note creation stays in
+the library even if its navigation is superseded. Linked-note creation also
+checks its Info-sheet lifetime. iOS target compilation, nine shared navigation
+tests and all 27 Notes integrity tests pass, with no failures or skips.
+Independent source review passes. These are supporting checks: real save/
+navigation races, AI receipt persistence, Mac compilation/runtime and final
+whole-app regression remain open.
+
+The refreshed full iOS unit suite completes with 1,105 passed, zero failed
+and 11 skipped. It includes fixes for standalone Note info rendering without
+an AppModel environment and for test-transport teardown that invalidated a
+session before its required Stop acknowledgment task finished. The focused
+rendering and transport-lifetime checks pass four and 20 tests respectively.
+Ten StoreKit lifecycle opt-ins and one membership screenshot utility remain
+skipped; this result does not establish purchase or complete runtime parity.
+
+The fresh iOS owned-note rewrite journey fails at the shared server gate:
+`readNote` succeeds, but `updateNote` returns a tool error after generated-write
+review rejects its repair. Scoped production logs confirm `review_rejected`;
+the original marker remains and the replacement is absent. The one attempted
+turn settles and its owned QA note is deleted, with database absence verified.
+No rewrite, manual-follow-up or relaunch success is claimed. The exact rejected
+review criterion was not logged in that request. The raw test log is retained; Xcode hung
+after reporting failure and its unfinished result bundle cannot supply a
+summary. This is an open acceptance defect, not a passing error-handling case.
+
+Content-free flags deployed from `13d167da` expose a different failure in the
+next controlled rewrite. Artifact review passes and the database confirms the
+requested marker replacement, with the immutable seed retained. Final reply
+review rejects after one repair with a remaining issue. The shared stream
+then blanks the receipt's note-title field, and the native parser drops the
+successful update receipt. The journey fails with a finalized result; its
+owned note is deleted and database absence is verified. A fixed, generic
+receipt for confirmed writes is under review. No successful complete rewrite
+journey or exact cause of the earlier artifact rejection is claimed.
 
 iOS 1.30.0 (2) was withdrawn after the new pass reproduced a note-AI editor
 integrity bug. App Store Connect readback at 14:47:19 UTC shows the review
@@ -48,33 +168,166 @@ transactional write fence. A disconnected turn must be settled or cancelled
 on the server, then its canonical note reloaded, before Apple allows another
 manual save. Reservation, single execution, cancellation-before-execution,
 orphan recovery, ownership, and cancellation versus an active commit have
-passing isolated Postgres coverage. The installed/public Apple builds do not
-yet use this protocol. Live backend and final native acceptance remain gates.
+passing isolated Postgres coverage. The backend is live at `sureword.app` from
+`e6cabde8`; six authenticated/unauthenticated public checks passed after rollout.
+Local Mac 1.31.0 (40) was verified against it. Public Apple builds still await replacement,
+and final iOS runtime acceptance remains open.
 
 The new iOS pass also found and fixed delayed automatic onboarding overriding
-a newer tab choice. Held-response tests cover a changed destination, an equal
-Today selection, and cancellation. The linked-note runtime journey is being
-repeated against that correction and the explicit editor-close fix.
+a newer tab choice. Eight held-response tests cover a changed destination, an
+equal Today selection, cancellation and a destination chosen before consent
+settles. The linked-note runtime journey passed against the navigation and
+explicit editor-close corrections.
 
 The linked-note shipping journey subsequently passed A→B→A, another manual
 edit, Back to the Notes library and normal relaunch; its owned QA notes were
 deleted. The Gospels preset-plan journey also passed reader handoff, manual
 mark, relaunch persistence, unmark and archive, restoring no active plan.
-Heading text persisted across relaunch, but the Markdown-export test stopped
-at the test runner's paste permission. Export and reader append remain open.
+The iOS H4–H6 journey now passes two actual simulator clipboard exports,
+normal relaunch, a Genesis 1:1 reader append, a second relaunch/export and
+confirmed deletion of its owned QA note. The host verifies fresh nonce-bound
+clipboard receipts instead of asking the test runner to read another app's
+pasteboard. The Settings journey also passes changing appearance, parchment,
+text size, answer language and translation, verifying them after relaunch,
+then restoring and rechecking the original five values. These are bounded
+journeys, not proof of every Notes or Settings control. On the installed Mac, individual H4, H5 and
+H6 toolbar actions exported exact Markdown heading lines, and the export was
+identical after a normal restart.
 
-The operation protocol is staged against production services with public
-domains unchanged. Its final candidate passed 23 authenticated API checks,
+The operation protocol's final staged candidate passed 23 authenticated API checks,
 then a real model/tool rewrite followed by canonical readback, manual PATCH,
 history Clear, replay rejection and owned-note cleanup. The additive
 `20261029170000_note_ai_operations` migration was applied transactionally and
-its finished checksum read back. These prove the API path; final installed
-Apple UI and production rollout remain separate gates.
+its finished checksum read back. Installed Mac QA then passed a real clean AI
+append, immediate canonical editor refresh, one occurrence of the verse,
+another manual save, history reopen and Markdown export. A separate rewrite
+whose prose was withheld recovered its saved note safely and retained the next
+manual edit across restart. These do not establish every remaining Apple flow.
+
+A further held-response regression reproduced an old editor's canonical GET
+replacing the shared cache after a reopened editor saved newer text. Canonical
+adoption now checks the note's last-granted editing lease across asynchronous
+boundaries. A successor invalidates the old reader even after closing, while
+the current editor can still recover a terminal legacy operation. The focused
+27-test integrity suite passes, including both active and closed successors;
+normal Notes UI and final Mac acceptance of this correction remain pending.
 
 The production web sign-in page offers Apple. The Mac welcome screen hid
 that provider; source now offers it through Clerk's existing browser OAuth
-flow while iOS retains native Apple authorization. Mac build and provider
-launch/cancel acceptance are pending.
+flow while iOS retains native Apple authorization. The installed Mac completed
+the Apple browser callback and returned authenticated; QA then signed out that
+identity and restored the reviewer with its existing credential. Provider
+cancellation remains unverified.
+
+The compact Mac check exposed a fixed 320-point Notes library squeezing the
+editor. The replacement keeps one editor mounted while showing either a full
+library or a full editor in compact windows; its AI panel fills the compact
+pane and becomes an inspector when wide. Installed QA passed compact/wide
+resizing with the editor and unsent AI drafts retained, AI close, Back and
+reopen followed by another manual edit. The account/settings footer remained
+pinned while the long Recent list scrolled. These native changes are local,
+not yet a public release. A subsequent keyboard probe found that the hidden
+editor retained focus behind compact AI. The correction disables the hidden
+editor and focuses the assistant input on opening or entering compact mode;
+the initial keyboard checks passed. A real AI write then exposed a second
+permission bug: the model unlock could re-enable the hidden native editor.
+The controller now requires both model and presentation permission to edit.
+The installed correction passed a real clean AI append, hidden-editor
+read-only checks during and after model unlock, keyboard input isolation,
+wide-to-compact focus transfer, manual follow-up, actual Markdown export,
+normal relaunch and restored AI history. Canonical database readback confirmed
+one Psalm 23:1, the manual follow-up and all three heading levels. At that
+checkpoint the compiled Mac unit bundle passed 168 XCTest cases and 848 Swift tests;
+its isolated AppKit host avoids reading an authenticated app's keychain.
+These focused checks do not close the remaining capability inventory.
+
+The next chat journey reached a real answer but exposed a harness error: it
+tried the selected Chat tab behind the composer keyboard. The corrected helper
+uses the visible history menu. Cleanup verified the exact owned question after
+the server auto-titled it, then removed it and read back database absence.
+Source review also confirmed Apple lacked web's after-answer/focus history
+refresh. Shared list refresh now fences overlapping requests and local
+create/rename/delete/clear operations; held-response and installed journeys
+are being rerun. The corrected compiled Mac suite passes 186 XCTest cases and
+852 Swift tests, including 18 held-response history tests and four notification
+art tests. History exposes its current row to accessibility rather than
+relying on a seed title that the server may replace.
+
+The subsequent iOS chat journey passes a real answer, normalized rename,
+mixed-case title search, no-match and clear, a fresh host-verified KJV
+Scripture clipboard export, Psalms 23 reader navigation, question and KJV
+wording after normal relaunch, Cancel preserving the owned chat, confirmed
+deletion and absence after another relaunch. iOS 27 presented the confirmation
+as a native popover without a visible Cancel button; the harness now verifies
+the exact owned prompt before using its native dismissal region. This does
+not establish Copy question/answer, every Scripture action, or history's
+rejected-write paths. The latest iOS unit checkpoint passed 1,094 tests with
+zero failures and 11 skips: ten opt-in local StoreKit lifecycle cases require
+their separate signed-out simulator run, and one screenshot utility is
+separate. Its Atlas tests verify all seven query operations without requesting
+a token and the canonical bundled-data fingerprint.
+
+The normal iOS Pro Listen journey now passes narrator-preview switching,
+restoring the original narrator and delivery, one explicit generation,
+pending-to-ready polling, real playback-clock progress, pause, seek, speed,
+and transcript show/hide. The same transcript and changed speed survive a
+normal relaunch; the original 1x speed and local preference baseline were
+restored. This covers one reserved reviewer day. Free/unavailable gates,
+replaced-day behavior, failure recovery and final Mac acceptance remain open.
+Two separate Notes attempts stopped on connection loss, with no automatic
+retry; their exact owned notes were removed after server-state checks. The
+new full append/rewrite and restored-history journeys are not yet accepted.
+
+Review also found that Apple's Note AI views omitted the shared receipts used
+by web, including updateNote. Both Apple views now use the existing receipt
+line and save-gated destinations. Source review found a later note-selection
+ordering gap while a receipt awaits autosave; that correction and final
+receipt-tap runtime acceptance are still in progress.
+
+The actual shipping iOS app also passed the bounded Atlas transport-failure
+journey. A nonce-bound injected app process rejected the tested URLSession
+requests and raw external TCP connections while all seven bundled Atlas query
+operations worked: timeline, entities, search, chapter, entity, event and
+connection. Five bundled translation searches, reader handoffs, Moses's family,
+journey and cited trace, and Jerusalem's Places flow passed. A fresh final
+checkpoint verified the same injected process and active failure controls.
+Normal relaunch removed the injection, retained the account and restored an
+uncached online NKJV search. App bytes and signatures were unchanged. This
+proves those app-process transport-failure paths; whole-simulator network
+isolation, the original OS-offline test, and final Mac offline acceptance remain
+unverified.
+
+The release-journal journey found a separate iOS navigation defect: Try it
+opened Chat, but returning to Today resurrected Settings and the filtered
+journal. Settings now delegates closure to its actual gear, Chat-route or
+sheet owner before opening a feature. The original shipping journey passes
+search, Try it, return to Today, Back through Settings and normal relaunch with
+the existing seen-state retained. Same-tab Today and direct Chat-owner checks
+also pass without resurrecting the closed subtree; the Settings-sheet handoff
+remains unverified. A later StoreKit
+review also found an old account's purchase result could update state after
+transaction finishing resumed. Generation guards now fence that suspension,
+restore and deferred reconciliation. The first ten-case local transaction run
+passed seven cases, including the new held-finisher account switch. Purchase
+finishing passed unchanged in a separate test-host process after failing in
+the shared run. Expiry diagnostics exposed the simulator test server updating
+its date while StoreKit's entitlement stream retained the old future date;
+simulated user cancellation returned an unknown StoreKit error. A fresh host
+now passes the expired-restore negative case using the documented historical
+purchase setup: actual past expiry, verified matching transaction history,
+empty current entitlements and Restore remaining inactive. Native payment-sheet
+cancellation and final lifecycle aggregation remain open. These tests use
+real local StoreKit transactions and an isolated HTTP fake, not production
+entitlement approval.
+
+The refreshed upstream baseline also adds notification artwork. The active
+inventory now contains 213 capabilities and 40 runtime cohorts, preserving all
+earlier requirements. Both iOS art extensions are integrated. Apple SDK and
+Xcode-template review confirmed the Mac needs its own service and content
+extensions for remote-push thumbnails and native expanded art; those targets
+and scoped distribution checks are now in source. Both Apple builds compile;
+signed installation and remote/expanded notification runtime acceptance remain
+pending.
 
 ## Apple release submission, 2026-10-29
 
@@ -521,6 +774,8 @@ iOS purchase/runtime acceptance was performed; the shared Android emulator
 was claimed by another session. The lifecycle gate remains open in
 `PARITY-TODO.md` section 1.1 and TickTick task `6ae2157e8f089b81ed18c7e0`.
 
+**2026-10-30 Play billing supersession:** READY production deployment `dpl_B7ZdVVK1F6QBtmuMbNBzD3RwdW6d` serves `sureword.app` and `bible-ai-explorer.vercel.app`. Both authenticated status endpoints returned HTTP 200 with Pro and the same funded 20:06:56.365 to 20:11:56.365 UTC period and 600-message allowance on October 30. Actual RTDN type 2 at 20:07:02.987 UTC advanced the persisted funded period by 20:07:04.526 UTC while the app was backgrounded and the observation harness made no status requests. The combined release preserves notification work and passed 262 focused tests, TypeScript and ESLint. [Lifecycle evidence and limits](billing-play-lifecycle.md) supersede the historical October 28 draft/unavailable/no-native-purchase checkpoint above.
+
 > **Actionable checklist:** see [PARITY-TODO.md](PARITY-TODO.md) for the
 > requested web/Android/iOS inventory of remaining capability gaps, release
 > blockers, runtime proof, and deliberate platform differences. This file
@@ -748,15 +1003,15 @@ and Apple builds were not exercised in this release pass.
 
 ## Free, web Pro and BYOK release, 2026-09-14
 
-Pro is $15/month, with 600 included AI actions per billing period and up to 50/day; Free has 20/day (raised from 10 on 2026-09-17 after the two most active free accounts hit the cap on consecutive days). Both plans chat on Luna medium (server-side, `houseChatModelId`; a same-day 2026-10-08 trial of GPT-6.1 Sol for Pro and GLM 5.3 Flash for Free was reverted after a ~3 minute free answer); utilities stay on Luna low. Production usage enforcement is enabled. Web Stripe checkout is enabled after a real test-mode purchase, renewal, portal cancellation and refund cycle, plus a live signed webhook delivered with HTTP 200. Google Play purchases remain disabled pending merchant setup and a real store purchase. No live card charge was made.
+Pro is $15/month, with 600 included AI actions per billing period and up to 50/day; Free has 20/day (raised from 10 on 2026-09-17 after the two most active free accounts hit the cap on consecutive days). Both plans chat on Luna medium (server-side, `houseChatModelId`; a same-day 2026-10-08 trial of GPT-6.1 Sol for Pro and GLM 5.3 Flash for Free was reverted after a ~3 minute free answer); utilities stay on Luna low. Production usage enforcement is enabled. Web Stripe checkout is enabled after a real test-mode purchase, renewal, portal cancellation and refund cycle, plus a live signed webhook delivered with HTTP 200. At that September release, Play purchases were disabled. The October 30 no-charge lifecycle is now verified and live; see [billing-play-lifecycle.md](billing-play-lifecycle.md). No live card charge was made.
 
 | Capability | Android | Web | macOS | iOS | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | Dawn launch splash, cold start only (background-return replay removed 2026-10-11: Android 1.87.1 (99), web, Apple 1.14.1 (17) source) | 🟡 signed 1.86.0 (97) AAB/APK, emulator cold launch centered; 4/4 lifecycle tests; Play internal and matching GitHub APK delivered | 🟡 source/build and exact-layout local desktop/mobile captures; READY production deployment; live authenticated browser unverified | 🟡 installed 1.14.0 (16) signature/asset verified; Austin confirmed splash launch; public distribution pending | 🟡 1.14.0 (16) iPhone 18 Pro/iPad 13 simulator builds and launch-art captures; physical/store delivery unverified | Existing brand/theme preserved. 1.65 s reveal + 220 ms exit, silent, tap/click skip, Android Back skip, captured web key skip; reduced-motion bypass on all, screen-reader bypass on Android/Apple. Web signed-in only. [Evidence and proof limits](sureword-splash.md). |
-| Membership balance and included/personal-key choice | 1.61.0 (63), Play alpha/internal completed and signed APK launch verified; authenticated native interaction unverified. 1.102.0 (119): the Included AI / My API key choice is removed and Membership shows only the plan. Next build (source + unit tests, 2026-10-27 plan audit): the card now shows the billing period end, "Paid access ends" after a cancel, "Paid access ended" after a lapse and the failed-payment line, as web does (`membershipView.ts`), and tells an App Store or web subscriber in plain text where to manage it (no link, live subscriptions only); not yet on a device | Production owner membership and local Free/BYOK API verified. 2026-10-27: an App Store subscriber's "Manage billing" opened the Stripe portal, which answers "No billing account exists yet."; it is now "Manage in the App Store" (source + typecheck) | Source and unsigned macOS build passed | Source and simulator build passed | `docs/FEATURES.md` |
+| Membership balance and included/personal-key choice | 1.61.0 (63), Play alpha/internal completed and signed APK launch verified; authenticated native interaction unverified. 1.102.0 (119): the Included AI / My API key choice is removed and Membership shows only the plan. Next build (source + unit tests, 2026-10-27 plan audit): the card now shows the billing period end, "Paid access ends" after a cancel, "Paid access ended" after a lapse and the failed-payment line, as web does (`membershipView.ts`), and tells an App Store or web subscriber in plain text where to manage it (no link, live subscriptions only); not yet on a device  October 30: existing QA APK displayed Pro/Free balances, period end and lapsed access and completed Restore during real no-charge testing. Other management-copy branches and a new binary release are not claimed. | Production owner membership and local Free/BYOK API verified. 2026-10-27: an App Store subscriber's "Manage billing" opened the Stripe portal, which answers "No billing account exists yet."; it is now "Manage in the App Store" (source + typecheck) | Source and unsigned macOS build passed | Source and simulator build passed | `docs/FEATURES.md` |
 | Allowance-used message (2026-10-27): the 429 used to read "Slow down a moment" / "Too many requests" with a raw UTC timestamp ("available at 2026-10-28T00:00:00.000Z"); it is now titled "You've used today's messages" with the reset in local time. No upgrade button on either client yet | 🟡 `mobile/src/features/chat/chatErrors.ts`, unit tests; next build, not on a device | 🟡 `src/lib/chat/chatErrors.ts`, `tests/chat-errors.test.mjs`; ships with the next deploy | ⚠️ not checked | ⚠️ not checked | Server text unchanged (`src/lib/billing/usage.ts`) |
 | Shared usage enforcement | Shared production API; full native runtime scenario unverified | Production metering enabled; compiled app tenth Free answer 200, eleventh 429, BYOK after exhaustion 200 without debit | Shared API; native runtime pending | Shared API; native runtime pending | 10 database cases; 928 web logic tests, 16 skipped |
-| Subscription purchase | Native Play purchase/restore compiled, 798 mobile tests; disabled pending Google merchant setup and real store purchase | Live $15/month Stripe checkout enabled; account, price, default portal and live signed webhook verified | 🟡 website purchase/management paths implemented: Membership offers Subscribe when `MacBilling.canOfferWebUpgrade` allows it, and eligible locked Listen/allowance cards open Membership through `ProUpgradeOffer`; final checkout/management runtime proof remains open | 🟡 StoreKit 2 in source (`ProPurchaseStore`, `ProMembershipView`): Subscribe with `appAccountToken`, `POST /api/billing/app-store/verify`, finish only on 200/403, `Transaction.updates` listener, Restore Purchases, Manage subscription, "See SureWord Pro" from the locked Listen panel; no Subscribe when `appStoreCheckoutAvailable` is false. Pure rules covered by `StoreKitBillingTests` on the simulator; a real sandbox purchase on a physical device remains unverified for 1.30.0 (2), now VALID/internal-ready. The October 22 App Review 2.1(b) rejection is historical; Store 1.26.0 is READY_FOR_SALE. 2026-10-27: the Listen card re-reads status when the Pro sheet closes, and a refund delivered while the screen is open drops the active badge | 13 Stripe fixture cases, real test-mode checkout/renewal/cancellation/refund, live webhook HTTP 200, and 21 Play backend tests; App Store server cases in `tests/app-store-billing.test.mjs`; native purchase unverified on every store |
+| Subscription purchase | October 30: real no-charge Play purchase/acknowledgement, Pro, Restore, in-place reinstall and accelerated lifecycle verified. Billing `fe815467` is live with public RTDN renewal and coherent funded-period quotas. No new binary release, clean-uninstall restoration or public production-track approval claimed. | Live $15/month Stripe checkout enabled; account, price, default portal and live signed webhook verified | 🟡 website purchase/management paths implemented: Membership offers Subscribe when `MacBilling.canOfferWebUpgrade` allows it, and eligible locked Listen/allowance cards open Membership through `ProUpgradeOffer`; final checkout/management runtime proof remains open | 🟡 StoreKit 2 in source (`ProPurchaseStore`, `ProMembershipView`): Subscribe with `appAccountToken`, `POST /api/billing/app-store/verify`, finish only on 200/403, `Transaction.updates` listener, Restore Purchases, Manage subscription, "See SureWord Pro" from the locked Listen panel; no Subscribe when `appStoreCheckoutAvailable` is false. Pure rules covered by `StoreKitBillingTests` on the simulator; a real sandbox purchase on a physical device remains unverified for 1.30.0 (2), now VALID/internal-ready. The October 22 App Review 2.1(b) rejection is historical; Store 1.26.0 is READY_FOR_SALE. 2026-10-27: the Listen card re-reads status when the Pro sheet closes, and a refund delivered while the screen is open drops the active badge | Existing Stripe fixture/test-mode and live webhook evidence retained. October 30 Play: native no-charge lifecycle, account isolation, real DELETE cancellation failure/retry, exact Orders quotas and sales-disabled paid access/renewal. Combined 262 focused tests, TypeScript and ESLint passed. See `docs/billing-play-lifecycle.md`; physical iOS purchase remains unverified. |
 | Signed-out landing page | Not applicable | Production landing and signup verified | Not applicable | Not applicable | Public root, active $15 Pro entry, no-card Free entry, personalization copy and device-specific installation |
 
 The existing complimentary/owner audio grants are preserved. Audio for new subscriptions has a separate activation flag until its cost is measured. PR #21 merged to main as `f4612b4`. Application commit `576d4f9` includes portal cancellation reconciliation; Vercel Production `dpl_BVK1nATb1Tquz48CSr5BQowU1tk6` reached Ready with sureword.app assigned and web billing enabled. The dedicated live key was read from the authorized 1Password item and saved as a Vercel Production secret. Live Stripe event `evt_1UFdHEDwdkV6uaAOjsyFmizQ` returned HTTP 200 with received=true; the endpoint listens to the original 11 billing events. Five billing migrations were applied after snapshot branch `br-delicate-star-ak14gozu`, preserving all 44 users. Android tag `android-v1.61.0` targets `c90576e`; published APK SHA-256 `439835906b049408029a19227bfa3c9e3bb53f1e44c58c5568f57018c8003433`. Google public production access remains unavailable: Console showed one tester against the twelve-testers/fourteen-days requirement. Apple release binaries were not rebuilt.
@@ -882,7 +1137,7 @@ tab selection). Same behavior, different plumbing.
 | Streaming chat via `POST /api/ask-question` | ✅ | ✅ | ✅ | ✅ | Shared backend; macOS has recorded-stream regression fixtures |
 | Stop generating mid-stream | ✅ `ChatInputBar` stop → `abandonPendingAnswer` | ✅ 2026-09-14 `useChat` `abandonPendingAnswer` + stop button while streaming | ✅ `ChatInputBar` stop button → `ChatViewModel.stop()` (in source since 2026-08-12, shipped in the installed 1.5.0) | ✅ stop button in `macos/SureWord-iOS/Views/Chat/ChatInputBar.swift` (shared source; device/runtime/distribution unverified) | Stopping leaves the partial answer and clears the pending attachment; Android additionally suppresses the answer-ready push (the server cannot distinguish a deliberate stop from a dropped connection) |
 | Answer survives a lost connection (backgrounded app, locked screen, network change) | ✅ 1.24.0, collects on app resume | ✅ collects on tab focus | ✅ 1.5.0 polls on transport failure + wake | ✅ shared (compiled, unverified in-app) | Server-side half is shared and already live for every client: `/api/ask-question` drains its own copy of the SSE stream (`consumeSseStream`), so a client disconnect can no longer cancel generation or persist a truncated reply. Each client then polls `GET /api/conversations/{id}` until the finished answer appears and swaps it in instead of showing an error (`answerRecovery.ts`, mirrored). macOS/iOS still surface a stream failure as a failure |
-| Notification art: the Daily Cross and "Your answer is ready" each show their own artwork (closed and expanded) | ⏳ 1.111.0 (130), `mobile/modules/sureword-notifications` (RemoteViews, `DecoratedCustomViewStyle`) | ⏳ push `icon` + `image` from `notificationArtFor`, local hidden-tab notice matches | ⏳ local Daily Cross and answer notices attach the mark (`NotificationArt.dress`); the Mac has no remote push | ⏳ next iOS build (after 1.30.0; the Mac's Codex session holds the 1.31.0 bump): Notification Service Extension (thumbnail) + Content Extension (long-press view), server sends `mutable-content` + category | Keyed on the data's `screen` on every client; other notices keep the plain look. See `docs/FEATURES.md` → "Notification art" |
+| Notification art: the Daily Cross and "Your answer is ready" each show their own artwork (closed and expanded) | ⏳ 1.111.0 (130), `mobile/modules/sureword-notifications` (RemoteViews, `DecoratedCustomViewStyle`) | ⏳ push `icon` + `image` from `notificationArtFor`, local hidden-tab notice matches | ⏳ pending 1.31.0 acceptance: local notices attach the mark; native Mac service/content extensions now cover remote APNs thumbnails and expanded art | ⏳ next iOS build (after 1.30.0; the Mac's Codex session holds the 1.31.0 bump): Notification Service Extension (thumbnail) + Content Extension (long-press view), server sends `mutable-content` + category | Keyed on the data's `screen` on every client; other notices keep the plain look. See `docs/FEATURES.md` → "Notification art" |
 | "Your answer is ready" push when the answer lands after you left | ✅ 1.24.0, own channel + Settings → Chat toggle | 🟡 2026-10-04 Web Push from the same `notifyChatAnswerReady` server send, plus a local notification when the tab is hidden but still connected (`notifyAnswerReady` in `useChat.ts`); tap opens `/?conversationId=`; real delivery untested | 🟡 2026-10-19 in the installed 1.21.0 (LC-16620): an answer that finished while SureWord was in the background posted no notice; SureWord has no entry in System Settings > Notifications, so permission looks denied or never granted. The switch only asks when the status is undetermined. Needs Austin to check System Settings. A local "Your answer is ready" when an answer lands, streamed to the end or recovered, while SureWord is not the active app, the web's hidden-tab rule (`AnswerReadyNotification`, posted by `AnswerReadyNotifier` from `ChatViewModel.onAnswerReady`); the click opens that conversation; Settings → Chat toggle, kept on this Mac because the Mac registers no push token. The shared rule, the chat-model hook and their 10 tests pass under Swift 6 on Linux | 🟡 source + tests, not compiled (LC-16620 audit; built in `5012602` and `6cc04a0`): `PushRegistration` sends `chatReplies` with the Expo token and its device proof, Settings → Notifications → Chat toggle, a tap opens that conversation (`NotificationTapTarget` → `PendingDeepLinks`), deliberate stops are suppressed (`ChatStopSignals`). Dormant until the APNs key is uploaded to the EAS project and `PushRegistration.isServerDeliveryConfigured` flips (`docs/ios/push-design.md`) | Sent only when the requesting client disconnected mid-stream (`req.signal.aborted`); tapping opens that conversation. Android suppresses the push for an answer the user deliberately stopped, which the server cannot distinguish from a dropped connection. Needs a registered push token, which now survives switching the Verse of the Day off (`PushToken.chatReplies`). Same cold-start deep-link gap as the morning push |
 | Model + reasoning-effort picker | ✅ sparkles button in chat header (1.11.0) | ✅ picker on chat input; since 2026-10-27 the owner's SureWord rows (Free, Pro, Sol) show no search box, matching Android and Apple (`shouldShowSearch`, unit test) | ✅ 1.5.0 sparkles toolbar button → popover | ✅ chat-header button → sheet | Served by `GET /api/ai/models`; sends `modelId`/`effort` in the chat body; last pick persists as the account default |
 | Run options beside the model: REASONING (Off→Max, per model), SPEED (Fast on OpenAI gpt-5.x non-nano, Claude Opus 5/4.8, every OpenRouter model), LENGTH (Brief/Normal/Detailed), MODE (Pro on GPT-5.6); sections appear only when the model offers a choice; search past 8 models; model rows carry pills + tagline or context/price meta; summary label ("GPT-5.6 Luna · High · Fast") | ✅ 1.71.0 (77) full-height sheet split into Models / Options tabs: Models pins the search over a scrolling grouped list (a single provider is a static section header, several fold), Options draws each section as a card with chips in an equal-cell wrapping grid (`optionGridColumns`), summary line in the sheet header; 1.47.0 through 1.70.3 stacked the chips in a horizontal scroll under a shrunken list | ✅ picker on chat input (summary on the trigger chip) | ⚠️ 1.7.0 built in source, unverified until a Mac build | ⚠️ same as macOS | Server derives capabilities per model (`src/lib/ai/models.ts` `deriveCapabilities`, OpenRouter live catalog overlay); request body adds `speed`/`verbosity`/`mode`; an explicit `effort: null` key is Auto and clears the stored default, while an absent key keeps it (every client stores a local "auto" sentinel for the Auto chip and omits the key when nothing was ever chosen); clients seed local picks from `defaults` on load so a choice made on one device shows on the others; non-native verbosity travels as a system-prompt hint; house mode ignores all three. Persisted in `User.defaultSpeed/defaultVerbosity/defaultMode` (migration `20260903000000_chat_run_options`) |

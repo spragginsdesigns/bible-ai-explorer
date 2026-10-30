@@ -30,6 +30,7 @@ struct MainWindow: View {
                 .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 320)
         } detail: {
             detail
+                .nativeVoiceControls(app: app)
                 .spotlightTarget(app.section.primary.tabTarget)
                 .spotlightHost()
                 .safeAreaInset(edge: .top, spacing: 0) {
@@ -108,19 +109,19 @@ struct MainWindow: View {
         // Clicking the morning notification lands here, as does a
         // `sureword://cross` link (buffered in `PendingDeepLinks` first, so
         // it is drained here rather than replayed later).
-        .onReceive(NotificationCenter.default.publisher(for: .openDailyCross)) { _ in
-            openPendingLinks()
+        .onReceive(NotificationCenter.default.publisher(for: .openDailyCross)) { note in
+            openPendingLinks(eventID: PendingDeepLinks.eventID(from: note))
         }
         // `sureword://verse?ref=…`: the reader at that reference.
-        .onReceive(NotificationCenter.default.publisher(for: .openVerseReference)) { _ in
-            openPendingLinks()
+        .onReceive(NotificationCenter.default.publisher(for: .openVerseReference)) { note in
+            openPendingLinks(eventID: PendingDeepLinks.eventID(from: note))
         }
         // Clicking "Your answer is ready" lands here, or, when the click
         // launched the app, in the buffer drained once this window appears.
-        .onReceive(NotificationCenter.default.publisher(for: .openConversation)) { _ in
-            openPendingLinks()
+        .onReceive(NotificationCenter.default.publisher(for: .openConversation)) { note in
+            openPendingLinks(eventID: PendingDeepLinks.eventID(from: note))
         }
-        .task { openPendingLinks() }
+        .task { openPendingLinks(startup: true) }
         // "Share into SureWord" (Services, or a drop on the window or the Dock
         // icon; `MacShareInbox`). This shell only exists signed in, so a share
         // made signed out waits in the inbox and opens right after sign-in.
@@ -202,9 +203,7 @@ struct MainWindow: View {
                 },
                 onCrossReplaced: { app.dailyCross.invalidate() }
             ) { verse in
-                app.section = .bible
-                app.pendingVerseTranslation = verse.translation
-                app.pendingVerseReference = verse.reference
+                app.openVerse(verse.reference, translation: verse.translation)
             }
             .navigationTitle(app.chat.activeConversation?.title ?? "New chat")
         case .bible:
@@ -218,33 +217,44 @@ struct MainWindow: View {
         }
     }
 
-    /// Handles everything `PendingDeepLinks` holds. Draining on the live
-    /// notification too (not only on appearance, as the iOS shell does) means
-    /// a click opens its conversation once and is never replayed into a later
-    /// window or a later account.
-    private func openPendingLinks() {
-        Task {
-            guard await app.noteDeparture.canLeave() else { return }
-            applyPendingLinks()
+    /// Adopt on the arrival/appearance boundary, before waiting for a save.
+    /// Retried failed saves keep their request; acknowledged events cannot
+    /// replay into another window or a later session.
+    private func openPendingLinks(eventID: UUID? = nil, startup: Bool = false) {
+        let queue = PendingDeepLinks.shared
+        let events = eventID.map { id in queue.event(id: id).map { [$0] } ?? [] } ?? queue.events
+        let allowNewIntent = !startup || !app.hasNavigationIntent
+        for event in events {
+            if case .verse(let reference) = event.link, Bible.resolveReference(reference) == nil {
+                queue.discard(event.id)
+                continue
+            }
+            if case .chat(let id) = event.link, id.isEmpty {
+                queue.discard(event.id)
+                continue
+            }
+            guard let delivery = queue.adopt(event, ownerID: app.navigationOwnerID, allowNewIntent: allowNewIntent, makeRequest: {
+                app.beginNoteNavigation()
+            }) else { continue }
+            Task {
+                await queue.perform(delivery, isCurrent: app.isCurrentNoteNavigationRequest, departure: app.noteDeparture) { link in
+                    applyPendingLink(link, request: delivery.request)
+                }
+            }
         }
     }
 
-    private func applyPendingLinks() {
-        for link in PendingDeepLinks.shared.drain() {
-            switch link {
-            case .chat(let conversationID): openConversation(conversationID)
-            case .cross:
-                app.isSettingsPresented = false
-                app.section = .cross
-            case .verse(let reference):
-                // Resolution is the reader's job, but an unresolvable link is
-                // dropped here, as iOS and Android drop it, rather than
-                // switching to an unchanged reader.
-                guard Bible.resolveReference(reference) != nil else { continue }
-                app.isSettingsPresented = false
-                app.section = .bible
-                app.pendingVerseReference = reference
-            }
+    private func applyPendingLink(_ link: DeepLink, request: AppModel.NoteNavigationRequest) -> Bool {
+        switch link {
+        case .chat(let conversationID): return openConversation(conversationID, request: request)
+        case .cross:
+            guard app.commitNavigationSection(.cross, request: request) else { return false }
+            app.isSettingsPresented = false
+            return true
+        case .verse(let reference):
+            guard app.commitVerse(reference, translation: nil, request: request) else { return false }
+            app.isSettingsPresented = false
+            return true
         }
     }
 
@@ -259,12 +269,15 @@ struct MainWindow: View {
 
     /// Android's `router.push("/", { conversationId })` for a chat push tap,
     /// as on iOS (`TabShell.openConversation`).
-    private func openConversation(_ id: String) {
-        guard !id.isEmpty else { return }
+    private func openConversation(_ id: String, request: AppModel.NoteNavigationRequest) -> Bool {
+        guard !id.isEmpty, app.commitNavigationSection(.chat, request: request) else { return false }
         app.isSettingsPresented = false
         app.chat.isHistoryPresented = false
-        app.section = .chat
-        Task { await app.chat.switchConversation(to: id) }
+        Task {
+            guard app.isCurrentNoteNavigationRequest(request) else { return }
+            await app.chat.switchConversation(to: id)
+        }
+        return true
     }
 }
 

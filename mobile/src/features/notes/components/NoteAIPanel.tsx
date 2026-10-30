@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
 	KeyboardAvoidingView,
 	Modal,
@@ -18,7 +18,8 @@ import {
 	parseSlashCommand,
 } from "@/features/chat/slashCommands";
 import { ErrorCard } from "@/features/chat/ErrorCard";
-import { useNoteAI, type NoteAppendEvent } from "../useNoteAI";
+import { useNoteAI } from "../useNoteAI";
+import type { NoteAIOperationController } from "../noteAIOperation";
 import { NoteAIMessage } from "./NoteAIMessage";
 import ChevronDown from "lucide-react-native/icons/chevron-down";
 import Sparkles from "lucide-react-native/icons/sparkles";
@@ -33,46 +34,46 @@ export function NoteAIPanel({
 	noteId,
 	visible,
 	onClose,
-	onNoteAppended,
+	operation,
+	beforeNavigate,
+	onNavigated,
 }: {
 	noteId: string;
 	visible: boolean;
-	onClose: () => void;
-	onNoteAppended: (event: NoteAppendEvent) => void;
+	onClose: () => Promise<boolean>;
+	operation: NoteAIOperationController;
+	beforeNavigate: () => Promise<boolean>;
+	onNavigated: () => void;
 }) {
 	const insets = useSafeAreaInsets();
 	const { colors } = useTheme();
 	const styles = useThemedStyles(createStyles);
-	const { messages, isStreaming, loading, error, sendMessage, clearHistory, retry } = useNoteAI(
+	const { messages, isStreaming, loading, error, sendMessage, clearHistory, retry, stop, reloadHistory } = useNoteAI(
 		noteId,
-		{ onNoteAppended }
+		operation
 	);
 	const [input, setInput] = useState("");
+	useEffect(() => { if (visible) void reloadHistory(); }, [visible, reloadHistory]);
 	const scrollRef = useRef<ScrollView>(null);
 
-	const busy = loading || isStreaming;
+	const currentOwner = useRef(operation); currentOwner.current = operation;
+	const draft = useRef(input); draft.current = input;
+	const mounted = useRef(true);
+	useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+	const busy = loading || isStreaming || !operation.canEdit();
+	const close = () => { void stop(); void onClose(); };
 	const suggestions = matchSlashCommands(input, NOTE_SLASH_COMMANDS);
 
-	const handleSend = () => {
-		const text = input.trim();
-		if (!text || busy) return;
-
+	const handleSend = async () => {
+		const original = input, text = original.trim(), owner = operation;
+		if (!text || busy || !owner.canEdit()) return;
 		const parsed = parseSlashCommand(text, NOTE_SLASH_COMMANDS);
-		if (parsed) {
-			if (parsed.def.requiresArgs && !parsed.args) return;
-			setInput("");
-			if (parsed.def.localAction === "suggest") {
-				sendMessage(SUGGEST_VERSES_PROMPT);
-			} else if (parsed.def.localAction === "clear-note-chat") {
-				void clearHistory();
-			} else {
-				sendMessage(parsed.args ? `${parsed.def.command} ${parsed.args}` : parsed.def.command);
-			}
-			return;
-		}
-
-		setInput("");
-		sendMessage(text);
+		if (parsed?.def.requiresArgs && !parsed.args) return;
+		const accepted = parsed?.def.localAction === "clear-note-chat"
+			? (await clearHistory()) === true
+			: await sendMessage(parsed?.def.localAction === "suggest" ? SUGGEST_VERSES_PROMPT
+				: parsed ? (parsed.args ? `${parsed.def.command} ${parsed.args}` : parsed.def.command) : text);
+		if (accepted && mounted.current && currentOwner.current === owner && draft.current === original) setInput("");
 	};
 
 	return (
@@ -81,17 +82,17 @@ export function NoteAIPanel({
 			transparent
 			animationType="slide"
 			statusBarTranslucent
-			onRequestClose={onClose}
+			onRequestClose={close}
 		>
 			<View style={styles.root}>
-				<Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close AI panel" />
+				<Pressable style={styles.backdrop} onPress={close} accessibilityLabel="Close AI panel" />
 
 				<KeyboardAvoidingView
 					behavior="padding"
 					style={styles.panel}
 				>
 					<View style={styles.header}>
-						<GlyphButton Icon={ChevronDown} accessibilityLabel="Close AI panel" onPress={onClose} size={32} />
+						<GlyphButton Icon={ChevronDown} accessibilityLabel="Close AI panel" onPress={close} size={32} />
 						<View style={styles.headerTitle}>
 							{/* Matches the editor bar's AI button, so the panel it opens is
 							    recognisably the same thing. */}
@@ -140,12 +141,12 @@ export function NoteAIPanel({
 						) : (
 							<>
 									{messages.map((message) => (
-										<NoteAIMessage key={message.id} message={message} />
+										<NoteAIMessage key={message.id} message={message} noteId={noteId} beforeNavigate={beforeNavigate} onNavigated={onNavigated} />
 									))}
 									{error ? (
 										<ErrorCard
 											message={`Something went wrong: ${error}`}
-											retryLabel="Try again"
+											retryLabel="Check saved note"
 											onRetry={retry}
 										/>
 									) : null}

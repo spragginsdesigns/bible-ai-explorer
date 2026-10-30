@@ -2,8 +2,8 @@ import SwiftUI
 
 /// The Notes pane: library on the left, editor on the right.
 ///
-/// Android pushes `/notes` → `/notes/[id]` as two screens; a Mac window has
-/// room for both at once, so the same two states sit side by side. Every
+/// Android pushes `/notes` → `/notes/[id]` as two screens; a wide Mac window has
+/// room for both at once. Narrow windows show the selected editor or library. Every
 /// capability the Android screens have is reachable here — the form factor
 /// changes, the feature set does not.
 struct NotesSection: View {
@@ -45,29 +45,54 @@ struct NotesSection: View {
     /// assistant just created opens even before the list has fetched it.
     private func openPendingNote(in library: NotesLibraryModel?) {
         guard let library, let noteID = app.pendingNoteID else { return }
+        let request = app.currentNoteNavigationRequest()
         Task {
-            guard await app.noteDeparture.canLeave() else { return }
-            library.selectedNoteID = noteID
-            app.pendingNoteID = nil
+            await app.performNoteNavigation(request) {
+                guard app.pendingNoteID == noteID else { return }
+                library.selectedNoteID = noteID
+                app.pendingNoteID = nil
+            }
         }
     }
 
     @ViewBuilder
     private func content(_ library: NotesLibraryModel) -> some View {
-        HStack(spacing: 0) {
-            NotesListPane(library: library, api: api)
-                .frame(width: 320)
-            Divider().overlay(theme.border)
+        GeometryReader { geometry in
+            let isCompact = geometry.size.width < 740
+            let showsLibrary = !isCompact || library.selectedNoteID == nil
+            let listWidth = showsLibrary ? (isCompact ? geometry.size.width : 320) : 0
+            let dividerWidth: CGFloat = isCompact ? 0 : 1
+            let detailWidth = max(0, geometry.size.width - listWidth - dividerWidth)
 
-            if let noteID = library.selectedNoteID {
-                NoteEditorPane(noteID: noteID, api: api, library: library)
-                    // A fresh editor per note: the model seeds its document once
-                    // and owns an autosave timer, so reusing it across notes
-                    // would write one note's text into another.
-                    .id(noteID)
-                    .analyticsScreen(AnalyticsScreen.note)
-            } else {
-                emptyDetail
+            // Keep the list and editor in the same view tree while resizing.
+            // Recreating an editor would also recreate its draft and AI state.
+            HStack(spacing: 0) {
+                NotesListPane(library: library, api: api, isVisible: showsLibrary)
+                    .frame(width: listWidth)
+                    .clipped()
+                    .allowsHitTesting(showsLibrary)
+                    .accessibilityHidden(!showsLibrary)
+                Divider().overlay(theme.border)
+                    .frame(width: dividerWidth)
+                    .clipped()
+                    .accessibilityHidden(isCompact)
+
+                Group {
+                    if let noteID = library.selectedNoteID {
+                        NoteEditorPane(noteID: noteID, api: api, library: library)
+                            // A fresh editor per note: the model seeds its document once
+                            // and owns an autosave timer, so reusing it across notes
+                            // would write one note's text into another.
+                            .id(noteID)
+                            .analyticsScreen(AnalyticsScreen.note)
+                    } else {
+                        emptyDetail
+                    }
+                }
+                .frame(width: detailWidth)
+                .clipped()
+                .allowsHitTesting(detailWidth > 0)
+                .accessibilityHidden(detailWidth == 0)
             }
         }
     }

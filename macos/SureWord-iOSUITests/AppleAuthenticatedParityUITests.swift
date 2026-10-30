@@ -5,16 +5,22 @@ import XCTest
 /// The private runner forwards SW_DEMO_EMAIL/SW_DEMO_PASSWORD through
 /// TEST_RUNNER_ variables; never put their values in arguments or attachments.
 @MainActor
-final class AppleAuthenticatedParityUITests: XCTestCase {
+class AppleShippingUITestCase: XCTestCase {
     private enum AcceptanceStop: Error { case manualStep, missingControl }
     private let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
     private var email: String { ProcessInfo.processInfo.environment["SW_DEMO_EMAIL"] ?? "" }
     private var password: String { ProcessInfo.processInfo.environment["SW_DEMO_PASSWORD"] ?? "" }
 
-    override func setUpWithError() throws {
+    override func setUp() async throws {
+        // XCTestCase's default hook is empty. Keep this async override on
+        // the class's MainActor instead of sending self through a nonisolated
+        // superclass hook and then capturing it in another executor.
         continueAfterFailure = false
-        guard !email.isEmpty, !password.isEmpty else {
-            XCTFail("Private review-account environment is missing")
+        // A surviving simulator session needs only its expected owner identity.
+        // Keep a locked vault from blocking read-only QA, without substituting
+        // a placeholder password or attempting an uncredentialed sign-in.
+        guard !email.isEmpty else {
+            XCTFail("Private review-account identity is missing")
             throw AcceptanceStop.manualStep
         }
     }
@@ -30,40 +36,48 @@ final class AppleAuthenticatedParityUITests: XCTestCase {
         throw AcceptanceStop.manualStep
     }
 
-    private func checkManualStep(_ app: XCUIApplication) throws {
+    func checkManualStep(_ app: XCUIApplication) throws {
+        let systemPrompts = ["Save Password", "Update Password", "Allow Notifications"]
+        func matchingPrompt(_ element: XCUIElement, labels: [String]) -> String {
+            labels.first { $0 == element.label || $0 == element.identifier } ?? "unexpected manual step"
+        }
         for host in [app, springboard] {
             let alert = host.alerts.firstMatch
             if alert.exists {
                 let prompt = alert.staticTexts.allElementsBoundByIndex.map(\.label).joined(separator: " · ")
                 try stop("Unexpected alert: \(prompt)")
             }
-            for prompt in ["Save Password", "Update Password", "Allow Notifications"] {
-                let button = host.buttons[prompt]
-                if button.exists && button.isHittable { try stop("Unexpected system step: \(prompt)") }
+            let buttons = host.buttons.matching(NSPredicate(
+                format: "label IN %@ OR identifier IN %@", systemPrompts, systemPrompts))
+            for button in buttons.allElementsBoundByIndex where button.isHittable {
+                try stop("Unexpected system step: " + matchingPrompt(button, labels: systemPrompts))
             }
         }
-        for prompt in [
+        let manualPrompts = [
             "How SureWord answers you", "Agree and continue", "Allow AI",
             "Check your email", "Enter verification code", "Verification code",
             "Verify your identity", "Two-step verification", "Security verification",
             "Verify you are human", "I'm not a robot", "Agree to terms"
-        ] {
-            let text = app.staticTexts[prompt]
-            let button = app.buttons[prompt]
-            if (text.exists && text.isHittable) || (button.exists && button.isHittable) {
-                try stop("Manual authentication, consent or legal step: \(prompt)")
-            }
+        ]
+        // Keep exactly the same label/identifier and hittability guards,
+        // batching absent prompts instead of issuing dozens of AX queries
+        // before every shipping action.
+        let predicate = NSPredicate(format: "label IN %@ OR identifier IN %@", manualPrompts, manualPrompts)
+        let candidates = app.staticTexts.matching(predicate).allElementsBoundByIndex
+            + app.buttons.matching(predicate).allElementsBoundByIndex
+        for candidate in candidates where candidate.isHittable {
+            try stop("Manual authentication, consent or legal step: " + matchingPrompt(candidate, labels: manualPrompts))
         }
     }
 
-    private func dismissOrdinaryReleaseNotes(_ app: XCUIApplication) throws {
+    func dismissOrdinaryReleaseNotes(_ app: XCUIApplication) throws {
         try checkManualStep(app)
         let gotIt = app.buttons["Got it"]
         let releaseNotes = app.staticTexts["Since you were last here"].exists || app.navigationBars["What's new"].exists
         if releaseNotes && gotIt.exists && gotIt.isHittable { gotIt.tap() }
     }
 
-    private func tap(_ element: XCUIElement, in app: XCUIApplication, step: String = "shipping control") throws {
+    func tap(_ element: XCUIElement, in app: XCUIApplication, step: String = "shipping control") throws {
         try checkManualStep(app)
         guard element.waitForExistence(timeout: 20), element.isHittable else {
             try checkManualStep(app)
@@ -76,11 +90,46 @@ final class AppleAuthenticatedParityUITests: XCTestCase {
         try checkManualStep(app)
     }
 
-    private func shellExists(_ app: XCUIApplication) -> Bool {
+    /// Scroll only a real content viewport. A full-screen percentage can land
+    /// on the software keyboard; clip the observed scroller to the visible
+    /// area above it and below navigation before sending a drag.
+    func scrollObservedContent(toward element: XCUIElement, in app: XCUIApplication) throws {
+        try checkManualStep(app)
+        let frame = app.frame
+        let navigationBottom = app.navigationBars.allElementsBoundByIndex
+            .filter { $0.exists && $0.isHittable }.map { $0.frame.maxY }.max() ?? frame.minY
+        let keyboardTop = app.keyboards.allElementsBoundByIndex
+            .filter { $0.exists }.map { $0.frame.minY }.min() ?? frame.maxY
+        let tabTop = app.tabBars.allElementsBoundByIndex
+            .filter { $0.exists && $0.isHittable }.map { $0.frame.minY }.min() ?? frame.maxY
+        let top = max(frame.minY + 12, navigationBottom + 8)
+        let bottom = min(frame.maxY - 12, keyboardTop - 12, tabTop - 8)
+        let clip = CGRect(x: frame.minX + 12, y: top,
+                          width: frame.width - 24, height: max(0, bottom - top))
+        let scrollers = app.scrollViews.allElementsBoundByIndex
+            + app.tables.allElementsBoundByIndex + app.collectionViews.allElementsBoundByIndex
+        let viewports = scrollers.filter { $0.exists && $0.frame.height > 110 }
+            .map { $0.frame.intersection(clip) }
+            .filter { !$0.isNull && $0.width > 100 && $0.height > 90 }
+        guard let viewport = viewports.max(by: { $0.width * $0.height < $1.width * $1.height }) else {
+            XCTFail("No observed content viewport is available above the keyboard")
+            throw AcceptanceStop.missingControl
+        }
+        let down = element.exists && element.frame.maxY <= viewport.minY + 8
+        func point(_ fraction: CGFloat) -> XCUICoordinate {
+            app.coordinate(withNormalizedOffset: CGVector(
+                dx: (viewport.midX - frame.minX) / frame.width,
+                dy: (viewport.minY + viewport.height * fraction - frame.minY) / frame.height))
+        }
+        point(down ? 0.25 : 0.78).press(forDuration: 0.1,
+            thenDragTo: point(down ? 0.78 : 0.25))
+    }
+
+    func shellExists(_ app: XCUIApplication) -> Bool {
         ["Today", "Bible", "Chat", "Connections", "Study"].allSatisfy { app.tabBars.buttons[$0].exists }
     }
 
-    private func waitForShell(_ app: XCUIApplication) throws {
+    func waitForShell(_ app: XCUIApplication) throws {
         let deadline = Date().addingTimeInterval(45)
         while Date() < deadline {
             try dismissOrdinaryReleaseNotes(app)
@@ -90,7 +139,7 @@ final class AppleAuthenticatedParityUITests: XCTestCase {
         try stop("The shipping authenticated five-tab shell did not appear")
     }
 
-    private func signInIfNeeded(_ app: XCUIApplication) throws {
+    func signInIfNeeded(_ app: XCUIApplication) throws {
         let signIn = app.buttons["auth-sign-in"]
         let deadline = Date().addingTimeInterval(30)
         while Date() < deadline, !signIn.exists, !shellExists(app) {
@@ -98,6 +147,10 @@ final class AppleAuthenticatedParityUITests: XCTestCase {
             Thread.sleep(forTimeInterval: 0.5)
         }
         if shellExists(app) { return }
+        guard !password.isEmpty else {
+            try stop("The saved simulator session is unavailable; private review credentials are required before sign-in")
+            return
+        }
         try tap(signIn, in: app)
         let identifier = app.descendants(matching: .any)
             .matching(identifier: "clerk.auth.start.identifier").firstMatch
@@ -160,7 +213,7 @@ final class AppleAuthenticatedParityUITests: XCTestCase {
         try waitForShell(app)
     }
 
-    private func verifyReviewOwner(_ app: XCUIApplication) throws {
+    func verifyReviewOwner(_ app: XCUIApplication) throws {
         // First-run onboarding opens Chat, whose Settings action belongs to
         // Chat options. Today provides the direct gear on every normal launch.
         try tap(app.tabBars.buttons["Today"], in: app, step: "Today tab before owner verification")
@@ -185,12 +238,14 @@ final class AppleAuthenticatedParityUITests: XCTestCase {
         let back = settingsBar.buttons["Today"].exists
             ? settingsBar.buttons["Today"] : settingsBar.buttons["Back"]
         try tap(back, in: app, step: "Settings back to Today")
-        XCTAssertTrue(todayBar.waitForExistence(timeout: 15))
-        XCTAssertTrue(app.tabBars.buttons["Today"].isSelected)
-        XCTAssertFalse(settingsBar.exists)
+        guard todayBar.waitForExistence(timeout: 15),
+              app.tabBars.buttons["Today"].isSelected, !settingsBar.exists else {
+            try stop("Owner verification did not return to the authenticated Today root")
+            return
+        }
     }
 
-    private func openGenesis(_ app: XCUIApplication) throws {
+    func openGenesis(_ app: XCUIApplication) throws {
         try tap(app.tabBars.buttons["Bible"], in: app)
         if app.navigationBars["Genesis 1"].exists { return }
         let book = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Genesis")).firstMatch
@@ -199,7 +254,7 @@ final class AppleAuthenticatedParityUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Genesis 1"].waitForExistence(timeout: 20))
     }
 
-    private func translation(_ label: String, in app: XCUIApplication) throws -> XCUIElement {
+    func translation(_ label: String, in app: XCUIApplication) throws -> XCUIElement {
         let chip = app.buttons[label]
         guard chip.waitForExistence(timeout: 15) else {
             XCTFail("The reader translation chip did not appear")
@@ -215,7 +270,7 @@ final class AppleAuthenticatedParityUITests: XCTestCase {
         return chip
     }
 
-    private func assertTranslation(_ label: String, text: String, in app: XCUIApplication) throws {
+    func assertTranslation(_ label: String, text: String, in app: XCUIApplication) throws {
         try checkManualStep(app)
         let chip = try translation(label, in: app)
         XCTAssertTrue(chip.isSelected)
@@ -223,7 +278,7 @@ final class AppleAuthenticatedParityUITests: XCTestCase {
         XCTAssertTrue(verse.waitForExistence(timeout: 20))
     }
 
-    private func capture(_ app: XCUIApplication, _ name: String) throws {
+    func capture(_ app: XCUIApplication, _ name: String) throws {
         try checkManualStep(app)
         let shot = XCTAttachment(screenshot: app.screenshot())
         shot.name = name
@@ -231,6 +286,23 @@ final class AppleAuthenticatedParityUITests: XCTestCase {
         add(shot)
     }
 
+    /// Normal shipping launch and verified owner, with no evidence arguments.
+    /// Deliberately does not capture the profile or credential entry screens.
+    func shippingApp() throws -> XCUIApplication {
+        let app = XCUIApplication()
+        app.terminate()
+        app.launchArguments = []
+        app.launchEnvironment = [:]
+        app.launch()
+        try signInIfNeeded(app)
+        try waitForShell(app)
+        try verifyReviewOwner(app)
+        return app
+    }
+}
+
+@MainActor
+final class AppleAuthenticatedParityUITests: AppleShippingUITestCase {
     func testReviewAccountASVPersistsAcrossTabReturnAndNormalRelaunchThenRestoresKJV() throws {
         let app = XCUIApplication()
         app.terminate()

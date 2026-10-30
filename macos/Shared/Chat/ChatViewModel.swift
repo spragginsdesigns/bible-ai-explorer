@@ -77,7 +77,11 @@ final class ChatViewModel {
     /// actions above the composer. Nil hides the row.
     var shareNotices: [String]?
     /// Raised by `/history` and by ⌘K; the shell presents the picker.
-    var isHistoryPresented = false
+    var isHistoryPresented = false {
+        didSet {
+            if isHistoryPresented && !oldValue { refreshConversationsIfIdle() }
+        }
+    }
     /// A history action that failed after the row had already moved (a delete
     /// the server refused). The shells present it as an alert and clear it.
     var historyAlert: HistoryAlert?
@@ -110,6 +114,32 @@ final class ChatViewModel {
     /// the background (`AnswerReadyNotifier`). iOS leaves it unset; its notice
     /// is the server's push. Never called for a stopped or failed answer.
     @ObservationIgnored var onAnswerReady: (@MainActor (_ conversationID: String, _ title: String?, _ recovered: Bool) -> Void)?
+    /// Current handles below control cancellation; this registry also retains
+    /// superseded work until its actual completion so teardown can await it.
+    @MainActor
+    private final class OwnedRequestTasks {
+        private var tasks: [UUID: Task<Void, Never>] = [:]
+
+        @discardableResult
+        func launch(_ operation: @escaping @MainActor @Sendable () async -> Void) -> Task<Void, Never> {
+            let id = UUID()
+            let task = Task { [weak self] in
+                defer { self?.tasks[id] = nil }
+                await operation()
+            }
+            tasks[id] = task
+            return task
+        }
+
+        func drain() async {
+            // A completing task can register cleanup work. Check the registry
+            // again after every completion instead of waiting one snapshot.
+            while let task = tasks.values.first { await task.value }
+        }
+    }
+
+    @ObservationIgnored private let ownedRequestTasks = OwnedRequestTasks()
+    @ObservationIgnored private var teardownDrain: Task<Void, Never>?
     private var streamTask: Task<Void, Never>?
     private var streamGeneration: UUID?
     private var notificationAttempt: ChatNotificationAttempt?
@@ -119,6 +149,16 @@ final class ChatViewModel {
     private var lastFailedSend: String?
     /// Guards against a slow history load landing after the user moved on.
     private var historyLoadVersion = 0
+    /// Whole-list snapshots must be ordered separately from the open thread's
+    /// messages. A mutation invalidates snapshots both before its request and
+    /// after its result, including GETs started while the write was pending.
+    private var conversationListGeneration = 0
+    private var conversationListRevision = 0
+    private var activeConversationListLoads = 0
+    private var pendingConversationListMutations = 0
+    private var conversationListRefreshQueued = false
+    private var conversationListRefreshTask: Task<Void, Never>?
+    private var tornDown = false
     /// Bumped whenever the draft is abandoned, so an upload that lands afterwards
     /// deletes itself instead of attaching to a conversation the user has left.
     private var attachmentDraftVersion = 0
@@ -200,11 +240,24 @@ final class ChatViewModel {
     /// out releases `AppModel`, but a running recovery poll would otherwise keep
     /// the view model alive and keep asking `/api/conversations` with a token
     /// that is now dead - every 401 pair reporting another auth failure.
-    func teardown() {
+    @discardableResult
+    func teardown() -> Task<Void, Never> {
+        if let teardownDrain { return teardownDrain }
+        tornDown = true
+        conversationListGeneration += 1
+        conversationListRefreshQueued = false
+        conversationListRefreshTask?.cancel()
+        conversationListRefreshTask = nil
         stop()
 #if os(macOS) || os(iOS)
         removeResumeObserver()
 #endif
+        // Stop registers its acknowledgement before this drain starts. UI
+        // callers can ignore the handle; injected sessions must await it.
+        let requests = ownedRequestTasks
+        let drain = Task { await requests.drain() }
+        teardownDrain = drain
+        return drain
     }
 
     // MARK: Derived
@@ -280,11 +333,64 @@ final class ChatViewModel {
     // MARK: Conversations
 
     func loadConversations() async {
-        defer { initialLoading = false }
+        guard !tornDown, !Task.isCancelled else { return }
+        defer { if !tornDown { initialLoading = false } }
+        guard pendingConversationListMutations == 0 else {
+            conversationListRefreshQueued = true
+            return
+        }
+        conversationListRefreshQueued = false
+        conversationListGeneration += 1
+        let generation = conversationListGeneration
+        let revision = conversationListRevision
+        activeConversationListLoads += 1
+        defer { activeConversationListLoads -= 1 }
         do {
-            conversations = try await api.json("/api/conversations", as: [Conversation].self)
+            let refreshed = try await api.json("/api/conversations", as: [Conversation].self)
+            guard !tornDown, !Task.isCancelled,
+                  generation == conversationListGeneration,
+                  revision == conversationListRevision,
+                  pendingConversationListMutations == 0
+            else { return }
+            conversations = refreshed
         } catch {
             // Non-fatal: chatting still works without the history list.
+        }
+    }
+
+    /// History and platform foreground hooks are later opportunities to pick up
+    /// the server's generated title. They never interrupt a live answer.
+    func refreshConversationsIfIdle() {
+        guard !isBusy, !isCreatingConversation, !tornDown else { return }
+        scheduleConversationListRefresh()
+    }
+
+    private func scheduleConversationListRefresh() {
+        guard !tornDown else { return }
+        guard pendingConversationListMutations == 0 else {
+            conversationListRefreshQueued = true
+            return
+        }
+        conversationListRefreshTask?.cancel()
+        conversationListRefreshTask = ownedRequestTasks.launch { [weak self] in
+            await self?.loadConversations()
+        }
+    }
+
+    private func beginConversationListMutation() {
+        // A mutation can invalidate the GET restoring an earlier failed
+        // deletion. Replace that snapshot once all writes settle, so the
+        // refused deletion's row does not stay hidden.
+        if activeConversationListLoads > 0 { conversationListRefreshQueued = true }
+        conversationListRevision += 1
+        pendingConversationListMutations += 1
+    }
+
+    private func finishConversationListMutation(scheduleQueuedRefresh: Bool = true) {
+        conversationListRevision += 1
+        pendingConversationListMutations -= 1
+        if scheduleQueuedRefresh, pendingConversationListMutations == 0, conversationListRefreshQueued {
+            scheduleConversationListRefresh()
         }
     }
 
@@ -345,12 +451,24 @@ final class ChatViewModel {
     /// does not silently vanish until the next launch (Android 1.76.0,
     /// `deleteConversation` in `useSureWordChat.ts`).
     func deleteConversation(_ id: String) async {
+        guard !tornDown else { return }
+        beginConversationListMutation()
         conversations.removeAll { $0.id == id }
         if activeConversationID == id { newConversation() }
+        var failed = false
         do {
             try await api.data("/api/conversations/\(id)", method: "DELETE")
         } catch {
-            await restoreConversations()
+            failed = true
+        }
+        finishConversationListMutation(scheduleQueuedRefresh: !failed)
+        if failed, !tornDown {
+            if Task.isCancelled {
+                scheduleConversationListRefresh()
+            } else {
+                await loadConversations()
+            }
+            guard !tornDown else { return }
             historyAlert = HistoryAlert(
                 title: "Couldn't delete chat",
                 message: "It may reappear in your history. Please try again."
@@ -361,24 +479,29 @@ final class ChatViewModel {
     /// Stops at the first failure, restores the server's list and says so -
     /// Android's `clearAllConversations`.
     func clearAllConversations() async {
+        guard !tornDown else { return }
+        beginConversationListMutation()
         let ids = conversations.map(\.id)
         conversations = []
         newConversation()
+        var failed = false
         for id in ids {
             do {
                 try await api.data("/api/conversations/\(id)", method: "DELETE")
             } catch {
-                await restoreConversations()
-                historyAlert = HistoryAlert(title: "Some chats weren't deleted", message: "Please try again.")
-                return
+                failed = true
+                break
             }
         }
-    }
-
-    /// The server's list, after a failed delete. Left alone if that fails too.
-    private func restoreConversations() async {
-        if let restored = try? await api.json("/api/conversations", as: [Conversation].self) {
-            conversations = restored
+        finishConversationListMutation(scheduleQueuedRefresh: !failed)
+        if failed, !tornDown {
+            if Task.isCancelled {
+                scheduleConversationListRefresh()
+            } else {
+                await loadConversations()
+            }
+            guard !tornDown else { return }
+            historyAlert = HistoryAlert(title: "Some chats weren't deleted", message: "Please try again.")
         }
     }
 
@@ -388,16 +511,19 @@ final class ChatViewModel {
     /// change.
     @discardableResult
     func renameConversation(_ id: String, to raw: String) async -> String? {
-        guard let index = conversations.firstIndex(where: { $0.id == id }),
+        guard !tornDown,
+              let index = conversations.firstIndex(where: { $0.id == id }),
               let title = ConversationRename.titleToSend(raw, current: conversations[index].title)
         else { return nil }
+        beginConversationListMutation()
+        defer { finishConversationListMutation() }
         do {
             try await api.data(
                 "/api/conversations/\(id)",
                 method: "PATCH",
                 body: ConversationRename.Body(title: title)
             )
-            if let current = conversations.firstIndex(where: { $0.id == id }) {
+            if !tornDown, let current = conversations.firstIndex(where: { $0.id == id }) {
                 conversations[current].title = title
             }
             return nil
@@ -604,7 +730,7 @@ final class ChatViewModel {
         attachmentError = nil
         guard !staged.isEmpty else { return }
         let uploader = uploader
-        Task { await uploader.deleteAll(staged.map(\.id)) }
+        ownedRequestTasks.launch { await uploader.deleteAll(staged.map(\.id)) }
     }
 
     // MARK: Sending
@@ -693,7 +819,7 @@ final class ChatViewModel {
                 )])
                 guard draftVersion == attachmentDraftVersion else {
                     let uploader = uploader
-                    Task { await uploader.deleteAll(uploaded.map(\.id)) }
+                    ownedRequestTasks.launch { await uploader.deleteAll(uploaded.map(\.id)) }
                     return
                 }
                 videoAttachment = uploaded.first
@@ -740,7 +866,7 @@ final class ChatViewModel {
                 // hold a slot against the attachment cap.
                 if let videoAttachment {
                     let uploader = uploader
-                    Task { await uploader.deleteAll([videoAttachment.id]) }
+                    ownedRequestTasks.launch { await uploader.deleteAll([videoAttachment.id]) }
                 }
                 sendError = ChatErrors.classify(error, message: Self.conversationCreateError)
                 return
@@ -1013,7 +1139,7 @@ final class ChatViewModel {
             return
         }
         let api = api
-        Task {
+        ownedRequestTasks.launch {
             await abandonedAttempt.stop(
                 acknowledge: { attempt in
                     let acknowledgement = try await api.json(
@@ -1045,6 +1171,9 @@ final class ChatViewModel {
     }
 
     private func createConversation(titledAfter text: String) async throws {
+        guard !tornDown else { throw CancellationError() }
+        beginConversationListMutation()
+        defer { finishConversationListMutation() }
         let title = String(text.prefix(60))
         struct NewConversation: Encodable { let title: String }
         let created = try await api.json(
@@ -1053,6 +1182,7 @@ final class ChatViewModel {
             body: NewConversation(title: title),
             as: Conversation.self
         )
+        guard !tornDown else { throw CancellationError() }
         activeConversationID = created.id
         conversations.insert(created, at: 0)
     }
@@ -1073,6 +1203,7 @@ final class ChatViewModel {
     /// - Parameter replaces: for an Edit, "Try again" or error retry, the ids
     ///   dropped after the re-sent user message; nil for an ordinary send.
     private func startStream(replaces: [String]? = nil) {
+        guard !tornDown else { return }
         streamTask?.cancel()
         let generation = UUID()
         streamGeneration = generation
@@ -1083,7 +1214,7 @@ final class ChatViewModel {
         staleAnswerIDs = replaces ?? []
         let request = askRequest(replaces: replaces)
 
-        streamTask = Task { [weak self] in
+        streamTask = ownedRequestTasks.launch { [weak self] in
             guard let self else { return }
             do {
                 let bytes = try await api.stream("/api/ask-question", body: request)
@@ -1190,7 +1321,11 @@ final class ChatViewModel {
 
     /// See `onAnswerReady`.
     private func answerLanded(in conversationID: String, recovered: Bool) {
+        guard !tornDown else { return }
         onAnswerReady?(conversationID, conversations.first { $0.id == conversationID }?.title, recovered)
+        // Title generation runs after answer persistence and may finish later
+        // than this GET. History opening and foregrounding can reconcile again.
+        scheduleConversationListRefresh()
     }
 
     // MARK: Answer recovery
@@ -1220,7 +1355,7 @@ final class ChatViewModel {
     /// as if the stream had never broken. Only gives up once the server's own
     /// budget has run out, at which point asking again is the honest option.
     private func collectPendingAnswer(_ conversationID: String) {
-        guard !isRecovering else { return }
+        guard !tornDown, !isRecovering else { return }
         recoveryTask?.cancel()
         recoveryVersion += 1
         let version = recoveryVersion
@@ -1238,7 +1373,7 @@ final class ChatViewModel {
         // was dead for the rest of the 150-second budget, reporting an auth
         // failure on every 401 pair.
         let api = api
-        recoveryTask = Task { [weak self] in
+        recoveryTask = ownedRequestTasks.launch { [weak self] in
             // The version guard is what keeps a poll that has been superseded
             // from clearing state belonging to the send that replaced it.
             defer { self?.finishRecovery(version) }
@@ -1308,9 +1443,9 @@ final class ChatViewModel {
     ///
     /// Internal so the tests can drive the check without a real notification.
     func systemDidResume() {
-        guard let conversationID = pendingAnswerConversationID, !isRecovering else { return }
+        guard !tornDown, let conversationID = pendingAnswerConversationID, !isRecovering else { return }
         resumeCheckTask?.cancel()
-        resumeCheckTask = Task { [weak self] in
+        resumeCheckTask = ownedRequestTasks.launch { [weak self] in
             try? await Task.sleep(for: AnswerRecovery.resumeGrace)
             guard let self, !Task.isCancelled else { return }
             guard

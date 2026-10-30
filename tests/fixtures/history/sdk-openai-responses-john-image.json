@@ -1,0 +1,111 @@
+{
+  "formatVersion": 1,
+  "purpose": "Synthetic IDs and provider transport values; public Scripture/QA footer and actual SDK field structure preserve the reproduced Markdown boundary.",
+  "row": {
+    "id": "synthetic-captured-answer",
+    "role": "assistant",
+    "content": "Bible reference: John 3:16\n\n**John 3:16 (KJV)**\n> 16 For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n\nFooter label: SureWord QA: synthetic public Scripture fixture",
+    "metadata": {
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "tool-getPassage",
+          "input": {
+            "book": "John",
+            "chapter": 3,
+            "verseStart": 16
+          },
+          "state": "output-available",
+          "output": {
+            "verses": [
+              {
+                "text": "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+                "reference": "John 3:16",
+                "similarity": 1,
+                "translation": "KJV"
+              }
+            ],
+            "coverage": {
+              "truncated": false,
+              "returnedReference": "John 3:16",
+              "requestedReference": "John 3:16",
+              "returnedVerseCount": 1,
+              "requestedVerseCount": 1
+            },
+            "formatted": "John 3:16 KJV: \"For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\"\nRead all 1 requested verses: John 3:16.\n\nSurrounding context (not part of the requested quotation):\nJohn 3:13 KJV: \"And no man hath ascended up to heaven, but he that came down from heaven, even the Son of man which is in heaven.\"\nJohn 3:14 KJV: \"And as Moses lifted up the serpent in the wilderness, even so must the Son of man be lifted up:\"\nJohn 3:15 KJV: \"That whosoever believeth in him should not perish, but have eternal life.\"\nJohn 3:17 KJV: \"For God sent not his Son into the world to condemn the world; but that the world through him might be saved.\"\nJohn 3:18 KJV: \"He that believeth on him is not condemned: but he that believeth not is condemned already, because he hath not believed in the name of the only begotten Son of God.\"\nJohn 3:19 KJV: \"And this is the condemnation, that light is come into the world, and men loved darkness rather than light, because their deeds were evil.\"",
+            "reference": "John 3:16",
+            "truncated": false,
+            "contextVerses": [
+              {
+                "text": "And no man hath ascended up to heaven, but he that came down from heaven, even the Son of man which is in heaven.",
+                "reference": "John 3:13",
+                "similarity": 1,
+                "translation": "KJV"
+              },
+              {
+                "text": "And as Moses lifted up the serpent in the wilderness, even so must the Son of man be lifted up:",
+                "reference": "John 3:14",
+                "similarity": 1,
+                "translation": "KJV"
+              },
+              {
+                "text": "That whosoever believeth in him should not perish, but have eternal life.",
+                "reference": "John 3:15",
+                "similarity": 1,
+                "translation": "KJV"
+              },
+              {
+                "text": "For God sent not his Son into the world to condemn the world; but that the world through him might be saved.",
+                "reference": "John 3:17",
+                "similarity": 1,
+                "translation": "KJV"
+              },
+              {
+                "text": "He that believeth on him is not condemned: but he that believeth not is condemned already, because he hath not believed in the name of the only begotten Son of God.",
+                "reference": "John 3:18",
+                "similarity": 1,
+                "translation": "KJV"
+              },
+              {
+                "text": "And this is the condemnation, that light is come into the world, and men loved darkness rather than light, because their deeds were evil.",
+                "reference": "John 3:19",
+                "similarity": 1,
+                "translation": "KJV"
+              }
+            ]
+          },
+          "toolCallId": "synthetic-get-passage",
+          "callProviderMetadata": {
+            "openai": {
+              "itemId": "synthetic-provider-transport-value"
+            }
+          },
+          "resultProviderMetadata": {
+            "openai": {
+              "itemId": "synthetic-provider-transport-value"
+            }
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "text": "Bible reference: John 3:16\n\n**John 3:16 (KJV)**\n> 16 For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.\n\nFooter label: SureWord QA: synthetic public Scripture fixture",
+          "type": "text",
+          "state": "done",
+          "providerMetadata": {
+            "openai": {
+              "phase": "synthetic-provider-transport-value",
+              "itemId": "synthetic-provider-transport-value"
+            }
+          }
+        }
+      ],
+      "modelId": "synthetic-source-model",
+      "translation": "KJV"
+    },
+    "createdAt": "2026-10-30T00:00:03.000Z"
+  }
+}

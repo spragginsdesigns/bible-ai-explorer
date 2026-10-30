@@ -18,6 +18,8 @@ import RetrievedVersesCollapsible from "./RetrievedVersesCollapsible";
 import FollowUpChips from "./FollowUpChips";
 import AddToNoteDialog from "./AddToNoteDialog";
 import type { ChatMessage as ChatMessageType } from "./useChat";
+import { dbMessageToUIMessage, toViewMessage } from "./useChat";
+import HistoryReviewCard from "./chat/HistoryReviewCard";
 import ChatFileAttachments from "./ChatFileAttachments";
 import VersePopover from "./VersePopover";
 import { parseVerseReferences } from "@/utils/verseParser";
@@ -217,6 +219,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
 		() => (shareOpen && conversationId ? { kind: "answer", conversationId, messageId: message.id } : null),
 		[conversationId, message.id, shareOpen]
 	);
+
+	if (message.role === "assistant" && message.historyVerification) {
+		return <HistoryReviewCard review={message.historyVerification} renderVerified={row => <ChatMessage
+			message={toViewMessage(dbMessageToUIMessage(row), { isStreaming: false, conversationId: message.conversationId, feedback: message.feedback, timestamp: message.timestamp })}
+			onFollowUp={onFollowUp} conversationTitle={conversationTitle} onRetry={onRetry}
+			cardState={{ active: false, answer: null }}
+		/>} />;
+	}
 
 	if (message.role === "user") {
 		return (

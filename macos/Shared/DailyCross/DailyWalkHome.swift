@@ -98,9 +98,7 @@ struct DailyWalkHome: View {
     }
 
     private func open(_ last: LastRead) {
-        app.pendingVerseReference = last.label
-        app.pendingVerseTranslation = last.translation
-        app.section = .bible
+        app.openVerse(last.label, translation: last.translation)
     }
 
     private func refreshPreview() async {
@@ -192,15 +190,7 @@ struct StudyChurchPresence: Equatable, Sendable {
 @MainActor
 enum StudyHubNavigation {
     static func open(_ destination: StudyHubDestination, in app: AppModel) {
-        #if os(macOS)
-        // Notes is its own section on the Mac, beside Study.
-        if destination == .notes {
-            app.section = .notes
-            return
-        }
-        #endif
-        app.pendingStudyDestination = destination
-        app.section = .study
+        app.openStudy(destination)
     }
 }
 
@@ -271,6 +261,7 @@ struct OriginalLanguagesHome: View {
     @State private var query = "John 3:16"
     @State private var target = ConnectionsPlace(order: 43, chapter: 3, verse: 16)
     @State private var error: String?
+    @State private var studyRequest: OriginalLanguagesReference.Request?
     @State private var handoffTask: Task<Void, Never>?
     @State private var handoffID = UUID()
     var body: some View {
@@ -310,14 +301,27 @@ struct OriginalLanguagesHome: View {
                 }.id(target)
             }.padding(Spacing.lg).frame(maxWidth: 680).frame(maxWidth: .infinity)
         }.background { MeshBackground() }.navigationTitle("Original languages")
+        .onChange(of: query) { _, _ in
+            studyRequest = nil
+            error = nil
+        }
+        // SwiftUI cancels this lookup on a new submission, an edited query,
+        // or departure. Until a real KJV verse is validated, the previous
+        // target (and its word study) stays on screen.
+        .task(id: studyRequest) {
+            guard let request = studyRequest else { return }
+            let next = await OriginalLanguagesReference.resolve(request.query)
+            guard !Task.isCancelled, studyRequest == request, query == request.query else { return }
+            guard let next else {
+                error = "Enter a single verse such as John 3:16."
+                return
+            }
+            error = nil
+            target = next
+        }
         .onDisappear { handoffTask?.cancel() }
     }
     private func open() {
-        guard let reference = Bible.resolveReference(query), let verse = reference.verse else {
-            error = "Enter a single verse such as John 3:16."
-            return
-        }
-        error = nil
-        target = ConnectionsPlace(order: reference.order, chapter: reference.chapter, verse: verse)
+        studyRequest = OriginalLanguagesReference.Request(query: query)
     }
 }

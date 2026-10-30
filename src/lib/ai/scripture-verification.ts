@@ -381,12 +381,35 @@ function quotationCandidates(text: string, groups: CitationGroup[]): Quotation[]
   return candidates.sort((a, b) => a.start - b.start);
 }
 
-function associatedGroups(quote: Quotation, text: string, groups: CitationGroup[]): CitationGroup[] {
+// The renderer separates a standalone citation label from its blockquote by
+// one empty line. This exact structure owns its quote; ordinary prose gaps do not.
+function immediateMarkdownBlockLabel(group: CitationGroup, quote: Quotation, text: string, translation: TranslationId): boolean {
+  // Potential raw HTML/comment context is outside this narrow Markdown rule.
+  if (text.slice(0, quote.start).includes("<")) return false;
+  if (!quote.block || !/^[ \t]{0,3}>/.test(quote.text) || group.end > quote.start) return false;
+  const lineStart = text.lastIndexOf("\n", group.start - 1) + 1;
+  if (!/^[ ]{0,3}(?:#{1,6}[ \t]+)?[*_]*[ \t]*$/.test(text.slice(lineStart, group.start))) return false;
+  const gap = text.slice(group.end, quote.start);
+  if (!/^[ \t*_]*(?:(?:\((?:KJV|NKJV|BSB|ASV|RV1909|LUT1912)\)|(?:KJV|NKJV|BSB|ASV|RV1909|LUT1912)))?[ \t*_]*:?[ \t]*\r?\n[ \t]*\r?\n$/i.test(gap)) return false;
+  const labelledTranslation = /\b(KJV|NKJV|BSB|ASV|RV1909|LUT1912)\b/i.exec(gap)?.[1];
+  if (labelledTranslation && labelledTranslation.toUpperCase() !== translation) return false;
+  // Do not turn a code example's apparent label into an external citation.
+  let fence: { marker: string; length: number } | null = null;
+  for (const line of text.slice(0, quote.start).split("\n")) {
+    const marker = /^[ ]{0,3}(\x60{3,}|~{3,})(.*)$/.exec(line);
+    if (!marker) continue;
+    if (!fence) fence = { marker: marker[1][0], length: marker[1].length };
+    else if (marker[1][0] === fence.marker && marker[1].length >= fence.length && /^[ \t\r]*$/.test(marker[2])) fence = null;
+  }
+  return fence === null;
+}
+
+function associatedGroups(quote: Quotation, text: string, groups: CitationGroup[], translation: TranslationId): CitationGroup[] {
   const inside = groups.filter((group) => group.start >= quote.start && group.end <= quote.end);
   if (inside.length) return inside;
   const nearby = groups.filter((group) => {
     const gap = group.end <= quote.start ? text.slice(group.end, quote.start) : group.start >= quote.end ? text.slice(quote.end, group.start) : "";
-    return gap.length <= 220 && !/\n\s*\n/.test(gap) && (group.end <= quote.start || group.start >= quote.end);
+    return gap.length <= 220 && (!/\n\s*\n/.test(gap) || immediateMarkdownBlockLabel(group, quote, text, translation)) && (group.end <= quote.start || group.start >= quote.end);
   });
   // A clear immediate introduction owns its following quote. A shorter
   // forward gap must not lend the next sentence's verse to this quotation.
@@ -631,7 +654,7 @@ export async function verifyScriptureDraft(
   const candidates = quotationCandidates(text, groups);
   const underscoreAnalysis = candidates.some((quote) => quote.text.includes("_")) ? analyzeMarkdownUnderscores(text, { presentation: (source) => normalizeAssistantMarkdown(source, { streaming: false }) }) : undefined;
   for (const quote of candidates) {
-    const associated = associatedGroups(quote, text, groups);
+    const associated = associatedGroups(quote, text, groups, options.translation);
     const recordQuote = (record: Omit<ScriptureQuoteCheck, "start" | "end" | "citationSpans">) => {
       const citationSpans = associated.map(({ start, end }) => ({ start, end }));
       if ([quote, ...citationSpans].some(({ start, end }) => !Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start || end > text.length)) {

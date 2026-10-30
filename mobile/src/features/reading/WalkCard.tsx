@@ -38,7 +38,7 @@ export function WalkCard({ getToken, refreshKey }: { getToken: GetToken; refresh
 					getToken,
 					`/api/reading-log/reflection${tz ? `?tz=${encodeURIComponent(tz)}` : ""}`,
 					undefined,
-					{ timeoutMs: 60_000, consentAsk: ask },
+					{ timeoutMs: 150_000, consentAsk: ask },
 				);
 				if (id !== request.current) return;
 				if (result.status === "ready") setState({ ...result, kind: "ready" });

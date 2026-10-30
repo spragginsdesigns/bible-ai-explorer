@@ -5,7 +5,9 @@ The exact text for SureWord's Play Store page. Start at
 [`app-store.md`](app-store.md), and `tests/store-listing-parity.test.mjs`
 keeps the two identical.
 
-Live on Play since 2026-10-25 (published by API). Check or publish with
+**PENDING 1.112.0 release:** saved-answer checking and original downloads are in the copy below. Apply after final acceptance.
+
+Previous copy live on Play since 2026-10-25 (published by API). Check or publish with
 `node mobile/scripts/play-listing.mjs check|apply`.
 
 ## Title (30 max)
@@ -39,7 +41,8 @@ ASK THE BIBLE ANYTHING
 • Find the verse you half remember, by meaning or by exact words
 • Cross-reference map: trace any verse through the whole Bible
 • Hebrew and Greek word study with Strong's concordance numbers
-• Copy, edit, retry, share, save or rate any answer
+• Copy, edit, retry, share, save or rate checked answers
+• Check saved answers or download originals unchanged
 • Answers in English, Spanish or German
 
 TEST EVERYTHING BY SCRIPTURE
@@ -59,7 +62,7 @@ READ AND LISTEN TO THE KJV BIBLE
 • Send a verse and a word of encouragement to someone you love
 
 DAILY DEVOTIONAL: PICK UP YOUR CROSS
-• A verse of the day chosen for you from your own reading, questions and notes, with how to live it today (Luke 9:23)
+• A verse of the day from your reading, questions and notes, with how to live it today (Luke 9:23)
 • Stay with today's word, or ask for a fresh one
 • Share today's word as a card
 • A daily reminder at the hour you choose
@@ -82,7 +85,7 @@ A BIBLE GUIDE THAT KNOWS YOU
 
 BIBLE STUDY NOTES
 • Notes with folders, tags, templates and linked notes
-• SureWord can find, read, add to and tidy your notes when you ask
+• Ask SureWord to find, read, add to or tidy your notes
 
 SUREWORD AI
 • SureWord AI works the moment you sign in, no setup needed
@@ -101,7 +104,7 @@ One account on your phone, tablet, Mac and the web at sureword.app.
 Open the Word today. Come hungry.
 ```
 
-3634 characters. It is the App Store description word for word, minus
+3663 characters. It is the App Store description word for word, minus
 Apple's subscription terms footer (Austin, 2026-10-09: one description for
 both stores, every feature, written for search and to open with why the Word
 matters). Play indexes this text for search, so features are named in the

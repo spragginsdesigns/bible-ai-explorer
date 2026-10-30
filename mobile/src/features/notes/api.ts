@@ -69,3 +69,13 @@ export function clearNoteAIMessages(getToken: GetToken, noteId: string) {
 		method: "DELETE",
 	});
 }
+
+export function reserveNoteAIOperation(getToken: GetToken, body: Record<string, unknown>) {
+	return apiJson<import("./noteAIOperation").NoteOperationReceipt>(getToken, "/api/note-ai/operations", { method: "POST", body });
+}
+export function readNoteAIOperation(getToken: GetToken, id: string, noteId: string) {
+	return apiJson<import("./noteAIOperation").NoteOperationReceipt>(getToken, `/api/note-ai/operations/${id}?noteId=${encodeURIComponent(noteId)}`);
+}
+export function cancelNoteAIOperation(getToken: GetToken, id: string, noteId: string) {
+	return apiJson<import("./noteAIOperation").NoteOperationReceipt>(getToken, `/api/note-ai/operations/${id}/cancel`, { method: "POST", body: { noteId } });
+}

@@ -51,6 +51,7 @@
     "expo-share-intent": "~8.0.1",
     "expo-sharing": "~57.0.23",
     "expo-speech": "~57.0.3",
+    "expo-speech-recognition": "~57.1.1",
     "expo-splash-screen": "~57.0.10",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.4",
@@ -77,6 +78,7 @@
   "allowScripts": true,
   "devDependencies": {
     "patch-package": "^8.0.1",
+    "react-test-renderer": "^19.2.3",
     "typescript": "~6.0.3",
     "vitest": "^3.2.4"
   }

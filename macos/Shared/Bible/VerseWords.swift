@@ -211,21 +211,24 @@ struct StrongsOccurrence: Decodable, Equatable, Sendable {
 }
 
 struct StrongsOccurrences: Decodable, Equatable, Sendable {
-    /// Every verse of the original text carrying the number, not just the
-    /// examples served.
+    /// The original-edition verse count, not a distinct numbered-KJV count.
     var total: Int
+    /// Missing on legacy responses; unknown future scopes remain decodable.
+    var totalScope: String?
     var examples: [StrongsOccurrence]
 
-    private enum CodingKeys: String, CodingKey { case total, examples }
+    private enum CodingKeys: String, CodingKey { case total, totalScope, examples }
 
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         total = try container.decodeIfPresent(Int.self, forKey: .total) ?? 0
+        totalScope = try container.decodeIfPresent(String.self, forKey: .totalScope)
         examples = try container.decodeIfPresent([StrongsOccurrence].self, forKey: .examples) ?? []
     }
 
-    init(total: Int, examples: [StrongsOccurrence]) {
+    init(total: Int, totalScope: String? = nil, examples: [StrongsOccurrence]) {
         self.total = total
+        self.totalScope = totalScope
         self.examples = examples
     }
 }
@@ -281,6 +284,9 @@ enum VerseWordsAPI {
     /// How many other verses the detail card offers.
     static let exampleCount = 3
 
+    /// Namespace both HTTP and in-process caches after trusted-fragment mapping.
+    static let concordanceAlignment = "fragments-v1"
+
     struct StudyRequest: Encodable {
         let book: Int
         let chapter: Int
@@ -314,7 +320,7 @@ enum VerseWordsAPI {
     ) async throws -> StrongsEntry {
         let encoded =
             number.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? number
-        var path = "/api/bible/strongs?number=\(encoded)&examples=\(examples)"
+        var path = "/api/bible/strongs?number=\(encoded)&examples=\(examples)&alignment=\(concordanceAlignment)"
         if let exclude, !exclude.isEmpty {
             let safe = exclude.addingPercentEncoding(
                 withAllowedCharacters: CharacterSet(charactersIn: "0123456789")
@@ -596,7 +602,7 @@ final class VerseWordsModel {
     /// is the same everywhere, but the three examples beside it are not.
     private func cacheKey(forRow index: Int) -> String? {
         guard let number = drivingWord(inRow: index)?.strongsNumber else { return nil }
-        return "\(number)@\(excludeParameter ?? "")"
+        return "\(VerseWordsAPI.concordanceAlignment)|\(number)@\(excludeParameter ?? "")"
     }
 
     private static func key(book: Int, chapter: Int, verse: Int) -> String {
@@ -611,6 +617,15 @@ final class VerseWordsModel {
     }
 
     // MARK: - Pure helpers
+
+    /// A count is meaningful only when the server identifies its source scope.
+    static func occurrenceActionLabel(_ occurrences: StrongsOccurrences?) -> String {
+        guard let occurrences, occurrences.totalScope == "original-edition-verses" else {
+            return "Find occurrences"
+        }
+        let noun = occurrences.total == 1 ? "verse" : "verses"
+        return "Original \(noun) \u{00B7} \(occurrences.total)"
+    }
 
     /// Hebrew reads right to left; Greek does not.
     static func isRightToLeft(language: String) -> Bool {

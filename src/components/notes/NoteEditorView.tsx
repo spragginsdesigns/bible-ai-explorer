@@ -5,9 +5,11 @@ import NoteEditorTopBar, { type NoteSaveStatus } from "./NoteEditorTopBar";
 import TiptapEditor, { type NoteSaveData, type TiptapEditorHandle } from "./TiptapEditor";
 import NoteAIPanel from "./NoteAIPanel";
 import NoteInfoPanel from "./NoteInfoPanel";
-import type { NoteAppendEvent } from "@/hooks/useNoteAI";
+import { useNoteAIOperation } from "@/hooks/useNoteAIOperation";
+import type { NoteAIOperationController } from "@/lib/notes/note-ai-operation";
 import type { UpdateNoteOptions } from "@/hooks/useNotes";
-import { editorContentFor, type Note, type Folder, type Tag } from "@/types/notes";
+import { registerVoiceDepartureGuard } from "@/lib/voice/web-departure";
+import { editorContentFor, toNote, type NoteApiResponse, type Note, type Folder, type Tag } from "@/types/notes";
 
 interface NoteEditorViewProps {
 	note: Note;
@@ -44,10 +46,61 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 	const [isMobile, setIsMobile] = useState(false);
 	const [saveStatus, setSaveStatus] = useState<NoteSaveStatus>("idle");
 	const editorRef = useRef<TiptapEditorHandle>(null);
+	const operationRef = useRef<NoteAIOperationController | null>(null);
+	const canonicalNote = useRef<Note | null>(null);
+	const manualWrites = useRef(new Set<Promise<boolean>>());
+	const safety = useNoteAIOperation(note.id, {
+		prepare: async () => (await editorRef.current?.flush()) === true && (await Promise.all([...manualWrites.current])).every(Boolean),
+		lock: locked => editorRef.current?.setReadOnly(locked),
+		canonical: async () => {
+			const owner = operationRef.current;
+			if (!owner?.isCurrent()) return null;
+			const response = await fetch(`/api/notes/${note.id}`, { cache: "no-store" });
+			if (!response.ok) return null;
+			const value = toNote(await response.json() as NoteApiResponse);
+			if (!owner.isCurrent() || operationRef.current !== owner || value.id !== note.id) return null;
+			canonicalNote.current = value;
+			return editorContentFor(value);
+		},
+		adopt: async content => {
+			const owner = operationRef.current, value = canonicalNote.current;
+			if (!owner?.isCurrent() || !value || value.id !== note.id || !editorRef.current?.replaceCanonical(content)) return false;
+			return onUpdate(note.id, value, { canonicalOnly: true, isCurrent: owner.isCurrent });
+		},
+	});
+	operationRef.current = safety.controller;
+	const updateManual = useCallback((changes: Partial<Note>) => {
+		const owner = safety.controller;
+		if (!owner.canEdit()) return Promise.resolve(false);
+		const pending = onUpdate(note.id, changes, { isCurrent: owner.isCurrent });
+		manualWrites.current.add(pending);
+		void pending.then(() => manualWrites.current.delete(pending), () => manualWrites.current.delete(pending));
+		return pending;
+	}, [note.id, onUpdate, safety.controller]);
 	const saveSeqRef = useRef(0);
 	const currentNoteRef = useRef(note.id);
 	currentNoteRef.current = note.id;
 	const backBusy = useRef(false);
+	const canLeave = useCallback(async () => {
+		const owner = safety.controller;
+		if (!owner.canEdit() && !await owner.recover()) return false;
+		return (await editorRef.current?.flush()) === true && owner.isCurrent();
+	}, [safety.controller]);
+
+	// Only voice navigation uses this guard; existing note/back flows retain
+	// their own save behavior. Do not leave on a failed or stale editor flush.
+	useEffect(() => registerVoiceDepartureGuard(async () => {
+		if (!editorRef.current || currentNoteRef.current !== note.id) return false;
+		if (!safety.controller.canEdit() && !await safety.controller.recover()) return false;
+		try {
+			const ok = await editorRef.current.flush();
+			if (!ok && currentNoteRef.current === note.id) setSaveStatus("error");
+			return ok && currentNoteRef.current === note.id;
+		} catch {
+			if (currentNoteRef.current === note.id) setSaveStatus("error");
+			return false;
+		}
+	}), [note.id, safety.controller]);
 
 	useEffect(() => {
 		const mq = window.matchMedia("(max-width: 1023px)");
@@ -73,18 +126,20 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 		async (data: NoteSaveData, ownerId: string, options?: UpdateNoteOptions) => {
 			// A save flushed while switching notes belongs to the previous note
 			// and must not stamp the status of the one now on screen.
+			const owner = safety.controller;
+			if (!owner.canSave() || ownerId !== note.id) return false;
 			const isCurrent = ownerId === currentNoteRef.current;
 			// Overlapping saves resolve out of order; only the newest save may
 			// stamp the final status.
 			const seq = isCurrent ? ++saveSeqRef.current : -1;
 			if (isCurrent) setSaveStatus("saving");
-			const ok = await onUpdate(ownerId, data, options);
+			const ok = await onUpdate(ownerId, data, { ...options, isCurrent: owner.isCurrent });
 			if (seq === saveSeqRef.current && ownerId === currentNoteRef.current) {
 				setSaveStatus(ok ? "saved" : "error");
 			}
 			return ok;
 		},
-		[onUpdate]
+		[onUpdate, note.id, safety.controller]
 	);
 
 	const handleSavePending = useCallback(() => setSaveStatus("saving"), []);
@@ -95,43 +150,46 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 		if (backBusy.current) return;
 		backBusy.current = true;
 		try {
+			if (!safety.controller.canEdit() && !await safety.controller.recover()) return;
 			const flushed = await editorRef.current?.flush();
 			if (flushed === false) {
 				setSaveStatus("error");
 				return;
 			}
+			if (!safety.controller.isCurrent()) return;
 			onBack();
 		} finally {
 			backBusy.current = false;
 		}
-	}, [onBack]);
+	}, [onBack, safety.controller]);
 
 	// Save first so the assistant reads the current text, not the last autosave.
 	const handleToggleAIPanel = useCallback(async () => {
 		if (aiPanelOpen) {
-			setAiPanelOpen(false);
+			if (await safety.controller.recover()) setAiPanelOpen(false);
 			return;
 		}
-		if ((await editorRef.current?.flush()) === false) {
+		if ((!safety.controller.canEdit() && !await safety.controller.recover()) || (await editorRef.current?.flush()) === false) {
 			setSaveStatus("error");
 			return;
 		}
+		if (!safety.controller.isCurrent()) return;
 		setAiPanelOpen(true);
-	}, [aiPanelOpen]);
+	}, [aiPanelOpen, safety.controller]);
 
-	// When the AI appends to the open note, insert into the live editor; the
-	// editor's save round-trip then reconciles state and Tiptap JSON.
-	const handleNoteAppended = useCallback(
-		(event: NoteAppendEvent) => {
-			if (event.noteId !== note.id) return;
-			editorRef.current?.appendHtml(event.appendedHtml);
-		},
-		[note.id]
-	);
+	const closeAI = useCallback(async () => {
+		if (!await safety.controller.recover() || !safety.controller.isCurrent()) return false;
+		setAiPanelOpen(false); return true;
+	}, [safety.controller]);
+	const openNote = useCallback(async (id: string) => {
+		const owner = safety.controller;
+		if ((!owner.canEdit() && !await owner.recover()) || (await editorRef.current?.flush()) !== true || !owner.isCurrent()) return;
+		onOpenNote(id);
+	}, [onOpenNote, safety.controller]);
 
 	const handleInfoUpdate = useCallback(
-		(changes: Partial<Note>) => onUpdate(note.id, changes),
-		[note.id, onUpdate]
+		(changes: Partial<Note>) => updateManual(changes),
+		[updateManual]
 	);
 
 	const readMarkdown = useCallback((title: string): string => {
@@ -175,11 +233,12 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 				folders={folders}
 				tags={tags}
 				onBack={() => void handleBack()}
-				onUpdateTitle={(title) => onUpdate(note.id, { title })}
-				onDelete={() => onDelete(note.id)}
-				onTogglePin={() => onTogglePin(note.id)}
-				onChangeFolder={(folderId) => onUpdate(note.id, { folderId })}
-				onToggleTag={(tagId) => onToggleTag(note.id, tagId)}
+				readOnly={safety.locked}
+				onUpdateTitle={(title) => void updateManual({ title })}
+				onDelete={() => { if (safety.controller.canEdit()) onDelete(note.id); }}
+				onTogglePin={() => { if (safety.controller.canEdit()) onTogglePin(note.id); }}
+				onChangeFolder={(folderId) => void updateManual({ folderId })}
+				onToggleTag={(tagId) => { if (safety.controller.canEdit()) onToggleTag(note.id, tagId); }}
 				onCreateTag={onCreateTag}
 				onDeleteTag={onDeleteTag}
 				onCopyMarkdown={handleCopyMarkdown}
@@ -188,15 +247,23 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 				aiPanelOpen={aiPanelOpen}
 				onToggleAIPanel={() => void handleToggleAIPanel()}
 			/>
+			{safety.locked ? <div role="status" className="px-4 py-2 text-sm">
+				<p>{safety.error ?? "Editing is paused while SureWord checks the saved note."}</p>
+				<button type="button" onClick={() => void safety.controller.recover()}>Check saved note</button>
+			</div> : null}
 			<div className="flex-1 flex min-h-0 relative">
 				{/* Editor - always full width on mobile, 3/5 on desktop when AI open */}
 				<div className={`flex flex-col min-h-0 ${aiPanelOpen && !isMobile ? "w-3/5" : "flex-1"}`}>
 					<TiptapEditor
 						ref={editorRef}
+						key={safety.identity}
+						draftOwner={{ accountId: safety.accountId, noteId: note.id }}
+						readOnly={safety.locked}
+						canSave={safety.controller.canSave}
 						content={editorContentFor(note)}
 						noteId={note.id}
 						linkTargets={notes}
-						onOpenNote={onOpenNote}
+						onOpenNote={id => void openNote(id)}
 						onSave={handleSave}
 						onSavePending={handleSavePending}
 					/>
@@ -204,7 +271,7 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 						note={note}
 						folderName={folderName}
 						onUpdate={handleInfoUpdate}
-						onOpenNote={onOpenNote}
+						onOpenNote={id => void openNote(id)}
 						onCreateLinkedNote={onCreateLinkedNote}
 					/>
 				</div>
@@ -215,16 +282,18 @@ const NoteEditorView: React.FC<NoteEditorViewProps> = ({
 						<div className="absolute inset-0 z-40 bg-neutral-950/95 backdrop-blur-sm">
 							<NoteAIPanel
 								noteId={note.id}
-								onClose={() => setAiPanelOpen(false)}
-								onNoteAppended={handleNoteAppended}
+								onClose={closeAI}
+								operation={safety.controller}
+								beforeNavigate={canLeave}
 							/>
 						</div>
 					) : (
 						<div className="w-2/5 min-w-[280px] max-w-[400px]">
 							<NoteAIPanel
 								noteId={note.id}
-								onClose={() => setAiPanelOpen(false)}
-								onNoteAppended={handleNoteAppended}
+								onClose={closeAI}
+								operation={safety.controller}
+								beforeNavigate={canLeave}
 							/>
 						</div>
 					)

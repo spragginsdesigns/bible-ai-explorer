@@ -18,6 +18,7 @@ const menuItemClass =
 	"w-full flex items-center gap-2 text-left px-3 py-1.5 text-xs transition-colors text-neutral-400 hover:text-neutral-200 hover:bg-white/[0.03]";
 
 interface NoteEditorTopBarProps {
+	readOnly?: boolean;
 	note: Note;
 	folders: Folder[];
 	tags: Tag[];
@@ -39,6 +40,7 @@ interface NoteEditorTopBarProps {
 
 const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 	note,
+	readOnly = false,
 	folders,
 	tags,
 	onBack,
@@ -105,7 +107,7 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 	const commitTitle = () => {
 		setIsEditingTitle(false);
 		const trimmed = titleValue.trim() || "Untitled Note";
-		if (trimmed !== note.title) onUpdateTitle(trimmed);
+		if (!readOnly && trimmed !== note.title) onUpdateTitle(trimmed);
 	};
 
 	const currentFolder = folders.find((f) => f.id === note.folderId);
@@ -157,6 +159,7 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 				{isEditingTitle ? (
 					<input
 						ref={titleRef}
+						disabled={readOnly}
 						value={titleValue}
 						onChange={(e) => setTitleValue(e.target.value)}
 						onBlur={commitTitle}
@@ -171,7 +174,8 @@ const NoteEditorTopBar: React.FC<NoteEditorTopBarProps> = ({
 					/>
 				) : (
 					<button
-						onClick={() => setIsEditingTitle(true)}
+						disabled={readOnly}
+					onClick={() => setIsEditingTitle(true)}
 						className="flex-1 text-left text-neutral-200 text-sm font-medium truncate hover:text-amber-400 transition-colors py-1"
 					>
 						{note.title || "Untitled Note"}

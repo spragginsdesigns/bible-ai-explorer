@@ -3,7 +3,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { X, Send, Sparkles, Trash2, ArrowLeft, RefreshCw } from "lucide-react";
 import NoteAIMessage from "./NoteAIMessage";
-import { useNoteAI, type NoteAppendEvent } from "@/hooks/useNoteAI";
+import type { NoteAIOperationController } from "@/lib/notes/note-ai-operation";
+import { useNoteAI } from "@/hooks/useNoteAI";
 import {
 	NOTE_SLASH_COMMANDS,
 	matchSlashCommands,
@@ -13,8 +14,9 @@ import {
 
 interface NoteAIPanelProps {
 	noteId: string;
-	onClose: () => void;
-	onNoteAppended?: (event: NoteAppendEvent) => void;
+	onClose: () => Promise<boolean>;
+	operation: NoteAIOperationController;
+	beforeNavigate: () => Promise<boolean>;
 }
 
 const SUGGEST_VERSES_PROMPT =
@@ -23,60 +25,59 @@ const SUGGEST_VERSES_PROMPT =
 const NoteAIPanel: React.FC<NoteAIPanelProps> = ({
 	noteId,
 	onClose,
-	onNoteAppended,
+	operation,
+	beforeNavigate,
 }) => {
-	const { messages, isStreaming, loading, error, sendMessage, clearHistory, retry } =
-		useNoteAI(noteId, { onNoteAppended });
+	const { messages, isStreaming, loading, error, sendMessage, clearHistory, retry, stop } =
+		useNoteAI(noteId, operation);
 	const [input, setInput] = useState("");
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
 
-	const busy = loading || isStreaming;
+	const currentOwner = useRef(operation); currentOwner.current = operation;
+	const draft = useRef(input); draft.current = input;
+	const mounted = useRef(true);
+	useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+	const busy = loading || isStreaming || !operation.canEdit();
+	const close = () => { void stop(); void onClose(); };
 	const suggestions = matchSlashCommands(input, NOTE_SLASH_COMMANDS);
 
 	useEffect(() => {
 		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 	}, [messages]);
 
-	const runCommand = (def: SlashCommand, args: string) => {
+	const runCommand = async (def: SlashCommand, args: string): Promise<boolean> => {
 		if (def.localAction === "suggest") {
-			sendMessage(SUGGEST_VERSES_PROMPT);
+			return sendMessage(SUGGEST_VERSES_PROMPT);
 		} else if (def.localAction === "clear-note-chat") {
-			void clearHistory();
+			return (await clearHistory()) === true;
 		} else {
-			sendMessage(args ? `${def.command} ${args}` : def.command);
+			return sendMessage(args ? `${def.command} ${args}` : def.command);
 		}
 	};
 
-	const handleSend = () => {
-		const text = input.trim();
-		if (!text || busy) return;
-
+	const handleSend = async () => {
+		const original = input, text = original.trim(), owner = operation;
+		if (!text || busy || !owner.canEdit()) return;
 		const parsed = parseSlashCommand(text, NOTE_SLASH_COMMANDS);
-		if (parsed) {
-			if (parsed.def.requiresArgs && !parsed.args) return; // keep typing the argument
-			setInput("");
-			runCommand(parsed.def, parsed.args);
-			return;
-		}
-
-		setInput("");
-		sendMessage(text);
+		if (parsed?.def.requiresArgs && !parsed.args) return;
+		const accepted = parsed ? await runCommand(parsed.def, parsed.args) : await sendMessage(text);
+		if (accepted && mounted.current && currentOwner.current === owner && draft.current === original) setInput("");
 	};
 
-	const selectSuggestion = (def: SlashCommand) => {
+	const selectSuggestion = async (def: SlashCommand) => {
 		if (def.requiresArgs || def.hint) {
 			setInput(`${def.command} `);
 			inputRef.current?.focus();
 			return;
 		}
-		setInput("");
-		runCommand(def, "");
+		const original = input, owner = operation;
+		if (await runCommand(def, "") && mounted.current && currentOwner.current === owner && draft.current === original) setInput("");
 	};
 
 	const handleSuggestVerses = () => {
 		if (busy) return;
-		sendMessage(SUGGEST_VERSES_PROMPT);
+		void sendMessage(SUGGEST_VERSES_PROMPT);
 	};
 
 	const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -92,7 +93,7 @@ const NoteAIPanel: React.FC<NoteAIPanelProps> = ({
 			<div className="flex items-center justify-between px-3 py-2.5 border-b border-white/[0.06] pt-safe">
 				<div className="flex items-center gap-2">
 					<button
-						onClick={onClose}
+						onClick={close}
 						className="lg:hidden text-neutral-400 hover:text-neutral-200 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center -ml-2"
 					>
 						<ArrowLeft className="w-5 h-5" />
@@ -113,7 +114,7 @@ const NoteAIPanel: React.FC<NoteAIPanelProps> = ({
 						</button>
 					)}
 					<button
-						onClick={onClose}
+						onClick={close}
 						className="hidden lg:flex text-neutral-500 hover:text-neutral-300 transition-colors min-w-[32px] min-h-[32px] items-center justify-center"
 					>
 						<X className="w-4 h-4" />
@@ -143,7 +144,7 @@ const NoteAIPanel: React.FC<NoteAIPanelProps> = ({
 				) : (
 					<>
 						{messages.map((msg) => (
-							<NoteAIMessage key={msg.id} message={msg} />
+							<NoteAIMessage key={msg.id} message={msg} beforeNavigate={beforeNavigate} />
 						))}
 						{error && (
 							<div
@@ -166,7 +167,7 @@ const NoteAIPanel: React.FC<NoteAIPanelProps> = ({
 											className="flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-black/10 px-2.5 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:bg-black/[0.04] dark:border-white/10 dark:text-neutral-300 dark:hover:bg-white/[0.05]"
 										>
 											<RefreshCw className="h-3 w-3" />
-											Try again
+											Check saved note
 										</button>
 									)}
 								</div>

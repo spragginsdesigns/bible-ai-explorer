@@ -103,19 +103,208 @@ final class AppModel {
     let noteDeparture = NoteDepartureCoordinator()
     private var selectedSection: AppSection = .today
     private var sectionRequestID = UUID()
+    let navigationOwnerID = UUID()
+    /// Startup work may navigate only until a newer explicit route is asked
+    /// for, including a tap on the section that is already selected.
+    private(set) var navigationIntentID = UUID()
+    private(set) var hasNavigationIntent = false
+
+    func recordNavigationIntent() {
+        hasNavigationIntent = true
+        navigationIntentID = UUID()
+        pendingNoteID = nil
+        pendingVerseRoute = nil
+        pendingDailyRoute = nil
+        pendingStudyRoute = nil
+        PendingDeepLinks.shared.invalidateDelayedArrivals()
+    }
+
+    /// A Notes route belongs to one explicit navigation intent and account
+    /// epoch, even when several routes share the same pending autosave.
+    struct NoteNavigationRequest: Equatable {
+        let intentID: UUID
+        let epoch: UUID
+
+        @MainActor
+        func perform(
+            isCurrent: @MainActor () -> Bool,
+            departure: NoteDepartureCoordinator,
+            action: @MainActor () -> Void
+        ) async -> Bool {
+            guard isCurrent() else { return false }
+            guard await departure.canLeave(), isCurrent() else { return false }
+            action()
+            return true
+        }
+    }
+
+    struct VerseDestination: Equatable {
+        let reference: String
+        let translation: TranslationID?
+    }
+
+    /// Payload and ownership travel together, including an explicit nil
+    /// translation. Consumers never adopt an old payload as a fresh intent.
+    struct PendingDestination<Value: Equatable>: Equatable {
+        let request: NoteNavigationRequest
+        let value: Value
+
+        @MainActor
+        func perform(
+            isCurrent: @MainActor () -> Bool,
+            departure: NoteDepartureCoordinator,
+            action: @MainActor (Value) -> Void
+        ) async -> Bool {
+            await request.perform(isCurrent: isCurrent, departure: departure) {
+                action(value)
+            }
+        }
+    }
+
+    /// Mint before suspending, including a tap on the note already selected.
+    /// A direct Notes action supersedes a receipt that has not been consumed.
+    func beginNoteNavigation() -> NoteNavigationRequest {
+        recordNavigationIntent()
+        return currentNoteNavigationRequest()
+    }
+
+    /// Pending destinations already own an intent; consuming one must not
+    /// supersede a newer row, Back, or section tap.
+    func currentNoteNavigationRequest() -> NoteNavigationRequest {
+        NoteNavigationRequest(intentID: navigationIntentID, epoch: NotesStore.shared.epoch)
+    }
+
+    func isCurrentNoteNavigationRequest(_ request: NoteNavigationRequest) -> Bool {
+        !Task.isCancelled && NotesStore.shared.isCurrent(request.epoch)
+            && navigationIntentID == request.intentID
+    }
+
+    @discardableResult
+    func performNoteNavigation(
+        _ request: NoteNavigationRequest,
+        action: @MainActor () -> Void
+    ) async -> Bool {
+        await request.perform(
+            isCurrent: { self.isCurrentNoteNavigationRequest(request) },
+            departure: noteDeparture,
+            action: action
+        )
+    }
+
+    /// Publish a guarded route without creating another intent when the
+    /// shell mirrors its tab. Preserve legacy Notes ownership in Study.
+    @discardableResult
+    func commitNavigationSection(_ value: AppSection, request: NoteNavigationRequest) -> Bool {
+        guard isCurrentNoteNavigationRequest(request) else { return false }
+        selectedSection = value
+        return true
+    }
+
+    /// Stage the note only after departure succeeds. Setting the section
+    /// first avoids a section-setter echo invalidating the pending payload.
+    func openNote(_ id: String) {
+        let request = beginNoteNavigation()
+        Task {
+            await performNoteNavigation(request) {
+                guard commitNavigationSection(.notes, request: request) else { return }
+                pendingNoteID = id
+            }
+        }
+    }
+
+    private func afterNoteDeparture(_ request: NoteNavigationRequest, action: @escaping @MainActor () -> Void) {
+        guard noteDeparture.hasEditor else {
+            guard isCurrentNoteNavigationRequest(request) else { return }
+            action()
+            return
+        }
+        Task { await performNoteNavigation(request, action: action) }
+    }
+
+    func openVerse(_ reference: String, translation: TranslationID? = nil) {
+        guard Bible.resolveReference(reference) != nil else { return }
+        let request = beginNoteNavigation()
+        afterNoteDeparture(request) { self.commitVerse(reference, translation: translation, request: request) }
+    }
+
+    @discardableResult
+    func commitVerse(_ reference: String, translation: TranslationID?, request: NoteNavigationRequest) -> Bool {
+        guard commitNavigationSection(.bible, request: request) else { return false }
+        pendingVerseRoute = PendingDestination(request: request, value: VerseDestination(reference: reference, translation: translation))
+        return true
+    }
+
+    func openDaily(_ destination: DailyWalkDestination) {
+        let request = beginNoteNavigation()
+        afterNoteDeparture(request) {
+            guard self.commitNavigationSection(.today, request: request) else { return }
+            self.pendingDailyRoute = PendingDestination(request: request, value: destination)
+        }
+    }
+
+    func openStudy(_ destination: StudyHubDestination) {
+        let request = beginNoteNavigation()
+        afterNoteDeparture(request) { self.commitStudy(destination, request: request) }
+    }
+
+    /// Commit a Study leaf with the same intent that passed note departure.
+    /// Voice and tap routes share this seam without minting a second request.
+    @discardableResult
+    func commitStudy(_ destination: StudyHubDestination, request: NoteNavigationRequest) -> Bool {
+        #if os(macOS)
+        if destination == .notes { return commitNavigationSection(.notes, request: request) }
+        #endif
+        guard commitNavigationSection(.study, request: request) else { return false }
+        pendingStudyRoute = PendingDestination(request: request, value: destination)
+        return true
+    }
+
+    @discardableResult
+    func consumeVerse(_ route: PendingDestination<VerseDestination>, action: @MainActor (VerseDestination) -> Void) async -> Bool {
+        await route.perform(isCurrent: {
+            self.isCurrentNoteNavigationRequest(route.request) && self.pendingVerseRoute == route
+        }, departure: noteDeparture) { value in
+            action(value)
+            if self.pendingVerseRoute == route { self.pendingVerseRoute = nil }
+        }
+    }
+
+    @discardableResult
+    func consumeDaily(_ route: PendingDestination<DailyWalkDestination>, action: @MainActor (DailyWalkDestination) -> Void) async -> Bool {
+        await route.perform(isCurrent: {
+            self.isCurrentNoteNavigationRequest(route.request) && self.pendingDailyRoute == route
+        }, departure: noteDeparture) { value in
+            action(value)
+            if self.pendingDailyRoute == route { self.pendingDailyRoute = nil }
+        }
+    }
+
+    @discardableResult
+    func consumeStudy(_ route: PendingDestination<StudyHubDestination>, action: @MainActor (StudyHubDestination) -> Void) async -> Bool {
+        await route.perform(isCurrent: {
+            self.isCurrentNoteNavigationRequest(route.request) && self.pendingStudyRoute == route
+        }, departure: noteDeparture) { value in
+            action(value)
+            if self.pendingStudyRoute == route { self.pendingStudyRoute = nil }
+        }
+    }
 
     var section: AppSection {
         get { selectedSection }
         set {
+            recordNavigationIntent()
             let requestID = UUID()
             sectionRequestID = requestID
             guard newValue != selectedSection, noteDeparture.hasEditor else {
                 selectedSection = newValue
                 return
             }
+            let navigationRequest = currentNoteNavigationRequest()
             Task {
-                guard await noteDeparture.canLeave(), sectionRequestID == requestID else { return }
-                selectedSection = newValue
+                await performNoteNavigation(navigationRequest) {
+                    guard sectionRequestID == requestID else { return }
+                    selectedSection = newValue
+                }
             }
         }
     }
@@ -131,10 +320,11 @@ final class AppModel {
     }
     /// Set when a verse card asks to open the reader; consumed by the Bible
     /// phase once that pane exists.
-    var pendingVerseReference: String?
+    private(set) var pendingVerseRoute: PendingDestination<VerseDestination>?
+    var pendingVerseReference: String? { pendingVerseRoute?.value.reference }
     /// Translation that produced the pending chat source. This is a one-hop
     /// reader override and never mutates the account preference.
-    var pendingVerseTranslation: TranslationID?
+    var pendingVerseTranslation: TranslationID? { pendingVerseRoute?.value.translation }
     /// Set when a chat note-receipt asks to open the note it wrote; consumed
     /// by the Notes root, which opens the editor (the iOS tab pushes it, the
     /// macOS section selects it). The notes counterpart of
@@ -143,10 +333,12 @@ final class AppModel {
     /// Set when a chat "Learning John 3:16" receipt asks for Learn a verse on
     /// the Mac; consumed by the Bible section, which shows its Learn pane. iOS
     /// pushes `LearnView` from the chat stack instead and never sets it.
-    var pendingDailyDestination: DailyWalkDestination?
+    private(set) var pendingDailyRoute: PendingDestination<DailyWalkDestination>?
+    var pendingDailyDestination: DailyWalkDestination? { pendingDailyRoute?.value }
     /// Set to open a Study hub page from elsewhere; consumed (and cleared) by
     /// the Study root once it has shown the page.
-    var pendingStudyDestination: StudyHubDestination?
+    private(set) var pendingStudyRoute: PendingDestination<StudyHubDestination>?
+    var pendingStudyDestination: StudyHubDestination? { pendingStudyRoute?.value }
     /// Set by `openSettings(_:)`; consumed (and cleared) by Settings once it
     /// has shown the page.
     var pendingSettingsPage: SettingsPageRequest?

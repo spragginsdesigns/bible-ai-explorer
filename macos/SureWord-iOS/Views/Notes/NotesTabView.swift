@@ -28,8 +28,14 @@ struct NotesTabView: View {
                         if let openedNoteID {
                             NoteEditorView(
                                 noteID: openedNoteID, api: app.api,
-                                onDeleted: { destination.wrappedValue = nil },
-                                onClose: { destination.wrappedValue = nil }
+                                onDeleted: {
+                                    guard destination.wrappedValue == openedNoteID else { return }
+                                    destination.wrappedValue = nil
+                                },
+                                onClose: {
+                                    guard destination.wrappedValue == openedNoteID else { return }
+                                    destination.wrappedValue = nil
+                                }
                             )
                                 .id(openedNoteID)
                                 .analyticsScreen(AnalyticsScreen.note)
@@ -50,7 +56,17 @@ struct NotesTabView: View {
         .settingsGearToolbar()
         .navigationDestination(item: Binding(get: { sizeClass == .regular ? nil : openedNoteID }, set: { openNote($0) })) { noteID in
             let destination = $openedNoteID
-            NoteEditorView(noteID: noteID, api: app.api, onClose: { destination.wrappedValue = nil })
+            NoteEditorView(
+                noteID: noteID, api: app.api,
+                onDeleted: {
+                    guard destination.wrappedValue == noteID else { return }
+                    destination.wrappedValue = nil
+                },
+                onClose: {
+                    guard destination.wrappedValue == noteID else { return }
+                    destination.wrappedValue = nil
+                }
+            )
                 .analyticsScreen(AnalyticsScreen.note)
         }
         .task {
@@ -65,24 +81,29 @@ struct NotesTabView: View {
             guard phase == .active, let library else { return }
             Task { await library.load(.silent) }
         }
-        // A note receipt tapped in chat lands here (staged by TabShell).
+        // A note receipt tapped in chat lands here (staged by AppModel).
         // Consume it once: the tab root is long-lived, so leaving the value
         // set would re-push the editor every time the Notes tab reappears.
         .onChange(of: app.pendingNoteID, initial: true) { _, pending in
             guard let pending else { return }
+            let request = app.currentNoteNavigationRequest()
             Task {
-                guard await app.noteDeparture.canLeave() else { return }
-                openedNoteID = pending
-                app.pendingNoteID = nil
+                await app.performNoteNavigation(request) {
+                    guard app.pendingNoteID == pending else { return }
+                    openedNoteID = pending
+                    app.pendingNoteID = nil
+                }
             }
         }
     }
 
     private func openNote(_ id: String?) {
+        let request = app.beginNoteNavigation()
         guard id != openedNoteID else { return }
         Task {
-            guard await app.noteDeparture.canLeave() else { return }
-            openedNoteID = id
+            await app.performNoteNavigation(request) {
+                openedNoteID = id
+            }
         }
     }
 }

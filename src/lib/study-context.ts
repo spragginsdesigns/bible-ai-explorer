@@ -1,3 +1,4 @@
+import { noteSourceRevision, memorySourceRevision, type StudySourceRevisions } from "@/lib/study-source-revisions";
 import { recentReadingChapters } from "@/lib/reading-log";
 import { loadUserChurch } from "@/lib/church";
 import { loadUserMemories } from "@/lib/memory";
@@ -73,6 +74,8 @@ export interface StudyContext {
 	 * log reflection) can be retired once one is deleted or rewritten.
 	 */
 	sources: { memories: string[]; notes: string[] };
+	/** Revisions captured from the same owned rows used to build the prompt. */
+	sourceRevisions: StudySourceRevisions;
 	/**
 	 * True when there is nothing at all to personalize from — a brand-new
 	 * account. Callers should fall back rather than ask a model to invent a
@@ -161,6 +164,10 @@ export async function loadStudyContext(userId: string): Promise<StudyContext> {
 		sources: {
 			memories: memories.map((memory) => memorySourceKey(memory.id, memory.content)),
 			notes: notes.map((note) => note.id),
+		},
+		sourceRevisions: {
+			memories: memories.map(memory => ({ id: memory.id, revision: memorySourceRevision(memory) })),
+			notes: notes.map(note => ({ id: note.id, revision: noteSourceRevision(note) })),
 		},
 		// The daily picks are not evidence of study - the cron writes them
 		// whether or not the user ever opened the app. A reading plan is, though:

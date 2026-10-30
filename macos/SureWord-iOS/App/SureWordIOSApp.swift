@@ -46,6 +46,7 @@ struct SureWordIOSApp: App {
                 // (sureword://cross, sureword://verse?ref=…).
                 .onOpenURL { url in
                     Task { @MainActor in
+                        let arrival = DeepLink.parse(url).map { PendingDeepLinks.shared.prepare($0) }
                         let handledByClerk = (try? await Clerk.shared.handle(url)) ?? false
                         guard !handledByClerk else { return }
                         // The share extension saved something to the inbox.
@@ -56,8 +57,8 @@ struct SureWordIOSApp: App {
                             NotificationCenter.default.post(name: .pendingShareArrived, object: nil)
                             return
                         }
-                        guard let link = DeepLink.parse(url) else { return }
-                        PendingDeepLinks.shared.post(link)
+                        guard let arrival else { return }
+                        PendingDeepLinks.shared.post(arrival)
                     }
                 }
                 // Injected last, so it is the outermost modifier (see the macOS
@@ -204,6 +205,7 @@ struct RootView: View {
         .task { await Analytics.shared.observeSignIns() }
         .onChange(of: clerk.session?.id) { previousID, sessionID in
             guard previousID != nil, previousID != sessionID else { return }
+            app?.onboarding.teardown()
             PushRegistration.clearLocalDeliveryForAccountChange()
             _ = PendingDeepLinks.shared.drain()
             if let app, app.userID == clerk.user?.id, sessionID != nil {

@@ -9,11 +9,11 @@ import type { ChoiceCardView, ShowMeView } from "@/lib/chatView";
  */
 export interface OnboardingChatActions {
 	/** Do the step's device action (text size, reminder hour), then send the label. */
-	answer: (card: ChoiceCardView, label: string) => void;
+	answer: (card: ChoiceCardView, label: string) => void | Promise<void>;
 	/** "Type my own" or Speak: focus the composer. */
 	typeOwn: (card: ChoiceCardView) => void;
 	/** Send a question as their reply ("What does it mean to be saved?"). */
-	ask: (card: ChoiceCardView, question: string) => void;
+	ask: (card: ChoiceCardView, question: string) => void | Promise<void>;
 	/** Light up a place in the app, or run the whole tour. */
 	showMe: (card: ShowMeView) => void;
 }

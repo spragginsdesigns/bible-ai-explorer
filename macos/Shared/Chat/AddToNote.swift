@@ -130,6 +130,7 @@ enum AddToNote {
                 defaultTitle: defaultTitle,
                 compose: compose
             ),
+            timeout: 180,
             as: AppendToNoteResult.self
         )
     }

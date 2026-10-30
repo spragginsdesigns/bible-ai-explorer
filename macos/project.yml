@@ -17,8 +17,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "1.30.0"
-    CURRENT_PROJECT_VERSION: "39"
+    MARKETING_VERSION: "1.31.0"
+    CURRENT_PROJECT_VERSION: "52"
     # Signed manually with the local Apple Development identity.
     #
     # Ad-hoc ("-") does NOT work here: a keychain access group is only honored
@@ -87,6 +87,8 @@ targets:
         product: ClerkKitUI
       # "SureWord" in other apps' Share menus, embedded in PlugIns/.
       - target: SureWord-macOS-Share
+      - target: SureWord-macOS-NotificationService
+      - target: SureWord-macOS-NotificationContent
     settings:
       configs:
         Debug:
@@ -123,6 +125,8 @@ targets:
         ATSApplicationFontsPath: "."
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         LSApplicationCategoryType: public.app-category.reference
+        NSMicrophoneUsageDescription: "Allow SureWord to hear your spoken choices and navigation commands when you start voice controls."
+        NSSpeechRecognitionUsageDescription: "Allow SureWord to recognize spoken choices and navigation commands on this device."
         NSHumanReadableCopyright: "© 2026 Austin Spraggins"
         # HTTPS (URLSession/TLS) is the only encryption, which is exempt: no
         # export-compliance documentation needed in App Store Connect (PRD A6).
@@ -221,6 +225,9 @@ targets:
       # Walk with me, which the Mac runs too: the rules mirror, the card and
       # tool part parsing, the voice queue rules and the text size mapping.
       - path: SureWord-iOSTests/OnboardingTests.swift
+      - path: SureWord-iOSTests/NativeVoiceTests.swift
+      # Saved-answer review lifecycle and persisted safe-row rendering are shared.
+      - path: SureWord-iOSTests/SavedAnswerReviewTests.swift
       # Spanish and German: the bundled Bibles, their book names, the answer
       # language and the requests that carry it.
       - path: SureWord-iOSTests/LanguagesTests.swift
@@ -288,6 +295,74 @@ targets:
               NSExtensionActivationSupportsImageWithMaxCount: 5
               NSExtensionActivationSupportsFileWithMaxCount: 5
               NSExtensionActivationSupportsAttachmentsWithMaxCount: 5
+
+  # Remote Mac pushes need the same bundled thumbnail and expanded artwork as
+  # iOS. Neither helper accesses the network or the host's App Group.
+  SureWord-macOS-NotificationService:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: SureWord-iOS-NotificationService/NotificationService.swift
+      - path: Shared/NotificationArt
+    settings:
+      configs:
+        Release:
+          CODE_SIGN_IDENTITY: "Developer ID Application"
+          CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
+          OTHER_CODE_SIGN_FLAGS: "$(inherited) --timestamp"
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.spragginsdesigns.sureword.notification-service
+        PRODUCT_NAME: SureWordNotificationService
+        CODE_SIGN_ENTITLEMENTS: SureWord-macOS-NotificationContent/Extension.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+        ENABLE_HARDENED_RUNTIME: YES
+        SKIP_INSTALL: YES
+    info:
+      path: SureWord-macOS-NotificationService/Info.plist
+      properties:
+        CFBundleDisplayName: SureWord
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.usernotifications.service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationService
+
+  SureWord-macOS-NotificationContent:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: SureWord-macOS-NotificationContent
+      - path: Shared/NotificationArt
+    dependencies:
+      - sdk: UserNotificationsUI.framework
+    settings:
+      configs:
+        Release:
+          CODE_SIGN_IDENTITY: "Developer ID Application"
+          CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
+          OTHER_CODE_SIGN_FLAGS: "$(inherited) --timestamp"
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.spragginsdesigns.sureword.notification-content
+        PRODUCT_NAME: SureWordNotificationContent
+        CODE_SIGN_ENTITLEMENTS: SureWord-macOS-NotificationContent/Extension.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+        ENABLE_HARDENED_RUNTIME: YES
+        SKIP_INSTALL: YES
+    info:
+      path: SureWord-macOS-NotificationContent/Info.plist
+      properties:
+        CFBundleDisplayName: SureWord
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.usernotifications.content-extension
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).NotificationViewController
+          NSExtensionAttributes:
+            UNNotificationExtensionCategory: [SUREWORD_CROSS, SUREWORD_ANSWER]
+            UNNotificationExtensionInitialContentSizeRatio: 0.9
+            UNNotificationExtensionDefaultContentHidden: true
 
   # iOS client. Shares everything under Shared/ with the macOS target — same
   # module layout, so no import changes either side. Only the shell
@@ -397,6 +472,8 @@ targets:
           - CFBundleURLName: com.spragginsdesigns.sureword
             CFBundleURLSchemes: [sureword]
         # Strings match mobile/app.json's expo-image-picker plugin config.
+        NSMicrophoneUsageDescription: "Allow SureWord to hear your spoken choices and navigation commands when you start voice controls."
+        NSSpeechRecognitionUsageDescription: "Allow SureWord to recognize spoken choices and navigation commands on this device."
         NSCameraUsageDescription: "Allow SureWord to take photos for your AI conversations."
         NSPhotoLibraryUsageDescription: "Allow SureWord to attach photos to your AI conversations."
         # Brand fonts from Shared/Resources/Fonts, copied flat into the bundle.
@@ -543,12 +620,16 @@ targets:
       - path: SureWord-iOSTests
       # Pure Shared/ logic, so the macOS suite runs on iOS unchanged.
       - path: SureWordTests/VersePassagesTests.swift
+      - path: SureWordTests/VerseWordsTests.swift
       - path: SureWordTests/ShareCardsTests.swift
       # The note mutation protocol and byte-stream lifecycle are shared by
       # both apps; run them on the signed simulator test host as well.
       - path: SureWordTests/NoteAPITests.swift
       - path: SureWordTests/NoteAIStreamTests.swift
       - path: SureWordTests/NoteAIIntegrityTests.swift
+      - path: SureWordTests/NoteNavigationOrderingTests.swift
+      - path: SureWordTests/PendingRouteOrderingTests.swift
+      - path: SureWordTests/ConversationListRefreshTests.swift
       - path: SureWordTests/StreamFramingTests.swift
       - path: SureWordTests/UIMessageStreamTests.swift
     dependencies:

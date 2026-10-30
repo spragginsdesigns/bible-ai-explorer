@@ -10,6 +10,9 @@ import {
 	toUIMessageStream,
 	validateUIMessages,
 	type UIMessage,
+	type UIMessageChunk,
+	type FilePart,
+	type ImagePart,
 } from "ai";
 import { plainDashes } from "@/lib/ai/plain-dashes";
 import { waitUntil } from "@vercel/functions";
@@ -44,6 +47,11 @@ import {
 import { createProgressNarration } from "@/lib/ai/progress-narration";
 import { SCRIPTURE_OUTPUT_GUIDANCE, verifyGeneratedAnswer } from "@/lib/ai/verified-generation";
 import { releaseVerifiedAnswer } from "@/lib/ai/verified-answer-stream";
+import { releaseCertifiedFreshTurn,releaseFreshRequestRefusal } from "@/lib/ai/history/fresh-stream";
+import { historyService,createCurrentRequestReview } from "@/lib/ai/history/runtime.server";
+import {preparedRequestReviewContext} from "@/lib/ai/history/prepared-request.mjs";
+import { reviewedAssistantTurns } from "@/lib/ai/history/model-context";
+import type { PreparedAttachment,ExecutedHistoryAction } from "@/lib/ai/history/contracts";
 import type { AnswerBlock } from "@/lib/ai/answer-gate";
 import { readSavedNoteEvidence, successfulNoteWriteId } from "@/lib/ai/note-write-evidence";
 import { withoutOrphanedOpenAIReferences } from "@/lib/chat/modelHistory";
@@ -225,9 +233,9 @@ async function validateDailyCrossOrigin(
 async function hydrateTrustedAttachments(
 	messages: SureWordUIMessage[],
 	userId: string,
-): Promise<SureWordUIMessage[]> {
+): Promise<{messages:SureWordUIMessage[];attachments:PreparedAttachment[]}> {
 	const lastMessage = messages.at(-1);
-	if (!lastMessage) return messages;
+	if (!lastMessage) return {messages,attachments:[]};
 	if (messages.some((message) => attachmentIds(message).length > MAX_ATTACHMENTS_PER_MESSAGE)) {
 		throw new UserFacingError("A message cannot reference more than 5 attachments.");
 	}
@@ -285,8 +293,11 @@ async function hydrateTrustedAttachments(
 		selectedByMessage.set(message.id, selected);
 	}
 
+	const preparedAttachments:PreparedAttachment[]=[];
+	const ownedDescriptor=(record:typeof records[number],messageId:string,previewUrl?:string):PreparedAttachment=>({id:record.id,userId:record.userId,messageId,pathname:record.pathname,filename:record.filename,mediaType:record.mediaType,size:record.size,etag:record.etag,status:record.status,transcript:record.transcript,durationSeconds:record.durationSeconds,...(previewUrl?{previewUrl}:{})});
 	const hydrated = await Promise.all(messages.map(async (message) => {
 		const selected = selectedByMessage.get(message.id) ?? [];
+		for(const record of selected.filter(record=>isAudioMediaType(record.mediaType)))preparedAttachments.push(ownedDescriptor(record,message.id));
 		// A voice message reaches the model as its stored transcript, never as
 		// audio: every provider can read text, and it was paid for once already.
 		const transcripts = selected
@@ -302,12 +313,11 @@ async function hydrateTrustedAttachments(
 		const trustedFiles = await Promise.all(
 			selected
 				.filter((record) => !isAudioMediaType(record.mediaType))
-				.map(async (record) => ({
-					type: "file" as const,
-					mediaType: record.mediaType,
-					filename: record.filename,
-					url: (await createAttachmentPreviewUrl(record.pathname)).previewUrl,
-				})),
+				.map(async (record) => {
+					const previewUrl=(await createAttachmentPreviewUrl(record.pathname)).previewUrl;
+					preparedAttachments.push(ownedDescriptor(record,message.id,previewUrl));
+					return{type:"file" as const,mediaType:record.mediaType,filename:record.filename,url:previewUrl};
+				}),
 		);
 		return {
 			...message,
@@ -328,7 +338,7 @@ async function hydrateTrustedAttachments(
 			};
 		}
 	}
-	return hydrated;
+	return {messages:hydrated,attachments:preparedAttachments};
 }
 
 /**
@@ -546,6 +556,7 @@ async function persistAssistantResponse(options: {
 	/** The translation the answer quoted, so a rated answer can be replayed against it. */
 	translation: TranslationId;
 	prayers?: ChatDayContext["prayers"];
+	alreadyCertified?: boolean;
 }): Promise<ChatOutcomeExit> {
 	if (!hasPersistableContent(options.responseMessage)) return "empty_response";
 	// Set once the assistant row is written, so a memory-extraction failure
@@ -586,7 +597,7 @@ async function persistAssistantResponse(options: {
 			? options.responseMessage.id
 			: generateMessageId();
 
-		await prisma.message.upsert({
+		if (!options.alreadyCertified) await prisma.message.upsert({
 			where: { id: responseMessageId },
 			update: { content: cleanText, metadata: metadataJson },
 			create: {
@@ -757,10 +768,11 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 					id: { in: assistantIds }, role: "assistant", conversationId,
 					conversation: { userId },
 				},
-				select: { id: true, content: true, metadata: true },
+				select: { id: true, content: true, metadata: true,createdAt:true },
 			})
 			: [];
-		const trustedMessages = trustedAssistantHistory(recentMessages, storedAssistantTurns);
+		const reviewedTurns = conversationId ? await reviewedAssistantTurns(historyService,userId,"chat",conversationId,storedAssistantTurns) : [];
+		const trustedMessages = trustedAssistantHistory(recentMessages, reviewedTurns);
 		const allMessages = await validateUIMessages<SureWordUIMessage>({
 			messages: trustedMessages.map((message: UIMessage) => ({
 				...message, parts: Array.isArray(message?.parts) ? message.parts.filter((part) => !part.type?.startsWith("data-")) : message?.parts,
@@ -881,6 +893,8 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 			if (welcomeTurn) meterAsOnboarding();
 			await reserveIncludedRequest(userId);
 		}
+		let freshCertified = false;
+		const executedActions: ExecutedHistoryAction[] = [];
 		const stream = createUIMessageStream<SureWordUIMessage>({
 			originalMessages: validatedMessages,
 			generateId: () => responseMessageId,
@@ -891,7 +905,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 				}
 				return streamErrorText(error);
 			},
-			onEnd: ({ responseMessage, isAborted, finishReason }) => {
+			onEnd: async ({ responseMessage, isAborted, finishReason }) => {
 				if (!conversationId) return;
 				const userTurnSaved = conversationCreatedAt !== null;
 				const emitOutcome = (exit: ChatOutcomeExit): void => {
@@ -930,8 +944,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 					emitOutcome("aborted");
 					return;
 				}
-				waitUntil(
-					persistAssistantResponse({
+				const persistence = persistAssistantResponse({
 						userId,
 						conversationId,
 						userMessage: lastMessage,
@@ -940,7 +953,9 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 						run: resolvedRun,
 						translation,
 						prayers: duePrayers,
-					}).then((exit) => {
+						alreadyCertified: freshCertified,
+					});
+				waitUntil(persistence.then((exit) => {
 						emitOutcome(exit);
 						if (exit !== "persisted") return;
 						// Keep this waitUntil alive if saving wins the race against
@@ -961,15 +976,21 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 								disconnected: clientConnection.disconnected,
 							}));
 						});
-					})
-				);
+					}));
+				await persistence;
 			},
 			execute: async ({ writer }) => {
+				const finalChunks: UIMessageChunk[] = [];
+				let preparedRequest:object|undefined;
+				let reviewMediaParts:(FilePart|ImagePart)[]=[];
+				let preparedContext="",reviewQuestion=currentUserText;
 				const legacyStatus = startStatusNarration(writer, responseMessageId);
+				let lastStatus = "Getting ready";
+				const statusHeartbeat = setInterval(() => legacyStatus(lastStatus), 10_000);
 				const progress = createProgressNarration(
-					(data) => writer.write({ type: "data-progress", id: "progress", data }), responseMessageId,
+					(data) => finalChunks.push({ type: "data-progress", id: "progress", data }), responseMessageId,
 				);
-				const writeStatus = (label: string) => { legacyStatus(label); progress.status(label); };
+				const writeStatus = (label: string) => { lastStatus=label;legacyStatus(label);progress.status(label); };
 				try {
 					writeStatus("Getting ready");
 
@@ -984,7 +1005,8 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 								: "Opening your attachments",
 						);
 					}
-					const messages = await hydrateTrustedAttachments(validatedMessages, userId);
+					const hydratedRequest = await hydrateTrustedAttachments(validatedMessages, userId);
+					const messages=hydratedRequest.messages;
 					// Older turns' files are re-hydrated into this request too, so the
 					// model has to be able to read files for the whole thread. Voice
 					// messages arrive as transcript text, so they never require it.
@@ -1059,8 +1081,8 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 					const verificationModel = await resolveVerificationModel(userId, definition);
 					verifyToolContent = async (blocks, purpose) => {
 						const checked = await verifyGeneratedAnswer(blocks, { model: verificationModel, providerOptions, translation, language,
-							question: currentUserText, purpose, context: `Generated content for ${purpose}. Preserve the user's material unless they requested changes.`,
-							timeoutMs: Math.min(75_000, 285_000 - (Date.now() - turnStartedAtMs)),
+							question: reviewQuestion, purpose, mediaParts:reviewMediaParts,maxContextChars:64_000,requireCompleteContext:true,context: `Generated content for ${purpose}. Preserve the user's material unless they requested changes.\n\n${preparedContext}`,
+							timeoutMs: Math.min(75_000, 225_000 - (Date.now() - turnStartedAtMs)),
 						});
 						return checked.verified ? checked.blocks : null;
 					};
@@ -1185,10 +1207,25 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 						providerOptions,
 						cacheKey: `sureword:ask-question:v1:${definition.providerModelId}:${translation}:${language}:${userPrefs?.webSearchEnabled ?? true}`,
 					});
+					const providerMessages=withoutOrphanedOpenAIReferences(await convertToModelMessages(modelMessages));
+					reviewMediaParts=providerMessages.flatMap(message=>message.role==="user"&&Array.isArray(message.content)?message.content.filter((part):part is FilePart|ImagePart=>part.type==="file"||part.type==="image"):[]);
+					if(conversationId){
+						try {
+							preparedRequest=await historyService.prepareRequest(userId,{surface:"chat",parentId:conversationId,messageId:responseMessageId},{
+								messages:modelMessages,sources:modelMessages.map(message=>message.role==="user"?{id:message.id,role:message.role,content:extractText(validatedMessages.find(row=>row.id===message.id)!)}:{...storedAssistantTurns.find(row=>row.id===message.id)!,role:"assistant"}),
+								attachments:hydratedRequest.attachments,systemContext:stableSystem+volatileSystem,mediaParts:reviewMediaParts,...createCurrentRequestReview(definition,verificationModel,providerOptions),
+							});
+							const evidence=preparedRequestReviewContext(preparedRequest);preparedContext=evidence.context;reviewQuestion=evidence.question;
+						} catch(error) {
+							recordTurnError(error);progress.finish(true);
+							await releaseFreshRequestRefusal({ownerId:userId,locator:{surface:"chat",parentId:conversationId,messageId:responseMessageId},translation,language,service:historyService,write:chunk=>writer.write(chunk as Parameters<typeof writer.write>[0])});
+							freshCertified=true;return;
+						}
+					}
 					const result = streamText({
 						model,
 						system: promptCache.system,
-						messages: withoutOrphanedOpenAIReferences(await convertToModelMessages(modelMessages)),
+						messages: providerMessages,
 						tools,
 						prepareStep: ({ stepNumber }) => {
 							if (finishAgentWork(stepNumber, turnStartedAtMs)) return { toolChoice: "none" as const, activeTools: [], system: `${stableSystem}${volatileSystem}\n\nFinish now from the successful evidence already gathered. Verify the requested outcome, give the useful result, and state any remaining gap. No further tool calls.` };
@@ -1256,6 +1293,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 								result: toolOutput.type === "tool-result" ? (JSON.stringify(toolOutput.output) ?? "null").slice(0, 1800) : "Tool execution failed",
 							});
 							if (toolOutput.type === "tool-result") {
+								if (outcome?.success !== false && !outcome?.error) executedActions.push({tool:toolCall.toolName,toolCallId:toolCall.toolCallId,success:true,output:JSON.parse(JSON.stringify(toolOutput.output) ?? "null")});
 								const id = successfulNoteWriteId(toolCall.toolName, toolOutput.output);
 								if (id) { noteWriteIds.delete(id); noteWriteIds.add(id); }
 							}
@@ -1298,7 +1336,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 							sendFinish: false,
 							sendReasoning: false,
 						}),
-						write: (chunk) => writer.write(chunk),
+						write: (chunk) => finalChunks.push(chunk),
 						onChecking: () => writeStatus("Checking Scripture quotations and citations"),
 						verify: async (blocks) => {
 							// Concurrent tool calls have all settled at upstream EOF. Read
@@ -1307,11 +1345,11 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 								where: { id: noteId, userId }, select: { id: true, title: true, plainText: true },
 							}))));
 							return verifyGeneratedAnswer(blocks, { model: verificationModel, providerOptions, translation, language,
-								question: currentUserText,
-								context: JSON.stringify({ latestNoteWrites,
+								question: reviewQuestion,mediaParts:reviewMediaParts,maxContextChars:64_000,requireCompleteContext:true,
+								context: JSON.stringify({ latestNoteWrites,preparedRequest:preparedContext,
 									rule: "Latest note readbacks show the final saved state after all successful writes; older receipts may precede it. A truncated or unavailable readback cannot prove the complete body. Receipt text is not authority for Scripture wording or interpretation.", toolReceipts,
 								}),
-								timeoutMs: Math.min(75_000, 285_000 - (Date.now() - turnStartedAtMs)),
+								timeoutMs: Math.min(75_000, 225_000 - (Date.now() - turnStartedAtMs)),
 							});
 						},
 					});
@@ -1324,23 +1362,31 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 					if (owed) {
 						const toolCallId = `${responseMessageId}-card`;
 						const input = { step: owed, question: null, options: null, allowOther: null };
-						writer.write({ type: "start-step" });
-						writer.write({ type: "tool-input-available", toolCallId, toolName: "presentChoices", input });
+						finalChunks.push({ type: "start-step" });
+						finalChunks.push({ type: "tool-input-available", toolCallId, toolName: "presentChoices", input });
 						const card = resolveChoiceCard(input);
-						writer.write({ type: "tool-output-available", toolCallId, output: legacyChoiceSteps ? cardForLegacyClient(card) : card });
-						writer.write({ type: "finish-step" });
+						finalChunks.push({ type: "tool-output-available", toolCallId, output: legacyChoiceSteps ? cardForLegacyClient(card) : card });
+						finalChunks.push({ type: "finish-step" });
 					}
 					const notice = incompleteAgentNotice(metricLastStepFinishReason, Date.now() - turnStartedAtMs);
 					if (notice) {
 						const textId = `${responseMessageId}-limit`;
-						writer.write({ type: "text-start", id: textId });
-						writer.write({ type: "text-delta", id: textId, delta: `\n\n${notice}` });
-						writer.write({ type: "text-end", id: textId });
+						finalChunks.push({ type: "text-start", id: textId });
+						finalChunks.push({ type: "text-delta", id: textId, delta: `\n\n${notice}` });
+						finalChunks.push({ type: "text-end", id: textId });
 					}
 					progress.finish(metricError !== null || notice !== null || !checkedAnswer.verified);
+					if (conversationId) {
+						await releaseCertifiedFreshTurn({ownerId:userId,locator:{surface:"chat",parentId:conversationId,messageId:responseMessageId},chunks:finalChunks,preparedRequest,translation,language,actions:executedActions,service:historyService,signal:AbortSignal.timeout(Math.max(1,Math.min(60_000,270_000-(Date.now()-turnStartedAtMs)))),
+							metadata:{...(resolvedModelId?{modelId:resolvedModelId}:{}),...(resolvedRun.speed?{speed:resolvedRun.speed}:{}),...(resolvedRun.verbosity?{verbosity:resolvedRun.verbosity}:{}),...(resolvedRun.mode?{mode:resolvedRun.mode}:{}),...(resolvedRun.turnShape?{turnShape:resolvedRun.turnShape}:{})},
+							write:chunk=>writer.write(chunk as Parameters<typeof writer.write>[0])});
+						freshCertified=true;
+					} else for (const chunk of finalChunks) writer.write(chunk as Parameters<typeof writer.write>[0]);
 				} catch (error) {
 					progress.finish(true);
 					throw error;
+				} finally {
+					clearInterval(statusHeartbeat);
 				}
 			},
 		});

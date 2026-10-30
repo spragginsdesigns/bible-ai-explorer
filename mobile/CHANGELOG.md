@@ -2,6 +2,19 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.112.0 (versionCode 133) - 2026-10-30 - internal and closed testing
+
+**What's new (Play):**
+
+IMPROVED
+- Notes keep your edits safe while AI writes, and show what was saved.
+- Clearer Scripture checks and a way to review older saved answers.
+- Spoken guidance uses a gentler pace.
+- Distinct notification artwork and plain-text answer previews.
+- Security: updated the Android network library.
+
+**Dev notes:** Codes 131 and 132 were unpublished QA drafts. Code 133 includes the newer notification presentation and closes the final saved-answer, editor-lock and feedback guards; the original draft bundles and QA evidence are preserved. Prepares the final Android candidate with durable per-note AI operation receipts, recovery after interrupted requests, canonical note reload before manual editing resumes, and structurally checked editor adoption that preserves formatting. Saved-answer review uses the shared owner-authenticated history endpoints; unchecked originals are available only as file downloads. Includes the current Scripture verification changes. Speech controls remain restricted to the verified owner account with Pro: spoken choices, navigation, and normal SureWord chat use existing tools and saved history. Other accounts do not receive the controls. Playback uses 1.05x after owner feedback that 1.15x was too fast. Capture pauses for narration and durable assistant readback; Stop, session changes and background cleanup fence delayed callbacks. The separate paid GPT-Live relay remains experimental and disabled in production. This is release preparation, not a claim of completed Android microphone/accessibility acceptance or publication. Includes the notification artwork and Android network security baseline from 1.111.0.
+
 ## 1.111.0 (versionCode 130) - 2026-10-29 - internal and closed testing
 
 **What's new (Play):**

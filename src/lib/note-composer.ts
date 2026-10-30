@@ -1,6 +1,9 @@
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { resolveModel } from "@/lib/ai/provider";
+import { checkedStructuredProseModel } from "@/lib/ai/structured-prose-model";
+import { beforeProseDeadline, remainingProseTime, verifyStructuredProse } from "@/lib/ai/structured-prose";
+import { isTranslationId, type TranslationId } from "@/lib/bible/translations";
 import { prisma } from "@/lib/prisma";
 import { htmlToPlainText } from "@/lib/markdown";
 import { NOTE_HOUSE_STYLE } from "@/utils/noteHouseStyle";
@@ -12,8 +15,8 @@ import { systemPrompt } from "@/utils/systemPrompt";
  * deal to say about this..."), carried the truncated question as its title and
  * ended wherever the answer ended. A note is the user's own study journal, so
  * the saved answer is rewritten here, in their voice, from the whole
- * conversation it came out of - one model call, and never at the cost of the
- * content: every failure path stores the original markdown untouched.
+ * conversation it came out of, then checked in one bounded workflow.
+ * AI composition failures leave the existing note untouched.
  */
 
 /** How much of an answer is compared when locating the conversation it came from. */
@@ -39,7 +42,7 @@ const MAX_EXISTING_NOTE_CHARS = 8000;
 /**
  * Total budget for composition, shared by the first attempt and the retry. The
  * user is watching a spinner in the "Add to notes" sheet, so this is a wait,
- * not a background job; past it the answer is stored verbatim.
+ * not a background job. A failed attempt must not save unchecked content.
  */
 const COMPOSE_TIMEOUT_MS = 45_000;
 
@@ -48,24 +51,17 @@ export interface TranscriptMessage {
 	content: string;
 }
 
-export interface ComposeResult {
-	/** The markdown to store: the composed note, or the original answer on any failure. */
-	markdown: string;
-	/** Title for a new note. Undefined when composition failed or the note already exists. */
-	title?: string;
-	/** False when the answer is being stored exactly as it arrived. */
-	composed: boolean;
-	/** Why composition did not happen. Absent when it did. */
-	reason?: ComposeFailureReason;
-}
+export const COMPOSE_WORKFLOW_MS = 150_000;
+export const COMPOSE_PERSISTENCE_RESERVE_MS = 30_000;
+export const COMPOSE_MAX_MARKDOWN = 32_000;
+export const COMPOSE_MAX_TITLE = 200;
+export const COMPOSE_MAX_SOURCE_CONTEXT = 64_000;
+const COMPOSE_MAX_PROMPT_CHARS = 96_000;
 
-export type ComposeFailureReason =
-	/** The model call threw, or ran past COMPOSE_TIMEOUT_MS. */
-	| "error"
-	/** The model returned nothing parseable. */
-	| "empty"
-	/** Both attempts broke a rule that makes the result not a note (see validateComposedNote). */
-	| "rejected";
+export type ComposeFailureReason = "error" | "empty" | "rejected" | "verification" | "not-found";
+export type ComposeResult =
+	| { composed: true; markdown: string; title?: string; provenance: "verified-ai" }
+	| { composed: false; reason: ComposeFailureReason; markdown?: never; title?: never };
 
 /**
  * Lowercased letters and digits only, capped at the comparison window. Two
@@ -160,13 +156,26 @@ export function buildTranscriptBlock(
 	return rendered.join("\n\n");
 }
 
+/** Required review source is never silently clipped or reduced to recent turns. */
+export function buildCompleteComposerTranscript(messages: readonly TranscriptMessage[], completeAnswer?: string): string {
+	const transcript = messages.filter(message => message.content.trim()).map(message => {
+		// Exact duplicate bytes already occur in the required full-answer section.
+		// A prefix/content match is insufficient to omit any different source.
+		const content = message.role === "assistant" && message.content === completeAnswer
+			? "[The complete answer is supplied in THE ANSWER THE USER IS SAVING above.]" : message.content;
+		return `${message.role === "user" ? "User" : "SureWord"}: ${content}`;
+	}).join("\n\n");
+	if (transcript.length > MAX_TRANSCRIPT_CHARS) throw new Error("Complete conversation context exceeds its bound.");
+	return transcript;
+}
+
 const composedNoteSchema = z.object({
 	title: z
 		.string()
 		.describe(
 			"A descriptive noun phrase naming the subject of the note. Never a bare Scripture reference, never the user's question, never a truncated sentence."
 		),
-	markdown: z.string().describe("The note itself, as markdown, written in the user's own voice."),
+	markdown: z.string().max(COMPOSE_MAX_MARKDOWN).describe("The note itself, as markdown, written in the user's own voice."),
 });
 
 /**
@@ -175,7 +184,7 @@ const composedNoteSchema = z.object({
  * then the rules that are specific to rewriting a chat answer into a journal
  * entry - which is the part the verbatim save got wrong.
  */
-export function composerInstructions(options: { existingNoteTitle?: string } = {}): string {
+export function composerInstructions(options: { existingNoteTitle?: string; translation?: TranslationId } = {}): string {
 	const shared = `${systemPrompt}
 
 You are writing one entry in the user's own Bible study journal. They have just saved an answer out of their chat with you, and your task is to write the note they would have written themselves after reading it.
@@ -187,7 +196,7 @@ The rules for this task, in order of importance:
 1. THE NOTE IS THE USER'S OWN WRITING. Every sentence is first person ("I", "my family", "what I need to do"). Never address the user as "you", never use their name, and never describe them in the third person.
 2. NEVER MENTION THE CHAT. No "you asked", no "as we discussed", no "SureWord explained", no reference to the app, the question, or this rewrite. The note reads as if the user sat down and wrote what they had learned.
 3. KEEP THE DOCTRINE AND THE SCRIPTURE OF THE ANSWER. Use the passages the conversation actually used. Do not add verses it did not cite, and do not soften, hedge or reinterpret anything it established.
-4. Quote each primary verse in full as a blockquote whose last line is "> \u2014 Book Chapter:Verse, TRANSLATION", naming the translation the conversation itself used (KJV unless it clearly used another).
+4. Quote each primary verse in full as a blockquote whose last line is "> \u2014 Book Chapter:Verse, TRANSLATION", using ${options.translation ?? "KJV"}, the selected quotation edition for this save. Never relabel words from another edition.
 5. Use 3 to 7 "## " headings, each stating a claim rather than a label ("## The church is a body, not a building", not "## Background").
 6. Finish with a closing section, in the user's voice, naming what they will actually do next: a commitment, an application, or a short written prayer.
 7. Write only the note. No preamble, no closing remark about the note, no meta commentary of any kind.`;
@@ -215,7 +224,7 @@ export function buildComposerPrompt(input: {
 	existingNoteContent?: string;
 	correction?: string;
 }): string {
-	const sections = [`THE ANSWER THE USER IS SAVING:\n${input.answer.trim()}`];
+	const sections = [`THE ANSWER THE USER IS SAVING:\n${input.answer}`];
 	sections.push(
 		input.transcript
 			? `THE CONVERSATION IT CAME OUT OF (oldest turn first):\n${input.transcript}`
@@ -268,8 +277,7 @@ function nameNeedles(name: string | null | undefined): string[] {
 
 /**
  * The checks that decide whether what came back is a note at all. They are
- * deliberately few: a rejection costs a second model call and then the verbatim
- * save, so only the failures that reproduce the bug are fatal - the answer
+ * deliberately few: a rejection costs a second model call, so only the failures that reproduce the bug are fatal - the answer
  * copied across with its "you" framing intact, the user addressed by name, a
  * body with no structure, or nothing at all.
  */
@@ -280,6 +288,14 @@ export function validateComposedNote(
 	const markdown = note.markdown.trim();
 	const title = note.title.trim();
 	if (!markdown) return { ok: false, reason: "the note body was empty" };
+	// The persistence renderer removes raw HTML/active content and image alt
+	// text. Keep AI notes in ordinary Markdown so checking cannot approve text
+	// that would disappear when appendMarkdownToNote renders it.
+	if (/<[!/?A-Za-z]|!\[[^\]]*\]|&(?:#\d+|#x[0-9a-f]+|[a-z][a-z0-9]+);/i.test(markdown) || /^ {0,3}\[[^\]]+\]:/m.test(markdown)) return { ok: false, reason: "the note contains content the save renderer could remove" };
+
+	// The checker removes Markdown underscores, but CommonMark keeps them
+	// literal within a word. Reject this mismatch before it can be certified.
+	if (/(?<=[\p{L}\p{N}\p{M}])_+(?=[\p{L}\p{N}\p{M}])/u.test(markdown)) return { ok: false, reason: "intraword underscores would change the saved words" };
 
 	const prose = noteProseOnly(markdown);
 	if (SECOND_PERSON.test(prose)) {
@@ -307,106 +323,84 @@ export function correctionFor(reason: string): string {
 	return `Your previous attempt was rejected: ${reason}. Write it again as the user's own journal entry - first person throughout, never addressing or naming them, with 3 to 7 "## " claim headings and no mention of the chat.`;
 }
 
-/**
- * Rewrite a saved chat answer into a note in the user's voice. Never throws:
- * a model failure, a timeout, or two rejected attempts all return the original
- * markdown with `composed: false`, because losing the user's content is a far
- * worse outcome than saving it in the wrong voice.
- */
+/** Compose and verify before handing any AI content to the append route. */
 export async function composeNoteFromAnswer(options: {
 	userId: string;
-	/** The assistant answer the user tapped "Add to notes" on. */
 	markdown: string;
-	/** Set when the save targets an existing note; its title is kept. */
 	noteId?: string;
-	/** Sent by clients that know which conversation the answer came from. */
 	conversationId?: string;
+	deadlineAt?: number;
+	signal?: AbortSignal;
 }): Promise<ComposeResult> {
-	const verbatim = (reason: ComposeFailureReason): ComposeResult => ({
-		markdown: options.markdown,
-		composed: false,
-		reason,
-	});
-
+	if (options.markdown.length > COMPOSE_MAX_MARKDOWN) return { composed: false, reason: "rejected" };
+	const deadlineAt = options.deadlineAt ?? Date.now() + COMPOSE_WORKFLOW_MS;
+	// Context/model resolution and both generation attempts share the first
+	// 45 seconds; checking retains 75 seconds and persistence retains 30.
+	const generationDeadline = Math.min(Date.now() + COMPOSE_TIMEOUT_MS, deadlineAt - 75_000 - COMPOSE_PERSISTENCE_RESERVE_MS);
 	try {
-		const conversationId =
-			options.conversationId?.trim() ||
-			(await findConversationForAnswer(options.userId, options.markdown));
-
-		const [transcriptMessages, existingNote, user] = await Promise.all([
-			conversationId
-				? loadConversationTranscript(options.userId, conversationId)
-				: Promise.resolve<TranscriptMessage[]>([]),
-			options.noteId
-				? prisma.note.findFirst({
-						where: { id: options.noteId, userId: options.userId },
-						select: { title: true, htmlContent: true, plainText: true },
-					})
-				: Promise.resolve(null),
-			prisma.user.findUnique({ where: { id: options.userId }, select: { name: true } }),
-		]);
-
-		const existingNoteTitle = existingNote?.title;
-		const existingNoteContent = existingNote
-			? htmlToPlainText(existingNote.htmlContent || existingNote.plainText).slice(
-					0,
-					MAX_EXISTING_NOTE_CHARS
-				)
-			: undefined;
-
-		const instructions = composerInstructions({ existingNoteTitle });
-		const basePrompt = {
-			answer: options.markdown,
-			transcript: buildTranscriptBlock(transcriptMessages),
-			existingNoteTitle,
-			existingNoteContent,
-		};
-
-		const { model, providerOptions } = await resolveModel({
-			userId: options.userId,
-			fallbackEffort: "medium",
-			structured: true,
-		});
-		// One budget for both attempts, so a retry cannot double the wait.
-		const abortSignal = AbortSignal.timeout(COMPOSE_TIMEOUT_MS);
-
-		let lastReason = "";
-		for (let attempt = 0; attempt < 2; attempt += 1) {
-			const { output } = await generateText({
-				model,
-				providerOptions,
-				output: Output.object({ schema: composedNoteSchema }),
-				instructions,
-				prompt: buildComposerPrompt(
-					attempt === 0 ? basePrompt : { ...basePrompt, correction: correctionFor(lastReason) }
-				),
-				abortSignal,
-			});
-			if (!output) return verbatim("empty");
-
-			const candidate: ComposedNote = {
-				title: output.title.trim(),
-				markdown: output.markdown.trim(),
-			};
-			const validation = validateComposedNote(candidate, { userName: user?.name });
-			if (validation.ok) {
-				return {
-					markdown: candidate.markdown,
-					// An existing note keeps its own title; only a new note is named here.
-					...(existingNoteTitle ? {} : { title: candidate.title || undefined }),
-					composed: true,
-				};
+		options.signal?.throwIfAborted();
+		const phase = await beforeProseDeadline(generationDeadline, 0, async () => {
+			const conversationId = options.conversationId?.trim() || await findConversationForAnswer(options.userId, options.markdown);
+			const [transcriptMessages, existingNote, user] = await Promise.all([
+				conversationId ? loadConversationTranscript(options.userId, conversationId) : Promise.resolve<TranscriptMessage[]>([]),
+				options.noteId ? prisma.note.findFirst({ where: { id: options.noteId, userId: options.userId }, select: { title: true, htmlContent: true, plainText: true } }) : Promise.resolve(null),
+				prisma.user.findUnique({ where: { id: options.userId }, select: { name: true, translation: true } }),
+			]);
+			if (options.noteId && !existingNote) return { ok: false as const, reason: "not-found" as const };
+			const existingNoteTitle = existingNote?.title;
+			const existingNoteContent = existingNote ? htmlToPlainText(existingNote.htmlContent || existingNote.plainText) : undefined;
+			if ((existingNoteContent?.length ?? 0) > MAX_EXISTING_NOTE_CHARS) throw new Error("Complete existing-note context exceeds its bound.");
+			const preferredTranslation = user?.translation;
+			const translation = isTranslationId(preferredTranslation) ? preferredTranslation : "KJV";
+			const basePrompt = { answer: options.markdown, transcript: buildCompleteComposerTranscript(transcriptMessages, options.markdown), existingNoteTitle, existingNoteContent };
+			const context = buildComposerPrompt(basePrompt);
+			const question = transcriptMessages.find(message => message.role === "user" && message.content.trim())?.content ?? "Save this complete answer as a first-person study-journal entry.";
+			if (context.length > COMPOSE_MAX_SOURCE_CONTEXT || question.length > 16_000) throw new Error("Complete composer review context exceeds its bound.");
+			const instructions = composerInstructions({ existingNoteTitle, translation });
+			if (instructions.length + context.length > COMPOSE_MAX_PROMPT_CHARS) throw new Error("Complete composer prompt exceeds its bound.");
+			// Preserve the existing composer model/head/foreground meter.
+			const resolved = await resolveModel({ userId: options.userId, fallbackEffort: "medium", structured: true });
+			const job = checkedStructuredProseModel(resolved, false);
+			const timeout = AbortSignal.timeout(remainingProseTime(generationDeadline, COMPOSE_TIMEOUT_MS));
+			const abortSignal = options.signal ? AbortSignal.any([timeout, options.signal]) : timeout;
+			let lastReason = "";
+			for (let attempt = 0; attempt < 2; attempt++) {
+				remainingProseTime(generationDeadline, COMPOSE_TIMEOUT_MS);
+				abortSignal.throwIfAborted();
+				const prompt = buildComposerPrompt(attempt === 0 ? basePrompt : { ...basePrompt, correction: correctionFor(lastReason) });
+				if (instructions.length + prompt.length > COMPOSE_MAX_PROMPT_CHARS) throw new Error("Complete composer retry exceeds its bound.");
+				const { output } = await generateText({ model: job.model, providerOptions: job.providerOptions,
+					output: Output.object({ schema: composedNoteSchema }), instructions,
+					prompt, abortSignal, maxRetries: 0 });
+				if (!output) return { ok: false as const, reason: "empty" as const };
+				// All normalization happens before the source check.
+				const candidate = { title: existingNoteTitle ?? output.title.trim(), markdown: output.markdown.trim() };
+				const validation = validateComposedNote(candidate, { userName: user?.name });
+				if (validation.ok) return { ok: true as const, candidate, job, translation, existingNoteTitle, userName: user?.name, context, question };
+				lastReason = validation.reason;
 			}
-			lastReason = validation.reason;
-		}
-
-		// Shape only, no user id and no content, matching the AI metrics.
-		console.warn(
-			`[note-composer] Both attempts rejected (${lastReason}); saving the answer verbatim.`
-		);
-		return verbatim("rejected");
-	} catch (error) {
-		console.error("[note-composer] Composition failed; saving the answer verbatim:", error);
-		return verbatim("error");
+			return { ok: false as const, reason: "rejected" as const };
+		});
+		if (!phase.ok) return { composed: false, reason: phase.reason };
+		const final = await verifyStructuredProse(phase.candidate, {
+			fields: [
+				...(phase.existingNoteTitle === undefined ? [{ id: "note:title", read: (note: ComposedNote) => note.title, write: (note: ComposedNote, text: string) => ({ ...note, title: text }) }] : []),
+				{ id: "note:markdown", read: (note: ComposedNote) => note.markdown, write: (note: ComposedNote, text: string) => ({ ...note, markdown: text }) },
+			],
+			immutable: note => ({ targetNoteId: options.noteId ?? null, existingTitle: phase.existingNoteTitle !== undefined ? note.title : null }),
+			validate: note => typeof note.title === "string" && typeof note.markdown === "string" &&
+				(phase.existingNoteTitle !== undefined || (note.title.trim().length > 0 && note.title === note.title.trim() && note.title.length <= COMPOSE_MAX_TITLE)) &&
+				note.markdown.length <= COMPOSE_MAX_MARKDOWN && validateComposedNote(note, { userName: phase.userName }).ok,
+			verification: { model: phase.job.model, providerOptions: phase.job.providerOptions, translation: phase.translation,
+				question: phase.question,
+				context: phase.context, maxContextChars: COMPOSE_MAX_SOURCE_CONTEXT, requireCompleteContext: true, signal: options.signal, purpose: "note composition: a first-person journal title and complete markdown body, ready to append" },
+			deadlineAt, persistenceReserveMs: COMPOSE_PERSISTENCE_RESERVE_MS,
+		});
+		return { composed: true, provenance: "verified-ai", markdown: final.markdown, ...(phase.existingNoteTitle !== undefined ? {} : { title: final.title }) };
+	} catch {
+		// Content-free diagnostics. No raw provider exception or unchecked
+		// client answer is turned into a saveable fallback.
+		console.warn("[note-composer] Composition or source verification failed; no content saved.");
+		return { composed: false, reason: "verification" };
 	}
 }

@@ -79,7 +79,13 @@ struct NoteAISheet: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: Spacing.md) {
                         ForEach(ai.messages) { message in
-                            NoteAIMessageView(message: message).id(message.id)
+                            if message.savedAnswerReview != nil {
+                                SavedAnswerReviewView(message: message, api: ai.savedAnswerReviewAPI) { checked in
+                                    AnyView(NoteAIMessageView(message: checked, onClose: { dismiss() }))
+                                }.id(message.id)
+                            } else {
+                                NoteAIMessageView(message: message, onClose: { dismiss() }).id(message.id)
+                            }
                         }
                         if let error = ai.error {
                             VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -228,6 +234,7 @@ struct NoteAISheet: View {
 private struct NoteAIMessageView: View {
     @Environment(\.theme) private var theme
     let message: ChatViewMessage
+    var onClose: () -> Void
 
     var body: some View {
         if message.role == .user {
@@ -273,26 +280,7 @@ private struct NoteAIMessageView: View {
                             }
                         }
                     }
-                    ForEach(message.noteActions) { action in
-                        HStack(spacing: 6) {
-                            Image(systemName: "pencil")
-                                .appFont(.caption2)
-                                .foregroundStyle(theme.accent)
-                            Text(action.created ? "Created note" : "Added to note")
-                                .foregroundStyle(theme.textSecondary)
-                            Text(action.noteTitle)
-                                .foregroundStyle(theme.accent)
-                                .fontWeight(.semibold)
-                        }
-                        .appFont(.footnote)
-                        .padding(.horizontal, Spacing.md)
-                        .padding(.vertical, 6)
-                        .background(theme.accentSoft, in: .rect(cornerRadius: Radius.sm))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: Radius.sm)
-                                .strokeBorder(theme.accentBorder, lineWidth: 1)
-                        }
-                    }
+                    NoteAIReceiptLine(receipts: message.receipts, onClose: onClose)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

@@ -474,9 +474,7 @@ struct ConnectionsMapView: View {
     private func explain() { model.explain(api: app.api, place: place, translation: translation, section: section) }
 
     private func openReader(_ target: ConnectionsPlace) {
-        app.pendingVerseReference = target.reference
-        app.pendingVerseTranslation = translation
-        app.section = .bible
+        app.openVerse(target.reference, translation: translation)
     }
 
     private func continueInChat() {

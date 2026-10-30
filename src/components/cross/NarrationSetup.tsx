@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronUp, Headphones, Pause, Play } from "lucide-react";
 import { NARRATION_STYLES, type NarrationOptions, type NarrationStyle, type NarrationVoices } from "@/lib/daily-cross-audio-options";
+import { coordinateMediaNarration } from "@/lib/voice/web-narration";
 
 const PREF_KEY = "sureword.narrationOptions";
 export default function NarrationSetup({ onGenerate }: { onGenerate: (options: NarrationOptions) => void }) {
@@ -14,6 +15,7 @@ export default function NarrationSetup({ onGenerate }: { onGenerate: (options: N
 	const [attempt, setAttempt] = useState(0);
 	const [previewing, setPreviewing] = useState<string | null>(null);
 	const preview = useRef<HTMLAudioElement | null>(null);
+	const previewNarration = useRef<ReturnType<typeof coordinateMediaNarration> | null>(null);
 	useEffect(() => {
 		const controller = new AbortController();
 		setError(null);
@@ -26,19 +28,21 @@ export default function NarrationSetup({ onGenerate }: { onGenerate: (options: N
 			setVoiceId(next.voices.some((v) => v.id === saved?.voiceId) ? saved.voiceId! : next.defaultVoiceId);
 			if (NARRATION_STYLES.some((s) => s.id === saved?.style)) setStyle(saved.style!);
 		}).catch(() => { if (!controller.signal.aborted) setError("Voices couldn't load. You can use the default narrator or try again."); });
-		return () => { controller.abort(); preview.current?.pause(); };
+		return () => { controller.abort(); previewNarration.current?.dispose(); previewNarration.current = null; preview.current = null; };
 	}, [attempt]);
 	const selected = catalog?.voices.find((v) => v.id === voiceId);
-	const stopPreview = () => { preview.current?.pause(); setPreviewing(null); };
+	const stopPreview = () => { previewNarration.current?.dispose(); previewNarration.current = null; preview.current = null; setPreviewing(null); };
 	const sample = async (id: string, url: string) => {
 		if (previewing === id) { stopPreview(); return; }
 		stopPreview();
 		const element = new Audio(url);
 		preview.current = element;
-		element.onended = () => setPreviewing(null);
-		element.onerror = () => { setPreviewing(null); setError("This voice preview couldn't play. Try another voice."); };
+		const narration = coordinateMediaNarration(element);
+		previewNarration.current = narration;
+		element.onended = () => { if (preview.current === element) setPreviewing(null); };
+		element.onerror = () => { if (preview.current === element) { setPreviewing(null); setError("This voice preview couldn't play. Try another voice."); } };
 		setPreviewing(id);
-		try { await element.play(); } catch { setPreviewing(null); setError("This voice preview couldn't play. Try another voice."); }
+		try { await narration.play(); } catch { if (preview.current === element) { setPreviewing(null); setError("This voice preview couldn't play. Try another voice."); } }
 	};
 	return <div className="flex flex-col gap-4">
 		<div className="flex items-start gap-3"><Headphones aria-hidden className="mt-1 h-6 w-6 shrink-0 text-amber-600 dark:text-amber-400" /><div><h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">Let today&apos;s word meet you in audio</h3><p className="mt-1 text-sm leading-6 text-neutral-600 dark:text-neutral-300">Your verse, reflection, study path and prayer, narrated when you choose.</p></div></div>

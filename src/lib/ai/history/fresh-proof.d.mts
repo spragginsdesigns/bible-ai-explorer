@@ -1,0 +1,10 @@
+import type {FreshHistoryProof,HistoryVerificationResult} from "./contracts";
+export declare function createFreshHistoryProof(ticket:object,approval:HistoryVerificationResult|null):FreshHistoryProof;
+export declare function freshActionManifest(source:unknown,executions:unknown[]):Record<string,unknown>[];
+export declare function recoveredFreshActions(record:unknown,source:unknown,actions:unknown[]):Record<string,unknown>[]|null;
+export declare function genericNoteOutput(tool:string,output:unknown):Record<string,unknown>|null;
+export declare function fixedNoteReceiptParts(executions:import("./contracts").ExecutedHistoryAction[]):{type:string;toolCallId:string;state:"output-available";input:Record<string,never>;output:Record<string,unknown>}[];
+export declare function isFixedNoteReceiptFallback(source:unknown,manifest:unknown):boolean;
+export declare function createFreshPreparation(data:unknown):unknown;
+export declare function readFreshPreparation(ticket:object):unknown;
+export declare function readFreshHistoryProof(proof:FreshHistoryProof):unknown;

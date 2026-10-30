@@ -1,3 +1,4 @@
+import { invalidHistoryVerification, parseHistoryVerification, type HistoryVerification } from "./historyReview";
 import { progressFromParts, type ChatProgress } from "./chatProgress";
 import type { UIMessage } from "ai";
 import type { ChatAttachmentDescriptor } from "@/features/chat/fileAttachments";
@@ -87,6 +88,7 @@ function parseShowMe(output: Record<string, unknown>): ShowMeView | null {
 }
 
 export interface ChatViewMessage {
+	historyVerification?: HistoryVerification;
 	id: string;
 	role: "user" | "assistant";
 	content: string;
@@ -137,7 +139,7 @@ export function isRenderableChatViewMessage(message: ChatViewMessage): boolean {
 		message.activity ||
 		message.content.trim() ||
 		message.attachments?.length ||
-		message.noteActions?.length ||
+		message.historyVerification || message.noteActions?.length ||
 		message.crossActions?.length ||
 		// A turn whose only visible output is a receipt line still renders.
 		message.receipts?.length ||
@@ -448,6 +450,8 @@ export function toViewMessage(
 	// (an ask-question retry rewrites that wholesale). dbMessageToUIMessage
 	// lifts the column into the in-memory metadata so this one conversion path
 	// can read it, and the optimistic update rewrites it in the same place.
+	const historyVerification = message.role === "assistant" && legacy.historyVerification !== undefined
+		? parseHistoryVerification(legacy.historyVerification, message.id) ?? invalidHistoryVerification(message.id) : null;
 	const rawFeedback: unknown = legacy.feedback;
 	const feedback = rawFeedback === "up" ? "up" : rawFeedback === "down" ? "down" : null;
 
@@ -465,6 +469,7 @@ export function toViewMessage(
 		...(attachments.length > 0 ? { attachments } : {}),
 		...(choiceCard ? { choiceCard } : {}),
 		...(showMe.length > 0 ? { showMe } : {}),
+		...(historyVerification ? { historyVerification } : {}),
 		...(feedback && message.role !== "user" ? { feedback } : {}),
 		...(activity && options.isStreaming ? { activity } : {}),
 		...(progress ? { progress } : {}),

@@ -14,6 +14,7 @@ import LaunchSplash from "@/components/LaunchSplash";
 import TextScaleRoot from "@/components/walk/TextScaleRoot";
 import SpotlightOverlay from "@/components/walk/SpotlightOverlay";
 import WalkWithMeLauncher from "@/components/walk/WalkWithMeLauncher";
+import VoiceControlProvider from "@/components/voice/VoiceControlProvider";
 import { TEXT_SCALE_BOOT_SCRIPT } from "@/lib/text-scale";
 
 const atkinsonHyperlegible = Atkinson_Hyperlegible({
@@ -171,6 +172,7 @@ export default function RootLayout({
 						enableSystem
 						disableTransitionOnChange
 					>
+						<VoiceControlProvider>
 						{children}
 						<LaunchSplash />
 						<MobileBottomNav />
@@ -189,6 +191,7 @@ export default function RootLayout({
 						{/* Inside ClerkProvider: it identifies the reader from the
 						    session, and does nothing at all without a key. */}
 						<AnalyticsProvider />
+						</VoiceControlProvider>
 					</ThemeProvider>
 				</ClerkProvider>
 			</body>

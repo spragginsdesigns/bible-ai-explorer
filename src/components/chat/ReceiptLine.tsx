@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { ChatReceipt } from "@/lib/chat/receipts";
 import { receiptHref } from "@/lib/chat/receipt-links";
 
 interface ReceiptLineProps {
 	/** Every receipt of the turn, in parser order. */
 	receipts: readonly ChatReceipt[];
+	beforeNavigate?: () => Promise<boolean>;
 }
 
 const FRAGMENT_CLASS =
@@ -49,7 +51,11 @@ async function forgetMemory(memoryId: string): Promise<void> {
  * successful undo replaces the fragment with a plain "Forgotten" for the rest
  * of the session.
  */
-const ReceiptLine: React.FC<ReceiptLineProps> = ({ receipts }) => {
+const ReceiptLine: React.FC<ReceiptLineProps> = ({ receipts, beforeNavigate }) => {
+	const router = useRouter();
+	const mounted = useRef(true);
+	const navigationPending = useRef(false);
+	useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 	const [forgotten, setForgotten] = useState<readonly string[]>([]);
 	const [pending, setPending] = useState<readonly string[]>([]);
 	const [error, setError] = useState<string | null>(null);
@@ -86,7 +92,17 @@ const ReceiptLine: React.FC<ReceiptLineProps> = ({ receipts }) => {
 									Forgotten
 								</span>
 							) : (
-								<Link href={receiptHref(receipt.target)} className={FRAGMENT_CLASS}>
+								<Link href={receiptHref(receipt.target)} className={FRAGMENT_CLASS} onClick={event => {
+										if (!beforeNavigate || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+										event.preventDefault();
+										if (navigationPending.current) return;
+										navigationPending.current = true;
+										void (async () => {
+											try { if (await beforeNavigate() && mounted.current) router.push(receiptHref(receipt.target)); }
+											catch { if (mounted.current) setError("Your note could not be saved, so this screen stayed open."); }
+											finally { navigationPending.current = false; }
+										})();
+									}}>
 									{receipt.label}
 								</Link>
 							)}

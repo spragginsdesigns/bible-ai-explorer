@@ -19,7 +19,7 @@ type CardState =
 	| (Extract<ReflectionResponse, { status: "ready" }> & { kind: "ready" });
 
 /** Covers the one generation after new reading (the route's maxDuration). */
-const REFLECTION_TIMEOUT_MS = 60_000;
+const REFLECTION_TIMEOUT_MS = 150_000;
 
 const link =
 	"text-support font-semibold text-amber-600 hover:underline dark:text-amber-400";

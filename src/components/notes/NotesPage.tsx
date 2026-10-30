@@ -13,6 +13,7 @@ import NoteEditorView from "./NoteEditorView";
 import NotesTopBar from "./NotesTopBar";
 import NoteTemplatePicker from "./NoteTemplatePicker";
 import { buildNoteTemplate, type NoteTemplateId } from "./noteTemplates";
+import { confirmVoiceDeparture } from "@/lib/voice/web-departure";
 import { useNotes } from "@/hooks/useNotes";
 
 const SWIPE_THRESHOLD = 50;
@@ -93,6 +94,8 @@ const NotesSession: React.FC<{ userId: string }> = ({ userId }) => {
 	noteParamRef.current = noteParam;
 	/** History entries this session pushed on top of the list, for Back. */
 	const pushedDepth = useRef(0);
+	const navigationIntent = useRef(0);
+	const activeNoteRef = useRef(activeNoteId); activeNoteRef.current = activeNoteId;
 
 	useEffect(() => {
 		const onPopState = () => {
@@ -103,7 +106,9 @@ const NotesSession: React.FC<{ userId: string }> = ({ userId }) => {
 	}, []);
 
 	const openNote = useCallback(
-		(id: string) => {
+		async (id: string) => {
+			const intent = ++navigationIntent.current;
+			if (!await confirmVoiceDeparture() || intent !== navigationIntent.current) return;
 			setActiveNoteId(id);
 			if (noteParamRef.current === id) return;
 			window.history.pushState(null, "", noteUrl(id));
@@ -114,7 +119,9 @@ const NotesSession: React.FC<{ userId: string }> = ({ userId }) => {
 
 	// Back always lands on the list, like Android's dismissTo("/notes"):
 	// unwind the entries we pushed, or replace a deep-linked one.
-	const closeNote = useCallback(() => {
+	const closeNote = useCallback(async () => {
+		const intent = ++navigationIntent.current;
+		if (!await confirmVoiceDeparture() || intent !== navigationIntent.current) return false;
 		setActiveNoteId(null);
 		if (pushedDepth.current > 0) {
 			const depth = pushedDepth.current;
@@ -123,6 +130,7 @@ const NotesSession: React.FC<{ userId: string }> = ({ userId }) => {
 		} else if (noteParamRef.current) {
 			window.history.replaceState(null, "", NOTES_PATH);
 		}
+		return true;
 	}, [setActiveNoteId]);
 
 	// URL -> open note. An id that is not in the library (deleted, another
@@ -135,8 +143,22 @@ const NotesSession: React.FC<{ userId: string }> = ({ userId }) => {
 			return;
 		}
 		if (syncedParam.current === noteParam) return;
-		syncedParam.current = noteParam;
-		setActiveNoteId(noteParam);
+		if (activeNoteRef.current === noteParam) { navigationIntent.current += 1; syncedParam.current = noteParam; return; }
+		const intent = ++navigationIntent.current;
+		let cancelled = false;
+		void (async () => {
+			const mayLeave = await confirmVoiceDeparture();
+			if (cancelled || intent !== navigationIntent.current || noteParamRef.current !== noteParam) return;
+			if (!mayLeave) {
+				const previous = activeNoteRef.current;
+				window.history.replaceState(null, "", previous ? noteUrl(previous) : NOTES_PATH);
+				setPageError("Your note could not be saved, so it stayed open. Its local edits are retained.");
+				return;
+			}
+			syncedParam.current = noteParam;
+			setActiveNoteId(noteParam);
+		})();
+		return () => { cancelled = true; };
 	}, [noteParam, hasLoaded, noteExists, setActiveNoteId]);
 
 	const bannerError = mutationError ?? pageError;
@@ -183,7 +205,10 @@ const NotesSession: React.FC<{ userId: string }> = ({ userId }) => {
 	const handlePickTemplate = async (id: NoteTemplateId) => {
 		if (creation.current) return;
 		creation.current = true; setCreating(true); setCreateError(null);
+		const intent = ++navigationIntent.current;
+		const ownsCreation = () => mounted.current && navigationIntent.current === intent;
 		try {
+			if (!await confirmVoiceDeparture() || !ownsCreation()) return;
 			let churchName: string | null = null;
 			if (id === "sermon") {
 				const response = await fetch("/api/church", { cache: "no-store" });
@@ -191,10 +216,10 @@ const NotesSession: React.FC<{ userId: string }> = ({ userId }) => {
 				const data = await response.json();
 				if (data.status !== "unavailable" && typeof data.church?.name === "string") churchName = data.church.name;
 			}
-			if (!mounted.current) return;
+			if (!ownsCreation()) return;
 			const seed = buildNoteTemplate(id, { churchName });
-			const note = await createNote(undefined, seed?.title, seed);
-			if (mounted.current) {
+			const note = await createNote(undefined, seed?.title, seed, { activate: false, isCurrent: ownsCreation });
+			if (ownsCreation()) {
 				openNote(note.id);
 				setTemplatePickerOpen(false);
 			}
@@ -212,9 +237,8 @@ const NotesSession: React.FC<{ userId: string }> = ({ userId }) => {
 
 	// Deleting the open note returns to the list first, as Android does; a
 	// failed delete puts the note back in the list with the error showing.
-	const handleDeleteOpenNote = (id: string) => {
-		closeNote();
-		void deleteNote(id);
+	const handleDeleteOpenNote = async (id: string) => {
+		if (await closeNote()) await deleteNote(id);
 	};
 
 	// Resolving an unresolved wikilink: create the target in the source note's
@@ -223,9 +247,12 @@ const NotesSession: React.FC<{ userId: string }> = ({ userId }) => {
 	const activeFolderOfNote = activeNote?.folderId ?? null;
 	const handleCreateLinkedNote = useCallback(
 		async (title: string) => {
+			const intent = ++navigationIntent.current;
+			const ownsCreation = () => mounted.current && navigationIntent.current === intent;
 			try {
-				const note = await createNote(activeFolderOfNote, title);
-				openNote(note.id);
+				if (!await confirmVoiceDeparture() || !ownsCreation()) return;
+				const note = await createNote(activeFolderOfNote, title, null, { activate: false, isCurrent: ownsCreation });
+				if (ownsCreation()) await openNote(note.id);
 			} catch {
 				setPageError("The note could not be created.");
 			}

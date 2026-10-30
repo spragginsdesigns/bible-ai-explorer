@@ -1,3 +1,4 @@
+import { approvedSharedSnapshot } from "@/lib/ai/history/shared-boundary.server";
 import { prisma } from "@/lib/prisma";
 import {
 	SHARED_ANSWER_FALLBACK_TITLE,
@@ -27,11 +28,8 @@ import { renderShareCard } from "@/lib/share-cards/render";
  * the same card as a story or square image (`?format=story&style=parchment`)
  * to share the picture itself.
  *
- * It reads the SharedAnswer snapshot only - never Message - so a revoked link
- * stops drawing the moment it is revoked. Caches are the other half of that:
- * the card is never cached as long-lived (SHARED_CARD_CACHE_CONTROL), and its
- * CDN copy carries a per-share tag that revoking purges. Every format and
- * style of one share sits under the same tag, so one purge takes them all.
+ * It renders only an unchanged snapshot that matches a currently checked
+ * source. Verification state is checked on each request.
  *
  * Node runtime, because it reads Postgres through Prisma.
  */
@@ -69,9 +67,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
 	const share = await prisma.sharedAnswer.findFirst({
 		where: { id, revokedAt: null },
-		select: { question: true, answer: true, references: true },
+		select: { userId: true, conversationId: true, messageId: true, question: true, answer: true, references: true, translation: true },
 	});
-	if (!share) return notFound();
+	if (!share || !await approvedSharedSnapshot(share)) return notFound();
 	// A no-op off Vercel, and never throws: a failed tag only loses the
 	// instant purge, the short s-maxage still bounds a revoked card.
 	await tagSharedCard(id);
@@ -92,7 +90,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 			style,
 			format,
 			size,
-			cacheControl: SHARED_CARD_CACHE_CONTROL,
+			cacheControl: "private, no-store",
 		}
 	);
 }

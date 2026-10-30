@@ -7,12 +7,21 @@ import type { ChatMessage } from "../useChat";
 import { normalizeAssistantMarkdown } from "@/utils/assistantMarkdown";
 import SureWordGuideAvatar, { guidePhase } from "../SureWordGuideAvatar";
 import ReceiptLine from "../chat/ReceiptLine";
+import HistoryReviewCard from "../chat/HistoryReviewCard";
+import { dbMessageToUIMessage, toViewMessage } from "../useChat";
 
 interface NoteAIMessageProps {
 	message: ChatMessage;
+	beforeNavigate?: () => Promise<boolean>;
 }
 
-const NoteAIMessage: React.FC<NoteAIMessageProps> = ({ message }) => {
+const NoteAIMessage: React.FC<NoteAIMessageProps> = ({ message, beforeNavigate }) => {
+	if (message.role === "assistant" && message.historyVerification) {
+		return <HistoryReviewCard review={message.historyVerification} renderVerified={row => <NoteAIMessage
+			message={toViewMessage(dbMessageToUIMessage(row), { isStreaming: false, timestamp: message.timestamp })}
+			beforeNavigate={beforeNavigate}
+		/>} />;
+	}
 	if (message.role === "user") {
 		return (
 			<div className="flex justify-end mb-3 animate-message-in">
@@ -55,7 +64,7 @@ const NoteAIMessage: React.FC<NoteAIMessageProps> = ({ message }) => {
 				{message.isStreaming && message.content && !message.activity && (
 					<span className="inline-block w-1.5 h-3 bg-neutral-400 animate-pulse ml-0.5 align-text-bottom" />
 				)}
-				{message.receipts && <ReceiptLine receipts={message.receipts} />}
+				{message.receipts && <ReceiptLine receipts={message.receipts} beforeNavigate={beforeNavigate} />}
 			</div>
 		</div>
 	);

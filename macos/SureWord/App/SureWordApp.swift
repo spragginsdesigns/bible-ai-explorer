@@ -87,9 +87,10 @@ struct SureWordApp: App {
                         return
                     }
                     Task { @MainActor in
+                        let arrival = DeepLink.parse(url).map { PendingDeepLinks.shared.prepare($0) }
                         let handledByClerk = (try? await Clerk.shared.handle(url)) ?? false
-                        guard !handledByClerk, let link = DeepLink.parse(url) else { return }
-                        PendingDeepLinks.shared.post(link)
+                        guard !handledByClerk, let arrival else { return }
+                        PendingDeepLinks.shared.post(arrival)
                     }
                 }
                 .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
@@ -218,6 +219,7 @@ struct RootView: View {
         // Analytics identity, lifecycle and sign-in completions. Identify on a
         // session; reset only when somebody who WAS signed in signs out.
         .onChange(of: scenePhase) { _, phase in
+            if phase == .active { root.app?.chat.refreshConversationsIfIdle() }
             Analytics.shared.phaseChanged(to: AnalyticsScenePhase.name(phase))
         }
         .onChange(of: clerk.user?.id, initial: true) { _, userID in
@@ -229,6 +231,7 @@ struct RootView: View {
         // remote dispatch independently checks that same server-side session.
         .onChange(of: clerk.session?.id) { previousID, sessionID in
             guard previousID != nil, previousID != sessionID else { return }
+            root.app?.onboarding.teardown()
             AnswerReadyNotifier.invalidateForAccountChange()
             MacPushRegistration.clearLocalDeliveryForAccountChange()
             _ = PendingDeepLinks.shared.drain()

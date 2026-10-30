@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useAuth } from "@clerk/nextjs";
 import type { ChoiceCardOutput } from "@/lib/onboarding-rules";
 import { alreadyHeardOnStart, voiceItemsFor, type VoiceItem } from "@/lib/guide-cards";
+import { beginNarration, WEB_VOICE_RATE } from "@/lib/voice/web-narration";
+import { useVoiceControls, useVoiceControlsActive } from "../voice/VoiceControlProvider";
 import { requestWelcomeVoice, type WelcomeVoiceAnswer } from "@/lib/walk-client";
 
 /** A message is saved right after its stream ends, so a 404 just after is expected. */
@@ -24,27 +27,38 @@ const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, 
  * session gives up the moment it notices.
  */
 class WelcomeVoicePlayer {
+	constructor(private readonly onUnavailable: () => void) {}
 	private heard = new Set<string>();
 	private queue: VoiceItem[] = [];
 	private playing = false;
 	private session = 0;
+	private ownsSession: () => boolean = () => false;
+	private request: AbortController | null = null;
 	private stopCurrent: (() => void) | null = null;
+	private releaseNarration: (() => void) | null = null;
 
-	start(alreadyHeard: readonly string[]): void {
+	start(alreadyHeard: readonly string[], ownsSession: () => boolean): void {
 		this.stop();
+		this.ownsSession = ownsSession;
+		this.request = new AbortController();
 		this.heard = new Set(alreadyHeard);
 	}
 
 	stop(): void {
 		this.session += 1;
+		this.request?.abort();
+		this.request = null;
 		this.queue = [];
 		this.playing = false;
 		this.stopCurrent?.();
 		this.stopCurrent = null;
+		this.releaseNarration?.();
+		this.releaseNarration = null;
 	}
 
 	/** Queue every settled message not read yet, and play. */
 	offer(messages: readonly VoiceMessage[]): void {
+		if (!this.ownsSession()) return;
 		for (const message of messages) {
 			if (message.role !== "assistant" || message.isStreaming || message.id === "pending-assistant") continue;
 			if (this.heard.has(message.id)) continue;
@@ -54,28 +68,35 @@ class WelcomeVoicePlayer {
 		void this.pump();
 	}
 
+	private isCurrent(session: number): boolean { return this.session === session && this.ownsSession(); }
+
 	private async pump(): Promise<void> {
 		if (this.playing) return;
 		const session = this.session;
 		this.playing = true;
+		const release = beginNarration("welcome");
+		this.releaseNarration = release;
 		try {
-			while (this.session === session) {
+			while (this.isCurrent(session)) {
 				const item = this.queue.shift();
 				if (!item) break;
 				const answer = await this.fetchAnswer(item, session);
-				if (answer && this.session === session) await this.speak(answer, session);
+				if (!answer && this.isCurrent(session) && "messageId" in item) { this.stop(); this.onUnavailable(); return; }
+				if (answer && this.isCurrent(session)) await this.speak(answer, session);
 			}
 		} finally {
-			if (this.session === session) this.playing = false;
+			release();
+			if (this.session === session) { this.playing = false; this.releaseNarration = null; }
 		}
 	}
 
 	private async fetchAnswer(item: VoiceItem, session: number): Promise<WelcomeVoiceAnswer | null> {
 		const attempts = "messageId" in item ? NOT_SAVED_RETRIES : 1;
 		for (let attempt = 0; attempt < attempts; attempt += 1) {
-			if (this.session !== session) return null;
+			if (!this.isCurrent(session)) return null;
 			try {
-				const answer = await requestWelcomeVoice(item);
+				const answer = await requestWelcomeVoice(item, this.request?.signal);
+				if (!this.isCurrent(session)) return null;
 				if (answer) return answer;
 			} catch {
 				// A narration that fails to prepare is skipped, never retried into a loop.
@@ -88,18 +109,24 @@ class WelcomeVoicePlayer {
 
 	private speak(answer: WelcomeVoiceAnswer, session: number): Promise<void> {
 		return new Promise<void>((resolve) => {
-			if (this.session !== session) {
+			if (!this.isCurrent(session)) {
 				resolve();
 				return;
 			}
 			const done = () => {
-				this.stopCurrent = null;
+				if (this.session === session) this.stopCurrent = null;
 				resolve();
+			};
+			const failed = () => {
+				done();
+				if (this.isCurrent(session)) { this.stop(); this.onUnavailable(); }
 			};
 			if (answer.status === "ready") {
 				const audio = new Audio(answer.streamUrl);
+				audio.playbackRate = WEB_VOICE_RATE;
+				audio.preservesPitch = true;
 				audio.onended = done;
-				audio.onerror = done;
+				audio.onerror = failed;
 				this.stopCurrent = () => {
 					audio.pause();
 					audio.removeAttribute("src");
@@ -107,7 +134,7 @@ class WelcomeVoicePlayer {
 					done();
 				};
 				// A browser that refuses to start sound without a tap skips this one.
-				audio.play().catch(done);
+				audio.play().catch(failed);
 				return;
 			}
 			if (!("speechSynthesis" in window) || !answer.text.trim()) {
@@ -115,8 +142,10 @@ class WelcomeVoicePlayer {
 				return;
 			}
 			const utterance = new SpeechSynthesisUtterance(answer.text);
+			utterance.rate = WEB_VOICE_RATE;
+			utterance.pitch = 1;
 			utterance.onend = done;
-			utterance.onerror = done;
+			utterance.onerror = failed;
 			this.stopCurrent = () => {
 				window.speechSynthesis.cancel();
 				done();
@@ -139,17 +168,37 @@ class WelcomeVoicePlayer {
  * conversation stops whatever is playing and drops the queue.
  */
 export function useWelcomeVoice(active: boolean, conversationId: string | null, messages: readonly VoiceMessage[]): void {
-	const [player] = useState(() => new WelcomeVoicePlayer());
+	const { userId, sessionId, isLoaded } = useAuth();
+	const ownerKey = isLoaded && userId && sessionId && active ? JSON.stringify([userId, sessionId, conversationId]) : null;
+	const owner = useRef({ key: ownerKey });
+	// Invalidate held output before the effect's stop/abort can run.
+	if (owner.current.key !== ownerKey) owner.current = { key: ownerKey };
+	const identity = owner.current;
+	const controls = useVoiceControls();
+	const controlsActive = useVoiceControlsActive();
+	const unavailable = useRef(() => {});
+	unavailable.current = () => {
+		if (!controlsActive || !controls) return;
+		controls.stop();
+		void controls.speak("I could not read the saved welcome answer. Voice controls stopped. Check Chat before repeating your choice.");
+	};
+	const [player] = useState(() => new WelcomeVoicePlayer(() => unavailable.current()));
 	const messagesRef = useRef(messages);
 	messagesRef.current = messages;
 
-	useEffect(() => {
-		if (!active) return;
-		player.start(alreadyHeardOnStart(messagesRef.current));
+	useLayoutEffect(() => {
+		if (!active || !ownerKey) return;
+		player.start(alreadyHeardOnStart(messagesRef.current), () => owner.current === identity);
 		return () => player.stop();
-	}, [active, conversationId, player]);
+	}, [active, conversationId, ownerKey, identity, player]);
 
 	useEffect(() => {
-		if (active) player.offer(messages);
-	}, [active, messages, player]);
+		if (active && ownerKey && document.visibilityState === "visible") player.offer(messages);
+	}, [active, messages, ownerKey, identity, player]);
+	useEffect(() => {
+		const hidden = () => { if (document.visibilityState !== "visible") player.stop(); };
+		document.addEventListener("visibilitychange", hidden);
+		window.addEventListener("pagehide", hidden);
+		return () => { document.removeEventListener("visibilitychange", hidden); window.removeEventListener("pagehide", hidden); };
+	}, [player]);
 }

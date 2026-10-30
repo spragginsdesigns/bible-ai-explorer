@@ -60,7 +60,7 @@ describe("appendAnswerToNote", () => {
 		expect(apiJson).toHaveBeenCalledWith(getToken, "/api/notes/append", {
 			method: "POST",
 			body: { markdown: "**Answer**", noteId: "n1" },
-		});
+		}, { timeoutMs: 180_000 });
 		expect(result).toEqual({ noteId: "n1", noteTitle: "T", created: false });
 	});
 
@@ -76,6 +76,6 @@ describe("appendAnswerToNote", () => {
 		expect(apiJson).toHaveBeenCalledWith(getToken, "/api/notes/append", {
 			method: "POST",
 			body: { markdown: "text", noteId: null, title: "Romans 8" },
-		});
+		}, { timeoutMs: 180_000 });
 	});
 });

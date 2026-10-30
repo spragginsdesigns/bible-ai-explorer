@@ -9,6 +9,7 @@ import SwiftUI
 /// saved text; `NoteEditorModel.loadLinks()` flushes the editor first so a
 /// just-typed `[[link]]` is in the graph it shows.
 struct NoteInfoSheet: View {
+    @Environment(AppModel.self) private var app: AppModel?
     @Environment(\.theme) private var theme
     @Environment(\.dismiss) private var dismiss
 
@@ -20,6 +21,8 @@ struct NoteInfoSheet: View {
     @State private var aliasDraft = ""
     @State private var draft: PropertyDraft?
     @State private var creatingTarget: String?
+    @State private var isLive = true
+    @State private var sheetLifetime = UUID()
 
     /// Add/edit form state; `originalKey` is nil while adding.
     struct PropertyDraft: Equatable {
@@ -49,13 +52,22 @@ struct NoteInfoSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button("Done") { close() }
                 }
             }
             .task { await model.loadLinks() }
         }
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
+        .onAppear {
+            isLive = true
+            sheetLifetime = UUID()
+            creatingTarget = nil
+        }
+        .onDisappear {
+            isLive = false
+            sheetLifetime = UUID()
+        }
     }
 
     // MARK: Stats
@@ -397,18 +409,32 @@ struct NoteInfoSheet: View {
 
     // MARK: Navigation
 
-    private func open(_ noteID: String) {
+    private func close() {
+        isLive = false
+        sheetLifetime = UUID()
+        creatingTarget = nil
         dismiss()
+    }
+
+    private func open(_ noteID: String) {
+        guard isLive else { return }
+        close()
         onOpenNote(noteID)
     }
 
     private func createAndOpen(_ targetTitle: String) {
-        guard creatingTarget == nil else { return }
+        guard creatingTarget == nil, isLive, let app else { return }
+        let request = app.beginNoteNavigation()
+        let lifetime = sheetLifetime
         creatingTarget = targetTitle
         Task {
+            defer { if sheetLifetime == lifetime { creatingTarget = nil } }
+            guard isLive, sheetLifetime == lifetime,
+                  app.isCurrentNoteNavigationRequest(request) else { return }
             let createdID = await model.createLinkedNote(title: targetTitle)
-            creatingTarget = nil
-            if let createdID { open(createdID) }
+            guard isLive, sheetLifetime == lifetime,
+                  app.isCurrentNoteNavigationRequest(request), let createdID else { return }
+            open(createdID)
         }
     }
 }

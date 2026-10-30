@@ -3,6 +3,9 @@ import "server-only";
 import { generateText, Output } from "ai";
 import { z } from "zod";
 import { resolveModel } from "@/lib/ai/provider";
+import { checkedStructuredProseModel } from "@/lib/ai/structured-prose-model";
+import { beforeProseDeadline, remainingProseTime } from "@/lib/ai/structured-prose";
+import { bindReflectionSources, certifyReflection, parseVerifiedReflection, verifyReflectionContent, type VerifiedReflectionSources, type VerifiedStoredReflection } from "@/lib/reading-reflection-verification";
 import { stripDashes } from "@/lib/ai/plain-dashes";
 import { BOOKS, bookByOrder } from "@/lib/bible/books";
 import { allowsMemoryUse } from "@/lib/memory-policy";
@@ -21,9 +24,9 @@ import {
 	sanitizeReflection,
 	storedReflectionAllowed,
 	type ReadingReflectionContent,
-	type ReflectionSources,
 } from "@/lib/reading-overview-rules";
 import { loadStudyContext, memorySourceKey } from "@/lib/study-context";
+import { noteSourceRevision, memorySourceRevision } from "@/lib/study-source-revisions";
 import { getKjvBookNumber, getKjvVerseText } from "@/utils/kjvBible";
 import { doctrinalFoundation, interpretationGuidance, trustedContextGuidance } from "@/utils/systemPrompt";
 
@@ -31,17 +34,20 @@ import { doctrinalFoundation, interpretationGuidance, trustedContextGuidance } f
  * "Your walk": a short, personal reflection at the top of the reading log,
  * written from what the person actually read plus the same study context the
  * daily cross reads (questions, notes, memories, plan, church). Free for every
- * account. One model call per change in their reading, cached in
+ * account. One bounded draft/check job per change in their reading, cached in
  * ReadingReflection, so opening the log is a single row read.
  */
 
 const RECENT_DAYS = 14;
 const RECENT_ENTRY_LIMIT = 120;
-/** Well inside the route's 60s budget, so a hung provider ends in a fallback, not a timeout. */
+/** Generation and checking share one absolute workflow, with persistence margin. */
+export const REFLECTION_WORKFLOW_MS = 120_000;
 const GENERATION_TIMEOUT_MS = 30_000;
+const REFLECTION_MAX_SOURCE_CONTEXT = 64_000;
+const REFLECTION_MAX_PROMPT_CHARS = 96_000;
 /**
  * After a failed generation (provider outage, exhausted credits) the next
- * visits serve what exists instead of waiting on another doomed call. Per
+ * visits avoid another doomed call; only a certified reusable row can be served. Per
  * instance only; Fluid Compute reuses instances, so this covers most repeats.
  */
 const FAILURE_BACKOFF_MS = 10 * 60 * 1000;
@@ -98,40 +104,27 @@ export type ReadingReflectionResult =
 	| { status: "consent-required" }
 	| { status: "unavailable" };
 
-/** What the ReadingReflection row's `content` holds: the card plus what it was written from. */
-interface StoredReflection {
-	reflection: ReadingReflectionContent;
-	sources: ReflectionSources;
-}
-
-function parseStored(content: string): StoredReflection | null {
-	try {
-		const parsed = JSON.parse(content) as Partial<StoredReflection>;
-		const reflection = parsed?.reflection;
-		if (!reflection || typeof reflection.reflection !== "string" || !reflection.reflection) return null;
-		return { reflection, sources: { memories: parsed.sources?.memories ?? [], notes: parsed.sources?.notes ?? [] } };
-	} catch {
-		return null;
-	}
-}
+type StoredReflection = VerifiedStoredReflection;
 
 /**
  * Whether every memory and note the stored reflection was written from still
  * exists unchanged. A reflection that could repeat something the person deleted
  * or corrected is never served.
  */
-async function sourcesIntact(userId: string, sources: ReflectionSources): Promise<boolean> {
+async function sourcesIntact(userId: string, sources: VerifiedReflectionSources, memoryAllowed: boolean): Promise<boolean> {
+	if (sources.memoryAllowed !== memoryAllowed) return false;
 	if (!sources.memories.length && !sources.notes.length) return true;
 	const memoryIds = sources.memories.map((key) => key.slice(0, key.lastIndexOf(":")));
 	const [memories, notes] = await Promise.all([
 		sources.memories.length
-			? prisma.userMemory.findMany({ where: { userId, id: { in: memoryIds } }, select: { id: true, content: true } })
+			? prisma.userMemory.findMany({ where: { userId, id: { in: memoryIds } }, select: { id: true, content: true, category: true } })
 			: Promise.resolve([]),
 		sources.notes.length
-			? prisma.note.findMany({ where: { userId, id: { in: sources.notes } }, select: { id: true } })
+			? prisma.note.findMany({ where: { userId, id: { in: sources.notes } }, select: { id: true, title: true, plainText: true } })
 			: Promise.resolve([]),
 	]);
-	return reflectionSourcesPresent(sources, {
+	return sources.revisions.notes.every(source => notes.some(note => note.id === source.id && noteSourceRevision(note) === source.revision)) &&
+		sources.revisions.memories.every(source => memories.some(memory => memory.id === source.id && memorySourceRevision(memory) === source.revision)) && reflectionSourcesPresent(sources, {
 		memories: new Set(memories.map((memory) => memorySourceKey(memory.id, memory.content))),
 		notes: new Set(notes.map((note) => note.id)),
 	});
@@ -141,7 +134,8 @@ async function buildPrompt(
 	userId: string,
 	timezone: string,
 	now: Date,
-): Promise<{ prompt: string; sources: ReflectionSources }> {
+	memoryAllowed: boolean,
+): Promise<{ prompt: string; sources: VerifiedReflectionSources }> {
 	const today = localDayKey(now, timezone);
 	const [overview, recent, latest, study] = await Promise.all([
 		getReadingOverview(userId, timezone, now),
@@ -176,28 +170,37 @@ async function buildPrompt(
 		`What SureWord remembers about them (respecting their memory setting):\n${study.memoriesBlock}`,
 		`Their home church:\n${study.churchBlock}`,
 	].join("\n\n");
-	return { prompt, sources: study.sources };
+	if (prompt.length > REFLECTION_MAX_SOURCE_CONTEXT - 1024 || INSTRUCTIONS.length + prompt.length > REFLECTION_MAX_PROMPT_CHARS) throw new Error("Complete reflection source exceeds its bound.");
+	return { prompt, sources: bindReflectionSources(study.sources, study.sourceRevisions, memoryAllowed) };
 }
 
-async function generate(userId: string, timezone: string, now: Date): Promise<StoredReflection | null> {
-	const { prompt, sources } = await buildPrompt(userId, timezone, now);
-	const { model, providerOptions } = await resolveModel({ userId, utility: true });
-	const { output } = await generateText({
-		model,
-		providerOptions,
-		output: Output.object({ schema: reflectionSchema }),
-		instructions: INSTRUCTIONS,
-		prompt,
-		abortSignal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
+async function generate(userId: string, timezone: string, now: Date, basis: string, deadlineAt: number, memoryAllowed: boolean): Promise<StoredReflection | null> {
+	const generationDeadline = Math.min(Date.now() + GENERATION_TIMEOUT_MS, deadlineAt - 75_000 - 15_000);
+	const phase = await beforeProseDeadline(generationDeadline, 0, async () => {
+		const { prompt, sources } = await buildPrompt(userId, timezone, now, memoryAllowed);
+		// Reflection stays a utility job. The same already-metered model
+		// object carries draft, review and possible repair in one correlation.
+		const job = checkedStructuredProseModel(await resolveModel({ userId, utility: true }), true);
+		const { output } = await generateText({ model: job.model, providerOptions: job.providerOptions,
+			output: Output.object({ schema: reflectionSchema }), instructions: INSTRUCTIONS, prompt,
+			abortSignal: AbortSignal.timeout(remainingProseTime(generationDeadline, GENERATION_TIMEOUT_MS)), maxRetries: 0 });
+		if (!output) return null;
+		// Sanitize once before checking. Never clip or strip a checked field.
+		const reflection = await sanitizeReflection(output, { bookNumber: getKjvBookNumber, bookMeta: bookByOrder, verseText: getKjvVerseText, clean: stripDashes });
+		return reflection ? { reflection, sources, prompt, job } : null;
 	});
-	if (!output) return null;
-	const reflection = await sanitizeReflection(output, {
-		bookNumber: getKjvBookNumber,
-		bookMeta: bookByOrder,
-		verseText: getKjvVerseText,
-		clean: stripDashes,
+	if (!phase) return null;
+	const canonicalCoordinates = [phase.reflection.verse ? `${phase.reflection.verse.bookName} ${phase.reflection.verse.chapter}:${phase.reflection.verse.verse}` : "",
+		phase.reflection.next ? `${phase.reflection.next.bookName} ${phase.reflection.next.chapter}` : ""].filter(Boolean).join("; ");
+	const context = `Canonical source coordinates: ${canonicalCoordinates}\n\n${phase.prompt}`;
+	if (context.length > REFLECTION_MAX_SOURCE_CONTEXT) throw new Error("Complete reflection review source exceeds its bound.");
+	const reflection = await verifyReflectionContent(phase.reflection, {
+		verification: { model: phase.job.model, providerOptions: phase.job.providerOptions, translation: "KJV",
+			question: "Write a short Your walk reflection grounded in the supplied reading and study facts, with a suitable suggested chapter.",
+			context, maxContextChars: REFLECTION_MAX_SOURCE_CONTEXT, requireCompleteContext: true, purpose: "Your walk card title, reflection, optional verse note and optional next-chapter reason; preserve all selected verse and chapter coordinates" },
+		deadlineAt,
 	});
-	return reflection ? { reflection, sources } : null;
+	return certifyReflection(reflection, phase.sources, basis);
 }
 
 /**
@@ -210,6 +213,7 @@ export async function getReadingReflection(
 	timezone: string,
 	now: Date = new Date(),
 ): Promise<ReadingReflectionResult> {
+	const deadlineAt = Date.now() + REFLECTION_WORKFLOW_MS;
 	const [user, totals, stored] = await Promise.all([
 		prisma.user.findUnique({
 			where: { id: userId },
@@ -225,8 +229,8 @@ export async function getReadingReflection(
 	const memoryAllowed = allowsMemoryUse(user?.memoryEnabled);
 	const basis = reflectionBasis(totals, memoryAllowed);
 	let cached =
-		stored && storedReflectionAllowed(stored.basis, memoryAllowed) ? parseStored(stored.content) : null;
-	if (cached && !(await sourcesIntact(userId, cached.sources))) cached = null;
+		stored && storedReflectionAllowed(stored.basis, memoryAllowed) ? parseVerifiedReflection(stored.content, stored.basis) : null;
+	if (cached && !(await sourcesIntact(userId, cached.sources, memoryAllowed))) cached = null;
 	if (stored && !cached) {
 		// Retired (memory off, or a source deleted or edited): nothing private
 		// stays behind, even when no new reflection can be written now.
@@ -239,12 +243,19 @@ export async function getReadingReflection(
 	});
 	if (cached && stored && reflectionDecision(stored, basis, now) === "reuse") return ready(cached, stored.createdAt);
 	if (!hasCurrentAiConsent(user))
-		return cached && stored ? ready(cached, stored.createdAt) : { status: "consent-required" };
-	if (recentFailure(userId, now)) return cached && stored ? ready(cached, stored.createdAt) : { status: "unavailable" };
+		return { status: "consent-required" };
+	if (recentFailure(userId, now)) return { status: "unavailable" };
 
 	try {
-		const fresh = await generate(userId, timezone, now);
+		const fresh = await generate(userId, timezone, now, basis, deadlineAt, memoryAllowed);
 		if (!fresh) throw new Error("The model returned no usable reflection.");
+		// Generation/review can take up to 105 seconds. Recheck privacy/source
+		// state at the write boundary rather than certifying a deleted source
+		// or returning a reflection after consent was revoked during the job.
+		const currentUser = await prisma.user.findUnique({ where: { id: userId }, select: { aiConsentVersion: true, aiConsentAt: true, memoryEnabled: true } });
+		if (!hasCurrentAiConsent(currentUser)) return { status: "consent-required" };
+		if (allowsMemoryUse(currentUser?.memoryEnabled) !== memoryAllowed || !(await sourcesIntact(userId, fresh.sources, memoryAllowed))) throw new Error("Reflection sources changed during generation.");
+		remainingProseTime(deadlineAt, 15_000);
 		const content = JSON.stringify(fresh);
 		const row = await prisma.readingReflection.upsert({
 			where: { userId },
@@ -253,10 +264,10 @@ export async function getReadingReflection(
 		});
 		failures.delete(userId);
 		return ready(fresh, row.createdAt);
-	} catch (error) {
-		console.error(`[reading-reflection] Generation failed for user ${userId}:`, error);
+	} catch {
+		console.warn("[reading-reflection] Generation or verification failed; no reflection stored.");
 		failures.set(userId, now.getTime());
-		// An older reflection beats an empty card; it says when it was written.
-		return cached && stored ? ready(cached, stored.createdAt) : { status: "unavailable" };
+		// A stale or unchecked entry is never an outage fallback.
+		return { status: "unavailable" };
 	}
 }

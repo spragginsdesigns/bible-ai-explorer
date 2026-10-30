@@ -259,9 +259,9 @@ test("follow-up markers are stripped from an answer before it is snapshotted", (
 });
 
 test("the share route strips markers with the shared module, not a local copy", () => {
-	const source = read("src/app/api/shared/route.ts");
-	assert.match(source, /from "@\/utils\/assistantMarkdown"/);
-	assert.match(source, /stripFollowUpMarkers\(message\.content, \{ streaming: false \}\)/);
+	const source = read("src/lib/ai/history/shared-boundary.ts");
+	assert.match(source, /assistantMarkdown/);
+	assert.match(source, /stripFollowUpMarkers\(row\.content, \{ streaming: false \}\)/);
 });
 
 // ---------------------------------------------------------------------------
@@ -289,7 +289,7 @@ test("the mint, list and revoke routes stay behind the session", () => {
 	}
 });
 
-test("neither public surface reads the Message table", () => {
+test("public surfaces require a checked immutable snapshot", () => {
 	for (const file of ["src/app/shared/[id]/page.tsx", "src/app/api/shared/[id]/image/route.tsx"]) {
 		const source = read(file);
 		assert.equal(
@@ -298,6 +298,7 @@ test("neither public surface reads the Message table", () => {
 			`${file} reads Message; the snapshot is the only thing a public page may show`,
 		);
 		assert.match(source, /revokedAt: null/, `${file} does not exclude revoked shares`);
+		assert.match(source, /await approvedSharedSnapshot\(share\)/);
 	}
 });
 
@@ -317,7 +318,7 @@ test("the card is never cached as long-lived by browsers or the CDN", () => {
 test("the card route tags its CDN copy and every revoke path purges that tag", () => {
 	assert.equal(sharedAnswerCacheTag("abcdefghijklmnop"), "shared-answer:abcdefghijklmnop");
 	const card = read("src/app/api/shared/[id]/image/route.tsx");
-	assert.match(card, /cacheControl: SHARED_CARD_CACHE_CONTROL/);
+	assert.match(card, /cacheControl: "private, no-store"/);
 	assert.match(card, /await tagSharedCard\(id\)/);
 	for (const file of ["src/app/api/shared/[id]/route.ts", "src/app/api/conversations/[id]/route.ts"]) {
 		assert.match(read(file), /await purgeSharedCards\(/, `${file} revokes without purging the card`);

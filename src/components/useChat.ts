@@ -1,5 +1,6 @@
 "use client";
 import { consentFetch } from "@/lib/ai-consent-gate";
+import { savedAnswerReview, type SavedAnswerReview } from "@/lib/chat/history-review";
 
 
 import { progressFromParts, type ChatProgress } from "@/lib/chat/progress";
@@ -98,6 +99,7 @@ export interface ChatMessage {
 	id: string;
 	role: "user" | "assistant";
 	content: string;
+	historyVerification?: SavedAnswerReview;
 	tavilyResults?: TavilyResult[];
 	retrievedVerses?: RetrievedVerse[];
 	averageSimilarity?: number;
@@ -238,6 +240,7 @@ function parseTavilyResults(value: unknown): TavilyResult[] {
 }
 
 interface LegacyMessageMetadata {
+	historyVerification?: unknown;
 	retrievedVerses?: unknown;
 	averageSimilarity?: unknown;
 	tavilyResults?: unknown;
@@ -398,11 +401,13 @@ export function toViewMessage(
 				: undefined;
 
 	const receipts = buildReceipts(message.parts);
+	const historyVerification = savedAnswerReview(legacy.historyVerification, message.id);
 
 	return {
 		id: message.id,
 		role: message.role === "user" ? "user" : "assistant",
 		content,
+		...(historyVerification ? { historyVerification } : {}),
 		...(retrievedVerses.length > 0 ? { retrievedVerses } : {}),
 		...(averageSimilarity !== undefined ? { averageSimilarity } : {}),
 		...(tavilyResults.length > 0 ? { tavilyResults } : {}),

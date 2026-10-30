@@ -18,10 +18,16 @@ sureword_verify_developer_id() {
 sureword_verify_distribution_app() {
 	local app="$1" require_ticket="${2:-yes}" code expected_id executable architectures arch signature entitlements
 	codesign --verify --deep --strict --all-architectures "$app" || return 1
-	for code in "$app" "$app/Contents/PlugIns/SureWordShare.appex"; do
-		[ -d "$code" ] || { sureword_notary_error "missing app or Share extension"; return 1; }
-		expected_id=com.spragginsdesigns.sureword
-		[ "$code" = "$app" ] || expected_id="$expected_id.share"
+	for code in "$app" "$app/Contents/PlugIns/SureWordShare.appex" \
+		"$app/Contents/PlugIns/SureWordNotificationService.appex" \
+		"$app/Contents/PlugIns/SureWordNotificationContent.appex"; do
+		[ -d "$code" ] || { sureword_notary_error "missing required app component: $code"; return 1; }
+		case "$code" in
+		"$app") expected_id=com.spragginsdesigns.sureword ;;
+		*/SureWordShare.appex) expected_id=com.spragginsdesigns.sureword.share ;;
+		*/SureWordNotificationService.appex) expected_id=com.spragginsdesigns.sureword.notification-service ;;
+		*/SureWordNotificationContent.appex) expected_id=com.spragginsdesigns.sureword.notification-content ;;
+		esac
 		executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$code/Contents/Info.plist")" || return 1
 		architectures="$(lipo -archs "$code/Contents/MacOS/$executable")" || return 1
 		[ -n "$architectures" ] || return 1
@@ -36,16 +42,26 @@ import plistlib, sys
 e = plistlib.loads(sys.stdin.buffer.read())
 host = sys.argv[1] == "com.spragginsdesigns.sureword"
 group = "389LLKGY3Y.group.com.spragginsdesigns.sureword"
-valid = "com.apple.security.get-task-allow" not in e and group in e.get("com.apple.security.application-groups", [])
+valid = "com.apple.security.get-task-allow" not in e
 if host:
+    valid = valid and group in e.get("com.apple.security.application-groups", [])
     valid = valid and e.get("com.apple.developer.aps-environment") == "production"
     valid = valid and e.get("com.apple.application-identifier") == "389LLKGY3Y.com.spragginsdesigns.sureword"
     valid = valid and e.get("com.apple.developer.team-identifier") == "389LLKGY3Y"
     valid = valid and e.get("com.apple.security.personal-information.calendars") is True
+elif sys.argv[1].endswith(".share"):
+    valid = valid and e.get("com.apple.security.app-sandbox") is True
+    valid = valid and group in e.get("com.apple.security.application-groups", [])
 else:
     valid = valid and e.get("com.apple.security.app-sandbox") is True
+    # Notification art is bundled. These helpers need no network, shared
+    # account storage, host App Group or APNs registration entitlement.
+    valid = valid and not any(key in e for key in (
+        "com.apple.security.network.client", "com.apple.security.network.server",
+        "keychain-access-groups", "com.apple.security.application-groups",
+        "com.apple.developer.aps-environment"))
 if not valid:
-    sys.exit("Release entitlements must retain production push/App Group/calendar or Share sandbox, with no get-task-allow")
+    sys.exit("Release entitlements must retain host push/App Group/calendar, Share sandbox/group, or isolated notification sandbox; no get-task-allow")
 ' "$expected_id" <<<"$entitlements" || return 1
 		done
 	done

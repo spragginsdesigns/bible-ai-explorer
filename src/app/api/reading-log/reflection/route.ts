@@ -3,8 +3,8 @@ import { getAuthUser } from "@/lib/auth";
 import { resolveTimezoneFor } from "@/lib/reading-overview";
 import { getReadingReflection } from "@/lib/reading-reflection";
 
-// Usually one row read; the budget covers the one generation after new reading.
-export const maxDuration = 60;
+// Usually a certified cache read; allow the 120s generation/check/write workflow plus transport margin.
+export const maxDuration = 150;
 
 /**
  * "Your walk" for the reading log: `{ status: "ready", reflection, generatedAt }`,

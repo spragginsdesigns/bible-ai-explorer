@@ -22,7 +22,7 @@ struct NotesLibraryView: View {
     @State private var isTemplatePickerPresented = false
     /// The note the template sheet created, opened once the sheet is gone so
     /// the push does not race the dismissal (Android waits the same way).
-    @State private var noteToOpenAfterPicker: String?
+    @State private var noteToOpenAfterPicker: (id: String, request: AppModel.NoteNavigationRequest)?
     /// Drives the pin haptic; the trigger value itself carries no meaning.
     @State private var pinHapticTick = 0
     /// The note waiting on Android's "This cannot be undone" confirmation.
@@ -53,7 +53,11 @@ struct NotesLibraryView: View {
                 list
             }
         }
-        .searchable(text: $library.searchQuery, prompt: "Search notes")
+        .searchable(
+            text: $library.searchQuery,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: "Search notes"
+        )
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 sortMenu
@@ -70,20 +74,26 @@ struct NotesLibraryView: View {
             }
         }
         .sheet(isPresented: $isTemplatePickerPresented, onDismiss: {
-            if let id = noteToOpenAfterPicker {
+            if let pending = noteToOpenAfterPicker {
                 noteToOpenAfterPicker = nil
-                onOpenNote(id)
+                guard app.isCurrentNoteNavigationRequest(pending.request) else { return }
+                onOpenNote(pending.id)
             }
         }) {
             NoteTemplatePickerSheet { template in
+                let request = app.beginNoteNavigation()
+                guard await app.performNoteNavigation(request, action: {}) else {
+                    throw APIError(message: "Save the current note before opening another one.")
+                }
                 let api = app.api
-                let note = try await library.createNote(template: template) {
+                let note = try await library.createNote(template: template, selectCreated: false) {
                     switch try await api.fetchChurch() {
                     case .unavailable: return nil
                     case .ok(let church): return church?.name
                     }
                 }
-                noteToOpenAfterPicker = note.id
+                guard app.isCurrentNoteNavigationRequest(request) else { return }
+                noteToOpenAfterPicker = (note.id, request)
             }
         }
         .sheet(item: $createKind) { kind in

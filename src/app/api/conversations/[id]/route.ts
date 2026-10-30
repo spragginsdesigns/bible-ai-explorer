@@ -3,28 +3,19 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
 import { deleteAttachmentBlobs, toAttachmentDescriptor } from "@/lib/chat-attachments.server";
 import { purgeSharedCards } from "@/lib/shared-answer-cache";
+import { readReviewedHistoryList } from "@/lib/ai/history/read-boundary.server";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
 	try {
 		const userId = await getAuthUser();
 		const { id } = await params;
-		const conversation = await prisma.conversation.findFirst({
-			where: { id, userId },
-			include: {
-				messages: {
-					orderBy: { createdAt: "asc" },
-					include: { attachments: true },
-				},
-			},
-		});
-		if (!conversation) {
-			return NextResponse.json({ error: "Not found" }, { status: 404 });
-		}
-		const messages = await Promise.all(conversation.messages.map(async (message) => ({
-			...message,
-			attachments: await Promise.all(message.attachments.map(toAttachmentDescriptor)),
-		})));
-		return NextResponse.json({ ...conversation, messages });
+		const batch = await readReviewedHistoryList(userId, "chat", id);
+		if (!batch) return NextResponse.json({ error: "Not found" }, { status: 404 });
+		const messages = await Promise.all(batch.rows.map(async message => message.role === "assistant" ? message : {
+			...message, attachments: await Promise.all((Array.isArray(message.attachments) ? message.attachments as Parameters<typeof toAttachmentDescriptor>[0][] : []).map(toAttachmentDescriptor)),
+		}));
+
+		return NextResponse.json({ ...batch.parent, messages }, { headers: { "Cache-Control": "private, no-store" } });
 	} catch (err) {
 		if (err instanceof Response) return err;
 		return NextResponse.json({ error: "Internal server error" }, { status: 500 });

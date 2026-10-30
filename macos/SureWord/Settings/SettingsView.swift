@@ -400,8 +400,7 @@ struct SettingsView: View {
                         // Settings is a sheet on the Mac; close it so the
                         // page opens in the main window behind it.
                         app.isSettingsPresented = false
-                        app.pendingDailyDestination = .serve
-                        app.section = .today
+                        app.openDaily(.serve)
                     }
                 }
             }

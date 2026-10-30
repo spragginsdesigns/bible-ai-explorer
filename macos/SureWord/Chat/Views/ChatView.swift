@@ -193,7 +193,7 @@ struct ChatView: View {
                 }
                 .frame(maxWidth: 520)
             }
-        } else if chat.messages.isEmpty {
+        } else if chat.messages.isEmpty && chat.sendError == nil {
             WelcomeState(
                 questions: suggested.questions,
                 isLoading: suggested.isLoading
@@ -350,8 +350,7 @@ struct ChatView: View {
             // `NotesSection` builds its own `NotesLibraryModel` on appear and
             // owns `selectedNoteID`, so the note is staged on `AppModel` and the
             // section opens it in the editor, as iOS does.
-            app.pendingNoteID = noteID
-            app.section = .notes
+            app.openNote(noteID)
         case .memories:
             app.openSettings(.memory)
         case .chapter(let book, let chapter, let verse, let translation):
@@ -365,16 +364,13 @@ struct ChatView: View {
                 RetrievedVerse(reference: reference, similarity: 0, text: nil, translation: translation)
             )
         case .plan:
-            app.pendingDailyDestination = .plan
-            app.section = .today
+            app.openDaily(.plan)
         case .readingHistory:
-            app.pendingDailyDestination = .history
-            app.section = .today
+            app.openDaily(.history)
         case .cross:
             onOpenCross()
         case .learn:
-            app.pendingDailyDestination = .learn
-            app.section = .today
+            app.openDaily(.learn)
         case .settings(let section):
             // Android's `receiptNavigation`: the page the section names, or
             // the Settings window itself for one with no page of its own.
@@ -388,6 +384,7 @@ struct ChatView: View {
     }
 
     private func save(_ verse: RetrievedVerse) {
+        let request = app.beginNoteNavigation()
         Task {
             do {
                 let noteID = try await VerseActions.saveToNote(
@@ -397,8 +394,8 @@ struct ChatView: View {
                     translation: verse.translation
                 )
                 // Android opens the new note, so the verse can be written on.
-                app.pendingNoteID = noteID
-                app.section = .notes
+                guard app.isCurrentNoteNavigationRequest(request) else { return }
+                app.openNote(noteID)
             } catch {
                 show(toast: (error as? APIError)?.message ?? "Could not save that verse.")
             }

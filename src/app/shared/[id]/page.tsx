@@ -1,3 +1,4 @@
+import { approvedSharedSnapshot } from "@/lib/ai/history/shared-boundary.server";
 import { cache } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -14,10 +15,9 @@ import {
 /**
  * The public page for a shared answer (docs/FEATURES.md, "Share an answer").
  *
- * Signed out by design - `/shared/(.*)` is in `isPublicRoute` - and it reads
- * the SharedAnswer snapshot ONLY. Message is never touched here, so no amount
- * of editing, regenerating or deleting the original conversation can change
- * what a link shows, and revoking is the single lever that takes it back.
+ * Signed-out reads keep the immutable snapshot, and require its exact answer,
+ * references and translation to match a currently verified owned source.
+ * Unchecked snapshots stay stored and remain hidden until checked.
  *
  * Unknown ids and revoked ids are both a plain 404: distinguishing them would
  * confirm to a stranger that an id had once existed.
@@ -33,10 +33,11 @@ interface SharedAnswerParams {
  */
 const loadSharedAnswer = cache(async (id: string) => {
 	if (!isSharedAnswerId(id)) return null;
-	return prisma.sharedAnswer.findFirst({
+	const share = await prisma.sharedAnswer.findFirst({
 		where: { id, revokedAt: null },
-		select: { id: true, question: true, answer: true, references: true, translation: true, listedAt: true },
+		select: { id: true, userId: true, conversationId: true, messageId: true, question: true, answer: true, references: true, translation: true, listedAt: true },
 	});
+	return share && await approvedSharedSnapshot(share) ? share : null;
 });
 
 function readReferences(value: unknown): string[] {

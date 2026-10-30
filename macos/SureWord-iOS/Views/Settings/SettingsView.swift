@@ -18,7 +18,10 @@ struct SettingsView: View {
     @Environment(\.theme) private var theme
     @Environment(AppModel.self) private var app
     @Environment(Clerk.self) private var clerk
-    @Environment(\.dismiss) private var dismiss
+    /// The route owner must remove this hub and every pushed category before
+    /// opening a feature. Dismiss from a covered hub can leave its tab stack
+    /// intact when a nested release card switches tabs.
+    let onTryFeature: (WhatsNewDestination) -> Void
 
     /// Every return from a category page reappears the hub, and the store only
     /// dedupes requests already in flight, so without a floor a walk through
@@ -111,14 +114,7 @@ struct SettingsView: View {
                         .analyticsScreen(AnalyticsScreen.feedback)
                 }
                 row("What's new", symbol: "newspaper", subtitle: "Every update, newest first") {
-                    WhatsNewView(api: app.api) { destination in
-                        // Settings is pushed on the current tab's stack, so a
-                        // feature on this same tab would open underneath it
-                        // and "Try it" would look dead. Popping the hub pops
-                        // this page with it, as the Mac closes its sheet.
-                        dismiss()
-                        WhatsNewNavigation.open(destination, in: app)
-                    }
+                    WhatsNewView(api: app.api, onTry: onTryFeature)
                     .analyticsScreen(AnalyticsScreen.settingsWhatsNew)
                 }
                 row("About", symbol: "info.circle", subtitle: "Version \(Config.appVersion)") {

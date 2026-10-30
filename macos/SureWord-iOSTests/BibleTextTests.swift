@@ -337,3 +337,84 @@ struct ContinueReadingTests {
         func flip() -> Bool { defer { first = false }; return first }
     }
 }
+
+@Suite("Original languages reference validation")
+struct OriginalLanguagesReferenceTests {
+    @Test("valid verses resolve against the real bundled KJV, including chapter edges")
+    func validBundledVerses() async {
+        #expect(await OriginalLanguagesReference.resolve("Genesis 1:1") == ConnectionsPlace(order: 1, chapter: 1, verse: 1))
+        #expect(await OriginalLanguagesReference.resolve("John 3:16") == ConnectionsPlace(order: 43, chapter: 3, verse: 16))
+        #expect(await OriginalLanguagesReference.resolve("Revelation 22:21") == ConnectionsPlace(order: 66, chapter: 22, verse: 21))
+    }
+
+    @Test("ranges validate only their first verse, matching Android")
+    func rangeStarts() async {
+        for query in ["John 3:16-18", "John 3:16\u{2013}18", "John 3:16-999"] {
+            #expect(await OriginalLanguagesReference.resolve(query) == ConnectionsPlace(order: 43, chapter: 3, verse: 16), "\(query)")
+        }
+        #expect(await OriginalLanguagesReference.resolve("John 3:999-1000") == nil)
+    }
+
+    @Test("nonexistent verses are rejected even when their references parse")
+    func nonexistentVerses() async {
+        for query in ["John 3:999", "Genesis 1:32", "Revelation 22:22"] {
+            #expect(Bible.resolveReference(query) != nil)
+            #expect(await OriginalLanguagesReference.resolve(query) == nil, "\(query)")
+        }
+    }
+
+    @Test("malformed and chapter-only references never load a study chapter")
+    func invalidSyntax() async {
+        for query in ["", "Hezekiah 1:1", "John 3", "John 22:1", "John 3:0", "John 3:abc", "John 3:16 extra"] {
+            let place = await OriginalLanguagesReference.resolve(query) { _, _ in
+                Issue.record("Invalid reference attempted a chapter load: \(query)")
+                return ["Should never be read"]
+            }
+            #expect(place == nil, "\(query)")
+        }
+    }
+
+    @Test("missing or blank verse text and failed bundle loads cannot change the target")
+    func unusableText() async {
+        #expect(await OriginalLanguagesReference.resolve("John 3:1", chapter: { _, _ in [] }) == nil)
+        #expect(await OriginalLanguagesReference.resolve("John 3:1", chapter: { _, _ in [" \n\t"] }) == nil)
+        #expect(await OriginalLanguagesReference.resolve("John 3:1", chapter: { _, _ in throw URLError(.cannotOpenFile) }) == nil)
+    }
+
+    @Test("a cancelled lookup cannot publish a late valid chapter")
+    func cancelledLookup() async {
+        let gate = ChapterGate()
+        let lookup = Task {
+            await OriginalLanguagesReference.resolve("John 3:1") { _, _ in await gate.chapter() }
+        }
+        await gate.waitUntilRequested()
+        lookup.cancel()
+        await gate.resume()
+        #expect(await lookup.value == nil)
+    }
+
+    private actor ChapterGate {
+        private var requested = false
+        private var started: CheckedContinuation<Void, Never>?
+        private var pending: CheckedContinuation<[String], Never>?
+
+        func chapter() async -> [String] {
+            await withCheckedContinuation { continuation in
+                pending = continuation
+                requested = true
+                started?.resume()
+                started = nil
+            }
+        }
+
+        func waitUntilRequested() async {
+            guard !requested else { return }
+            await withCheckedContinuation { started = $0 }
+        }
+
+        func resume() {
+            pending?.resume(returning: ["There was a man of the Pharisees, named Nicodemus, a ruler of the Jews:"])
+            pending = nil
+        }
+    }
+}

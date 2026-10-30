@@ -208,8 +208,7 @@ struct ChapterReaderPane: View {
     /// Open a note in the Notes section's editor, as a quiz reflection does.
     private func openNote(_ noteID: String) {
         sheet.close()
-        app.pendingNoteID = noteID
-        app.section = .notes
+        app.openNote(noteID)
     }
 
     // MARK: - Chrome
@@ -661,7 +660,7 @@ struct ChapterReaderPane: View {
                     .contentShape(.rect)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("\(reference)\(hasNote ? ", has a study note" : ""). Explain this verse")
+            .accessibilityLabel("\(reference)\(hasNote ? ", has a study note" : ""). \(verse.omitted ? "Not included in this edition's main text." : verse.plainText)")
             .accessibilityHint(isOpen ? "Selected. Click to change the selection." : "Opens the verse sheet")
             .accessibilityAddTraits(isOpen ? .isSelected : [])
         }

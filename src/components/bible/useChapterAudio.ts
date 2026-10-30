@@ -16,6 +16,7 @@ import {
 } from "@/lib/bible/audioBible";
 import { readListenRatePref } from "@/lib/preferences";
 import { setListenRatePreference, usePreference } from "@/lib/preferencesSync";
+import { coordinateMediaNarration } from "@/lib/voice/web-narration";
 
 const ARTWORK_URL = "/web-app-manifest-512x512.png";
 /** Same skip as the Listen card and Android's media service. */
@@ -129,6 +130,7 @@ export function useChapterAudio({
   nextNarrated,
 }: Options): ChapterAudioPlayer {
   const elementRef = useRef<HTMLAudioElement | null>(null);
+  const narrationRef = useRef<ReturnType<typeof coordinateMediaNarration> | null>(null);
   const [recordings, setRecordings] = useState<Recordings>({});
   const [audio, setAudio] = useState<ChapterAudio | null>(null);
   const [open, setOpen] = useState(false);
@@ -167,6 +169,8 @@ export function useChapterAudio({
     const element = new Audio();
     element.preload = "metadata";
     elementRef.current = element;
+    const narration = coordinateMediaNarration(element);
+    narrationRef.current = narration;
     const onPlay = () => setPlaying(true);
     const onPause = () => setPlaying(false);
     const onTime = () => {
@@ -190,7 +194,8 @@ export function useChapterAudio({
     element.addEventListener("timeupdate", onTime);
     element.addEventListener("ended", onEnded);
     return () => {
-      element.pause();
+      narration.dispose();
+      narrationRef.current = null;
       element.removeEventListener("play", onPlay);
       element.removeEventListener("pause", onPause);
       element.removeEventListener("timeupdate", onTime);
@@ -244,7 +249,7 @@ export function useChapterAudio({
         pendingPlay.current = null;
         if (from !== null) {
           seekWhenReady(element, startAt(next, from));
-          void element.play().catch(() => setPlaying(false));
+          void narrationRef.current?.play().catch(() => setPlaying(false));
         }
       })
       .catch(() => {
@@ -274,7 +279,7 @@ export function useChapterAudio({
       if (element.getAttribute("src") !== current.audioUrl) element.src = current.audioUrl;
       element.playbackRate = readListenRatePref();
       seekWhenReady(element, startAt(current, fromVerse));
-      void element.play().catch(() => setPlaying(false));
+      void narrationRef.current?.play().catch(() => setPlaying(false));
     },
     [markAction]
   );
@@ -285,7 +290,7 @@ export function useChapterAudio({
     if (!element || !audioRef.current) return;
     markAction();
     setStillListeningPrompt(false);
-    if (element.paused) void element.play().catch(() => setPlaying(false));
+    if (element.paused) void narrationRef.current?.play().catch(() => setPlaying(false));
     else element.pause();
   }, [markAction]);
 
@@ -320,7 +325,7 @@ export function useChapterAudio({
   const keepListening = useCallback(() => {
     markAction();
     setStillListeningPrompt(false);
-    void elementRef.current?.play().catch(() => setPlaying(false));
+    void narrationRef.current?.play().catch(() => setPlaying(false));
   }, [markAction]);
 
   // Any tap, key press or scroll while the session is open counts as "still here".
@@ -374,7 +379,7 @@ export function useChapterAudio({
       element.currentTime = Math.max(0, Math.min(element.duration || Infinity, element.currentTime + seconds));
     };
     const handlers: [MediaSessionAction, MediaSessionActionHandler][] = [
-      ["play", () => { if (!audioRef.current) return; markAction(); setStillListeningPrompt(false); void elementRef.current?.play().catch(() => setPlaying(false)); }],
+      ["play", () => { if (!audioRef.current) return; markAction(); setStillListeningPrompt(false); void narrationRef.current?.play().catch(() => setPlaying(false)); }],
       ["pause", () => { markAction(); elementRef.current?.pause(); }],
       ["previoustrack", () => skipVerse(-1)],
       ["nexttrack", () => skipVerse(1)],

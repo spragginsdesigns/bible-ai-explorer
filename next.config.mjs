@@ -77,6 +77,12 @@ export default withBotId(withPWA({
 	],
 	maximumFileSizeToCacheInBytes: 200 * 1024,
 	runtimeCaching: [
+		// Match pathnames before extension rules: a query ending in .png or
+		// .js must never cache an authenticated API or a revocable share.
+		{
+			urlPattern: ({ url }) => /^\/(?:api(?:\/|$)|shared(?:\/|$))/i.test(url.pathname),
+			handler: "NetworkOnly",
+		},
 		{
 			urlPattern: /^https:\/\/fonts\.(?:gstatic|googleapis)\.com\/.*/i,
 			handler: "CacheFirst",
@@ -101,10 +107,6 @@ export default withBotId(withPWA({
 				cacheName: "images",
 				expiration: { maxEntries: 64, maxAgeSeconds: 30 * 24 * 60 * 60 },
 			},
-		},
-		{
-			urlPattern: /\/api\/.*$/i,
-			handler: "NetworkOnly",
 		},
 	],
 })(nextConfig));

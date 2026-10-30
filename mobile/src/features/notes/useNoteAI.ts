@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
+import { randomUUID } from "expo-crypto";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { API_URL, makeAuthedFetch } from "@/lib/api";
 import {
@@ -10,44 +11,8 @@ import {
 	type ChatViewMessage,
 } from "@/lib/chatView";
 import * as api from "./api";
+import { userForNoteReply, type NoteAIOperationController } from "./noteAIOperation";
 import { useStableGetToken } from "./useStableGetToken";
-
-export interface NoteAppendEvent {
-	noteId: string;
-	appendedHtml: string;
-}
-
-interface AddToNoteCall {
-	toolCallId: string;
-	noteId: string;
-	appendedHtml: string;
-}
-
-function collectAddToNoteCalls(messages: UIMessage[]): AddToNoteCall[] {
-	const calls: AddToNoteCall[] = [];
-	for (const message of messages) {
-		if (message.role !== "assistant") continue;
-		for (const part of message.parts) {
-			if (!part.type.startsWith("tool-")) continue;
-			const toolPart = part as unknown as {
-				type: string;
-				state: string;
-				toolCallId: string;
-				output?: { noteId?: unknown; appendedHtml?: unknown };
-			};
-			if (toolPart.type !== "tool-addToNote" || toolPart.state !== "output-available") continue;
-			const output = toolPart.output;
-			if (typeof output?.noteId === "string" && typeof output?.appendedHtml === "string") {
-				calls.push({
-					toolCallId: toolPart.toolCallId,
-					noteId: output.noteId,
-					appendedHtml: output.appendedHtml,
-				});
-			}
-		}
-	}
-	return calls;
-}
 
 /**
  * Per-note AI chat, ported from the web useNoteAI hook. The transport must use
@@ -56,46 +21,103 @@ function collectAddToNoteCalls(messages: UIMessage[]): AddToNoteCall[] {
  */
 export function useNoteAI(
 	noteId: string,
-	options?: { onNoteAppended?: (event: NoteAppendEvent) => void }
+	operation: NoteAIOperationController
 ) {
-	const getToken = useStableGetToken();
+	const rawToken = useStableGetToken();
+	const operationOwner = useRef(operation);
+	operationOwner.current = operation;
+	const getToken = useCallback(async (flags?: { fresh?: boolean }) => {
+		const owner = operationOwner.current;
+		if (!owner.isCurrent()) throw new Error("The note changed.");
+		const token = await rawToken(flags);
+		if (!owner.isCurrent() || operationOwner.current !== owner) throw new Error("The reading account changed.");
+		return token;
+	}, [rawToken]);
 	const [historyLoading, setHistoryLoading] = useState(false);
 	const [clearError, setClearError] = useState<string | null>(null);
 
 	const noteIdRef = useRef(noteId);
 	noteIdRef.current = noteId;
 	const loadedNoteIdRef = useRef<string | null>(null);
-	const appliedToolCallsRef = useRef(new Set<string>());
-	const onNoteAppendedRef = useRef(options?.onNoteAppended);
-	onNoteAppendedRef.current = options?.onNoteAppended;
+	const loadedOwner = useRef<NoteAIOperationController | null>(null);
+	const chatGeneration = useRef(0);
+	const reload = useRef<() => Promise<void>>(async () => {});
+	const submissions = useRef(new Map<string, { owner: NoteAIOperationController; finish: (accepted: boolean) => void }>());
+	const accept = useCallback((id: string | undefined, accepted: boolean) => { if (!id) return; const pending = submissions.current.get(id); submissions.current.delete(id); pending?.finish(accepted); }, []);
+	const runs = useRef(new Map<string, { owner: NoteAIOperationController; id: string }>());
+	const operationRef = useRef(operation);
+	operationRef.current = operation;
 
 	const transport = useMemo(
 		() =>
 			new DefaultChatTransport<UIMessage>({
 				api: `${API_URL}/api/note-ai`,
-				fetch: makeAuthedFetch(getToken) as unknown as typeof globalThis.fetch,
+				fetch: (async (input, init) => {
+					const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+					const user = (body.messages as UIMessage[] | undefined)?.findLast(message => message.role === "user");
+					const owner = user ? submissions.current.get(user.id)?.owner : undefined;
+					if (!owner || owner !== operationRef.current || !owner.isCurrent()) { accept(user?.id, false); throw new Error("The note or reading account changed before sending."); }
+					let request;
+					try { request = await owner.begin(body); } catch (error) { accept(user?.id, false); throw error; }
+					if (user) runs.current.set(user.id, { owner, id: request.operationId });
+					if (!owner.isCurrent()) { accept(user?.id, false); throw new Error("The note changed."); }
+					try {
+						const response = await makeAuthedFetch(async flags => {
+							if (!owner.isCurrent()) throw new Error("The note changed.");
+							const token = await getToken(flags);
+							if (!owner.isCurrent()) throw new Error("The reading account changed.");
+							return token;
+						})(String(input), { ...init, body: JSON.stringify(request) });
+						accept(user?.id, response.ok && owner.isCurrent() && operationRef.current === owner);
+						if (!response.ok) await owner.recover(request.operationId);
+						return response;
+					} catch (error) { accept(user?.id, false); await owner.recover(request.operationId); throw error; }
+				}) as typeof globalThis.fetch,
 				prepareSendMessagesRequest: ({ messages }) => ({
 					body: { messages, noteId: noteIdRef.current, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
 				}),
 			}),
-		[getToken]
+		[getToken, accept]
 	);
 
 	const {
 		messages: uiMessages,
 		sendMessage: sendUIMessage,
 		setMessages: setUIMessages,
-		regenerate,
 		clearError: clearChatError,
 		stop,
 		status,
 		error: chatError,
-	} = useChat<UIMessage>({ transport, throttle: 50 });
+	} = useChat<UIMessage>({ transport, throttle: 50,
+		onFinish: async ({ message, messages }) => {
+			const userId = userForNoteReply(messages, message.id);
+			const run = userId ? runs.current.get(userId) : undefined;
+			if (run) {
+				const generation = chatGeneration.current;
+				const reconciled = await run.owner.recover(run.id);
+				runs.current.delete(userId!);
+				if (reconciled && run.owner === operationRef.current && generation === chatGeneration.current) await reload.current();
+			}
+		},
+	});
+
+	const reloadHistory = useCallback(async () => {
+		const owner = operationRef.current;
+		const generation = chatGeneration.current;
+		try {
+			const rows = await api.fetchNoteAIMessages(getToken, noteIdRef.current);
+			if (owner.isCurrent() && owner === operationRef.current && generation === chatGeneration.current && Array.isArray(rows)) setUIMessages(rows.map(dbMessageToUIMessage));
+		} catch { /* Keep the current history and its error; never retry a write. */ }
+	}, [getToken, setUIMessages]);
+	reload.current = reloadHistory;
 
 	// Restore the persisted conversation whenever the note changes.
 	useEffect(() => {
-		if (!noteId || loadedNoteIdRef.current === noteId) return;
+		if (!noteId || (loadedNoteIdRef.current === noteId && loadedOwner.current === operation)) return;
 		loadedNoteIdRef.current = noteId;
+		loadedOwner.current = operation;
+		const owner = operation;
+		const generation = ++chatGeneration.current;
 		stop();
 		setUIMessages([]);
 		setHistoryLoading(true);
@@ -103,13 +125,8 @@ export function useNoteAI(
 		(async () => {
 			try {
 				const rows = await api.fetchNoteAIMessages(getToken, noteId);
-				if (!Array.isArray(rows) || loadedNoteIdRef.current !== noteId) return;
+				if (!Array.isArray(rows) || loadedNoteIdRef.current !== noteId || !owner.isCurrent() || operationRef.current !== owner || generation !== chatGeneration.current) return;
 				const restored = rows.map(dbMessageToUIMessage);
-				// Past appends are already part of the stored note; mark them applied
-				// so restoring history never re-inserts them into the editor.
-				for (const call of collectAddToNoteCalls(restored)) {
-					appliedToolCallsRef.current.add(call.toolCallId);
-				}
 				setUIMessages(restored);
 			} catch {
 				// An unreadable history should not block a new conversation.
@@ -117,34 +134,43 @@ export function useNoteAI(
 				if (loadedNoteIdRef.current === noteId) setHistoryLoading(false);
 			}
 		})();
-	}, [getToken, noteId, stop, setUIMessages]);
+	}, [getToken, noteId, operation, stop, setUIMessages]);
 
-	// Fire each live append exactly once.
-	useEffect(() => {
-		for (const call of collectAddToNoteCalls(uiMessages)) {
-			if (appliedToolCallsRef.current.has(call.toolCallId)) continue;
-			appliedToolCallsRef.current.add(call.toolCallId);
-			onNoteAppendedRef.current?.({ noteId: call.noteId, appendedHtml: call.appendedHtml });
-		}
-	}, [uiMessages]);
+
+	useEffect(() => { const pending = submissions.current; return () => { void stop(); for (const submission of pending.values()) submission.finish(false); pending.clear(); }; }, [stop]);
 
 	const isStreaming = status === "streaming";
 	const loading = status === "submitted" || historyLoading;
 
 	const sendMessage = useCallback(
 		(text: string) => {
-			const trimmed = text.trim();
-			if (!trimmed || status === "submitted" || status === "streaming") return;
-			void sendUIMessage({ text: trimmed });
+			const trimmed = text.trim(), owner = operationRef.current;
+			if (!trimmed || !owner.canEdit() || status === "submitted" || status === "streaming") return Promise.resolve(false);
+			chatGeneration.current += 1;
+			const id = randomUUID();
+			const accepted = new Promise<boolean>(finish => submissions.current.set(id, { owner, finish }));
+			void sendUIMessage({ id, role: "user", parts: [{ type: "text", text: trimmed }] })
+				.catch(() => accept(id, false)).finally(() => accept(id, false));
+			return accepted;
 		},
-		[sendUIMessage, status]
+		[sendUIMessage, status, accept]
 	);
 
 	// Clear the server copy first: wiping local state before the DELETE would
 	// leave a failed clear looking like a fresh conversation.
 	const clearHistory = useCallback(async () => {
+		const generation = ++chatGeneration.current;
+		const owner = operationRef.current;
+		const note = noteIdRef.current;
 		try {
-			await api.clearNoteAIMessages(getToken, noteIdRef.current);
+			if (!await owner.recover() || !owner.isCurrent() || operationRef.current !== owner || generation !== chatGeneration.current) return;
+			await api.clearNoteAIMessages(async flags => {
+				if (!owner.isCurrent() || operationRef.current !== owner) throw new Error("The reading account changed.");
+				const token = await getToken(flags);
+				if (!owner.isCurrent() || operationRef.current !== owner) throw new Error("The reading account changed.");
+				return token;
+			}, note);
+			if (!owner.isCurrent() || operationRef.current !== owner || generation !== chatGeneration.current) return;
 		} catch (err) {
 			setClearError(
 				err instanceof Error ? err.message : "The conversation could not be cleared."
@@ -154,14 +180,14 @@ export function useNoteAI(
 		setClearError(null);
 		stop();
 		setUIMessages([]);
-		appliedToolCallsRef.current.clear();
+		return true;
 	}, [getToken, stop, setUIMessages]);
 
 	const retry = useCallback(() => {
 		setClearError(null);
 		clearChatError();
-		void regenerate();
-	}, [clearChatError, regenerate]);
+		void (async () => { const owner = operationRef.current; const generation = chatGeneration.current; if (await owner.recover() && owner === operationRef.current && generation === chatGeneration.current) await reload.current(); })();
+	}, [clearChatError]);
 
 	const messages: ChatViewMessage[] = useMemo(() => {
 		const busy = isStreaming || status === "submitted";
@@ -194,6 +220,8 @@ export function useNoteAI(
 		loading,
 		error: clearError ?? (chatError ? chatError.message : null),
 		sendMessage,
+		stop,
+		reloadHistory,
 		clearHistory,
 		retry,
 	};

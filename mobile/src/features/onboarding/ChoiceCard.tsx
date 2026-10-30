@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { AppText as Text } from "@/components/AppText";
@@ -13,6 +13,8 @@ import { useOnboardingChat } from "./OnboardingChatContext";
 import { hourLabel } from "./dailyTime";
 import { GlossarySheet } from "./GlossarySheet";
 import { questionSegments, type GlossaryTerm } from "./onboardingRules";
+import { useVoiceControls } from "@/features/voice/VoiceControlProvider";
+import { useIsFocused } from "expo-router";
 
 /** Big enough for any thumb and any eyes (docs/onboarding/PLAN.md: at least 56dp). */
 const MIN_TAP_HEIGHT = 56;
@@ -30,6 +32,10 @@ export function ChoiceCard({ card, live }: { card: ChoiceCardView; live: boolean
 	const styles = useThemedStyles(createStyles);
 	const { colors } = useTheme();
 	const actions = useOnboardingChat();
+	const voice = useVoiceControls();
+	const focused = useIsFocused();
+	const registerCard = voice?.registerCard;
+	const speak = voice?.speak;
 	// Answered stays answered: a second tap before the reply appears would
 	// repeat the step's device action and its analytics.
 	const [answered, setAnswered] = useState(false);
@@ -40,11 +46,26 @@ export function ChoiceCard({ card, live }: { card: ChoiceCardView; live: boolean
 	// The church search can be unavailable (no Places key), so typing the name is always offered.
 	const allowOther = card.allowOther || card.step === "church";
 
-	const answer = (label: string) => {
-		if (!interactive) return;
+	const answeredRef = useRef(false);
+	const answer = useCallback((label: string) => {
+		if (!interactive || answeredRef.current) return;
+		answeredRef.current = true;
 		setAnswered(true);
-		actions.answer(card, label);
-	};
+		return actions.answer(card, label);
+	}, [interactive, actions, card]);
+	const choose = useCallback(async (label: string) => {
+		if (label === "Pick a time") {
+			setPickingHour(true);
+			await speak?.(`Choose a time. ${PICKABLE_HOURS.map((hour, index) => `Option ${index + 1}. ${hourLabel(hour)}.`).join(" ")} Or say ${card.skipLabel}.`);
+			return;
+		}
+		return answer(label);
+	}, [answer, speak, card.skipLabel]);
+	const voiceOptions = useMemo(() => pickingHour ? [...PICKABLE_HOURS.map(hourLabel), card.skipLabel] : [...card.options, card.skipLabel], [pickingHour, card.options, card.skipLabel]);
+	useEffect(() => {
+		if (!interactive || !focused || !registerCard) return;
+		return registerCard({ question: card.question, options: voiceOptions, allowOther, choose, ask: actions ? (text) => actions.ask(card, text) : undefined });
+	}, [interactive, focused, registerCard, card, actions, voiceOptions, choose, allowOther]);
 
 	return (
 		<View style={styles.card} accessibilityRole="none">
@@ -93,7 +114,7 @@ export function ChoiceCard({ card, live }: { card: ChoiceCardView; live: boolean
 								key={option}
 								label={option}
 								disabled={!interactive}
-								onPress={() => setPickingHour((open) => !open)}
+									onPress={() => choose(option)}
 							/>
 						);
 					}
@@ -105,7 +126,7 @@ export function ChoiceCard({ card, live }: { card: ChoiceCardView; live: boolean
 							disabled={!interactive}
 							// Each size previews itself, so the choice is made by looking.
 							fontScale={scale ? TEXT_SCALE_FACTORS[scale] : undefined}
-							onPress={() => answer(option)}
+								onPress={() => choose(option)}
 						/>
 					);
 				})}

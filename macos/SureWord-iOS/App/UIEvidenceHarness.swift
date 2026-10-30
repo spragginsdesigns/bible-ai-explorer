@@ -79,7 +79,12 @@ struct UIEvidenceHarness: View {
         case "feedback":
             if let app { FeedbackView(api: app.api) }
         case "settings":
-            SettingsView()
+            if let app {
+                SettingsView { destination in
+                    // This debug-only root has no pushed Settings subtree.
+                    WhatsNewNavigation.open(destination, in: app)
+                }
+            }
         case "settings-account":
             AccountSettingsPage()
         case "settings-appearance":

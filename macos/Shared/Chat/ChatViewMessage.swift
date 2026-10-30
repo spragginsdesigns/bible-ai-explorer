@@ -157,6 +157,16 @@ struct ChatViewMessage: Sendable, Equatable, Identifiable {
     /// The seeded first message of the welcome conversation (its card's tool
     /// call id starts `welcome-`).
     var isWelcome = false
+    /// Server-owned history review controls. Invalid markers stay withheld.
+    var savedAnswerReview: SavedAnswerReviewRequirement? = nil
+
+    /// Checked content stays authoritative; the owner's thumb can change
+    /// independently through an optimistic rating, toggle, or failed-write rollback.
+    func preservingLiveFeedback(from parent: ChatViewMessage) -> Self {
+        var checked = self
+        checked.feedback = parent.feedback
+        return checked
+    }
 
     var matchStrength: MatchStrength? {
         averageSimilarity.map(MatchStrength.init(average:))
@@ -192,6 +202,7 @@ struct ChatViewMessage: Sendable, Equatable, Identifiable {
             || !attachments.isEmpty
             || choiceCard != nil
             || !showMe.isEmpty
+            || savedAnswerReview != nil
     }
 }
 
@@ -453,7 +464,10 @@ extension ChatViewMessage {
             isStreaming: isStreaming,
             choiceCard: choiceCard,
             showMe: showMe,
-            isWelcome: isWelcome
+            isWelcome: isWelcome,
+            savedAnswerReview: message.role == .assistant
+                ? SavedAnswerReviewRequirement(metadata["historyVerification"], messageID: message.id)
+                : nil
         )
     }
 

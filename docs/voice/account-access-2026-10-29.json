@@ -1,0 +1,44 @@
+{
+  "verifiedAt": "2026-10-29T17:05:22.173938+00:00",
+  "scope": "account restriction in isolated codex/sureword-gpt-live-pro worktree; not deployed",
+  "allowedAccount": "atmosphere9999@gmail.com",
+  "identityPolicy": "authenticated Clerk user ID must match fetched profile ID, with exact verified primary email; no app-row or client email fallback",
+  "page": "/voice",
+  "legacyPage": "/voice-preview redirects only for the allowed account",
+  "ownerRuntimeCheck": {
+    "ownerAccount": "atmosphere9999@gmail.com",
+    "identitySource": "verified primary email from authenticated Clerk account",
+    "availabilityStatus": 200,
+    "available": true,
+    "pro": true,
+    "voicePageStatus": 200,
+    "paidSessionStarted": false
+  },
+  "automatedDenialChecks": [
+    "another Pro account cannot discover availability or receive a session ticket",
+    "denied bootstrap does not read entitlements, reserve allowance or create a conversation",
+    "client-supplied owner email cannot bypass signed-in account identity",
+    "unverified, secondary, missing and aliased emails are denied",
+    "identity-service failure denies access",
+    "non-owner voice and legacy pages reject before rendering or redirecting",
+    "delegated tools reject a non-owner account before backend execution",
+    "valid signed transcript RPC still rejects a non-owner account"
+  ],
+  "validation": {
+    "focusedTests": {
+      "passed": 74,
+      "total": 74,
+      "failed": 0
+    },
+    "typecheck": "passed",
+    "lint": "passed",
+    "productionBuild": "passed"
+  },
+  "unchangedPolicy": {
+    "proRequired": true,
+    "sessionSeconds": 300,
+    "dailySeconds": 600,
+    "monthlySeconds": 3600
+  },
+  "productionDeployed": false
+}
