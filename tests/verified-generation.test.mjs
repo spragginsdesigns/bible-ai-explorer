@@ -20,10 +20,11 @@ const pass = prompt => ({ checkedReferences: prompt.expectedCheckedReferences, c
 	allScriptureQuotationsVerified: true, allCitationsSupportTheirClaims: true, faithfulToFoundation: true, answersRequestedQuestion: true, issues: [], requiredReferences: [] });
 function load(overrides = {}) {
 	const requests = [];
+	const logs = [];
 	const verify = overrides.verifyScriptureDraft ?? (async text => checked(text));
 	const generate = overrides.generateText ?? (async request => ({ output: pass(JSON.parse(request.prompt)) }));
-	const module = compile(async request => { requests.push(request); return generate(request); }, Output, z, "FIXED FOUNDATION FIXTURE", overrides.getChapter ?? (async () => Array.from({ length: 30 }, (_, i) => `Canonical verse ${i + 1}`)), verify, gateAnswer, createDashStripper, { info() {} });
-	return { ...module, requests };
+	const module = compile(async request => { requests.push(request); return generate(request); }, Output, z, "FIXED FOUNDATION FIXTURE", overrides.getChapter ?? (async () => Array.from({ length: 30 }, (_, i) => `Canonical verse ${i + 1}`)), verify, gateAnswer, createDashStripper, overrides.console ?? { info: (...args) => logs.push(args) });
+	return { ...module, requests, logs };
 }
 
 test("deadline covers a slow canonical source and a late result cannot release text", async () => {
@@ -160,4 +161,108 @@ test("complete original-source coverage passes and is deduplicated across answer
 	const prompt = JSON.parse(module.requests[0].prompt);
 	assert.deepEqual(prompt.expectedCheckedReferences, ["John 3:16"]);
 	assert.deepEqual(prompt.expectedCheckedOriginalSources, ["John (TR John 3:16)", "Psalms (WLC 51:3)"]);
+});
+
+const reviewDiagnostics = module => module.logs
+	.filter(([label]) => label === "[scripture-review]")
+	.map(([, payload]) => JSON.parse(payload));
+
+test("review diagnostics retain two rejected verdicts without logging any supplied content", async () => {
+	const secret = "PRIVATE_REVIEW_DIAGNOSTIC_SENTINEL";
+	let reviews = 0;
+	const module = load({
+		verifyScriptureDraft: async text => checked(text, [reference(`${secret} reference`)], {
+			originalEvidence: [{ book: `${secret} book`, sourceIdentifier: `${secret} source` }],
+		}),
+		generateText: async request => {
+			const prompt = JSON.parse(request.prompt);
+			if (request.system.includes("Repair the supplied answer")) {
+				return { output: { blocks: prompt.blocks.map(({ id, text }) => ({ id, text })) } };
+			}
+			reviews += 1;
+			return { output: {
+				...pass(prompt),
+				...(reviews === 1 ? {
+					answersRequestedQuestion: false,
+					issues: [`${secret} first issue`],
+					requiredReferences: [`${secret} first required reference`],
+				} : {
+					checkedReferences: [],
+					allScriptureQuotationsVerified: false,
+					allCitationsSupportTheirClaims: false,
+					faithfulToFoundation: false,
+					issues: [`${secret} second issue`, `${secret} another issue`],
+					requiredReferences: [`${secret} second reference`, `${secret} another reference`],
+				}),
+			} };
+		},
+	});
+	const outcome = await module.verifyGeneratedAnswer([{ id: `${secret} block id`, text: `${secret} draft` }], options({
+		question: `${secret} question`, context: `${secret} context`, purpose: `${secret} purpose`,
+	}));
+	assert.equal(outcome.verified, false);
+	assert.equal(outcome.repaired, true);
+	assert.deepEqual(outcome.issueCodes, ["review_rejected"]);
+	assert.equal(outcome.blocks[0].text, module.VERIFICATION_UNAVAILABLE.en);
+	assert.equal(reviews, 2);
+	assert.equal(module.requests.length, 3, "one repair separates the two real gate reviews");
+	assert.deepEqual(reviewDiagnostics(module), [
+		{ attempt: 1, contentKind: "artifact", coverageMatches: true,
+			allScriptureQuotationsVerified: true, allCitationsSupportTheirClaims: true,
+			faithfulToFoundation: true, answersRequestedQuestion: false, issueCount: 1, requiredReferencesCount: 1 },
+		{ attempt: 2, contentKind: "artifact", coverageMatches: false,
+			allScriptureQuotationsVerified: false, allCitationsSupportTheirClaims: false,
+			faithfulToFoundation: false, answersRequestedQuestion: true, issueCount: 2, requiredReferencesCount: 2 },
+	]);
+	assert.equal(JSON.stringify(module.logs).includes(secret), false,
+		"drafts, IDs, questions, context, purpose, issues and references must never enter any log");
+});
+
+test("passing review diagnostics classify content only by purpose presence and preserve the result", async () => {
+	const secret = "PRIVATE_POSITIVE_DIAGNOSTIC_SENTINEL";
+	for (const [purpose, contentKind] of [[undefined, "answer"], ["", "answer"], [`${secret} purpose`, "artifact"]]) {
+		const module = load();
+		const blocks = [{ id: `${secret} id`, text: `${secret} body` }];
+		const outcome = await module.verifyGeneratedAnswer(blocks, options({ purpose,
+			question: `${secret} question`, context: `${secret} context`,
+		}));
+		assert.equal(outcome.verified, true);
+		assert.equal(outcome.repaired, false);
+		assert.deepEqual(outcome.blocks, blocks);
+		assert.equal(module.requests.length, 1);
+		assert.deepEqual(reviewDiagnostics(module), [
+			{ attempt: 1, contentKind, coverageMatches: true,
+				allScriptureQuotationsVerified: true, allCitationsSupportTheirClaims: true,
+				faithfulToFoundation: true, answersRequestedQuestion: true, issueCount: 0, requiredReferencesCount: 0 },
+		]);
+		assert.equal(JSON.stringify(module.logs).includes(secret), false);
+	}
+});
+
+test("provider errors cannot enter review diagnostics and still fail closed", async () => {
+	const secret = "PRIVATE_PROVIDER_DIAGNOSTIC_SENTINEL";
+	const module = load({ generateText: async () => { throw new Error(secret); } });
+	const outcome = await module.verifyGeneratedAnswer([{ id: "a", text: `${secret} body` }], options({
+		question: `${secret} question`, context: `${secret} context`, purpose: `${secret} purpose`,
+	}));
+	assert.equal(outcome.verified, false);
+	assert.deepEqual(outcome.issueCodes, ["verification_unavailable"]);
+	assert.deepEqual(reviewDiagnostics(module), [], "no verdict exists when the provider throws");
+	assert.equal(JSON.stringify(module.logs).includes(secret), false);
+});
+
+test("a failed diagnostic sink cannot change a passing review", async () => {
+	let diagnosticCalls = 0;
+	const module = load({ console: { info(label) {
+		if (label === "[scripture-review]") {
+			diagnosticCalls += 1;
+			throw new Error("diagnostic sink unavailable");
+		}
+	} } });
+	const blocks = [{ id: "a", text: "Checked content." }];
+	const outcome = await module.verifyGeneratedAnswer(blocks, options());
+	assert.equal(diagnosticCalls, 1);
+	assert.equal(outcome.verified, true);
+	assert.equal(outcome.repaired, false);
+	assert.deepEqual(outcome.blocks, blocks);
 });

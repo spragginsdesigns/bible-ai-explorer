@@ -82,7 +82,9 @@ export async function verifyGeneratedAnswer(blocks: AnswerBlock[], options: Veri
 		const contextEvidence = options.context ? await verifyScriptureDraft(options.context.slice(0, 16_000), { translation: options.translation, maxVerses: 120 }) : null;
 		return { evidence, context, questionEvidence: questionEvidence.references, contextEvidence: contextEvidence?.references ?? [] };
 	};
+	let reviewAttempt = 0;
 	const review = async (checked: CheckedBlock[]): Promise<AnswerReview> => {
+		const attempt = ++reviewAttempt;
 		signal.throwIfAborted();
 		const canonical = await canonicalContext(checked);
 		const references = [...new Set(canonical.evidence.map(ref => ref.reference))];
@@ -100,6 +102,20 @@ export async function verifyGeneratedAnswer(blocks: AnswerBlock[], options: Veri
 		const output = result.output;
 		const covered = output.checkedReferences.length === references.length && new Set(output.checkedReferences).size === references.length && references.every(ref => output.checkedReferences.includes(ref))
 			&& output.checkedOriginalSources.length === originalSources.length && new Set(output.checkedOriginalSources).size === originalSources.length && originalSources.every(ref => output.checkedOriginalSources.includes(ref));
+		// Fixed fields only: never log reviewer prose, source references or user content.
+		try {
+			console.info("[scripture-review]", JSON.stringify({
+				attempt,
+				contentKind: Boolean(options.purpose) ? "artifact" : "answer",
+				coverageMatches: covered,
+				allScriptureQuotationsVerified: output.allScriptureQuotationsVerified,
+				allCitationsSupportTheirClaims: output.allCitationsSupportTheirClaims,
+				faithfulToFoundation: output.faithfulToFoundation,
+				answersRequestedQuestion: output.answersRequestedQuestion,
+				issueCount: output.issues.length,
+				requiredReferencesCount: output.requiredReferences.length,
+			}));
+		} catch { /* Diagnostics must not change the verification decision. */ }
 		return { pass: covered && output.allScriptureQuotationsVerified && output.allCitationsSupportTheirClaims && output.faithfulToFoundation && output.answersRequestedQuestion, issues: [...output.issues, ...(!covered ? ["The reviewer did not account for every citation."] : [])], requiredReferences: output.requiredReferences };
 	};
 	const repair = async (checked: CheckedBlock[], review: AnswerReview): Promise<AnswerBlock[]> => {
