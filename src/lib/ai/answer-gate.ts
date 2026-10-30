@@ -10,6 +10,9 @@ export interface AnswerGateDependencies {
 	check: (block: AnswerBlock) => Promise<CheckedBlock>;
 	review: (blocks: CheckedBlock[]) => Promise<AnswerReview>;
 	repair: (blocks: CheckedBlock[], review: AnswerReview) => Promise<AnswerBlock[]>;
+	/** Internal saved-history checks never repair or replace persisted content. */
+	allowRepair?: boolean;
+	onError?: (error: unknown) => void;
 	fallback: string;
 }
 export interface GatedAnswer { blocks: AnswerBlock[]; verified: boolean; repaired: boolean; issueCodes: string[] }
@@ -34,11 +37,12 @@ export async function gateAnswer(blocks: AnswerBlock[], deps: AnswerGateDependen
 				return { blocks: checked.map(({ id, text }) => ({ id, text })), verified: true, repaired, issueCodes: [] };
 			}
 			const codes = [...new Set(checked.flatMap(block => block.issues.filter(issue => issue.severity === "error").map(issue => issue.code)))];
-			if (attempt === 1) return failure([...codes, "review_rejected"], repaired);
+			if (attempt === 1 || deps.allowRepair === false) return failure([...codes, "review_rejected"], repaired);
 			candidate = await deps.repair(checked, review);
 			repaired = true;
 			if (candidate.length !== ids.length || candidate.some((block, i) => block.id !== ids[i] || typeof block.text !== "string") || candidate.reduce((n, block) => n + block.text.length, 0) > 80_000) return failure(["repair_shape"], true);
-		} catch {
+		} catch (error) {
+			try { deps.onError?.(error); } catch { /* Still withhold. */ }
 			// Provider failures, invalid structured output and source outages fail
 			// closed. Raw draft/exception text never becomes a displayed answer.
 			return failure(["verification_unavailable"], repaired);

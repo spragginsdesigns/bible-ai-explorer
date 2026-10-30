@@ -1,9 +1,19 @@
+import { normalizeAssistantMarkdown } from "@/utils/assistantMarkdown";
+import { analyzeMarkdownUnderscores, markdownRangeHasLiteralUnderscore, type MarkdownUnderscoreAnalysis } from "./markdown-underscore-guard";
 import { BOOKS, LOCALIZED_BOOK_NAMES, type Book } from "@/lib/bible/books";
+import { loadBsbChapter } from "@/lib/bible/bsb";
 import { getChapter, isTranslationId, type TranslationId } from "@/lib/bible/translations";
 import { getOriginalVerse, getOriginalVerseForKjv, type OriginalSourceReference, type OriginalWord } from "@/lib/bible/originals";
 
 /** These are work bounds, never permission to approve only part of a draft. */
 export const SCRIPTURE_VERIFICATION_LIMITS = { characters: 80_000, references: 80, verses: 500 } as const;
+
+// Exact EMPTY_SLOTS contract enforced by scripts/bible/build-ebible.py. ASV's
+// plain-text bundle has no per-verse omission metadata; no other blank is valid.
+const ASV_OMITTED_SLOTS = new Set([
+  "40:17:21", "40:18:11", "40:23:14", "41:7:16", "41:9:44", "41:9:46", "41:11:26", "41:15:28",
+  "42:17:36", "42:23:17", "43:5:4", "44:8:37", "44:15:34", "44:24:7", "44:28:29", "45:16:24",
+]);
 
 export interface ScriptureVerseEvidence {
   book: string;
@@ -32,6 +42,11 @@ export interface ScriptureVerificationIssue {
 }
 
 export interface ScriptureQuoteCheck {
+  /** Original presentation offsets in final expanded result.text, before cleanup. */
+  start: number;
+  end: number;
+  /** Exactly associated CitationGroups; separate original identifiers are not inferred here. */
+  citationSpans: Array<{ start: number; end: number }>;
   text: string;
   references: string[];
   status: "verified" | "failed" | "review";
@@ -144,7 +159,7 @@ function formatPart(part: CitationPart): string {
   return `${start}-${part.endChapter === part.chapter ? "" : `${part.endChapter}:`}${part.endVerse}`;
 }
 
-function scanCitations(text: string, issues: ScriptureVerificationIssue[], originalIdentifiers: OriginalIdentifier[] = []): CitationGroup[] {
+function scanCitations(text: string, issues: ScriptureVerificationIssue[], originalIdentifiers: OriginalIdentifier[] = [], canonicalBodies: Array<{ start: number; end: number }> = []): CitationGroup[] {
   const groups: CitationGroup[] = [];
   // These substitutions preserve character offsets into the displayed draft.
   const scanText = normalizeCitationCharacters(text);
@@ -152,6 +167,10 @@ function scanCitations(text: string, issues: ScriptureVerificationIssue[], origi
   for (const match of scanText.matchAll(pattern)) {
     const start = match.index;
     if (groups.some((group) => start < group.end)) continue;
+    // These spans exist only for exact source text inserted by this verifier.
+    // A source's own prose, such as "division numbers 74,600", is not a new
+    // assistant citation. Input text never receives this exemption.
+    if (canonicalBodies.some((body) => start >= body.start && start < body.end)) continue;
     if (originalIdentifiers.some((identifier) => start >= identifier.start && start < identifier.end)) continue;
     const book = bookFromMatch(match[1]);
     if (!book) continue;
@@ -207,10 +226,10 @@ function scanCitations(text: string, issues: ScriptureVerificationIssue[], origi
     // single colon. The coordinate must already include a verse, and a real
     // nonnumeric prose body must follow. A doubled internal colon or another
     // numeric coordinate remains malformed rather than being reclassified.
-    const proseDelimiter = verseContext && /^\s*:{1,2}(?!:)\s+(?:[*_`]*)(?=[\p{L}"\u201c\u2018])/u.test(remaining);
+    const proseDelimiter = verseContext && /^\s*:{1,2}(?!:)\s+(?:[*_`]*)(?=[\p{L}"\u201c\u2018«»„‚])/u.test(remaining);
     // A dash left after parsing the coordinate is prose only when an actual
     // nonnumeric word follows on that line, allowing ordinary Markdown/quotes.
-    const danglingRange = /^\s*[-\u2013\u2014\u2212]/.test(remaining) && !/^\s*[-\u2013\u2014\u2212][ \t]*[*_`("'\u201c\u2018\[]*(?=\p{L})/u.test(remaining);
+    const danglingRange = /^\s*[-\u2013\u2014\u2212]/.test(remaining) && !/^\s*[-\u2013\u2014\u2212][ \t]*[*_`("'\u201c\u2018«»„‚\[]*(?=\p{L})/u.test(remaining);
     if ((!proseDelimiter && /^\s*:/.test(remaining)) || danglingRange || /^\p{L}/u.test(remaining)) {
       issues.push({ code: "invalid_reference", severity: "error", message: "The Scripture reference has an incomplete or unsupported range.", excerpt: text.slice(start, cursor + 24) });
     }
@@ -222,6 +241,7 @@ function scanCitations(text: string, issues: ScriptureVerificationIssue[], origi
   const unknown = /((?:[1-5IVX]\.?(?:\s+|(?=\p{L})))?[\p{L}][\p{L}.'-]*)\s*(\d+)\s*:\s*(\d+)/gu;
   for (const match of scanText.matchAll(unknown)) {
     const coordinate = match.index + match[0].lastIndexOf(match[2]);
+    if (canonicalBodies.some((body) => coordinate >= body.start && coordinate < body.end)) continue;
     if (groups.some((group) => coordinate >= group.start && coordinate < group.end)) continue;
     // These exact spans are checked against the original text below. No WLC/TR
     // spelling is globally exempt from coordinate and source validation.
@@ -233,7 +253,7 @@ function scanCitations(text: string, issues: ScriptureVerificationIssue[], origi
 }
 
 function normalizedQuote(value: string): string {
-  return value.normalize("NFKC").replace(/[\u0591-\u05af]/g, "").replace(/<[^>]*>/g, " ").replace(/[\p{P}\p{S}]/gu, " ").replace(/\s+/g, " ").trim();
+  return value.normalize("NFKC").replace(/[\u0591-\u05af]/g, "").replace(/<[^>]*>/g, " ").replace(/[\p{P}\p{S}]/gu, (character) => character === "_" ? character : " ").replace(/\s+/g, " ").trim();
 }
 
 function quoteMatches(quote: string, verses: ScriptureVerseEvidence[], requireComplete = false): boolean {
@@ -266,15 +286,46 @@ function tokenMentionMatches(body: string, evidence: ScriptureOriginalEvidence, 
 }
 
 function hasCompletenessClaim(context: string): boolean {
-  // A lexical gloss ("perfect means complete", "a complete word") does not
-  // promise a whole passage. Other completeness language is conservative:
-  // strong phrases stand alone, or an indicator shares a clause with a
-  // Scripture/text unit, regardless of their word order.
-  const claims = context
-    .replace(/\b(?:means?|signifies?|denotes?|glossed\s+as|translated\s+as)\s+(?:to\s+be\s+)?["\u201c\u2018]?\s*(?:complete|full|whole|entire|verbatim)\b/gi, "")
+  // Glosses describe a word, not a promise to reproduce its whole source.
+  // Paired localized quote openings need the same treatment as ASCII quotes.
+  const withoutGlosses = context.replace(/"([^"\n]+)"|\u201c([^\u201d]+)\u201d|\u2018([^\u2019\n]+)\u2019|«([^»]+)»|»([^«]+)«|„([^“]+)“|‚([^‘]+)‘/g,
+    (quote, _ascii, _curly, _single, _guillemet, _reversed, _lowDouble, _lowSingle, offset: number) =>
+      isLexicalGloss(context.slice(Math.max(0, offset - 150), offset)) ? " ".repeat(quote.length) : quote);
+  const claims = withoutGlosses
+    .replace(/\b(?:means?|signifies?|denotes?|glossed\s+as|translated\s+as)\s+(?:to\s+be\s+)?["\u201c\u2018«»„‚]?\s*(?:complete|full|whole|entire|verbatim)\b/gi, "")
     .replace(/\b(?:a\s+)?(?:complete|whole|full)\s+word\b(?![\s\p{Pd}]+for\b)/giu, "");
   if (/\bverbatim\b|\bin\s+(?:its\s+)?(?:full|entirety)\b|\bword[\s\p{Pd}]+for[\s\p{Pd}]+word\b/iu.test(claims)) return true;
-  return claims.split(/[.!?;\n]/).some((clause) => /\b(?:full(?:y)?|whole|entire(?:ly)?|complete(?:ly)?)\b/i.test(clause) && (/\b(?:verses?|range|passage|chapter|quotation|text|scripture|words)\b/i.test(clause) || citationStart().test(clause) || /\b(?:WLC|TR)\s*\d+\s*:\s*\d+/i.test(clause)));
+  if (claims.split(/[.!?;\n]/).some((clause) => /\b(?:full(?:y)?|whole|entire(?:ly)?|complete(?:ly)?)\b/i.test(clause) && (/\b(?:verses?|range|passage|chapter|quotation|text|scripture|words)\b/i.test(clause) || citationStart().test(clause) || /\b(?:WLC|TR)\s*\d+\s*:\s*\d+/i.test(clause)))) return true;
+  // These bounded phrases distinguish a full-text promise from a lexical
+  // definition, an explicit disclaimer, or an ordinary intensifier. Mask only
+  // the matching phrase: a later positive full-text promise must still count.
+  const localizedClaims = claims.normalize("NFC")
+    .replace(/(?<![\p{L}\p{N}])(?:significa(?:n)?|quiere\s+decir|se\s+traduce\s+(?:como|por))\s+(?:ser\s+)?["\u201c\u2018«»„‚]?\s*(?:complet(?:[oa]s?|amente)|enter[oa]s?|íntegr(?:[oa]s?|amente)|en\s+su\s+(?:totalidad|integridad)|palabra[\s\p{Pd}]+por[\s\p{Pd}]+palabra|de\s+principio\s+a\s+fin)(?![\p{L}\p{N}])/giu, "")
+    .replace(/(?<![\p{L}\p{N}])(?:una?\s+)?palabra\s+(?:completa|entera|íntegra)(?![\p{L}\p{N}])/giu, "")
+    .replace(/(?<![\p{L}\p{N}])(?:bedeutet|bedeuten|heißt|heisst|bezeichnet|übersetzt\s+(?:als|mit))\s+["\u201c\u2018«»„‚]?\s*(?:vollständig|vollstaendig|komplett|ganz|wörtlich|Wort[\s\p{Pd}]+für[\s\p{Pd}]+Wort|in\s+voller\s+Länge|im\s+Wortlaut)(?![\p{L}\p{N}])/giu, "")
+    .replace(/(?<![\p{L}\p{N}])(?:ein(?:e[nmrs]?)?\s+)?(?:vollständig|vollstaendig|komplett|ganz)e[nmrs]?\s+Wort(?![\p{L}\p{N}])/giu, "")
+    .replace(/(?<![\p{L}\p{N}])no\s+(?:(?:est[aá]n?|es|son|se\s+(?:cita|reproduce))\s+)?(?:del\s+todo\s+)?(?:complet(?:[oa]s?|amente)|enter[oa]s?|íntegr(?:[oa]s?|amente)|en\s+su\s+(?:totalidad|integridad)|palabra[\s\p{Pd}]+por[\s\p{Pd}]+palabra|de\s+principio\s+a\s+fin)(?![\p{L}\p{N}])/giu, "")
+    .replace(/(?<![\p{L}\p{N}])nicht\s+(?:ganz\s+)?(?:vollständig(?:e[nmrs]?)?|vollstaendig(?:e[nmrs]?)?|komplett(?:e[nmrs]?)?|wörtlich(?:e[nmrs]?)?|Wort[\s\p{Pd}]+für[\s\p{Pd}]+Wort|in\s+voller\s+Länge|im\s+Wortlaut)(?![\p{L}\p{N}])/giu, "")
+    .replace(/(?<![\p{L}\p{N}])(?:ganz|vollständig|vollstaendig|komplett)\s+(?:klar|deutlich|sicher|offensichtlich|anders|falsch|richtig)(?![\p{L}\p{N}])/giu, "");
+  if (/(?<![\p{L}\p{N}])(?:en\s+su\s+(?:totalidad|integridad)|palabra[\s\p{Pd}]+por[\s\p{Pd}]+palabra|wörtlich(?:e[nmrs]?)?|Wort[\s\p{Pd}]+für[\s\p{Pd}]+Wort|in\s+voller\s+Länge|im\s+Wortlaut)(?![\p{L}\p{N}])/iu.test(localizedClaims)) return true;
+  return localizedClaims.split(/[.!?;\n]/).some((clause) => {
+    const hasUnit = /\b(?:vers[ií]culos?|pasajes?|cap[ií]tulos?|citas?|textos?|escrituras?|palabras?|Verse?[ns]?|Kapitel|Abschnitt|Passage|Zitat|Text|Schrift|Wortlaut|Worte?|Wörter)\b/iu.test(clause) || citationStart().test(clause) || /\b(?:WLC|TR)\s*\d+\s*:\s*\d+/i.test(clause);
+    const indicator = /(?<![\p{L}\p{N}])(?:complet(?:[oa]s?|amente)|enter[oa]s?|íntegr(?:[oa]s?|amente)|vollständig(?:e[nmrs]?)?|ganze[nmrs]?)(?![\p{L}\p{N}])/iu.test(clause);
+    // Additional synonyms require an adjacent text unit or quotation verb;
+    // "komplett anders" and a temporal "de principio a fin" are not promises.
+    const directGerman = /(?<![\p{L}\p{N}])(?:vollstaendig|komplett)(?:e[nmrs]?)?\s+(?:Verse?[ns]?|Kapitel|Abschnitt|Passage|Zitat|Text|Wortlaut|lautet|zitiert|wiedergegeben)(?![\p{L}\p{N}])/iu.test(clause);
+    const directSpanish = /(?<![\p{L}\p{N}])de\s+principio\s+a\s+fin(?![\p{L}\p{N}])/iu.test(clause) && /\b(?:dice[n]?|cita(?:do|dos)?|reproduce|vers[ií]culos?|pasajes?|textos?)\b/iu.test(clause);
+    return hasUnit && (indicator || directGerman || directSpanish);
+  });
+}
+
+function isLexicalGloss(before: string): boolean {
+  // Only an explicit word/term definition immediately introducing this quote
+  // gets semantic review. Nearby Latin-script quotations keep source checking.
+  const clause = before.split(/[.!?;\n]/).pop() ?? "";
+  return (/\b(?:word|term|lemma|surface form)\b/i.test(clause) && /\b(?:means?|signifies?|denotes?|glossed\s+as|translated\s+as)\s*$/i.test(clause)) ||
+    (/(?<![\p{L}\p{N}])(?:palabra|término|termino|lema|forma)(?![\p{L}\p{N}])/iu.test(clause) && /(?<![\p{L}\p{N}])(?:significa(?:n)?|quiere\s+decir|se\s+traduce\s+(?:como|por))\s*$/iu.test(clause)) ||
+    (/\b(?:Wort|Begriff|Lemma|Wortform)\b/iu.test(clause) && /\b(?:bedeutet|bedeuten|heißt|heisst|bezeichnet|übersetzt\s+(?:als|mit))\s*$/iu.test(clause));
 }
 
 interface Quotation { text: string; start: number; end: number; block: boolean; numbered?: boolean }
@@ -290,10 +341,10 @@ function quotationCandidates(text: string, groups: CitationGroup[]): Quotation[]
     if (candidates.some((candidate) => start >= candidate.start && start < candidate.end)) continue;
     candidates.push({ text: match[1], start, end: start + match[1].length, block: true });
   }
-  const inline = /"([^"\n]+)"|\u201c([^\u201d]+)\u201d|\u2018([^\u2019\n]+)\u2019/g;
+  const inline = /"([^"\n]+)"|\u201c([^\u201d]+)\u201d|\u2018([^\u2019\n]+)\u2019|«([^»]+)»|»([^«]+)«|„([^“]+)“|‚([^‘]+)‘/g;
   for (const match of text.matchAll(inline)) {
     if (candidates.some((candidate) => match.index >= candidate.start && match.index < candidate.end)) continue;
-    candidates.push({ text: match[1] ?? match[2] ?? match[3], start: match.index, end: match.index + match[0].length, block: false });
+    candidates.push({ text: match.slice(1).find((part) => part !== undefined)!, start: match.index, end: match.index + match[0].length, block: false });
   }
   // Original-language words are quotations even when rendered as inline code.
   for (const match of text.matchAll(/[\p{Script=Hebrew}\p{Script=Greek}][\p{Script=Hebrew}\p{Script=Greek}\p{M}\u05be\u05c3 ]*/gu)) {
@@ -337,18 +388,35 @@ function associatedGroups(quote: Quotation, text: string, groups: CitationGroup[
     const gap = group.end <= quote.start ? text.slice(group.end, quote.start) : group.start >= quote.end ? text.slice(quote.end, group.start) : "";
     return gap.length <= 220 && !/\n\s*\n/.test(gap) && (group.end <= quote.start || group.start >= quote.end);
   });
+  // A clear immediate introduction owns its following quote. A shorter
+  // forward gap must not lend the next sentence's verse to this quotation.
+  const formatting = "[\\s*_`]*";
+  const version = `(?:(?:\\((?:KJV|NKJV|BSB|ASV|RV1909|LUT1912|WLC|TR)\\)|(?:KJV|NKJV|BSB|ASV|RV1909|LUT1912|WLC|TR))${formatting})?`;
+  const introduction = new RegExp(`^${formatting}${version}(?:::{0,1}|(?:says|reads|saith|dice|lautet|sagt)${formatting}${version}[,:]?)${formatting}$`, "i");
+  const header = new RegExp(`^${formatting}${version}$`, "i");
+  const introduced = nearby.filter((group) => {
+    if (group.end > quote.start) return false;
+    const gap = text.slice(group.end, quote.start);
+    if (introduction.test(gap)) return true;
+    const lineStart = text.lastIndexOf("\n", group.start - 1) + 1;
+    return gap.includes("\n") && header.test(gap) && /^[\s*#_`]*$/.test(text.slice(lineStart, group.start));
+  });
+  if (introduced.length) return introduced.sort((a, b) => b.end - a.end).slice(0, 1);
   // Never allow a quote to borrow a convenient citation across an intervening
   // reference. Equidistant competing labels require semantic repair.
   nearby.sort((a, b) => Math.min(Math.abs(a.end - quote.start), Math.abs(a.start - quote.end)) - Math.min(Math.abs(b.end - quote.start), Math.abs(b.start - quote.end)));
   return nearby.slice(0, 1);
 }
 
-function quoteBody(quote: Quotation, groups: CitationGroup[], identifiers: OriginalIdentifier[] = []): string {
+function quoteBody(quote: Quotation, groups: CitationGroup[], identifiers: OriginalIdentifier[] = [], underscoreAnalysis?: MarkdownUnderscoreAnalysis): string {
+  // Source ranges from the whole expanded draft retain enclosing code/HTML
+  // context that quotation extraction alone cannot preserve.
+  const literalUnderscore = quote.text.includes("_") && (!underscoreAnalysis || markdownRangeHasLiteralUnderscore(underscoreAnalysis, quote.start, quote.end));
   let body = quote.text;
   for (const group of groups) body = body.split(group.sourceText).join("");
   for (const identifier of identifiers) body = body.split(identifier.sourceText).join("");
   body = body.replace(/\((?:WLC|TR)(?:\s+numbering)?\)/gi, "");
-  return body.split("\n").map((line) => line.replace(/^\s*>\s?/, "").replace(/^\s*(?:\*\*)?\[?\d{1,3}\]?[.)]?(?:\*\*)?\s+/, "").replace(/^\s*[-\u2013\u2014]?\s*[*_`]*\s*[,;]?\s*\(?(?:KJV|NKJV|BSB|ASV|RV1909|LUT1912)\)?\s*[*_`]*\s*$/i, "")).join(" ").replace(/\((?:KJV|NKJV|BSB|ASV|RV1909|LUT1912)\)/gi, "").replace(/[*_`]/g, "").replace(/^\s*["\u201c]|["\u201d]\s*$/g, "").replace(/\s+/g, " ").trim().replace(/^[\s\u2014-]+|[\s\u2014-]+$/g, "");
+  return body.split("\n").map((line) => line.replace(/^\s*>\s?/, "").replace(/^\s*(?:\*\*)?\[?\d{1,3}\]?[.)]?(?:\*\*)?\s+/, "").replace(/^\s*[-\u2013\u2014]?\s*[*_`]*\s*[,;]?\s*\(?(?:KJV|NKJV|BSB|ASV|RV1909|LUT1912)\)?\s*[*_`]*\s*$/i, "")).join(" ").replace(/\((?:KJV|NKJV|BSB|ASV|RV1909|LUT1912)\)/gi, "").replace(literalUnderscore ? /[*`]/g : /[*_`]/g, "").replace(/^\s*["\u201c]|["\u201d]\s*$/g, "").replace(/\s+/g, " ").trim().replace(/^[\s\u2014-]+|[\s\u2014-]+$/g, "");
 }
 
 /**
@@ -386,7 +454,25 @@ export async function verifyScriptureDraft(
   const load = (order: number, chapter: number) => {
     const key = `${order}:${chapter}`;
     let pending = chapterCache.get(key);
-    if (!pending) { pending = getChapter(options.translation, order, chapter); chapterCache.set(key, pending); }
+    if (!pending) {
+      pending = (async () => {
+        const canonical = await getChapter(options.translation, order, chapter);
+        if (!canonical.length || Array.from(canonical).some((verse) => typeof verse !== "string")) throw new Error("Incomplete canonical chapter");
+        if (canonical.some((verse) => !verse.trim())) {
+          if (options.translation === "ASV") {
+            if (canonical.some((verse, index) => !verse.trim() && !ASV_OMITTED_SLOTS.has(`${order}:${chapter}:${index + 1}`))) throw new Error("Incomplete canonical chapter");
+            return canonical;
+          }
+          // BSB preserves its publisher's omitted verse slots. Only explicit,
+          // matching source metadata can exempt a blank outside the citation.
+          if (options.translation !== "BSB") throw new Error("Incomplete canonical chapter");
+          const formatted = await loadBsbChapter(order, chapter);
+          if (formatted.length !== canonical.length || Array.from(formatted).some((verse, index) => !verse || verse.number !== index + 1 || verse.text !== canonical[index] || (!verse.text.trim() && verse.omitted !== true))) throw new Error("Incomplete canonical chapter");
+        }
+        return canonical;
+      })();
+      chapterCache.set(key, pending);
+    }
     return pending;
   };
   let verseCount = 0;
@@ -428,7 +514,6 @@ export async function verifyScriptureDraft(
       try {
         for (let chapter = part.chapter; chapter <= part.endChapter; chapter += 1) {
           const canonical = await load(part.book.order, chapter);
-          if (!canonical.length || canonical.some((verse) => typeof verse !== "string" || !verse.trim())) throw new Error("Incomplete canonical chapter");
           const first = chapter === part.chapter ? part.verse ?? 1 : 1;
           const last = chapter === part.endChapter ? part.endVerse ?? canonical.length : canonical.length;
           if (first > canonical.length || last > canonical.length || first > last) {
@@ -437,6 +522,9 @@ export async function verifyScriptureDraft(
           }
           if (verseCount + last - first + 1 > maxVerses) { failLimit("The draft exceeds the complete-verification verse bound."); verses.length = 0; break; }
           for (let verse = first; verse <= last; verse += 1) {
+            // An omitted slot supplies no Scripture words. Never fill it from
+            // another translation or certify a range that includes it.
+            if (!canonical[verse - 1].trim()) throw new Error("The cited verse is omitted from this translation");
             verses.push({ book: part.book.name, order: part.book.order, chapter, verse, text: canonical[verse - 1] });
             verseCount += 1;
           }
@@ -453,6 +541,7 @@ export async function verifyScriptureDraft(
   // Markers inside code fences are deliberately not exempted.
   let text = "";
   let cursor = 0;
+  const canonicalBodies: Array<{ start: number; end: number; canonicalText: string }> = [];
   const placeholders = /\[\[SCRIPTURE:([^\]\n]+)\]\]/gi;
   for (const marker of inputText.matchAll(placeholders)) {
     text += inputText.slice(cursor, marker.index);
@@ -466,7 +555,10 @@ export async function verifyScriptureDraft(
       if (groups[0].evidence.length !== groups[0].parts.length) text += marker[0];
       else {
         const verses = groups[0].evidence.flatMap((evidence) => evidence.verses);
-        text += `**${groups[0].sourceText} (${options.translation})**\n${verses.map((verse) => `> ${verse.verse} ${verse.text}`).join("\n")}`;
+        text += `**${groups[0].sourceText} (${options.translation})**\n`;
+        const start = text.length;
+        text += verses.map((verse) => `> ${verse.verse} ${verse.text.replace(/\n/g, "\n> ")}`).join("\n");
+        canonicalBodies.push({ start, end: text.length, canonicalText: verses.map((verse) => verse.text).join(" ") });
       }
     }
     cursor = marker.index + marker[0].length;
@@ -479,7 +571,7 @@ export async function verifyScriptureDraft(
   verseCount = 0;
   referenceCount = 0;
   const identifiers = scanOriginalIdentifiers(text);
-  const groups = scanCitations(text, issues, identifiers);
+  const groups = scanCitations(text, issues, identifiers, canonicalBodies);
   for (const group of groups) {
     if (group.edition) {
       if (group.parts.length !== 1 || group.parts[0].verse === undefined || group.parts[0].chapter !== group.parts[0].endChapter || group.parts[0].verse !== group.parts[0].endVerse) {
@@ -536,13 +628,26 @@ export async function verifyScriptureDraft(
     ...groups.filter((group) => !group.edition).map((group) => ({ start: group.start, end: group.end, group })),
     ...identifiers.map((identifier) => ({ start: identifier.start, end: identifier.end, identifier })),
   ].sort((a, b) => a.start - b.start);
-  for (const quote of quotationCandidates(text, groups)) {
+  const candidates = quotationCandidates(text, groups);
+  const underscoreAnalysis = candidates.some((quote) => quote.text.includes("_")) ? analyzeMarkdownUnderscores(text, { presentation: (source) => normalizeAssistantMarkdown(source, { streaming: false }) }) : undefined;
+  for (const quote of candidates) {
     const associated = associatedGroups(quote, text, groups);
+    const recordQuote = (record: Omit<ScriptureQuoteCheck, "start" | "end" | "citationSpans">) => {
+      const citationSpans = associated.map(({ start, end }) => ({ start, end }));
+      if ([quote, ...citationSpans].some(({ start, end }) => !Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start || end > text.length)) {
+        failLimit("Quotation association has ambiguous source offsets."); return;
+      }
+      quotes.push({ ...record, start: quote.start, end: quote.end, citationSpans });
+    };
     const nearbyIdentifiers = identifiers.filter((identifier) => {
       const gap = identifier.end <= quote.start ? text.slice(identifier.end, quote.start) : identifier.start >= quote.end ? text.slice(quote.end, identifier.start) : "";
       return gap.length < 220 && !/\n\s*\n/.test(gap);
     });
-    const body = quoteBody(quote, associated, nearbyIdentifiers);
+    // Exact generated containers already distinguish inserted verse labels
+    // from real source numbers on continuation lines. A merged or modified
+    // container must still pass the ordinary untrusted quotation path.
+    const canonicalBody = canonicalBodies.find((body) => body.start === quote.start && body.end === quote.end);
+    const body = canonicalBody?.canonicalText ?? quoteBody(quote, associated, nearbyIdentifiers, underscoreAnalysis);
     if (!normalizedQuote(body)) continue;
     const before = text.slice(Math.max(0, quote.start - 150), quote.start);
     const quoteParagraph = paragraphOf(quote.start);
@@ -559,11 +664,11 @@ export async function verifyScriptureDraft(
     const activeVerses = new Map(active.flatMap((anchor) => anchor.group?.evidence.flatMap((reference) => reference.verses) ?? []).map((verse) => [`${verse.order}:${verse.chapter}:${verse.verse}`, verse]));
     const activeLabels = new Set([...activeVerses.values()].map((verse) => `${verse.book} ${verse.chapter}:${verse.verse}`));
     const activeOriginal = new Set(active.flatMap((anchor) => anchor.identifier ? originalByIdentifier.get(anchor.identifier) ?? [] : []));
-    const namedArtifact = !quote.block && /["\u201c\u2018]/.test(text[quote.start] ?? "") && /\b(?:note|study|devotional|reading plan|title)(?:\s+(?:titled|called|named))?\s*$/i.test(before);
-    const lexicalGloss = !quote.block && /["\u201c\u2018]/.test(text[quote.start] ?? "") && /\b(?:word|term|lemma|surface form)\b/i.test(before) && /\b(?:means?|signifies?|denotes?|glossed\s+as|translated\s+as)\s*$/i.test(before);
+    const namedArtifact = !quote.block && /["\u201c\u2018«»„‚]/.test(text[quote.start] ?? "") && /\b(?:note|study|devotional|reading plan|title)(?:\s+(?:titled|called|named))?\s*$/i.test(before);
+    const lexicalGloss = !quote.block && /["\u201c\u2018«»„‚]/.test(text[quote.start] ?? "") && isLexicalGloss(before);
     if (namedArtifact || lexicalGloss) {
       issues.push({ code: "ambiguous_quote", severity: "review", message: namedArtifact ? "A quoted artifact title requires independent semantic review, including any claim in the title or receipt." : "A quoted lexical gloss requires independent semantic review against trusted word metadata; it is not a verbatim Bible quotation.", excerpt: body });
-      quotes.push({ text: body, references: [], status: "review" });
+      recordQuote({ text: body, references: [], status: "review" });
       continue;
     }
     if (/[\p{Script=Hebrew}\p{Script=Greek}]/u.test(body)) {
@@ -623,7 +728,7 @@ export async function verifyScriptureDraft(
       const completeSource = sourceEvidence.length === 1 && quoteMatches(body, [{ book: sourceEvidence[0].book, order: sourceEvidence[0].order, chapter: sourceEvidence[0].chapter, verse: sourceEvidence[0].verse, text: sourceEvidence[0].text }], true);
       const verified = corroboratedMention || (wholeClaim ? joinedVerification ?? completeSource : mentionIntent === "lemma" ? evidence.some((item) => tokenMentionMatches(body, item, "lemma")) : joinedVerification ?? evidence.some((item) => quoteMatches(body, [{ book: item.book, order: item.order, chapter: item.chapter, verse: item.verse, text: item.text }])));
       const labels = evidence.map((item) => `${item.book} (${item.sourceIdentifier})`);
-      quotes.push({ text: body, references: labels, status: verified ? "verified" : "failed" });
+      recordQuote({ text: body, references: labels, status: verified ? "verified" : "failed" });
       if (!verified) issues.push({ code: "quote_mismatch", severity: "error", message: "The Hebrew or Greek quotation does not match the trusted original text for the cited source.", excerpt: body, reference: labels.join("; ") });
       continue;
     }
@@ -636,32 +741,32 @@ export async function verifyScriptureDraft(
       const matches = [...distinct.values()].filter((verse) => quoteMatches(body, [verse]));
       if (matches.length === 1) {
         const verse = matches[0];
-        quotes.push({ text: body, references: [`${verse.book} ${verse.chapter}:${verse.verse}`], status: "verified" });
+        recordQuote({ text: body, references: [`${verse.book} ${verse.chapter}:${verse.verse}`], status: "verified" });
         continue;
       }
       if (matches.length > 1) {
         issues.push({ code: "ambiguous_quote", severity: "error", message: "The excerpt matches multiple cited verses; identify its source explicitly.", excerpt: body });
-        quotes.push({ text: body, references: [], status: "failed" });
+        recordQuote({ text: body, references: [], status: "failed" });
         continue;
       }
       if (latest && activeVerses.size && !personalQuote) {
         issues.push({ code: "quote_mismatch", severity: "error", message: "The excerpt does not match the active cited passage; another section's words cannot substitute for it.", excerpt: body });
-        quotes.push({ text: body, references: [], status: "failed" });
+        recordQuote({ text: body, references: [], status: "failed" });
         continue;
       }
     }
     if (!associated.length || personalQuote) {
       const hard = scriptureIntent && !personalQuote;
       issues.push({ code: hard ? "unattributed_quote" : "ambiguous_quote", severity: hard ? "error" : "review", message: hard ? "A Scripture quotation has no verified citation." : "The quote's source or intent requires independent semantic review.", excerpt: body });
-      quotes.push({ text: body, references: [], status: hard ? "failed" : "review" });
+      recordQuote({ text: body, references: [], status: hard ? "failed" : "review" });
       continue;
     }
     const verses = associated.flatMap((group) => group.evidence.flatMap((evidence) => evidence.verses));
-    const displayedNumbers = quote.text.split("\n").map((line) => line.replace(/^\s*>\s?/, "").match(/^\s*(?:\*\*)?\[?(\d{1,3})\]?[.)]?(?:\*\*)?\s+/)?.[1]).filter((number): number is string => number !== undefined).map(Number);
+    const displayedNumbers = canonicalBody ? verses.map((verse) => verse.verse) : quote.text.split("\n").map((line) => line.replace(/^\s*>\s?/, "").match(/^\s*(?:\*\*)?\[?(\d{1,3})\]?[.)]?(?:\*\*)?\s+/)?.[1]).filter((number): number is string => number !== undefined).map(Number);
     const numberingMatches = !displayedNumbers.length || (displayedNumbers.length === verses.length && displayedNumbers.every((number, index) => number === verses[index].verse));
     const verified = numberingMatches && quoteMatches(body, verses, wholeClaim);
     const labels = associated.flatMap((group) => group.evidence.map((evidence) => evidence.reference));
-    quotes.push({ text: body, references: labels, status: verified ? "verified" : "failed" });
+    recordQuote({ text: body, references: labels, status: verified ? "verified" : "failed" });
     if (!verified) issues.push({ code: "quote_mismatch", severity: "error", message: "The displayed quotation does not match the cited canonical text, or presents only part of a labeled passage.", excerpt: body, reference: labels.join("; ") });
   }
   return result(text);

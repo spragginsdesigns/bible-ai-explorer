@@ -1,3 +1,5 @@
+import { normalizeAssistantMarkdown } from "../src/utils/assistantMarkdown.ts";
+import { hasLiteralMarkdownUnderscore, analyzeMarkdownUnderscores, markdownRangeHasLiteralUnderscore } from "../src/lib/ai/markdown-underscore-guard.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -12,7 +14,7 @@ const localized = ["es", "de"].flatMap((language) => [
 ]);
 const source = readFileSync(new URL("../src/lib/ai/scripture-verification.ts", import.meta.url), "utf8")
   .replace(/^import\s[^;]*?;\s*$/gm, "").replace(/^export /gm, "");
-const factory = new Function("BOOKS", "LOCALIZED_BOOK_NAMES", "getChapter", "isTranslationId", "getOriginalVerse", "getOriginalVerseForKjv", `${stripTypeScriptTypes(source)}\nreturn { verifyScriptureDraft, SCRIPTURE_VERIFICATION_LIMITS };`);
+const factory = new Function("normalizeAssistantMarkdown", "hasLiteralMarkdownUnderscore", "analyzeMarkdownUnderscores", "markdownRangeHasLiteralUnderscore", "BOOKS", "LOCALIZED_BOOK_NAMES", "getChapter", "isTranslationId", "getOriginalVerse", "getOriginalVerseForKjv", `${stripTypeScriptTypes(source)}\nreturn { verifyScriptureDraft, SCRIPTURE_VERIFICATION_LIMITS };`);
 const bundled = new Map();
 async function loadChapter(translation, order, chapter) {
   assert.equal(translation, "KJV");
@@ -34,7 +36,7 @@ const originals = originalFactory(async (filename) => {
   await loadChapter("KJV", order, 1);
   return bundled.get(order);
 }, alignFromKjv, originalFragmentMatchesSource);
-const makeVerifier = (getChapter = loadChapter, originalApi = originals) => factory(books, localized, getChapter, (translation) => ["KJV", "NKJV", "BSB", "ASV", "RV1909", "LUT1912"].includes(translation), originalApi.getOriginalVerse, originalApi.getOriginalVerseForKjv);
+const makeVerifier = (getChapter = loadChapter, originalApi = originals) => factory(normalizeAssistantMarkdown, hasLiteralMarkdownUnderscore, analyzeMarkdownUnderscores, markdownRangeHasLiteralUnderscore, books, localized, getChapter, (translation) => ["KJV", "NKJV", "BSB", "ASV", "RV1909", "LUT1912"].includes(translation), originalApi.getOriginalVerse, originalApi.getOriginalVerseForKjv);
 const { verifyScriptureDraft: verify } = makeVerifier();
 const check = (text, options = {}) => verify(text, { translation: "KJV", ...options });
 const john316 = "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.";
