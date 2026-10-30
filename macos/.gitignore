@@ -6,6 +6,8 @@ SureWord-iOS/Info.plist
 SureWord-iOS/SureWord-iOS.entitlements
 SureWord-iOS-Share/Info.plist
 SureWord-iOS-Share/SureWord-iOS-Share.entitlements
+SureWord-iOS-NotificationService/Info.plist
+SureWord-iOS-NotificationContent/Info.plist
 
 # Xcode build products & user state
 build/
