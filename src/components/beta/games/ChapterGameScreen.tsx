@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, ListChecks } from "lucide-react";
+import { ArrowLeft, ArrowRight, ListChecks, Trophy } from "lucide-react";
 import ChapterGamePlayer from "./ChapterGamePlayer";
 import { chapterQuizHref, gameChapterHref, type ChapterGame, type GameAward } from "@/lib/beta/games/games-rules";
+import { AWARDS_ROOM_HREF } from "@/lib/beta/games/awards-room-rules";
 
 interface Props {
 	game: ChapterGame;
@@ -73,6 +74,12 @@ export default function ChapterGameScreen({ game, initialAward, quizTaken, next 
 								Continue to {next.label} <ArrowRight size={20} aria-hidden />
 							</Link>
 						) : null}
+						<Link
+							href={AWARDS_ROOM_HREF}
+							className="flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-bold text-amber-800 hover:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-400/10"
+						>
+							<Trophy size={18} aria-hidden /> See it in your Awards Room
+						</Link>
 					</div>
 				</section>
 			) : null}

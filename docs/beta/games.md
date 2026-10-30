@@ -41,6 +41,45 @@ keeps the reader's "Quiz me" card unchanged.
   itself, and coming back to the same chapter resumes at its verse
   (`docs/FEATURES.md`, "Carrying on across pages").
 
+## The Awards Room
+
+LC-17906 (Austin): "maybe even better gamification for i.e. book of matthew -
+like an awards room, trophies, scorecard, grade, medal of accomplishments ...
+so that way the user feels like they're really accomplishing parts of the
+bible as they go through it."
+
+`/beta/bible/games/awards` (`AwardsRoom.tsx`), reached from the "Awards Room"
+button on the games list and "See it in your Awards Room" under a won game's
+"What's next". It shows Matthew three ways:
+
+- **The scorecard.** The grade so far, chapters complete out of 28 (a ring),
+  chapters read, medals by metal, and quizzes taken with the average of their
+  best scores.
+- **Trophies.** Seven, each earned when every chapter of its passage is
+  complete: Follow Me (1-4), The Sermon on the Mount (5-7), What Manner of Man
+  (8-12), Thou Art the Christ (13-18), My Words Shall Not Pass Away (19-25),
+  He Is Risen (26-28) and The Gospel of Matthew (all 28). An earned trophy
+  shows its KJV verse, read from the bundled text; a locked one shows how many
+  of its chapters are complete. A trophy earned since the room was last
+  opened on this device is marked New (`localStorage`, nothing stored).
+- **A plaque per chapter.** The game's medal in its grade (or the chapter
+  number), the grade's name, and three parts: **Read**, **Game** (best score)
+  and **Quiz** (best score). The plaque opens what is left of the chapter:
+  the reader until it is read, then the game, then the quiz.
+
+**The rules** (`awards-room-rules.ts`, pure). A chapter is complete when it is
+read whole in one sitting at least once (the reading log's `complete`, from
+`ReadingLogChapter.chapterReadings`; "started" does not count), its game is won
+and its quiz has been finished once. The grade is the average of every best
+game score (the award's `bestFaith`) and every best quiz score (correct over
+total, the best attempt per chapter), on the school scale from A+ (97) to F
+(under 60); before any game or quiz there is no grade. A game a later run
+replaces counts only once its new game is won, like the chapter-end card.
+
+**Data.** None of its own. `awards-room.ts` reads the founder's game awards
+(`listGameAwards`), their Matthew `QuizAttempt` rows and their Matthew
+`ReadingLogChapter` rows each time the room opens, and writes nothing.
+
 ## How a round plays
 
 Every game runs in one player (`MicroGame.tsx`) on the game's page:
@@ -179,16 +218,17 @@ there.
 
 | What | Where |
 |---|---|
-| Games list page, a game's page | `src/app/beta/bible/games/page.tsx`, `src/app/beta/bible/games/[game]/page.tsx` |
-| Chapter-end card, game page, quiz step, games list, player, medal | `src/components/beta/games/` (`ChapterGameCard.tsx`, `ChapterGameScreen.tsx`, `QuizGameStep.tsx`, `GamesHome.tsx`, `ChapterGamePlayer.tsx`, `MicroGame.tsx`, `AwardMedal.tsx`) |
+| Games list page, a game's page, the Awards Room | `src/app/beta/bible/games/page.tsx`, `src/app/beta/bible/games/[game]/page.tsx`, `src/app/beta/bible/games/awards/page.tsx` |
+| Chapter-end card, game page, quiz step, games list, player, medal, Awards Room | `src/components/beta/games/` (`ChapterGameCard.tsx`, `ChapterGameScreen.tsx`, `QuizGameStep.tsx`, `GamesHome.tsx`, `ChapterGamePlayer.tsx`, `MicroGame.tsx`, `AwardMedal.tsx`, `AwardsRoom.tsx`) |
 | Founders probe and award/quiz read outside the beta | `src/components/beta/games/betaProbe.ts` |
 | Stage kit, voice, props | `src/components/beta/games/stage-kit.ts`, `verse-voice.ts`, `types.ts`, `shared.tsx` |
 | Each game's stage | `src/components/beta/games/stages/` (The Caravan and Crest Hopper keep their `<slug>-scene.ts` and `<slug>-audio.ts` beside them) |
 | Registry, grades, award rules | `src/lib/beta/games/games-rules.ts` |
 | Each game's simulation | `src/lib/beta/games/<slug>-rules.ts` |
 | Awards in the study store | `src/lib/beta/games/awards.ts` |
+| The Awards Room's rules and data | `src/lib/beta/games/awards-room-rules.ts`, `src/lib/beta/games/awards-room.ts` |
 | API | `src/app/api/beta/games/[game]/award/route.ts` |
-| Tests | `tests/beta-games.test.mjs` (registry, awards, gate, the game pages and chapter-end flow), `tests/beta-games-<slug>.test.mjs` (each game) |
+| Tests | `tests/beta-games.test.mjs` (registry, awards, gate, the game pages and chapter-end flow), `tests/beta-games-<slug>.test.mjs` (each game), `tests/beta-games-awards-room.test.mjs` (the Awards Room) |
 
 ## Proof
 

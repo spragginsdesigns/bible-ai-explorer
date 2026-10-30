@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Gamepad2 } from "lucide-react";
+import { ArrowLeft, Gamepad2, Trophy } from "lucide-react";
 import AwardMedal from "./AwardMedal";
 import { DESTINATION_TILE, IconTile } from "../visuals";
 import { CHAPTER_GAMES, gameHref, type GameAward } from "@/lib/beta/games/games-rules";
+import { AWARDS_ROOM_HREF } from "@/lib/beta/games/awards-room-rules";
 
 /**
  * Chapter Games' home (LC-17850, docs/beta/games.md): a game for every
@@ -26,6 +27,12 @@ export default function GamesHome({ awards }: { awards: Record<string, GameAward
 					<p className="mt-2 text-xs font-bold uppercase tracking-[.16em] text-neutral-600 dark:text-[#b3ad9e]">
 						{earned} of {CHAPTER_GAMES.length} awards earned
 					</p>
+					<Link
+						href={AWARDS_ROOM_HREF}
+						className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-amber-500/50 bg-amber-500/10 px-4 text-[15px] font-bold text-amber-800 hover:bg-amber-500/20 dark:border-amber-400/40 dark:bg-amber-400/10 dark:text-amber-300 dark:hover:bg-amber-400/20"
+					>
+						<Trophy size={18} aria-hidden /> Awards Room
+					</Link>
 				</div>
 			</header>
 
