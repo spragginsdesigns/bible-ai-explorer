@@ -10,8 +10,10 @@ export interface GameVerse {
 export interface ChapterGameProps {
 	game: ChapterGame;
 	initialAward: GameAward | null;
-	/** Closes the game, where the page offers a way back (the reader card). */
+	/** Closes the game, where the page offers a way back. */
 	onClose?: () => void;
+	/** A round was won (the award is saving): the game's page offers what comes next (LC-17905). */
+	onWon?: () => void;
 }
 
 /**

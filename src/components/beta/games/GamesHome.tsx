@@ -1,25 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { ArrowLeft, Gamepad2 } from "lucide-react";
 import AwardMedal from "./AwardMedal";
 import { DESTINATION_TILE, IconTile } from "../visuals";
-import { CHAPTER_GAMES, gameChapterHref, type GameAward } from "@/lib/beta/games/games-rules";
-
-const ChapterGamePlayer = dynamic(() => import("./ChapterGamePlayer"), {
-	loading: () => <div className="mx-auto aspect-square w-full max-w-[520px] animate-pulse rounded-[20px] bg-[#0b0f17]" aria-label="Loading the game" />,
-});
+import { CHAPTER_GAMES, gameHref, type GameAward } from "@/lib/beta/games/games-rules";
 
 /**
  * Chapter Games' home (LC-17850, docs/beta/games.md): a game for every
- * chapter of Matthew, each played right here in the list (LC-17851), with the
+ * chapter of Matthew, each opening on its own page (LC-17905), with the
  * founder's medal once it is won.
  */
-export default function GamesHome({ awards: initialAwards }: { awards: Record<string, GameAward> }) {
-	const [awards] = useState(initialAwards);
-	const [open, setOpen] = useState<string | null>(null);
+export default function GamesHome({ awards }: { awards: Record<string, GameAward> }) {
 	const earned = CHAPTER_GAMES.filter((game) => awards[game.slug]).length;
 	return (
 		<main className="mx-auto w-full max-w-3xl px-5 pb-[calc(var(--sureword-mobile-tab-clearance)+24px)] pt-4 lg:px-8 lg:pb-16 lg:pt-10">
@@ -40,7 +32,6 @@ export default function GamesHome({ awards: initialAwards }: { awards: Record<st
 			<ol className="mt-6 space-y-3">
 				{CHAPTER_GAMES.map((game) => {
 					const award = awards[game.slug];
-					const playing = open === game.slug;
 					return (
 						<li key={game.slug} className="rounded-[22px] border border-black/[.09] bg-white/35 p-3 dark:border-white/[.09] dark:bg-white/[.025]">
 							<div className="flex items-center gap-3">
@@ -58,24 +49,14 @@ export default function GamesHome({ awards: initialAwards }: { awards: Record<st
 										{award ? `${game.award}: ${game.grades[award.grade]} · best ${award.bestFaith}%` : game.tagline}
 									</span>
 								</span>
-								<button
-									type="button"
-									onClick={() => setOpen(playing ? null : game.slug)}
-									aria-expanded={playing}
-									aria-label={playing ? `Close ${game.title}` : `Play ${game.title}`}
+								<Link
+									href={gameHref(game)}
+									aria-label={`${award ? "Play again" : "Play"} ${game.title}`}
 									className="flex min-h-11 shrink-0 items-center rounded-xl bg-amber-500 px-4 text-[15px] font-bold text-neutral-950 hover:bg-amber-400 dark:bg-amber-400 dark:hover:bg-amber-300"
 								>
-									{playing ? "Close" : "Play"}
-								</button>
+									{award ? "Play again" : "Play"}
+								</Link>
 							</div>
-							{playing ? (
-								<div className="mt-3">
-									<ChapterGamePlayer game={game} initialAward={award ?? null} />
-									<Link href={gameChapterHref(game)} className="mt-2 inline-flex min-h-11 items-center px-1 text-sm font-bold text-amber-800 underline-offset-2 hover:underline dark:text-[#e5b664]">
-										Read {game.reference} ›
-									</Link>
-								</div>
-							) : null}
 						</li>
 					);
 				})}

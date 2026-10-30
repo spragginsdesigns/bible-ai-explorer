@@ -1040,20 +1040,30 @@ const ChapterReader: React.FC = () => {
                 );
               })}
 
-              {/* Founders only (SureWord Beta, LC-17850): this chapter's game, when it has one. */}
-              {user ? <ChapterGameCard key={`game:${order}:${chapter}`} order={order} chapter={chapter} parchment={parchment} /> : null}
-
               {/* Quiz me: offered at the end of the chapter to a signed-in
-                  reader; keyed so paging in place resets the card. */}
+                  reader; keyed so paging in place resets the card. On a
+                  chapter with a game, founders get the game, the quiz and the
+                  next chapter as three ways on instead (SureWord Beta,
+                  LC-17850, LC-17905). */}
               {user ? (
-                <QuizEntryCard
-                  key={`${order}:${chapter}`}
-                  book={order}
+                <ChapterGameCard
+                  key={`game:${order}:${chapter}`}
+                  order={order}
                   chapter={chapter}
-                  bookName={book.name}
-                  notKjv={lcGreek || translation !== "KJV"}
                   parchment={parchment}
-                  href={navHref({ order, chapter }).replace("/bible/chapter?", "/bible/quiz?")}
+                  quizHref={navHref({ order, chapter }).replace("/bible/chapter?", "/bible/quiz?")}
+                  next={neighbors.next ? { href: navHref(neighbors.next), label: `${bookByOrder(neighbors.next.order)?.name ?? ""} ${neighbors.next.chapter}` } : null}
+                  fallback={
+                    <QuizEntryCard
+                      key={`${order}:${chapter}`}
+                      book={order}
+                      chapter={chapter}
+                      bookName={book.name}
+                      notKjv={lcGreek || translation !== "KJV"}
+                      parchment={parchment}
+                      href={navHref({ order, chapter }).replace("/bible/chapter?", "/bible/quiz?")}
+                    />
+                  }
                 />
               ) : null}
 

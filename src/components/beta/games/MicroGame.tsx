@@ -121,7 +121,7 @@ function Overlay({ children, footer, tone = "bg-[#070b12]/80", centered = false 
 	);
 }
 
-export default function MicroGame({ game, Stage, initialAward, onClose }: ChapterGameProps & { Stage: ComponentType<StageProps> }) {
+export default function MicroGame({ game, Stage, initialAward, onClose, onWon }: ChapterGameProps & { Stage: ComponentType<StageProps> }) {
 	const wrapperRef = useRef<HTMLElement>(null);
 	const startRef = useRef<HTMLButtonElement>(null);
 	const timerRef = useRef<HTMLDivElement>(null);
@@ -216,11 +216,12 @@ export default function MicroGame({ game, Stage, initialAward, onClose }: Chapte
 				setPhase("won");
 				voice.say(game.voice.win);
 				void save({ faithKept: score, seconds: finished.seconds, swellsCleared: count });
+				onWon?.();
 			} else {
 				setPhase("lost");
 			}
 		},
-		[game.voice.win, save, setPhase, voice],
+		[game.voice.win, onWon, save, setPhase, voice],
 	);
 
 	// After a round, focus Again so Enter or Space plays again.

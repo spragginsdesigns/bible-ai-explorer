@@ -321,6 +321,12 @@ export async function recordQuizAttempt(userId: string, attempt: QuizAttemptInpu
 	return row.id;
 }
 
+/** Whether the reader has finished a quiz on this chapter at least once. */
+export async function hasQuizAttempt(userId: string, book: number, chapter: number): Promise<boolean> {
+	const row = await prisma.quizAttempt.findFirst({ where: { userId, book, chapter }, select: { id: true } });
+	return row !== null;
+}
+
 /**
  * The verses a reader recently missed in a quiz, newest first, for the study
  * context ("came back to a verse that did not stick"). At most `limit`.

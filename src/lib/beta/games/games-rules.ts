@@ -1,8 +1,8 @@
 /**
  * Chapter Games (LC-17850, LC-17851, docs/beta/games.md): one quick game for
  * each chapter of Matthew, and the award a won game earns. Each game is a
- * short round (about fifteen seconds, LC-17851's "wario-ware" ask) played in
- * the page: its command, controls and tips are shown big before it starts,
+ * short round (about fifteen seconds, LC-17851's "wario-ware" ask) played on
+ * its own page (LC-17905): its command, controls and tips are shown big before it starts,
  * and the cast speaks a verse of the chapter as it begins and when it is won.
  * No imports on purpose: the reader (a client component), the server and the
  * tests all load it, the tests with Node's type stripping.
@@ -701,9 +701,19 @@ export function chapterGameFor(book: number, chapter: number): ChapterGame | nul
 	return CHAPTER_GAMES.find((game) => game.book === book && game.chapter === chapter) ?? null;
 }
 
-/** Where a chapter's game is played: at the end of the chapter in the reader. */
+/** The chapter a game belongs to, in the reader. */
 export function gameChapterHref(game: Pick<ChapterGame, "book" | "chapter">): string {
 	return `/bible/chapter?book=${game.book}&chapter=${game.chapter}`;
+}
+
+/** Where a game is played: its own page (LC-17905), opened from the end of its chapter or the games list. */
+export function gameHref(game: Pick<ChapterGame, "slug">): string {
+	return `/beta/bible/games/${game.slug}`;
+}
+
+/** The chapter's "Quiz me" (the reader's quiz route, always the KJV). */
+export function chapterQuizHref(book: number, chapter: number): string {
+	return `/bible/quiz?book=${book}&chapter=${chapter}`;
 }
 
 /** The round's score decides the grade. */

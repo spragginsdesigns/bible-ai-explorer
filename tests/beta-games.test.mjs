@@ -1,8 +1,9 @@
 /**
  * Chapter Games (LC-17850, LC-17851, docs/beta/games.md): one quick game for
  * every chapter of Matthew, each with a stage, rules and tests; awards grade
- * and merge as documented; a reported run is checked; the games play in the
- * page (no separate game pages) and stay behind the founders-only gate. Each
+ * and merge as documented; a reported run is checked; each game opens on its
+ * own page from the end of its chapter, the games list and the quiz results
+ * (LC-17905), and stays behind the founders-only gate. Each
  * game's own play is tested in tests/beta-games-<slug>.test.mjs.
  */
 import assert from "node:assert/strict";
@@ -14,9 +15,11 @@ import { fileURLToPath } from "node:url";
 import {
 	CHAPTER_GAMES,
 	chapterGameFor,
+	chapterQuizHref,
 	checkGameRun,
 	findChapterGame,
 	gameChapterHref,
+	gameHref,
 	gradeFor,
 	mergeGameAward,
 	readGameAward,
@@ -131,15 +134,37 @@ test("a reported run is checked before it counts", () => {
 	for (const input of bad) assert.equal(checkGameRun(input, 12).ok, false, JSON.stringify(input));
 });
 
-test("the games play in the page: no game pages, a player in the reader card and the games list", () => {
-	assert.equal(existsSync(join(repoRoot, "src/app/beta/bible/games/[game]/page.tsx")), false, "games no longer open on their own page");
+test("each game opens on its own page, reached from its chapter's end, the games list and the quiz", () => {
+	for (const game of CHAPTER_GAMES) assert.equal(gameHref(game), `/beta/bible/games/${game.slug}`);
+	assert.equal(chapterQuizHref(40, 5), "/bible/quiz?book=40&chapter=5");
+	const page = read("src/app/beta/bible/games/[game]/page.tsx");
+	assert.match(page, /await requireBetaPage\(\)/);
+	assert.match(page, /return betaMetadata\(/);
+	assert.match(page, /if \(!game \|\| !book\) notFound\(\);/, "an unknown game is the ordinary 404");
+	const screen = read("src/components/beta/games/ChapterGameScreen.tsx");
+	assert.match(screen, /onWon=\{onWon\}/, "a win shows what is next");
+	assert.match(screen, /quizTaken \? null/, "the quiz is offered only when it has not been taken");
+	assert.match(screen, /Continue to \{next\.label\}/);
 	const card = read("src/components/beta/games/ChapterGameCard.tsx");
-	assert.match(card, /dynamic\(\(\) => import\("\.\/ChapterGamePlayer"\)/, "the reader loads the player only when Play is pressed");
-	assert.equal(/href=\{gameHref|\/beta\/bible\/games\//.test(card), false, "the reader card links to no game page");
+	for (const piece of ["gameHref(game)", "quizHref", "Next chapter", "fallback"]) assert.ok(card.includes(piece), `the chapter-end card has ${piece}`);
+	assert.equal(/ChapterGamePlayer/.test(card), false, "the reader carries none of the games' code");
+	const reader = read("src/components/bible/ChapterReader.tsx");
+	assert.match(reader, /fallback=\{\s*<QuizEntryCard/, "everyone else keeps the quiz card");
 	const home = read("src/components/beta/games/GamesHome.tsx");
-	assert.match(home, /dynamic\(\(\) => import\("\.\/ChapterGamePlayer"\)/);
+	assert.match(home, /href=\{gameHref\(game\)\}/);
+	assert.equal(/ChapterGamePlayer/.test(home), false);
+	const quiz = read("src/components/quiz/QuizScreen.tsx");
+	assert.match(quiz, /<QuizGameStep book=\{quiz\.book\} chapter=\{quiz\.chapter\}/, "the quiz results offer the game");
+	const step = read("src/components/beta/games/QuizGameStep.tsx");
+	assert.match(step, /progress\.award\) return null/, "only while the game is not yet won");
 	const player = read("src/components/beta/games/MicroGame.tsx");
-	for (const piece of ["How to play", "game.command", "game.controls", "game.tips", "voice.say(game.voice.intro)", "voice.say(game.voice.win)"]) assert.ok(player.includes(piece), `the player shows ${piece}`);
+	for (const piece of ["How to play", "game.command", "game.controls", "game.tips", "voice.say(game.voice.intro)", "voice.say(game.voice.win)", "onWon?.()"]) assert.ok(player.includes(piece), `the player shows ${piece}`);
+});
+
+test("The Generations draws every tablet still in play, not only the wrong ones", () => {
+	const stage = read("src/components/beta/games/stages/TheGenerations.tsx");
+	assert.match(stage, /const wrong = tile\.gone !== null;/);
+	assert.match(stage, /const since = wrong \? run\.tick - \(tile\.gone \?\? 0\) : 0;/, "a tablet in play is never skipped");
 });
 
 test("the games page and award route stay behind the founders-only gate", () => {
@@ -149,6 +174,7 @@ test("the games page and award route stay behind the founders-only gate", () => 
 	const route = read("src/app/api/beta/games/[game]/award/route.ts");
 	const gates = route.match(/const gate = await requireBetaApi\(\);\s*if \(!gate\.ok\) return gate\.response;/g) ?? [];
 	assert.equal(gates.length, 2, "GET and POST are both gated");
+	assert.match(route, /hasQuizAttempt\(gate\.userId, game\.book, game\.chapter\)/, "GET reports the founder's own quiz only");
 	assert.equal((route.match(/if \(!game\) return betaNotFound\(\);/g) ?? []).length, 2, "an unknown game is the ordinary 404");
 	const awards = read("src/lib/beta/games/awards.ts");
 	assert.equal(/prisma\./.test(awards), false, "awards go through the study store, never prisma directly");

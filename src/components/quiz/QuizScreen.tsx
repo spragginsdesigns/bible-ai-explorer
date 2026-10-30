@@ -10,6 +10,7 @@ import { getChapter, isTranslationId } from "@/lib/bible/translations";
 import { bibleVersePlainText } from "@/lib/bible/verseMarkup";
 import type { ChapterQuiz, QuizDepth, QuizQuestion, QuizReflection } from "@/lib/quiz-contract";
 import { AddLearnButton } from "@/components/learn/AddLearnButton";
+import QuizGameStep from "@/components/beta/games/QuizGameStep";
 import { postQuizAttempt, saveReflectionNote, useChapterQuiz } from "./quizClient";
 import {
 	askPrompt,
@@ -891,6 +892,8 @@ function Results({
 			</div>
 
 			<div className="mt-8 flex flex-col items-center gap-2 lg:flex-row lg:gap-6 lg:border-t lg:border-black/[0.08] lg:pt-7 lg:dark:border-white/[0.08]">
+				{/* Founders: the chapter's game, while it is not yet won (SureWord Beta, LC-17905). */}
+				<QuizGameStep book={quiz.book} chapter={quiz.chapter} className={`${OUTLINE_BUTTON} lg:w-auto lg:min-w-64`} />
 				{links.next ? (
 					<Link href={links.next.href} className={`${GOLD_BUTTON} lg:w-auto lg:min-w-64`}>
 						Continue to {links.next.label}
