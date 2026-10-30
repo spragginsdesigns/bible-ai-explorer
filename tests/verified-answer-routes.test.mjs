@@ -245,10 +245,11 @@ test("note final review reads once after concurrent writes settle, using owned s
 		return { id: query.where.id, title: "Saved study", plainText: savedBody };
 	} } };
 	const verifyCallback = extract("verify: async blocks => {");
-	let reviewContext;
-	const verifyGeneratedAnswer = async (blocks, options) => { reviewContext = options.context; return { blocks, verified: true, repaired: false, issueCodes: [] }; };
+	let reviewContext, canonicalReviewContext;
+	const verifyGeneratedAnswer = async (blocks, options) => { reviewContext = options.context; canonicalReviewContext=options.canonicalContextForEvidence; return { blocks, verified: true, repaired: false, issueCodes: [] }; };
 	const preparedContext = "Complete captured request and source context.";
-	const verify = new Function("readSavedNoteEvidence", "noteWriteIds", "prisma", "userId", "verifyGeneratedAnswer", "verificationModel", "providerOptions", "currentUserText", "toolReceipts", "note", "MAX_NOTE_CONTENT_LENGTH", "verificationBudget", "preparedContext", `return (${verifyCallback});`)(readSavedNoteEvidence, noteWriteIds, prisma, "owned-reader", verifyGeneratedAnswer, {}, {}, "Save the corrected study", [{ tool: "readNote", output: "OLD duplicated body".repeat(1000) }, ...toolReceipts], { plainText: "Old open-note body".repeat(1000) }, 16_000, () => 75_000, preparedContext);
+	const canonicalPreparedContext = "Complete captured source context without fixed policy examples.";
+	const verify = new Function("readSavedNoteEvidence", "noteWriteIds", "prisma", "userId", "verifyGeneratedAnswer", "verificationModel", "providerOptions", "currentUserText", "toolReceipts", "note", "MAX_NOTE_CONTENT_LENGTH", "verificationBudget", "preparedContext", "canonicalPreparedContext", `return (${verifyCallback});`)(readSavedNoteEvidence, noteWriteIds, prisma, "owned-reader", verifyGeneratedAnswer, {}, {}, "Save the corrected study", [{ tool: "readNote", output: "OLD duplicated body".repeat(1000) }, ...toolReceipts], { plainText: "Old open-note body".repeat(1000) }, 16_000, () => 75_000, preparedContext, canonicalPreparedContext);
 	let completed = false;
 	const checking = verify([{ id: "answer", text: "Saved your corrected note." }]).then(() => { completed = true; });
 	assert.equal(reads.length, 2);
@@ -258,6 +259,9 @@ test("note final review reads once after concurrent writes settle, using owned s
 	readReady.resolve(); await checking; pendingRead = Promise.resolve();
 	const parsed = JSON.parse(reviewContext);
 	assert.equal(parsed.preparedRequest, preparedContext);
+	const canonicalParsed=JSON.parse(canonicalReviewContext);
+	assert.equal(canonicalParsed.preparedRequest,canonicalPreparedContext);
+	assert.deepEqual({...canonicalParsed,preparedRequest:preparedContext},parsed);
 	assert.deepEqual(parsed.latestNoteWrites.map(item => item.noteId), ["target-note", "other-note"]);
 	assert.equal(parsed.latestNoteWrites[0].plainText, savedBody);
 	assert.ok(reviewContext.slice(0, 16_000).includes(savedBody));

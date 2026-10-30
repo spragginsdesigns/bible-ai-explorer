@@ -348,7 +348,7 @@ async function handlePost(req: Request): Promise<Response> {
 			execute: async ({ writer }) => {
 				const finalChunks:UIMessageChunk[]=[];
 				let preparedRequest:object|undefined;
-				let preparedContext="";
+				let preparedContext="",canonicalPreparedContext="";
 				const emitStatus = startStatusNarration(writer, responseMessageId);
 				let lastStatus = "Getting ready";
 				const writeStatus = (label: string) => { lastStatus = label; emitStatus(label); };
@@ -378,7 +378,8 @@ async function handlePost(req: Request): Promise<Response> {
 					contentVerifier = async (blocks, purpose) => {
 						const checked = await verifyGeneratedAnswer(blocks, {
 						model: verificationModel, providerOptions, translation: "KJV", question: currentUserText, purpose,
-							context: `Verify text for ${purpose}. Preserve existing note material unless the user requested a change.\n\n${preparedContext}`,maxContextChars:64_000,requireCompleteContext:true,
+							context: `Verify text for ${purpose}. Preserve existing note material unless the user requested a change.\n\n${preparedContext}`,
+							canonicalContextForEvidence: `Verify text for ${purpose}. Preserve existing note material unless the user requested a change.\n\n${canonicalPreparedContext}`,maxContextChars:64_000,requireCompleteContext:true,
 							timeoutMs: verificationBudget(),
 						});
 						return checked.verified ? checked.blocks : null;
@@ -400,9 +401,9 @@ async function handlePost(req: Request): Promise<Response> {
 					let lastStepFinishReason: string | null = null;
 					try {
 						preparedRequest=await historyService.prepareRequest(userId,{surface:"note",parentId:note.id,messageId:responseMessageId},{
-							messages,sources:messages.map(message=>message.role==="user"?{id:message.id,role:message.role,content:extractText(message)}:{...storedAssistantTurns.find(row=>row.id===message.id)!,role:"assistant"}),attachments:[],systemContext:fullSystem,mediaParts:[],...createCurrentRequestReview(definition,verificationModel,providerOptions),
+							messages,sources:messages.map(message=>message.role==="user"?{id:message.id,role:message.role,content:extractText(message)}:{...storedAssistantTurns.find(row=>row.id===message.id)!,role:"assistant"}),attachments:[],systemContext:fullSystem,sourceSystemContext:volatileSystem,mediaParts:[],...createCurrentRequestReview(definition,verificationModel,providerOptions),
 						});
-						preparedContext=preparedRequestReviewContext(preparedRequest).context;
+						const evidence=preparedRequestReviewContext(preparedRequest);preparedContext=evidence.context;canonicalPreparedContext=evidence.canonicalContext;
 					} catch {
 						await releaseFreshRequestRefusal({ownerId:userId,locator:{surface:"note",parentId:note.id,messageId:responseMessageId},translation:"KJV",operation,service:historyService,write:chunk=>writer.write(chunk as Parameters<typeof writer.write>[0])});
 						freshCertified=true;return;
@@ -477,6 +478,7 @@ async function handlePost(req: Request): Promise<Response> {
 							}))));
 							return verifyGeneratedAnswer(blocks, {
 								model: verificationModel, providerOptions, translation: "KJV", question: currentUserText,maxContextChars:64_000,requireCompleteContext:true,
+								canonicalContextForEvidence: JSON.stringify({ preparedRequest:canonicalPreparedContext,latestNoteWrites, evidenceRule: "Latest note readbacks prove the final saved state after all successful writes settled. Earlier tool receipts or open-note text can precede those writes. Bible quotation words still require fresh canonical verification.", toolReceipts, openNote: note.plainText.slice(0, MAX_NOTE_CONTENT_LENGTH), noteAuthority: "User material, not Scripture authority" }),
 								context: JSON.stringify({ preparedRequest:preparedContext,latestNoteWrites, evidenceRule: "Latest note readbacks prove the final saved state after all successful writes settled. Earlier tool receipts or open-note text can precede those writes. Bible quotation words still require fresh canonical verification.", toolReceipts, openNote: note.plainText.slice(0, MAX_NOTE_CONTENT_LENGTH), noteAuthority: "User material, not Scripture authority" }),
 								timeoutMs: verificationBudget(),
 							});

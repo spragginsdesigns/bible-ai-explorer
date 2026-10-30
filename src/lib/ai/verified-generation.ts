@@ -41,6 +41,8 @@ export interface VerifyAnswerOptions {
 	purpose?: string;
 	/** Server-owned context, not an alternative source of Scripture words. */
 	context?: string;
+	/** Internal complete source material for canonical reads; full context still reaches semantic review. */
+	canonicalContextForEvidence?: string;
 	/** Actual owned request media, supplied by the server attachment adapter. */
 	mediaParts?: readonly (FilePart | ImagePart)[];
 	/** Trusted internal source context only; callers may opt into at most 64k. */
@@ -83,12 +85,14 @@ export async function verifyGeneratedAnswer(blocks: AnswerBlock[], options: Veri
 	const fallback = VERIFICATION_UNAVAILABLE[options.language ?? "en"];
 	const contextLimit = options.maxContextChars ?? 16_000;
 	const sourceContext = options.context ?? "";
-	if (!Number.isInteger(contextLimit) || contextLimit < 1 || contextLimit > 64_000 ||
+	const canonicalSourceContext = options.canonicalContextForEvidence;
+	if ((canonicalSourceContext!==undefined&&(typeof canonicalSourceContext!=='string'||canonicalSourceContext.length>contextLimit)) || !Number.isInteger(contextLimit) || contextLimit < 1 || contextLimit > 64_000 ||
 		(options.requireCompleteContext && (sourceContext.length > contextLimit || options.question.length > 16_000))) {
 		return { blocks: blocks.map((block, index) => ({ id: block.id, text: index === 0 ? fallback : "" })), verified: false, repaired: false, issueCodes: ["verification_context_limit"] };
 	}
 	const question = options.question.slice(0, 16_000);
 	const contextForReview = sourceContext.slice(0, contextLimit);
+	const canonicalContextForReview = canonicalSourceContext ?? contextForReview;
 	// Bound the complete serialized request, including fixed foundation/guidance,
 	// draft blocks and canonical evidence. Required-context callers never trim it.
 	const boundedRequest = <T extends { system: string; prompt: string }>(request: T): T => {
@@ -119,7 +123,7 @@ export async function verifyGeneratedAnswer(blocks: AnswerBlock[], options: Veri
 		// Receipts and open-note material are not Scripture authority. Re-read
 		// their coordinates from the Bible instead of asking the reviewer to
 		// trust their quotation text or repeat already completed write actions.
-		const contextEvidence = options.context ? await verifyScriptureDraft(contextForReview, { translation: options.translation, maxVerses: 120 }) : null;
+		const contextEvidence = canonicalContextForReview ? await verifyScriptureDraft(canonicalContextForReview, { translation: options.translation, maxVerses: 120 }) : null;
 		return { evidence, context, questionEvidence: questionEvidence.references, contextEvidence: contextEvidence?.references ?? [] };
 	};
 	let reviewAttempt = 0;

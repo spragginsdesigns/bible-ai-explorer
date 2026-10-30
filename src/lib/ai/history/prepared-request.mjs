@@ -18,6 +18,7 @@ export function attachmentIdentity(row){
 export function preparedDependenciesMatch(descriptor,dependencies){
     try{
         if(descriptor?.version!==1||descriptor.scope!=='complete-server-prepared-request'||!Array.isArray(descriptor.rows)||descriptor.rows.length<1||descriptor.rows.length>24||!Array.isArray(descriptor.attachments)||descriptor.attachments.length>5||!['preparedDigest','systemDigest'].every(key=>/^[a-f0-9]{64}$/.test(descriptor[key])))return false;
+        if(descriptor.sourceSystemDigest!==undefined&&(typeof descriptor.sourceSystemDigest!=='string'||!/^[a-f0-9]{64}$/.test(descriptor.sourceSystemDigest)))return false;
         if(dependencies.rows.length!==descriptor.rows.length||dependencies.attachments.length!==descriptor.attachments.length)return false;
         if(descriptor.rows.some(expected=>{const row=dependencies.rows.find(row=>row.id===expected.id);return !row||row.role!==expected.role||digest(historyAISourceRow(row))!==expected.sourceDigest;}))return false;
         return descriptor.attachments.every(expected=>{const row=dependencies.attachments.find(row=>row.id===expected.id);return row&&row.status==='READY'&&typeof row.etag==='string'&&row.etag.length>0&&canonicalJSON(attachmentIdentity(row))===canonicalJSON(expected);});
@@ -25,6 +26,10 @@ export function preparedDependenciesMatch(descriptor,dependencies){
 }
 export function createPreparedRequest(ownerId,locator,input,dependencies,identity){
     if(input.messages?.at(-1)?.role!=='user'||!Array.isArray(input.messages)||!input.messages.length||input.messages.length>24||!Array.isArray(input.sources)||input.sources.length!==input.messages.length||new Set(input.messages.map(row=>row.id)).size!==input.messages.length||typeof input.systemContext!=='string'||typeof input.review!=='function'||!Array.isArray(input.attachments)||input.attachments.length>5)throw Error('Incomplete prepared request');
+    // Only server callers choose this suffix; HTTP messages cannot mint a ticket.
+    // Missing provenance preserves full collection instead of guessing policy text.
+    const sourceSystemContext=input.sourceSystemContext===undefined?input.systemContext:input.sourceSystemContext;
+    if(typeof sourceSystemContext!=='string'||sourceSystemContext.length>64_000||!input.systemContext.endsWith(sourceSystemContext))throw Error('Invalid source system context');
     const rows=input.messages.map(message=>{
         const row=dependencies.rows.find(row=>row.id===message.id),expected=input.sources.find(source=>source.id===message.id);
         if(!row||!expected||!['user','assistant'].includes(message.role)||row.role!==message.role||expected.role!==message.role)throw Error('Prepared source ownership changed');
@@ -48,7 +53,7 @@ export function createPreparedRequest(ownerId,locator,input,dependencies,identit
     const parts=input.mediaParts??[];
     if(parts.length!==media.length||parts.some((part,index)=>!['file','image'].includes(part.type)||media[index].previewUrl!==mediaURL(part)||(part.type==='file'?part.mediaType!==media[index].mediaType:!media[index].mediaType.startsWith('image/'))||(part.filename!==undefined&&part.filename!==media[index].filename)))throw Error('Review media differs from owned prepared files');
     if(parts.length&&!identity.supportsAttachments)throw Error('Actual reviewer cannot read the prepared files');
-    const descriptor={version:1,scope:'complete-server-prepared-request',rows,attachments:selected,preparedDigest:digest(logical),systemDigest:digest(input.systemContext),reviewer:clone(identity)};
+    const descriptor={version:1,scope:'complete-server-prepared-request',rows,attachments:selected,preparedDigest:digest(logical),systemDigest:digest(input.systemContext),sourceSystemDigest:digest(sourceSystemContext),reviewer:clone(identity)};
     if(!preparedDependenciesMatch(descriptor,dependencies))throw Error('Incomplete prepared dependencies');
     const last=[...logical].reverse().find(row=>row.role==='user');
     const question=last?.parts.filter(part=>part.type==='text').map(part=>part.text).join('').trim()??'';
@@ -56,7 +61,7 @@ export function createPreparedRequest(ownerId,locator,input,dependencies,identit
     // Keep a distinct typed URL value; later SDK or caller mutation of its
     // input array cannot change the files the final reviewer is authorized to see.
     const stableMedia=parts.map(part=>part.type==='file'?{type:'file',mediaType:part.mediaType,...(part.filename?{filename:part.filename}:{}),data:{type:'url',url:new URL(mediaURL(part))}}:{type:'image',image:{type:'url',url:new URL(mediaURL(part))}});
-    const data={ownerId,locator:{surface:locator.surface,parentId:locator.parentId,messageId:locator.messageId},descriptor,logical,systemContext:input.systemContext,question,mediaParts:stableMedia,review:input.review};
+    const data={ownerId,locator:{surface:locator.surface,parentId:locator.parentId,messageId:locator.messageId},descriptor,logical,systemContext:input.systemContext,sourceSystemContext,question,mediaParts:stableMedia,review:input.review};
     const ticket=Object.freeze({});tickets.set(ticket,data);return ticket;
 }
 export const readPreparedRequest=ticket=>tickets.get(ticket)??null;
@@ -69,5 +74,5 @@ export function preparedReviewRecord(record,source){
 /** For the original pre-display reviewer; the same complete source reaches final review. */
 export function preparedRequestReviewContext(ticket){
     const data=readPreparedRequest(ticket);if(!data)throw Error('Unknown prepared request');
-    return{question:data.question,context:canonicalJSON({preparedRequest:data.logical,preparedSystemContext:data.systemContext})};
+    return{question:data.question,context:canonicalJSON({preparedRequest:data.logical,preparedSystemContext:data.systemContext}),canonicalContext:canonicalJSON({preparedRequest:data.logical,preparedSystemContext:data.sourceSystemContext})};
 }

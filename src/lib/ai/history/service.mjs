@@ -135,11 +135,14 @@ async function build(tx, ownerId, locator, policy, renderer, freshBundle = null,
         // Required history context uses the explicit complete 64k internal
         // verifier option; never silently trim it to the ordinary 16k default.
         const reviewContext = reviewEnvelope(prepared?.logical?{...context,preparedRequest:prepared.logical,preparedSystemContext:prepared.systemContext}:context,candidate);
-        if (reviewContext.length > LIMITS.contextChars)
+        const canonicalReviewContext = prepared?.logical
+            ? reviewEnvelope({...context,preparedRequest:prepared.logical,preparedSystemContext:prepared.sourceSystemContext??prepared.systemContext},candidate)
+            : reviewContext;
+        if (reviewContext.length > LIMITS.contextChars || canonicalReviewContext.length > LIMITS.contextChars)
             return block('context_limit');
         const binding = checkedBinding(sourceSnapshot, context, policy, candidate.display, candidate.review);
         candidate = { ...candidate, binding };
-        return { sourceSnapshot, context, policy, candidate, display: candidate.display, review: candidate.review, binding, requiresActionProof: candidate.review.requiresActionProof, reviewContext, externalChapters:prepared?.external?.evidence?.chapters??[] };
+        return { sourceSnapshot, context, policy, candidate, display: candidate.display, review: candidate.review, binding, requiresActionProof: candidate.review.requiresActionProof, reviewContext, canonicalReviewContext, externalChapters:prepared?.external?.evidence?.chapters??[] };
     }
     catch {
         return block('context_limit');
@@ -208,7 +211,7 @@ export function createHistoryService({ repository, loadCurrentPolicy, renderer, 
                 const checked=await verifyCanonical(`[[SCRIPTURE:${source.reference}]]`,{translation:'NKJV'});signal.throwIfAborted();
                 if(!checked.ok||checked.references.length!==1||checked.references[0].canonicalText!==source.text)throw new HistoryError('canonical_rejected');collect(checked);
             }
-            for(const text of [built.context.question,built.reviewContext]){const checked=await verifyCanonical(text,{translation:'NKJV'});signal.throwIfAborted();collect(checked);}
+            for(const text of [built.context.question,built.canonicalReviewContext??built.reviewContext]){const checked=await verifyCanonical(text,{translation:'NKJV'});signal.throwIfAborted();collect(checked);}
             const captured=await Promise.all([...chapters.values()].map(async coordinate=>{
                 const words=await loadCanonicalChapter('NKJV',coordinate.order,coordinate.chapter);signal.throwIfAborted();
                 if(!Array.isArray(words)||!words.length||words.some(text=>typeof text!=='string'||!text.trim()))throw new HistoryError('verification_unavailable',503);
@@ -254,7 +257,7 @@ export function createHistoryService({ repository, loadCurrentPolicy, renderer, 
         async reviewFresh(preparation, {signal} = {}) {
             const data = readFreshPreparation(preparation?.ticket);
             if (!data || data.noticeOnly) throw new HistoryError('projection_refused');
-            return boundedReview(signal => (data.prepared?.review??verifyOnly)({ownerId:data.ownerId,policy:data.built.policy,translation:data.built.context.translation,question:data.prepared?.question??data.built.context.question,context:data.built.reviewContext,
+            return boundedReview(signal => (data.prepared?.review??verifyOnly)({ownerId:data.ownerId,policy:data.built.policy,translation:data.built.context.translation,question:data.prepared?.question??data.built.context.question,context:data.built.reviewContext,canonicalContext:data.built.canonicalReviewContext??data.built.reviewContext,
                 blocks:data.built.review.blocks.map(block=>({id:block.path,text:block.text})),manifest:data.built.review,signal,allowRepair:false,mediaParts:data.prepared?.mediaParts??[],
                 authorizeInference:async()=>repository.withOwnerLock(data.ownerId,async tx=>{
                     if (!await tx.hasConsent()) throw new HistoryError('consent_required',412);
@@ -381,7 +384,7 @@ export function createHistoryService({ repository, loadCurrentPolicy, renderer, 
             let result, errorCode = null, retryAfter = null;
             try {
                 const blocks = claim.built.review.blocks.map((block, i) => ({ id: `history-${i}`, text: block.text }));
-                result = await boundedReview(signal => verifyOnly({ ownerId, policy: claim.built.policy, translation: claim.built.context.translation, question: claim.built.context.question, context: claim.built.reviewContext, blocks, manifest: claim.built.review, signal, allowRepair: false, authorizeInference: async () => repository.withOwnerLock(ownerId, async (tx) => { const current = await tx.currentTime(); if (!await tx.findLease(claim.recordId, claim.leaseToken, current))
+                result = await boundedReview(signal => verifyOnly({ ownerId, policy: claim.built.policy, translation: claim.built.context.translation, question: claim.built.context.question, context: claim.built.reviewContext, canonicalContext: claim.built.canonicalReviewContext??claim.built.reviewContext, blocks, manifest: claim.built.review, signal, allowRepair: false, authorizeInference: async () => repository.withOwnerLock(ownerId, async (tx) => { const current = await tx.currentTime(); if (!await tx.findLease(claim.recordId, claim.leaseToken, current))
                         throw new HistoryError('stale_lease', 409); if (!await tx.hasConsent())
                         throw new HistoryError('consent_required', 412); const currentBuilt = await build(tx, ownerId, locator, await policy(tx, ownerId,external), renderer); if (!bindingEqual(currentBuilt.binding, claim.built.binding))
                         throw new HistoryError('source_changed', 409); }) }), verifyMs, signal);

@@ -983,7 +983,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 				const finalChunks: UIMessageChunk[] = [];
 				let preparedRequest:object|undefined;
 				let reviewMediaParts:(FilePart|ImagePart)[]=[];
-				let preparedContext="",reviewQuestion=currentUserText;
+				let preparedContext="",canonicalPreparedContext="",reviewQuestion=currentUserText;
 				const legacyStatus = startStatusNarration(writer, responseMessageId);
 				let lastStatus = "Getting ready";
 				const statusHeartbeat = setInterval(() => legacyStatus(lastStatus), 10_000);
@@ -1082,6 +1082,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 					verifyToolContent = async (blocks, purpose) => {
 						const checked = await verifyGeneratedAnswer(blocks, { model: verificationModel, providerOptions, translation, language,
 							question: reviewQuestion, purpose, mediaParts:reviewMediaParts,maxContextChars:64_000,requireCompleteContext:true,context: `Generated content for ${purpose}. Preserve the user's material unless they requested changes.\n\n${preparedContext}`,
+							canonicalContextForEvidence: `Generated content for ${purpose}. Preserve the user's material unless they requested changes.\n\n${canonicalPreparedContext}`,
 							timeoutMs: Math.min(75_000, 225_000 - (Date.now() - turnStartedAtMs)),
 						});
 						return checked.verified ? checked.blocks : null;
@@ -1213,9 +1214,9 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 						try {
 							preparedRequest=await historyService.prepareRequest(userId,{surface:"chat",parentId:conversationId,messageId:responseMessageId},{
 								messages:modelMessages,sources:modelMessages.map(message=>message.role==="user"?{id:message.id,role:message.role,content:extractText(validatedMessages.find(row=>row.id===message.id)!)}:{...storedAssistantTurns.find(row=>row.id===message.id)!,role:"assistant"}),
-								attachments:hydratedRequest.attachments,systemContext:stableSystem+volatileSystem,mediaParts:reviewMediaParts,...createCurrentRequestReview(definition,verificationModel,providerOptions),
+								attachments:hydratedRequest.attachments,systemContext:stableSystem+volatileSystem,sourceSystemContext:volatileSystem,mediaParts:reviewMediaParts,...createCurrentRequestReview(definition,verificationModel,providerOptions),
 							});
-							const evidence=preparedRequestReviewContext(preparedRequest);preparedContext=evidence.context;reviewQuestion=evidence.question;
+							const evidence=preparedRequestReviewContext(preparedRequest);preparedContext=evidence.context;canonicalPreparedContext=evidence.canonicalContext;reviewQuestion=evidence.question;
 						} catch(error) {
 							recordTurnError(error);progress.finish(true);
 							await releaseFreshRequestRefusal({ownerId:userId,locator:{surface:"chat",parentId:conversationId,messageId:responseMessageId},translation,language,service:historyService,write:chunk=>writer.write(chunk as Parameters<typeof writer.write>[0])});
@@ -1346,6 +1347,9 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 							}))));
 							return verifyGeneratedAnswer(blocks, { model: verificationModel, providerOptions, translation, language,
 								question: reviewQuestion,mediaParts:reviewMediaParts,maxContextChars:64_000,requireCompleteContext:true,
+								canonicalContextForEvidence: JSON.stringify({ latestNoteWrites,preparedRequest:canonicalPreparedContext,
+									rule: "Latest note readbacks show the final saved state after all successful writes; older receipts may precede it. A truncated or unavailable readback cannot prove the complete body. Receipt text is not authority for Scripture wording or interpretation.", toolReceipts,
+								}),
 								context: JSON.stringify({ latestNoteWrites,preparedRequest:preparedContext,
 									rule: "Latest note readbacks show the final saved state after all successful writes; older receipts may precede it. A truncated or unavailable readback cannot prove the complete body. Receipt text is not authority for Scripture wording or interpretation.", toolReceipts,
 								}),

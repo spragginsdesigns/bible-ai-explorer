@@ -5,6 +5,6 @@ export declare function reviewerIdentity(definition:ModelDefinition):FreshReview
 export declare function attachmentIdentity(row:PreparedAttachment):{id:string;messageId:string|null;identityDigest:string};
 export declare function preparedDependenciesMatch(descriptor:PreparedRequestDescriptor,dependencies:{rows:StoredHistoryRow[];attachments:PreparedAttachment[]}):boolean;
 export declare function createPreparedRequest(owner:string,locator:HistoryLocator,input:FreshRequestInput,dependencies:{rows:StoredHistoryRow[];attachments:PreparedAttachment[]},identity:FreshReviewerIdentity):object;
-export declare function readPreparedRequest(ticket:object):null|{ownerId:string;locator:HistoryLocator;descriptor:PreparedRequestDescriptor;logical:unknown[];systemContext:string;question:string;mediaParts:readonly(FilePart|ImagePart)[];review(input:HistoryVerificationInput):Promise<HistoryVerificationResult>};
+export declare function readPreparedRequest(ticket:object):null|{ownerId:string;locator:HistoryLocator;descriptor:PreparedRequestDescriptor;logical:unknown[];systemContext:string;sourceSystemContext:string;question:string;mediaParts:readonly(FilePart|ImagePart)[];review(input:HistoryVerificationInput):Promise<HistoryVerificationResult>};
 export declare function preparedReviewRecord(record:unknown,source:unknown):{descriptor:PreparedRequestDescriptor;external:unknown}|null;
-export declare function preparedRequestReviewContext(ticket:object):{question:string;context:string};
+export declare function preparedRequestReviewContext(ticket:object):{question:string;context:string;canonicalContext:string};
