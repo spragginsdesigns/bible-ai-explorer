@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
 
 // User rows only. An assistant row is SureWord's words: the share route
 // publishes it on a public page as a genuine answer, so only the server's own
@@ -66,13 +67,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 		// Accept single message or array of messages
 		const msgArray = Array.isArray(messages) ? messages : [messages];
 
-		const created = await prisma.message.createMany({
-			data: msgArray.map((m) => ({
+		const rows = msgArray.map((m) => ({
+				id: randomUUID(),
 				role: m.role,
 				content: m.content,
 				metadata: m.metadata ? m.metadata as Prisma.InputJsonValue : Prisma.JsonNull,
 				conversationId: id,
-			})),
+			}));
+		await prisma.message.createMany({
+			data: rows,
 		});
 
 		// Also touch the conversation's updatedAt
@@ -81,14 +84,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 			data: { updatedAt: new Date() },
 		});
 
-		// Return the created messages
-		const latestMessages = await prisma.message.findMany({
-			where: { conversationId: id },
-			orderBy: { createdAt: "desc" },
-			take: msgArray.length,
+		// Another request may have saved an assistant after this insert. Bind
+		// the reply to these exact new user rows, never the latest chat rows.
+		const createdMessages = await prisma.message.findMany({
+			where: { conversationId: id, role: "user", id: { in: rows.map((row) => row.id) } },
 		});
-
-		return NextResponse.json(latestMessages.reverse(), { status: 201 });
+		const byId = new Map(createdMessages.filter((row) => row.role === "user" && row.conversationId === id).map((row) => [row.id, row]));
+		return NextResponse.json(rows.flatMap((row) => byId.has(row.id) ? [byId.get(row.id)!] : []), { status: 201 });
 	} catch (err) {
 		if (err instanceof Response) return err;
 		return NextResponse.json({ error: "Internal server error" }, { status: 500 });

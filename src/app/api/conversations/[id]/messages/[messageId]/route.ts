@@ -104,6 +104,11 @@ export async function PATCH(
 			}
 			return NextResponse.json(answerFeedbackResponse(message));
 		}
+		// A no-op edit is not another history-read endpoint. Only the owned
+		// history boundary may return an assistant's checked display envelope.
+		if (target.role === "assistant" || message.role === "assistant") {
+			return NextResponse.json({ id: messageId });
+		}
 		return NextResponse.json(message);
 	} catch (err) {
 		if (err instanceof Response) return err;

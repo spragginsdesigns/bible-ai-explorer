@@ -385,6 +385,17 @@ test("a no-op body naming a missing message is 404, not a P2025 500", async () =
 	assert.ok(!names(route.calls).includes("message.update"));
 });
 
+test("a no-op assistant PATCH cannot read unchecked answer text or metadata", async () => {
+	for (const body of [{}, null, "up", [1]]) {
+		const route = patchRoute();
+		const response = await route.send(body);
+		assert.equal(response.status, 200);
+		assert.deepEqual(response.body, { id: "msg-1" });
+		assert.deepEqual(dataOf(route.calls), {});
+		assert.equal(route.analytics.length, 0);
+	}
+});
+
 test("a message deleted between the check and the write is still 404", async () => {
 	class PrismaClientKnownRequestError extends Error {
 		constructor(message, { code }) {
@@ -450,6 +461,7 @@ test("a body that is not JSON is a no-op edit, not a 500", async () => {
 		{ params: Promise.resolve({ id: "convo-1", messageId: "msg-1" }) }
 	);
 	assert.equal(response.status, 200);
+	assert.deepEqual(response.body, { id: "msg-1" });
 	assert.equal(route.calls.length, 0);
 });
 

@@ -4,29 +4,36 @@ import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
 
 const source = readFileSync(fileURLToPath(new URL("../src/app/api/conversations/[id]/messages/route.ts", import.meta.url)), "utf8")
 	.replace(/^import\s[^;]*?;\s*$/gm, "")
 	.replace(/^export /gm, "");
 
-function route() {
+function route({ concurrent = [] } = {}) {
 	const calls = [];
+	const queries = [];
+	let inserted = [];
 	const prisma = {
 		conversation: {
 			findFirst: async ({ where }) => where.userId === "owner" ? { id: where.id } : null,
 			update: async () => undefined,
 		},
 		message: {
-			createMany: async ({ data }) => { calls.push(data); return { count: data.length }; },
-			findMany: async () => [],
+			createMany: async ({ data }) => { calls.push(data); inserted = data; return { count: data.length }; },
+			findMany: async (query) => {
+				queries.push(query);
+				return [...inserted, ...concurrent].reverse().filter(row => row.conversationId === query.where.conversationId
+					&& (!query.where.role || row.role === query.where.role) && (!query.where.id || query.where.id.in.includes(row.id)));
+			},
 		},
 	};
 	const NextResponse = { json: (body, init) => ({ status: init?.status ?? 200, body }) };
 	const Prisma = { JsonNull: null };
-	const POST = new Function("z", "prisma", "NextResponse", "Prisma", "getAuthUser",
+	const POST = new Function("z", "prisma", "NextResponse", "Prisma", "getAuthUser", "randomUUID",
 		`${stripTypeScriptTypes(source)}\nreturn POST;`
-	)(z, prisma, NextResponse, Prisma, async () => "owner");
-	return { POST, calls };
+	)(z, prisma, NextResponse, Prisma, async () => "owner", randomUUID);
+	return { POST, calls, queries };
 }
 
 const params = { params: Promise.resolve({ id: "owned-chat" }) };
@@ -77,5 +84,21 @@ test("one valid message persists to the owned conversation", async () => {
 	const { POST, calls } = route();
 	assert.equal((await POST(request({ messages: { role: "user", content: "John 3:16" } }), params)).status, 201);
 	assert.equal(calls.length, 1);
-	assert.deepEqual(calls[0][0], { role: "user", content: "John 3:16", metadata: null, conversationId: "owned-chat" });
+	const { id, ...stored } = calls[0][0];
+	assert.match(id, /^[a-f0-9-]{36}$/);
+	assert.deepEqual(stored, { role: "user", content: "John 3:16", metadata: null, conversationId: "owned-chat" });
+});
+
+test("an interleaved assistant or older user row cannot escape through the create response", async () => {
+	const { POST, calls, queries } = route({ concurrent: [
+		{ id: "late-answer", conversationId: "owned-chat", role: "assistant", content: "UNCHECKED_ASSISTANT", metadata: { secret: "UNCHECKED_METADATA" } },
+		{ id: "older-user", conversationId: "owned-chat", role: "user", content: "Older question" },
+	] });
+	const response = await POST(request({ messages: [{ role: "user", content: "First" }, { role: "user", content: "Second" }] }), params);
+	assert.equal(response.status, 201);
+	assert.deepEqual(response.body.map(row => row.content), ["First", "Second"]);
+	assert.deepEqual(response.body.map(row => row.id), calls[0].map(row => row.id));
+	assert.deepEqual(queries[0].where, { conversationId: "owned-chat", role: "user", id: { in: calls[0].map(row => row.id) } });
+	assert.equal(JSON.stringify(response.body).includes("UNCHECKED_"), false);
+	assert.equal(new Set(calls[0].map(row => row.id)).size, 2);
 });
