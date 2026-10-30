@@ -6,7 +6,7 @@ import { betaRefKey } from "@/lib/beta/store-rules";
 import {
 	CHAPTER_GAMES,
 	mergeGameAward,
-	readGameAward,
+	readChapterGameAward,
 	type ChapterGame,
 	type GameAward,
 	type GameRun,
@@ -33,7 +33,7 @@ export async function listGameAwards(userId: string): Promise<Record<string, Gam
 	const out: Record<string, GameAward> = {};
 	for (const item of await awardItems(userId)) {
 		for (const game of CHAPTER_GAMES) {
-			const award = readGameAward(item.data, game.slug);
+			const award = readChapterGameAward(item.data, game);
 			if (award && (!out[game.slug] || award.completions > out[game.slug].completions)) out[game.slug] = award;
 		}
 	}
@@ -61,7 +61,7 @@ export async function recordGameRun(userId: string, game: ChapterGame, run: Game
 		const at = new Date().toISOString();
 		const items = await awardItems(userId);
 		const item = items
-			.map((entry) => ({ entry, award: readGameAward(entry.data, game.slug) }))
+			.map((entry) => ({ entry, award: readChapterGameAward(entry.data, game) }))
 			.filter((found) => found.award !== null)
 			.sort((a, b) => (b.award?.completions ?? 0) - (a.award?.completions ?? 0))[0];
 		const award = mergeGameAward(item?.award ?? null, game.slug, run, at);

@@ -1,46 +1,63 @@
 "use client";
 
-import { useCallback, useRef, type PointerEvent as ReactPointerEvent } from "react";
-import { STAGE, stagePoint, useStageLoop, useSynth } from "@/components/beta/games/stage-kit";
-import type { StageProps } from "@/components/beta/games/types";
+import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { STAGE, stagePoint, takePresses, useStageLoop, useSynth } from "../stage-kit";
+import type { StageProps } from "../types";
 import {
-	LIGHT_CANDLES,
-	LIGHT_MISS_LIMIT,
-	LIGHT_OUT_LIMIT,
+	LIGHT_DIRS,
+	LIGHT_HOUSES,
+	LIGHT_KINDLE,
 	LIGHT_SECONDS,
-	bushelAt,
-	lightLevel,
+	LIGHT_SHINE,
+	LIGHT_TURN_GAP,
+	lightAllLit,
+	lightBoard,
+	lightMirrorAt,
 	lightResult,
+	lightShining,
 	newLight,
 	stepLight,
+	type LightBoard,
 	type LightEvent,
+	type LightInput,
 	type LightState,
 } from "@/lib/beta/games/let-your-light-shine-rules";
 
 /**
- * Let Your Light Shine (LC-17851), Matthew 5:14-16: a house at night, six
- * candlesticks on the shelf and the table, and through the window a city set
- * on an hill. Bushels drop over the candles; a tap or click lifts one off, and
- * every tenth tap that lifts nothing puts out the nearest candle. The whole
- * room's light follows how many candles still shine.
+ * Let Your Light Shine (LC-17908), Matthew 5:14-16: a house at night seen
+ * from above, its rooms in a grid. A candle on its candlestick at one wall
+ * casts a beam into the house; brass mirrors in some rooms turn it through a
+ * right angle, and every lamp it passes catches light. Turn the mirrors (tap
+ * one, or move the gold cursor with the arrows and press Space) until the
+ * beam gives light unto all that are in the house, then the next house comes.
+ * When the third is lit, the whole city on the hill glows.
  */
 
-const WINDOW = { left: 128, right: 272, top: 34, bottom: 166 };
-const STARS = Array.from({ length: 22 }, (_, index) => ({
-	x: WINDOW.left + 8 + ((index * 53) % 128),
-	y: WINDOW.top + 8 + ((index * 37) % 62),
-	r: index % 4 === 0 ? 1.4 : 0.8,
+const SERIF = "Georgia, 'Times New Roman', serif";
+const SANS = "system-ui, sans-serif";
+/** The house: a square of rooms below the window and the count. */
+const BOARD = { x: 52, y: 50, size: 296 };
+/** How fast the beam runs out from a turned mirror, in stage units a second. */
+const BEAM_SPEED = 1700;
+const OUTRO_WON = 150;
+const OUTRO_LOST = 48;
+const STARS = Array.from({ length: 40 }, (_, index) => ({
+	x: (index * 97.3) % STAGE,
+	y: (index * 41.7) % 60,
+	r: index % 5 === 0 ? 1.3 : 0.7,
+	phase: index * 1.7,
 }));
-/** The city on the hill: each house's left edge, width and height. */
+/** The city on the hill: each house's left edge, width and height, in a 100-wide picture. */
 const CITY = [
-	[150, 14, 16],
-	[163, 12, 24],
-	[174, 16, 20],
-	[189, 10, 34],
-	[198, 18, 26],
-	[215, 12, 18],
-	[226, 15, 22],
-	[240, 12, 14],
+	[2, 12, 10],
+	[13, 10, 16],
+	[22, 14, 22],
+	[35, 9, 30],
+	[43, 15, 24],
+	[57, 11, 18],
+	[67, 13, 21],
+	[79, 10, 14],
+	[88, 10, 10],
 ];
 
 interface Particle {
@@ -50,11 +67,95 @@ interface Particle {
 	vy: number;
 	born: number;
 	life: number;
-	color: string;
 	size: number;
 }
 
-function flamePath(context: CanvasRenderingContext2D, x: number, y: number, height: number, sway: number) {
+type Point = { x: number; y: number };
+
+function cellSize(board: LightBoard) {
+	return BOARD.size / board.size;
+}
+
+function cellCenter(board: LightBoard, r: number, c: number): Point {
+	const cell = cellSize(board);
+	return { x: BOARD.x + (c + 0.5) * cell, y: BOARD.y + (r + 0.5) * cell };
+}
+
+/** Where the candle's flame stands, just outside the wall the beam enters by. */
+function candleAt(board: LightBoard): Point {
+	const { r, c, dir } = board.entry;
+	const center = cellCenter(board, r, c);
+	const cell = cellSize(board);
+	const back = cell / 2 + 18;
+	return { x: center.x - LIGHT_DIRS[dir].dc * back, y: center.y - LIGHT_DIRS[dir].dr * back };
+}
+
+/** The beam as a line: from the flame, through each mirror that turned it, to the wall it ends on. */
+function beamPoints(board: LightBoard, cells: LightState["beam"]["cells"]): Point[] {
+	const points = [candleAt(board)];
+	let dir = board.entry.dir;
+	for (const cell of cells) {
+		if (cell.dir !== dir) points.push(cellCenter(board, cell.r, cell.c));
+		dir = cell.dir;
+	}
+	const last = cells.at(-1);
+	if (last) {
+		const center = cellCenter(board, last.r, last.c);
+		const half = cellSize(board) / 2;
+		points.push({ x: center.x + LIGHT_DIRS[last.dir].dc * half, y: center.y + LIGHT_DIRS[last.dir].dr * half });
+	}
+	return points;
+}
+
+/** How far along the line a point on it lies (or the line's length when it is not on it). */
+function distanceAlong(points: Point[], point: Point): number {
+	let total = 0;
+	for (let i = 1; i < points.length; i++) {
+		const a = points[i - 1];
+		const b = points[i];
+		const length = Math.hypot(b.x - a.x, b.y - a.y);
+		const onX = Math.abs(a.x - b.x) < 0.5 && Math.abs(point.x - a.x) < 0.5 && point.y >= Math.min(a.y, b.y) - 0.5 && point.y <= Math.max(a.y, b.y) + 0.5;
+		const onY = Math.abs(a.y - b.y) < 0.5 && Math.abs(point.y - a.y) < 0.5 && point.x >= Math.min(a.x, b.x) - 0.5 && point.x <= Math.max(a.x, b.x) + 0.5;
+		if (onX || onY) return total + Math.hypot(point.x - a.x, point.y - a.y);
+		total += length;
+	}
+	return total;
+}
+
+function lineLength(points: Point[]) {
+	let total = 0;
+	for (let i = 1; i < points.length; i++) total += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
+	return total;
+}
+
+/** The first `length` of the line. */
+function tracePrefix(context: CanvasRenderingContext2D, points: Point[], length: number) {
+	context.beginPath();
+	context.moveTo(points[0].x, points[0].y);
+	let left = length;
+	for (let i = 1; i < points.length && left > 0; i++) {
+		const a = points[i - 1];
+		const b = points[i];
+		const segment = Math.hypot(b.x - a.x, b.y - a.y);
+		if (segment <= left) context.lineTo(b.x, b.y);
+		else context.lineTo(a.x + ((b.x - a.x) * left) / segment, a.y + ((b.y - a.y) * left) / segment);
+		left -= segment;
+	}
+}
+
+function pointAt(points: Point[], length: number): Point {
+	let left = length;
+	for (let i = 1; i < points.length; i++) {
+		const a = points[i - 1];
+		const b = points[i];
+		const segment = Math.hypot(b.x - a.x, b.y - a.y);
+		if (segment >= left) return { x: a.x + ((b.x - a.x) * left) / Math.max(1e-6, segment), y: a.y + ((b.y - a.y) * left) / Math.max(1e-6, segment) };
+		left -= segment;
+	}
+	return points.at(-1) ?? { x: 0, y: 0 };
+}
+
+function flame(context: CanvasRenderingContext2D, x: number, y: number, height: number, sway: number) {
 	context.beginPath();
 	context.moveTo(x, y);
 	context.bezierCurveTo(x - height * 0.42, y - height * 0.3, x - height * 0.18 + sway, y - height * 0.8, x + sway, y - height);
@@ -62,406 +163,517 @@ function flamePath(context: CanvasRenderingContext2D, x: number, y: number, heig
 	context.closePath();
 }
 
-function drawBushel(context: CanvasRenderingContext2D, x: number, y: number, dead: boolean, tilt = 0) {
-	// An upturned bushel basket: narrow base on top, the wide mouth over the candle. (x, y) is its centre.
+function drawCity(context: CanvasRenderingContext2D, x: number, y: number, width: number, lit: number, glow: number, time: number) {
+	// A hill, and the city set on it; `lit` (0 to 1) of its windows shine.
+	const s = width / 100;
 	context.save();
 	context.translate(x, y);
-	context.rotate(tilt);
-	const top = -28;
-	const bottom = 28;
-	context.fillStyle = dead ? "#4a3829" : "#b98a4e";
+	if (glow > 0) {
+		const halo = context.createRadialGradient(50 * s, 10 * s, 2, 50 * s, 10 * s, 70 * s);
+		halo.addColorStop(0, `rgba(255,214,140,${0.55 * glow})`);
+		halo.addColorStop(1, "rgba(255,214,140,0)");
+		context.fillStyle = halo;
+		context.fillRect(-30 * s, -60 * s, 160 * s, 110 * s);
+	}
+	context.fillStyle = "#151026";
 	context.beginPath();
-	context.moveTo(-19, top);
-	context.lineTo(19, top);
-	context.lineTo(28, bottom);
-	context.lineTo(-28, bottom);
+	context.moveTo(-6 * s, 34 * s);
+	context.quadraticCurveTo(50 * s, -8 * s, 106 * s, 34 * s);
 	context.closePath();
 	context.fill();
-	context.strokeStyle = dead ? "#2e2219" : "#7e5730";
-	context.lineWidth = 1.5;
-	for (let i = -3; i <= 3; i++) {
+	CITY.forEach(([left, w, h], index) => {
+		const hillTop = 34 - (1 - Math.pow((left + w / 2 - 50) / 56, 2)) * 21;
+		const top = hillTop - h;
+		context.fillStyle = "#231a33";
+		context.fillRect(left * s, top * s, w * s, (h + 4) * s);
+		context.fillStyle = "#2c2140";
 		context.beginPath();
-		context.moveTo(i * 5.4, top);
-		context.lineTo(i * 8, bottom);
-		context.stroke();
-	}
-	context.fillStyle = dead ? "#3a2b20" : "#8a6234";
-	context.fillRect(-23, -8, 46, 5);
-	context.fillRect(-27, bottom - 6, 54, 7);
-	context.fillRect(-20, top, 40, 5);
-	if (!dead) {
-		context.fillStyle = "rgba(255,230,170,.35)";
-		context.beginPath();
-		context.moveTo(-16, top + 5);
-		context.lineTo(-10, top + 5);
-		context.lineTo(-17, bottom - 6);
-		context.lineTo(-24, bottom - 6);
-		context.closePath();
+		context.moveTo((left - 1) * s, top * s);
+		context.lineTo((left + w / 2) * s, (top - 4) * s);
+		context.lineTo((left + w + 1) * s, top * s);
 		context.fill();
-	}
+		const on = index / CITY.length < lit;
+		const flicker = 0.85 + 0.15 * Math.sin(time * 3 + index);
+		context.fillStyle = on ? `rgba(255,${200 + index * 4},120,${flicker})` : "rgba(80,70,110,.55)";
+		for (let wy = top + 4; wy < top + h - 2; wy += 7) {
+			for (let wx = left + 2.5; wx < left + w - 3; wx += 5) context.fillRect(wx * s, wy * s, 2.4 * s, 3 * s);
+		}
+	});
 	context.restore();
 }
 
-export default function LetYourLightShine({ seed, paused, muted, reducedMotion, onTime, onEnd }: StageProps) {
+export default function LetYourLightShine({ seed, paused, muted, reducedMotion, keys, onTime, onEnd }: StageProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
-	const state = useRef<LightState>(newLight(seed));
-	const taps = useRef<{ x: number; y: number }[]>([]);
+	// Laying the houses checks each one, so do it once, not on every render.
+	const [initial] = useState(() => newLight(seed));
+	const state = useRef<LightState>(initial);
+	const taps = useRef<number[]>([]);
+	const cursor = useRef({ r: 1, c: 1 });
+	const showCursor = useRef<boolean | null>(null);
+	/** Each mirror's drawn angle and the angle it swings to (a quarter turn a press). */
+	const angles = useRef<{ now: number; to: number }[]>([]);
+	const beam = useRef<{ points: Point[]; shown: number }>({ points: [], shown: 0 });
+	const lampGlow = useRef<number[]>([]);
 	const particles = useRef<Particle[]>([]);
-	const flying = useRef<{ x: number; y: number; born: number; spin: number }[]>([]);
-	const misses = useRef<{ x: number; y: number; born: number }[]>([]);
-	const level = useRef(1);
-	const shake = useRef(0);
-	const outFlash = useRef(-9);
+	const houseFrom = useRef(0);
+	const solvedFlash = useRef(-9);
+	const outro = useRef(0);
 	const ended = useRef(false);
-	const ticks = useRef(0);
+	const lastFrame = useRef(0);
+	const lastData = useRef(0);
 	const synth = useSynth(muted);
 
-	const burst = useCallback((x: number, y: number, count: number, colors: string[], speed: number, life: number, up = 0) => {
-		const t = state.current.t;
-		for (let i = 0; i < count; i++) {
-			const angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
-			const v = speed * (0.4 + Math.random() * 0.6);
-			particles.current.push({ x, y, vx: Math.cos(angle) * v, vy: Math.sin(angle) * v - up, born: t, life: life * (0.7 + Math.random() * 0.5), color: colors[i % colors.length], size: 1.5 + Math.random() * 2.5 });
-		}
+	const startHouse = useCallback((run: LightState) => {
+		const board = lightBoard(run);
+		angles.current = board.mirrors.map((mirror) => {
+			const angle = mirror.tilt === 0 ? -Math.PI / 4 : Math.PI / 4;
+			return { now: angle, to: angle };
+		});
+		beam.current = { points: beamPoints(board, run.beam.cells), shown: 0 };
+		lampGlow.current = board.lamps.map(() => 0);
+		cursor.current = { r: Math.floor(board.size / 2), c: Math.floor(board.size / 2) };
+		houseFrom.current = run.t;
 	}, []);
 
-	const handle = useCallback(
-		(event: LightEvent) => {
-			const play = synth.current;
-			const t = state.current.t;
-			if (event.type === "drop") play?.noise(0.12, { volume: 0.12, filter: 500, delay: 0.3 });
-			if (event.type === "lift") {
-				flying.current.push({ x: event.x, y: event.y, born: t, spin: Math.random() < 0.5 ? -1 : 1 });
-				const candle = LIGHT_CANDLES[event.candle];
-				burst(candle.x, candle.y - 48, 16, ["#fff3c4", "#ffd166", "#ffb347"], 90, 0.7, 30);
-				play?.tone(660, 0.18, { type: "triangle", volume: 0.16, to: 990 });
-				play?.tone(1320, 0.3, { type: "sine", volume: 0.07, delay: 0.06 });
-			}
-			if (event.type === "miss") {
-				misses.current.push({ x: event.x, y: event.y, born: t });
-				play?.noise(0.09, { volume: 0.14, filter: 320 });
-				play?.tone(150, 0.1, { type: "sine", volume: 0.1, to: 90 });
-			}
-			if (event.type === "out") {
-				const candle = LIGHT_CANDLES[event.candle];
-				burst(candle.x, candle.y - 60, 14, ["#6b6670", "#8d8794", "#4d4952"], 30, 1.4, 40);
-				outFlash.current = t;
-				if (!reducedMotion) shake.current = 7;
-				play?.noise(0.5, { volume: 0.2, filter: 2400, type: "highpass" });
-				play?.tone(196, 0.5, { type: "sine", volume: 0.18, to: 98 });
-			}
-			if (event.type === "won") [523, 659, 784, 1047].forEach((note, index) => play?.tone(note, 1.2, { type: "triangle", volume: 0.14, delay: index * 0.09 }));
-			if (event.type === "dark") play?.tone(262, 1.1, { type: "sine", volume: 0.2, to: 110 });
-		},
-		[burst, reducedMotion, synth],
-	);
+	const burst = useCallback((x: number, y: number, count: number, speed: number, up: number) => {
+		const t = lastFrame.current;
+		for (let i = 0; i < count; i++) {
+			const angle = (i / count) * Math.PI * 2 + Math.random() * 0.4;
+			const v = speed * (0.35 + Math.random() * 0.65);
+			particles.current.push({ x, y, vx: Math.cos(angle) * v, vy: Math.sin(angle) * v - up, born: t, life: 0.5 + Math.random() * 0.6, size: 1.2 + Math.random() * 2.2 });
+		}
+		if (particles.current.length > 220) particles.current.splice(0, particles.current.length - 220);
+	}, []);
 
 	const step = useCallback(() => {
 		const run = state.current;
-		if (run.phase !== "playing") return;
+		if (run.phase !== "playing") {
+			if (ended.current) return;
+			outro.current += 1;
+			if (outro.current >= (run.phase === "won" ? OUTRO_WON : OUTRO_LOST)) {
+				const result = lightResult(run);
+				if (result) {
+					ended.current = true;
+					onEnd(result);
+				}
+			}
+			return;
+		}
+		const board = lightBoard(run);
+		const input: LightInput = {};
+		for (const key of takePresses(keys)) {
+			showCursor.current = true;
+			const { r, c } = cursor.current;
+			if (key === "arrowleft") cursor.current = { r, c: Math.max(0, c - 1) };
+			if (key === "arrowright") cursor.current = { r, c: Math.min(board.size - 1, c + 1) };
+			if (key === "arrowup") cursor.current = { r: Math.max(0, r - 1), c };
+			if (key === "arrowdown") cursor.current = { r: Math.min(board.size - 1, r + 1), c };
+			if (key === " " && input.turn === undefined) {
+				const mirror = lightMirrorAt(board, cursor.current.r, cursor.current.c);
+				if (mirror >= 0) input.turn = mirror;
+				else synth.current?.tone(150, 0.08, { type: "sine", volume: 0.05 });
+			}
+		}
+		const tap = taps.current.shift();
+		if (input.turn === undefined && tap !== undefined) input.turn = tap;
+		taps.current.length = 0;
+
 		const events: LightEvent[] = [];
-		stepLight(run, { taps: taps.current.splice(0) }, events);
-		for (const event of events) handle(event);
+		stepLight(run, input, events);
+		const play = synth.current;
+		for (const event of events) {
+			if (event.type === "turn") {
+				const angle = angles.current[event.mirror];
+				if (angle) angle.to += Math.PI / 2;
+				const mirror = board.mirrors[event.mirror];
+				const points = beamPoints(board, run.beam.cells);
+				const keep = distanceAlong(points, cellCenter(board, mirror.r, mirror.c));
+				beam.current = { points, shown: reducedMotion ? lineLength(points) : Math.min(beam.current.shown, keep) };
+				play?.noise(0.07, { volume: 0.07, filter: 3200, type: "bandpass" });
+				play?.tone(330, 0.09, { type: "triangle", volume: 0.1, to: 420 });
+				play?.tone(1250, 0.22, { type: "sine", volume: 0.035, delay: 0.05 });
+			}
+			if (event.type === "light") {
+				const lamp = board.lamps[event.lamp];
+				const at = cellCenter(board, lamp.r, lamp.c);
+				const delay = reducedMotion ? 0 : Math.max(0, distanceAlong(beam.current.points, at) - beam.current.shown) / BEAM_SPEED;
+				const note = [523.25, 659.25, 783.99, 1046.5][event.lamp % 4];
+				play?.tone(note, 0.7, { type: "sine", volume: 0.13, delay });
+				play?.tone(note * 2, 0.4, { type: "sine", volume: 0.04, delay: delay + 0.02 });
+			}
+			if (event.type === "dim") play?.tone(233, 0.3, { type: "sine", volume: 0.06, to: 196 });
+			if (event.type === "house") {
+				solvedFlash.current = run.t;
+				for (const lamp of board.lamps) {
+					const at = cellCenter(board, lamp.r, lamp.c);
+					burst(at.x, at.y, 14, 70, 40);
+				}
+				[392, 493.88, 587.33, 783.99].forEach((note, index) => play?.tone(note, 1.1, { type: "sine", volume: 0.08, delay: index * 0.06 }));
+			}
+			if (event.type === "next") {
+				startHouse(run);
+				play?.noise(0.25, { volume: 0.05, filter: 700 });
+			}
+			if (event.type === "won") [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((note, index) => play?.tone(note, 1.8, { type: "sine", volume: 0.08, delay: 0.25 + index * 0.11 }));
+			if (event.type === "lost") play?.tone(131, 1.2, { type: "sine", volume: 0.12, to: 98 });
+		}
 		onTime(Math.max(0, LIGHT_SECONDS - run.t));
-		ticks.current += 1;
-		const canvas = canvasRef.current;
-		if (canvas && ticks.current % 6 === 0) {
-			canvas.dataset.targets = run.bushels.map((bushel) => {
-				const at = bushelAt(bushel, run.t);
-				return `${Math.round(at.x)},${Math.round(at.y)},${Math.round((bushel.smothers - run.t) * 100)}`;
-			}).join(";");
-			canvas.dataset.outs = String(run.outs);
-		}
-		const result = lightResult(run);
-		if (result && !ended.current) {
-			ended.current = true;
-			if (canvas) canvas.dataset.outs = String(run.outs);
-			onEnd(result);
-		}
-	}, [handle, onEnd, onTime]);
+	}, [burst, keys, onEnd, onTime, reducedMotion, startHouse, synth]);
 
 	const draw = useCallback(
 		(context: CanvasRenderingContext2D, time: number) => {
 			const run = state.current;
-			const t = run.t;
-			level.current += (lightLevel(run) - level.current) * 0.1;
-			const light = level.current;
-			const flicker = (index: number) => (reducedMotion ? 1 : 0.92 + Math.sin(time * 11 + index * 2.3) * 0.05 + Math.sin(time * 17 + index) * 0.03);
+			const dt = Math.min(0.05, Math.max(0, time - (lastFrame.current || time)));
+			lastFrame.current = time;
+			if (!angles.current.length) startHouse(run);
+			const board = lightBoard(run);
+			const cell = cellSize(board);
+			const shining = lightShining(run) || run.phase === "won";
+			const kindle = run.phase === "playing" && !lightShining(run) && lightAllLit(run.beam) ? Math.min(1, run.kindle / LIGHT_KINDLE) : shining ? 1 : 0;
+			if (showCursor.current === null && typeof window !== "undefined") showCursor.current = !window.matchMedia("(pointer: coarse)").matches;
 
-			context.save();
-			if (shake.current > 0.2) {
-				context.translate((Math.random() - 0.5) * shake.current, (Math.random() - 0.5) * shake.current);
-				shake.current *= 0.86;
+			const canvas = canvasRef.current;
+			if (canvas && time - lastData.current > 0.03) {
+				lastData.current = time;
+				const { r, c, dir } = board.entry;
+				canvas.dataset.light = `${run.house},${board.size},${r},${c},${dir},${run.phase},${lightShining(run) ? 1 : 0},${cursor.current.r},${cursor.current.c}`;
+				canvas.dataset.mirrors = board.mirrors.map((mirror) => `${mirror.r},${mirror.c},${mirror.tilt}`).join(";");
+				canvas.dataset.lamps = board.lamps.map((lamp, index) => `${lamp.r},${lamp.c},${run.beam.lit[index] ? 1 : 0}`).join(";");
 			}
 
-			// The room: plastered wall, the window, the shelf, the table, the floor.
-			const wall = context.createLinearGradient(0, 0, 0, STAGE);
-			wall.addColorStop(0, "#3b2c4a");
-			wall.addColorStop(0.55, "#4a3542");
-			wall.addColorStop(1, "#2a1d1c");
-			context.fillStyle = wall;
-			context.fillRect(-10, -10, STAGE + 20, STAGE + 20);
-			context.fillStyle = "#2c1d16";
-			context.fillRect(-10, 362, STAGE + 20, 50);
+			// The beam runs out from the candle (or from the mirror just turned).
+			const total = lineLength(beam.current.points);
+			beam.current.shown = reducedMotion ? total : Math.min(total, beam.current.shown + BEAM_SPEED * dt);
+			const front = beam.current.shown;
 
-			// Through the window: a city set on an hill, which cannot be hid (v14).
-			context.save();
-			context.beginPath();
-			context.moveTo(WINDOW.left, WINDOW.bottom);
-			context.lineTo(WINDOW.left, WINDOW.top + 50);
-			context.arc((WINDOW.left + WINDOW.right) / 2, WINDOW.top + 50, (WINDOW.right - WINDOW.left) / 2, Math.PI, 0);
-			context.lineTo(WINDOW.right, WINDOW.bottom);
-			context.closePath();
-			context.clip();
-			const sky = context.createLinearGradient(0, WINDOW.top - 20, 0, WINDOW.bottom);
-			sky.addColorStop(0, "#070b26");
-			sky.addColorStop(1, "#24305e");
+			// Night, the stars, and the window's city on the hill.
+			const sky = context.createLinearGradient(0, 0, 0, STAGE);
+			sky.addColorStop(0, "#0b0a1f");
+			sky.addColorStop(1, "#141026");
 			context.fillStyle = sky;
-			context.fillRect(WINDOW.left, WINDOW.top - 30, WINDOW.right - WINDOW.left, WINDOW.bottom - WINDOW.top + 30);
-			for (const [index, star] of STARS.entries()) {
-				context.fillStyle = `rgba(255,255,240,${reducedMotion ? 0.8 : 0.55 + 0.35 * Math.sin(time * 2 + index)})`;
+			context.fillRect(0, 0, STAGE, STAGE);
+			for (const star of STARS) {
+				context.fillStyle = `rgba(230,225,255,${reducedMotion ? 0.6 : 0.45 + 0.3 * Math.sin(time * 1.5 + star.phase)})`;
 				context.fillRect(star.x, star.y, star.r * 1.6, star.r * 1.6);
 			}
-			const cityGlow = context.createRadialGradient(200, 128, 4, 200, 128, 80);
-			cityGlow.addColorStop(0, "rgba(255,200,110,.55)");
-			cityGlow.addColorStop(1, "rgba(255,200,110,0)");
-			context.fillStyle = cityGlow;
-			context.fillRect(WINDOW.left, WINDOW.top, WINDOW.right - WINDOW.left, WINDOW.bottom - WINDOW.top);
-			context.fillStyle = "#151a35";
-			context.beginPath();
-			context.moveTo(WINDOW.left, WINDOW.bottom);
-			context.quadraticCurveTo(200, 92, WINDOW.right, WINDOW.bottom);
-			context.fill();
-			for (const [left, width, height] of CITY) {
-				const base = 128 + Math.abs(left + width / 2 - 200) * 0.32;
-				context.fillStyle = "#1d2240";
-				context.fillRect(left, base - height, width, height + 4);
-				context.fillStyle = "#ffd27a";
-				context.fillRect(left + width * 0.3, base - height * 0.7, 3, 3);
-				if (height > 18) context.fillRect(left + width * 0.62, base - height * 0.4, 3, 3);
-			}
-			context.restore();
-			context.strokeStyle = "#2a1b12";
-			context.lineWidth = 6;
-			context.beginPath();
-			context.moveTo(WINDOW.left, WINDOW.bottom);
-			context.lineTo(WINDOW.left, WINDOW.top + 50);
-			context.arc(200, WINDOW.top + 50, 72, Math.PI, 0);
-			context.lineTo(WINDOW.right, WINDOW.bottom);
-			context.moveTo(200, WINDOW.top - 22);
-			context.lineTo(200, WINDOW.bottom);
-			context.moveTo(WINDOW.left, WINDOW.top + 66);
-			context.lineTo(WINDOW.right, WINDOW.top + 66);
-			context.stroke();
 
-			// The shelf and the table.
-			context.fillStyle = "#5b3a22";
-			context.fillRect(22, 222, 356, 10);
-			context.fillStyle = "#7a5131";
-			context.fillRect(22, 222, 356, 3);
-			context.fillStyle = "#4a2f1c";
-			context.fillRect(40, 232, 8, 14);
-			context.fillRect(352, 232, 8, 14);
-			context.fillStyle = "#6b4529";
-			context.fillRect(30, 338, 340, 14);
-			context.fillStyle = "#8a5d38";
-			context.fillRect(30, 338, 340, 3);
-			context.fillStyle = "#4a2f1c";
-			context.fillRect(48, 352, 12, 50);
-			context.fillRect(340, 352, 12, 50);
+			const won = run.phase === "won";
+			const fade = won ? Math.min(1, outro.current / 45) : 0;
 
-			// The candlesticks and candles (their flames are drawn as light, below).
-			LIGHT_CANDLES.forEach((candle, index) => {
-				const lit = run.candles[index].lit;
-				context.fillStyle = "#b8893a";
+			if (fade < 1) {
+				context.save();
+				context.globalAlpha = 1 - fade;
+				const enter = Math.min(1, (run.t - houseFrom.current) / 0.35);
+				// The house: plaster walls round the rooms.
+				const pad = 9;
+				context.fillStyle = "#4a3a30";
 				context.beginPath();
-				context.ellipse(candle.x, candle.y - 2, 14, 4, 0, 0, Math.PI * 2);
+				context.roundRect(BOARD.x - pad, BOARD.y - pad, BOARD.size + pad * 2, BOARD.size + pad * 2, 10);
 				context.fill();
-				context.fillRect(candle.x - 3, candle.y - 14, 6, 12);
-				context.beginPath();
-				context.ellipse(candle.x, candle.y - 14, 10, 3, 0, 0, Math.PI * 2);
-				context.fill();
-				context.fillStyle = lit ? "#f3ead2" : "#a59d8c";
-				context.fillRect(candle.x - 5, candle.y - 38, 10, 24);
-				context.fillStyle = "#2a2420";
-				context.fillRect(candle.x - 0.8, candle.y - 43, 1.6, 5);
-			});
-
-			// The dark of the night, lifted by every candle that shines.
-			context.fillStyle = `rgba(6,5,18,${0.12 + 0.68 * (1 - light)})`;
-			context.fillRect(-10, -10, STAGE + 20, STAGE + 20);
-			if (t - outFlash.current < 0.35) {
-				context.fillStyle = `rgba(120,20,30,${0.28 * (1 - (t - outFlash.current) / 0.35)})`;
-				context.fillRect(-10, -10, STAGE + 20, STAGE + 20);
-			}
-
-			// The flames and their light.
-			context.globalCompositeOperation = "lighter";
-			LIGHT_CANDLES.forEach((candle, index) => {
-				if (!run.candles[index].lit) return;
-				const bushel = run.bushels.find((item) => item.candle === index);
-				const covered = bushel && t >= bushel.lands ? 1 - (t - bushel.lands) / (bushel.smothers - bushel.lands) : null;
-				const strength = covered === null ? 1 : 0.25 * covered;
-				const glow = context.createRadialGradient(candle.x, candle.y - 46, 2, candle.x, candle.y - 46, 120 * flicker(index));
-				glow.addColorStop(0, `rgba(255,196,96,${0.5 * strength})`);
-				glow.addColorStop(0.4, `rgba(255,150,60,${0.16 * strength})`);
-				glow.addColorStop(1, "rgba(255,140,50,0)");
-				context.fillStyle = glow;
-				context.fillRect(candle.x - 130, candle.y - 176, 260, 260);
-			});
-			context.globalCompositeOperation = "source-over";
-			LIGHT_CANDLES.forEach((candle, index) => {
-				if (!run.candles[index].lit) return;
-				const height = 15 * flicker(index);
-				const sway = reducedMotion ? 0 : Math.sin(time * 7 + index) * 1.6;
-				context.fillStyle = "#ffb347";
-				flamePath(context, candle.x, candle.y - 39, height, sway);
-				context.fill();
-				context.fillStyle = "#fff4c8";
-				flamePath(context, candle.x, candle.y - 40, height * 0.55, sway * 0.6);
-				context.fill();
-			});
-
-			// The bushels left on the candles that went out, and smoke over every candle out.
-			for (const bushel of run.dead) drawBushel(context, LIGHT_CANDLES[bushel.candle].x, LIGHT_CANDLES[bushel.candle].y - 30, true);
-			for (const [index, candle] of LIGHT_CANDLES.entries()) {
-				if (run.candles[index].lit) continue;
-				const age = t - (run.candles[index].outAt ?? t);
-				if (!reducedMotion || age < 0.1) {
-					for (let i = 0; i < 3; i++) {
-						const rise = ((time * 18 + i * 14) % 42) + 6;
-						context.fillStyle = `rgba(150,145,160,${0.28 * (1 - rise / 48)})`;
+				context.fillStyle = "#2e241f";
+				context.fillRect(BOARD.x - 3, BOARD.y - 3, BOARD.size + 6, BOARD.size + 6);
+				context.globalAlpha = (1 - fade) * (reducedMotion ? 1 : 0.4 + 0.6 * enter);
+				for (let r = 0; r < board.size; r++) {
+					for (let c = 0; c < board.size; c++) {
+						const x = BOARD.x + c * cell;
+						const y = BOARD.y + r * cell;
+						context.fillStyle = (r + c) % 2 ? "#1d1830" : "#201a34";
+						context.fillRect(x + 1.5, y + 1.5, cell - 3, cell - 3);
+						// Floor boards.
+						context.fillStyle = "rgba(255,255,255,.025)";
+						for (let line = 1; line < 4; line++) context.fillRect(x + 4, y + (line * cell) / 4, cell - 8, 1);
+					}
+				}
+				// The light fills the rooms it passes through, and the whole house as the lamps catch.
+				if (kindle > 0) {
+					context.fillStyle = `rgba(255,196,110,${0.16 * kindle})`;
+					context.fillRect(BOARD.x, BOARD.y, BOARD.size, BOARD.size);
+				}
+				const points = beam.current.points;
+				if (points.length > 1 && front > 0) {
+					context.save();
+					context.beginPath();
+					context.rect(BOARD.x - 40, BOARD.y - 40, BOARD.size + 80, BOARD.size + 80);
+					context.clip();
+					context.lineCap = "round";
+					context.lineJoin = "round";
+					tracePrefix(context, points, front);
+					context.strokeStyle = "rgba(255,190,100,.11)";
+					context.lineWidth = cell * 0.8;
+					context.stroke();
+					const pulse = reducedMotion ? 1 : 0.85 + 0.15 * Math.sin(time * 7);
+					context.strokeStyle = `rgba(255,200,110,${0.32 * pulse})`;
+					context.lineWidth = 12;
+					context.stroke();
+					context.strokeStyle = "rgba(255,226,160,.85)";
+					context.lineWidth = 5;
+					context.stroke();
+					context.strokeStyle = "#fff8e2";
+					context.lineWidth = 2;
+					context.stroke();
+					context.restore();
+					// Where the light meets the wall.
+					if (front >= total - 1 && run.phase === "playing") {
+						const end = points.at(-1)!;
+						const splash = context.createRadialGradient(end.x, end.y, 1, end.x, end.y, 16);
+						splash.addColorStop(0, "rgba(255,236,190,.8)");
+						splash.addColorStop(1, "rgba(255,200,120,0)");
+						context.fillStyle = splash;
 						context.beginPath();
-						context.arc(candle.x + Math.sin(time * 2 + i) * 5, candle.y - 60 - rise, 5 + rise * 0.15, 0, Math.PI * 2);
+						context.arc(end.x, end.y, 16, 0, Math.PI * 2);
+						context.fill();
+					} else if (front < total) {
+						const tip = pointAt(points, front);
+						context.fillStyle = "#fffbe8";
+						context.beginPath();
+						context.arc(tip.x, tip.y, 4, 0, Math.PI * 2);
 						context.fill();
 					}
 				}
-			}
 
-			// The bushels: falling, then smothering the candle, each with its time running out.
-			const firstSeconds = t < 3;
-			for (const bushel of run.bushels) {
-				const at = bushelAt(bushel, t);
-				const candle = LIGHT_CANDLES[bushel.candle];
-				const left = at.landed ? 1 - (t - bushel.lands) / (bushel.smothers - bushel.lands) : 1;
-				if (at.landed) {
-					// The light leaking under the rim, fading.
-					context.fillStyle = `rgba(255,170,70,${0.55 * left})`;
+				// The lamps: dark with a gold ring until the light reaches them, then aflame.
+				board.lamps.forEach((lamp, index) => {
+					const at = cellCenter(board, lamp.r, lamp.c);
+					const reached = run.beam.lit[index] && distanceAlong(beam.current.points, at) <= front + 1;
+					const glow = lampGlow.current[index] ?? 0;
+					const target = reached ? 1 : 0;
+					lampGlow.current[index] = reducedMotion ? target : glow + (target - glow) * Math.min(1, dt * 12);
+					const g = lampGlow.current[index];
+					if (g < 0.98) {
+						context.strokeStyle = `rgba(229,182,100,${(1 - g) * (reducedMotion ? 0.75 : 0.55 + 0.25 * Math.sin(time * 4 + index))})`;
+						context.lineWidth = 2;
+						context.setLineDash([5, 4]);
+						context.beginPath();
+						context.arc(at.x, at.y, cell * 0.3, 0, Math.PI * 2);
+						context.stroke();
+						context.setLineDash([]);
+					}
+					if (g > 0.02) {
+						const reach = cell * (0.55 + 0.25 * kindle);
+						const halo = context.createRadialGradient(at.x, at.y - 4, 1, at.x, at.y - 4, reach);
+						halo.addColorStop(0, `rgba(255,228,150,${0.75 * g})`);
+						halo.addColorStop(1, "rgba(255,180,90,0)");
+						context.fillStyle = halo;
+						context.fillRect(at.x - reach, at.y - 4 - reach, reach * 2, reach * 2);
+					}
+					// The clay lamp: a body, a spout and a handle.
+					const s = Math.min(1.2, cell / 70);
+					context.fillStyle = "#8d5a36";
 					context.beginPath();
-					context.ellipse(candle.x, candle.y - 1, 28 + 6 * left, 4, 0, 0, Math.PI * 2);
+					context.ellipse(at.x, at.y + 5 * s, 13 * s, 7 * s, 0, 0, Math.PI * 2);
 					context.fill();
-				}
-				drawBushel(context, at.x, at.y, false);
-				const pulse = reducedMotion ? 0.5 : 0.5 + 0.5 * Math.sin(time * 10 + bushel.id);
-				const urgent = left < 0.45;
-				context.strokeStyle = urgent ? `rgba(255,90,70,${0.5 + 0.4 * pulse})` : `rgba(255,226,140,${0.35 + 0.35 * pulse})`;
-				context.lineWidth = 2;
-				context.beginPath();
-				context.arc(at.x, at.y, 38 + pulse * 3, 0, Math.PI * 2);
-				context.stroke();
-				if (at.landed) {
-					context.strokeStyle = "rgba(0,0,0,.45)";
-					context.lineWidth = 5;
 					context.beginPath();
-					context.arc(at.x, at.y, 34, 0, Math.PI * 2);
-					context.stroke();
-					context.strokeStyle = urgent ? "#ff5a46" : "#ffd166";
+					context.moveTo(at.x + 8 * s, at.y + 1 * s);
+					context.lineTo(at.x + 18 * s, at.y + 2 * s);
+					context.lineTo(at.x + 9 * s, at.y + 9 * s);
+					context.fill();
+					context.fillStyle = "#5e3a22";
 					context.beginPath();
-					context.arc(at.x, at.y, 34, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left);
-					context.stroke();
-				}
-				if (firstSeconds) {
-					context.fillStyle = "#fff";
-					context.strokeStyle = "rgba(0,0,0,.7)";
-					context.lineWidth = 4;
-					context.font = "900 15px system-ui, sans-serif";
-					context.textAlign = "center";
-					context.strokeText("TAP!", at.x, at.y - 44);
-					context.fillText("TAP!", at.x, at.y - 44);
-				}
-			}
+					context.ellipse(at.x - 2 * s, at.y + 3 * s, 5 * s, 2.5 * s, 0, 0, Math.PI * 2);
+					context.fill();
+					if (g > 0.02) {
+						const height = (12 + 6 * kindle) * s * g;
+						const sway = reducedMotion ? 0 : Math.sin(time * 9 + index) * 1.6;
+						context.fillStyle = "rgba(255,170,60,.95)";
+						flame(context, at.x + 16 * s, at.y + 2 * s, height, sway);
+						context.fill();
+						context.fillStyle = "rgba(255,248,214,.95)";
+						flame(context, at.x + 16 * s, at.y + 1 * s, height * 0.55, sway * 0.6);
+						context.fill();
+					} else {
+						context.fillStyle = "#2a2018";
+						context.fillRect(at.x + 14.5 * s, at.y - 1 * s, 2.5 * s, 4 * s);
+					}
+				});
 
-			// Lifted bushels fly up and away.
-			flying.current = flying.current.filter((item) => t - item.born < 0.6);
-			for (const item of flying.current) {
-				const age = (t - item.born) / 0.6;
-				context.globalAlpha = 1 - age;
-				drawBushel(context, item.x + item.spin * age * 40, item.y - age * 120, false, item.spin * age * 1.2);
-				context.globalAlpha = 1;
-			}
-			particles.current = particles.current.filter((item) => t - item.born < item.life);
-			for (const item of particles.current) {
-				const age = t - item.born;
-				context.globalAlpha = Math.max(0, 1 - age / item.life);
-				context.fillStyle = item.color;
+				// The mirrors: brass plates on a stand, swinging a quarter turn a press.
+				board.mirrors.forEach((mirror, index) => {
+					const at = cellCenter(board, mirror.r, mirror.c);
+					const angle = angles.current[index];
+					if (!angle) return;
+					angle.now = reducedMotion ? angle.to : angle.now + (angle.to - angle.now) * Math.min(1, dt / (LIGHT_TURN_GAP / 4));
+					context.fillStyle = "rgba(0,0,0,.35)";
+					context.beginPath();
+					context.arc(at.x + 2, at.y + 3, cell * 0.2, 0, Math.PI * 2);
+					context.fill();
+					context.fillStyle = "#2e2740";
+					context.beginPath();
+					context.arc(at.x, at.y, cell * 0.2, 0, Math.PI * 2);
+					context.fill();
+					context.save();
+					context.translate(at.x, at.y);
+					context.rotate(angle.now);
+					const length = cell * 0.78;
+					const thick = Math.max(6, cell * 0.1);
+					context.fillStyle = "#6b4a1c";
+					context.beginPath();
+					context.roundRect(-length / 2, -thick / 2 + 2, length, thick, 3);
+					context.fill();
+					const brass = context.createLinearGradient(0, -thick / 2, 0, thick / 2);
+					brass.addColorStop(0, "#fff0b8");
+					brass.addColorStop(0.45, "#e5b664");
+					brass.addColorStop(1, "#9c6d27");
+					context.fillStyle = brass;
+					context.beginPath();
+					context.roundRect(-length / 2, -thick / 2, length, thick, 3);
+					context.fill();
+					context.restore();
+					context.fillStyle = "#3b2c14";
+					context.beginPath();
+					context.arc(at.x, at.y, 2.6, 0, Math.PI * 2);
+					context.fill();
+				});
+
+				// The keyboard's cursor.
+				if (showCursor.current && run.phase === "playing" && !lightShining(run)) {
+					const x = BOARD.x + cursor.current.c * cell;
+					const y = BOARD.y + cursor.current.r * cell;
+					context.strokeStyle = reducedMotion ? "#ffd27a" : `rgba(255,210,122,${0.75 + 0.25 * Math.sin(time * 6)})`;
+					context.lineWidth = 3;
+					context.beginPath();
+					context.roundRect(x + 4, y + 4, cell - 8, cell - 8, 8);
+					context.stroke();
+				}
+
+				// The candle on its candlestick, at the wall.
+				const candle = candleAt(board);
+				const sway = reducedMotion ? 0 : Math.sin(time * 8) * 1.2;
+				const halo = context.createRadialGradient(candle.x, candle.y, 2, candle.x, candle.y, 34);
+				halo.addColorStop(0, "rgba(255,226,150,.65)");
+				halo.addColorStop(1, "rgba(255,180,90,0)");
+				context.fillStyle = halo;
+				context.fillRect(candle.x - 34, candle.y - 34, 68, 68);
+				context.fillStyle = "#b8893c";
+				context.fillRect(candle.x - 2, candle.y + 20, 4, 9);
 				context.beginPath();
-				context.arc(item.x + item.vx * age, item.y + item.vy * age + 20 * age * age, item.size, 0, Math.PI * 2);
+				context.ellipse(candle.x, candle.y + 30, 10, 3.5, 0, 0, Math.PI * 2);
 				context.fill();
-			}
-			context.globalAlpha = 1;
-			// A miss: a red ring and "Miss" where the tap landed.
-			misses.current = misses.current.filter((item) => t - item.born < 0.45);
-			for (const item of misses.current) {
-				const fade = 1 - (t - item.born) / 0.45;
-				context.strokeStyle = `rgba(255,90,70,${0.8 * fade})`;
-				context.lineWidth = 2.5;
 				context.beginPath();
-				context.arc(item.x, item.y, 8 + (t - item.born) * 40, 0, Math.PI * 2);
-				context.stroke();
-				context.globalAlpha = fade;
-				context.fillStyle = "#ff6a55";
-				context.strokeStyle = "rgba(0,0,0,.7)";
-				context.lineWidth = 3;
-				context.font = "900 13px system-ui, sans-serif";
-				context.textAlign = "center";
-				context.strokeText("Miss", item.x, item.y - 16 - (t - item.born) * 20);
-				context.fillText("Miss", item.x, item.y - 16 - (t - item.born) * 20);
-				context.globalAlpha = 1;
+				context.ellipse(candle.x, candle.y + 19, 8, 2.5, 0, 0, Math.PI * 2);
+				context.fill();
+				context.fillStyle = "#f3ead6";
+				context.fillRect(candle.x - 4.5, candle.y + 3, 9, 16);
+				context.fillStyle = "rgba(255,170,60,.95)";
+				flame(context, candle.x, candle.y + 4, 15, sway);
+				context.fill();
+				context.fillStyle = "#fff8dc";
+				flame(context, candle.x, candle.y + 3, 8, sway * 0.6);
+				context.fill();
+				context.restore();
 			}
 
-			// How many candles still shine: three out and the house is dark.
-			context.fillStyle = "rgba(0,0,0,.5)";
-			context.beginPath();
-			context.roundRect(8, 8, 112, 30, 10);
-			context.fill();
-			run.candles.forEach((candle, index) => {
-				const x = 22 + index * 17;
-				if (candle.lit) {
-					context.fillStyle = "#ffc857";
-					flamePath(context, x, 30, 15, 0);
+			// Sparks rising from the lamps.
+			particles.current = particles.current.filter((particle) => time - particle.born < particle.life);
+			if (!reducedMotion) {
+				for (const particle of particles.current) {
+					const age = time - particle.born;
+					particle.x += particle.vx * dt;
+					particle.y += particle.vy * dt;
+					particle.vy -= 20 * dt;
+					context.fillStyle = `rgba(255,${210 + Math.round(40 * (1 - age / particle.life))},140,${1 - age / particle.life})`;
+					context.beginPath();
+					context.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
 					context.fill();
-				} else {
-					context.strokeStyle = "rgba(255,255,255,.4)";
-					context.lineWidth = 1.5;
-					flamePath(context, x, 30, 15, 0);
-					context.stroke();
 				}
-			});
-			context.fillStyle = "rgba(255,255,255,.75)";
-			context.font = "800 10px system-ui, sans-serif";
-			context.textAlign = "right";
-			context.fillText(`${LIGHT_OUT_LIMIT} out = dark`, 392, 22);
-			context.fillText(`Lifted ${run.lifted}`, 392, 36);
-			// Misses toward the next candle a miss puts out.
-			const missed = run.misses % LIGHT_MISS_LIMIT;
-			context.fillStyle = missed >= LIGHT_MISS_LIMIT - 3 ? "#ff6a55" : "rgba(255,255,255,.75)";
-			context.fillText(`Misses ${missed}/${LIGHT_MISS_LIMIT}`, 392, 50);
-
-			if (run.phase === "won") {
-				context.fillStyle = "rgba(255,214,140,.16)";
-				context.fillRect(-10, -10, STAGE + 20, STAGE + 20);
 			}
-			context.restore();
+
+			// The count and the city on the hill, one part of it lit for each house.
+			if (fade < 1) {
+				context.save();
+				context.globalAlpha = 1 - fade;
+				const intro = run.house === 0 && run.turns === 0 && run.t < 3.5;
+				drawCity(context, 164, 16, 72, run.solved / LIGHT_HOUSES.length, solvedFlash.current > run.t - LIGHT_SHINE ? 1 : 0, time);
+				context.font = `900 14px ${SANS}`;
+				context.textBaseline = "middle";
+				context.textAlign = "left";
+				context.fillStyle = "#f1eadc";
+				context.fillText(`House ${Math.min(run.house + 1, LIGHT_HOUSES.length)}/${LIGHT_HOUSES.length}`, 12, 25);
+				const litNow = board.lamps.filter((_, index) => (lampGlow.current[index] ?? 0) > 0.5).length;
+				context.textAlign = "right";
+				context.fillStyle = litNow === board.lamps.length ? "#ffd27a" : "#f1eadc";
+				context.fillText(`${litNow}/${board.lamps.length}`, STAGE - 12, 25);
+				context.fillStyle = "#ffb347";
+				flame(context, STAGE - 12 - context.measureText(`${litNow}/${board.lamps.length}`).width - 10, 32, 13, 0);
+				context.fill();
+				if (intro) {
+					context.globalAlpha = (1 - fade) * Math.min(1, (3.5 - run.t) / 0.5);
+					context.fillStyle = "rgba(11,10,31,.85)";
+					context.beginPath();
+					context.roundRect(110, 8, 180, 34, 17);
+					context.fill();
+					context.fillStyle = "#ffd27a";
+					context.font = `900 15px ${SANS}`;
+					context.textAlign = "center";
+					context.fillText("Light every lamp", 200, 25);
+				}
+				if (lightShining(run)) {
+					const left = Math.max(0, (run.shineUntil ?? 0) - run.t) / LIGHT_SHINE;
+					context.globalAlpha = (1 - fade) * Math.min(1, left * 3);
+					context.fillStyle = "rgba(11,10,31,.8)";
+					context.beginPath();
+					context.roundRect(130, BOARD.y + BOARD.size / 2 - 22, 140, 44, 22);
+					context.fill();
+					context.fillStyle = "#ffd27a";
+					context.font = `900 18px ${SANS}`;
+					context.textAlign = "center";
+					context.fillText("Lit!", 200, BOARD.y + BOARD.size / 2);
+				}
+				context.restore();
+			}
+
+			// The last house lit: the whole city on the hill glows.
+			if (won) {
+				const rise = Math.min(1, outro.current / 60);
+				context.save();
+				context.globalAlpha = fade;
+				const glow = context.createRadialGradient(200, 300, 10, 200, 300, 260);
+				glow.addColorStop(0, `rgba(255,206,130,${0.45 * rise})`);
+				glow.addColorStop(1, "rgba(255,206,130,0)");
+				context.fillStyle = glow;
+				context.fillRect(0, 0, STAGE, STAGE);
+				drawCity(context, 40, 262 + (1 - rise) * 30, 320, Math.min(1, outro.current / 90), rise, time);
+				context.fillStyle = "#1a1330";
+				context.fillRect(0, 360, STAGE, 40);
+				if (outro.current > 55) {
+					context.globalAlpha = Math.min(1, (outro.current - 55) / 30);
+					context.fillStyle = "#ffe7b0";
+					context.font = `italic 700 23px ${SERIF}`;
+					context.textAlign = "center";
+					context.textBaseline = "alphabetic";
+					context.fillText("A city that is set on an hill", 200, 120);
+					context.fillText("cannot be hid.", 200, 152);
+				}
+				context.restore();
+			}
+			if (run.phase === "lost") {
+				context.fillStyle = `rgba(5,4,14,${Math.min(0.6, outro.current / 40)})`;
+				context.fillRect(0, 0, STAGE, STAGE);
+				context.fillStyle = "#f1eadc";
+				context.font = `800 20px ${SANS}`;
+				context.textAlign = "center";
+				context.textBaseline = "middle";
+				context.fillText("Not every lamp was lit", 200, 200);
+			}
 		},
-		[reducedMotion],
+		[reducedMotion, startHouse],
 	);
 
 	useStageLoop(canvasRef, { paused, step, draw });
 
 	const onPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
 		event.preventDefault();
-		if (paused || !canvasRef.current) return;
-		taps.current.push(stagePoint(canvasRef.current, event));
+		const canvas = canvasRef.current;
+		if (paused || !canvas) return;
+		const point = stagePoint(canvas, event);
+		const board = lightBoard(state.current);
+		const cell = cellSize(board);
+		const c = Math.floor((point.x - BOARD.x) / cell);
+		const r = Math.floor((point.y - BOARD.y) / cell);
+		if (r < 0 || c < 0 || r >= board.size || c >= board.size) return;
+		cursor.current = { r, c };
+		if (event.pointerType !== "mouse") showCursor.current = false;
+		const mirror = lightMirrorAt(board, r, c);
+		if (mirror >= 0) taps.current.push(mirror);
 	};
 
 	return (
@@ -470,7 +682,7 @@ export default function LetYourLightShine({ seed, paused, muted, reducedMotion, 
 			onPointerDown={onPointerDown}
 			className="absolute inset-0 h-full w-full touch-none"
 			role="img"
-			aria-label="A house at night with six candles and a city on a hill through the window. Bushels drop over the candles: tap or click a bushel to lift it off before its candle goes out. Every tenth tap that lifts nothing puts out the nearest candle."
+			aria-label="A house at night seen from above, its rooms in a grid. A candle at one wall casts a beam of light; brass mirrors turn it. Tap a mirror, or move the gold cursor with the arrow keys and press Space, to turn it until the beam lights every lamp in the house. Three houses."
 		/>
 	);
 }

@@ -93,7 +93,7 @@ export const BETA_MODULES: readonly BetaModule[] = [
 		summary:
 			"A quick game for every chapter of Matthew, about fifteen seconds each, opened from the end of the chapter beside its quiz and won for an award. The controls are shown big before each round, and the full cast speaks a verse of the chapter as it starts and when it is won.",
 		capabilities: [
-			"Play a different quick game for each of Matthew's 28 chapters, from the generations of chapter 1 to running to tell the disciples in chapter 28",
+			"Play a different quick game for each of Matthew's 28 chapters, from the generations of chapter 1 to telling the word that he is risen in chapter 28",
 			"See each game's command, controls and tips big before it starts, with the controls kept in view while you play",
 			"Hear the chapter's verses spoken by the full-cast KJV recording as a round starts and when it is won",
 			"Earn each chapter's award in gold, silver or bronze, with your best score and time and every win kept",

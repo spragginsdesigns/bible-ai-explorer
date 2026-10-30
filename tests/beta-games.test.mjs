@@ -22,6 +22,7 @@ import {
 	gameHref,
 	gradeFor,
 	mergeGameAward,
+	readChapterGameAward,
 	readGameAward,
 } from "../src/lib/beta/games/games-rules.ts";
 import { findBetaModule } from "../src/lib/beta/modules.ts";
@@ -113,6 +114,20 @@ test("an award keeps the best grade, score and time and counts every win", () =>
 	assert.equal(readGameAward([], "watch"), null);
 });
 
+test("a chapter's award carries over when its game is replaced (LC-17908)", () => {
+	const won = mergeGameAward(null, "winnow", { faithKept: 88, seconds: 15, swellsCleared: 30 }, "2026-10-29T01:00:00.000Z");
+	const jordan = findChapterGame("baptized-in-jordan");
+	assert.deepEqual(readChapterGameAward({ ...won }, jordan), { ...won, game: "baptized-in-jordan" });
+	assert.equal(readChapterGameAward({ ...won }, findChapterGame("fishers-of-men")), null);
+	const own = mergeGameAward(null, "baptized-in-jordan", { faithKept: 40, seconds: 9, swellsCleared: 5 }, "2026-10-30T01:00:00.000Z");
+	assert.deepEqual(readChapterGameAward({ ...own }, jordan), own);
+	// A retired slug is never a live game's, and belongs to one chapter only.
+	const live = new Set(CHAPTER_GAMES.map((game) => game.slug));
+	const former = CHAPTER_GAMES.flatMap((game) => game.formerly ?? []);
+	assert.equal(new Set(former).size, former.length);
+	for (const slug of former) assert.equal(live.has(slug), false, slug);
+});
+
 test("a reported run is checked before it counts", () => {
 	const ok = checkGameRun({ faithKept: 72, seconds: 13.27, swellsCleared: 7 }, 12);
 	assert.deepEqual(ok, { ok: true, value: { faithKept: 72, seconds: 13.3, swellsCleared: 7 } });
@@ -159,12 +174,6 @@ test("each game opens on its own page, reached from its chapter's end, the games
 	assert.match(step, /progress\.award\) return null/, "only while the game is not yet won");
 	const player = read("src/components/beta/games/MicroGame.tsx");
 	for (const piece of ["How to play", "game.command", "game.controls", "game.tips", "voice.say(game.voice.intro)", "voice.say(game.voice.win)", "onWon?.()"]) assert.ok(player.includes(piece), `the player shows ${piece}`);
-});
-
-test("The Generations draws every tablet still in play, not only the wrong ones", () => {
-	const stage = read("src/components/beta/games/stages/TheGenerations.tsx");
-	assert.match(stage, /const wrong = tile\.gone !== null;/);
-	assert.match(stage, /const since = wrong \? run\.tick - \(tile\.gone \?\? 0\) : 0;/, "a tablet in play is never skipped");
 });
 
 test("the games page and award route stay behind the founders-only gate", () => {

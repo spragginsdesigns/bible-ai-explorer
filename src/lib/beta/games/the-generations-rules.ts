@@ -1,24 +1,40 @@
 /**
- * The Generations (LC-17851, docs/beta/games.md), Matthew 1:1-17: who begat
- * whom. The prompt reads "<Name> begat …" and three or four name tablets
- * float and shuffle; tap the next name in the line. A run of eight links
- * from a random point in the line must be kept within the round; a wrong
- * name costs time and crumbles away. Pure and seeded so the tests play it; no imports (Node's
- * type stripping loads it).
+ * The Generations (LC-17908, docs/beta/games.md), Matthew 1:1-25: "So all
+ * the generations from Abraham to David are fourteen generations; and from
+ * David until the carrying away into Babylon are fourteen generations; and
+ * from the carrying away into Babylon unto Christ are fourteen generations"
+ * (1:17). A watch-then-repeat memory game on the real line of 1:2-16.
+ *
+ * Each of the three ages lays six stone tablets with six names of that age
+ * in a three-by-two field, at places random per seed. A run of consecutive
+ * generations lights up in order, each tablet with its own tone; then every
+ * tablet turns face down and the player picks them in the order they lit.
+ * A kept run is written into the line; a wrong pick cracks that tablet,
+ * shows the right one and replays the run, which costs time. After the
+ * third age the line ends in JESUS (1:16, 1:21, 1:25) and the round is won.
+ * It is lost when the clock runs out. Pure and seeded so the tests play it;
+ * no imports (Node's type stripping loads it).
  */
 
 export const GENERATIONS_STEP = 1 / 60;
 export const GENERATIONS_SECONDS = 15;
-/** Links in a run. */
-export const GENERATIONS_LINKS = 8;
-/** Ticks the tablets take to float in; they cannot be taken before. */
-export const GENERATIONS_ARRIVE_TICKS = 30;
-/** Ticks a shuffle takes to carry two tablets across. */
-export const GENERATIONS_SWAP_TICKS = 18;
-/** Seconds a wrong name costs. */
-export const GENERATIONS_PENALTY = 1.2;
-/** The fastest a round can be won: every link taken the moment its tablets land. */
-export const GENERATIONS_MIN_SECONDS = (GENERATIONS_LINKS * GENERATIONS_ARRIVE_TICKS) / 60;
+/** Tablets in the field, three across and two down. */
+export const GENERATIONS_TABLETS = 6;
+/** How many generations light up in each age's run. */
+export const GENERATIONS_RUNS = [3, 4, 5] as const;
+/** Ticks the names lie face up before the first one lights. */
+export const GENERATIONS_PREVIEW = 18;
+/** Ticks each tablet stays lit, per age (the line quickens), and the dark beat after it. */
+export const GENERATIONS_LIGHT = [16, 14, 12] as const;
+export const GENERATIONS_GAP = 6;
+/** Ticks the tablets take to turn face down. */
+export const GENERATIONS_FLIP = 10;
+/** Picks closer together than this count once. */
+export const GENERATIONS_PICK_GAP = 6;
+/** Ticks a wrong pick shows the crack and the right tablet before the run replays. */
+export const GENERATIONS_SHOW_RIGHT = 36;
+/** Ticks a kept run's names take to be written into the line. */
+export const GENERATIONS_WRITE = 24;
 
 /**
  * The line of Matthew 1:2-16, in the KJV's spellings and order, from Abraham
@@ -69,54 +85,78 @@ export const GENERATIONS_LINE = [
 	"Joseph",
 ] as const;
 
-/** Where the tablets float: four places in a two-by-two field. */
-export const GENERATIONS_SLOTS: readonly { x: number; y: number }[] = [
-	{ x: 108, y: 232 },
-	{ x: 292, y: 232 },
-	{ x: 108, y: 334 },
-	{ x: 292, y: 334 },
+/** The three ages of 1:17, as spans of the line (first and last index) and the verse's words. */
+export const GENERATIONS_AGES: readonly { from: number; to: number; label: string }[] = [
+	{ from: 0, to: 13, label: "from Abraham to David" },
+	{ from: 14, to: 27, label: "from David until the carrying away into Babylon" },
+	{ from: 28, to: 39, label: "from the carrying away into Babylon unto Christ" },
 ];
-export const GENERATIONS_TILE_W = 164;
-export const GENERATIONS_TILE_H = 74;
 
-export interface GenerationsTile {
-	name: string;
-	correct: boolean;
-	/** The place it is in, and the place it is leaving (equal when still). */
-	slot: number;
-	from: number;
-	/** The tick its last move started. */
-	movedAt: number;
-	/** A wrong name, once taken, crumbles away (the tick it was taken). */
-	gone: number | null;
+/** Where the tablets lie: three across, two down (centres in the 400 x 400 stage). */
+export const GENERATIONS_SLOTS: readonly { x: number; y: number }[] = [
+	{ x: 68, y: 226 },
+	{ x: 200, y: 226 },
+	{ x: 332, y: 226 },
+	{ x: 68, y: 340 },
+	{ x: 200, y: 340 },
+	{ x: 332, y: 340 },
+];
+export const GENERATIONS_TILE_W = 120;
+export const GENERATIONS_TILE_H = 104;
+
+/** Ticks an age spends watching: the preview, its lights and the turn face down. */
+export function generationsWatchTicks(age: number): number {
+	return GENERATIONS_PREVIEW + GENERATIONS_RUNS[age] * (GENERATIONS_LIGHT[age] + GENERATIONS_GAP) + GENERATIONS_FLIP;
 }
+
+/** The fastest a round can be won: every run picked the moment the tablets are down, as fast as picks count. */
+export const GENERATIONS_MIN_SECONDS =
+	(GENERATIONS_RUNS.reduce((sum, length, age) => sum + generationsWatchTicks(age) + (length - 1) * GENERATIONS_PICK_GAP, 0) +
+		(GENERATIONS_RUNS.length - 1) * GENERATIONS_WRITE) /
+	60;
+
+export type GenerationsStage = "watch" | "recall" | "wrong" | "write";
 
 export interface GenerationsState {
 	tick: number;
 	t: number;
 	rng: number;
-	/** Index in the line of the run's first name. */
-	start: number;
-	/** Links kept so far. */
-	link: number;
-	tiles: GenerationsTile[];
-	/** The tick this link's tablets started floating in. */
-	arrivedAt: number;
-	nextSwap: number;
-	penalty: number;
-	mistakes: number;
-	/** The last wrong tablet and when, for the shake. */
-	wrong: { name: string; tick: number } | null;
+	/** The age being played, 0-2. */
+	age: number;
+	stage: GenerationsStage;
+	/** The tick the stage began. */
+	stageAt: number;
+	/** The line index of the name on each tablet, by place 0-5. */
+	tablets: number[];
+	/** The places that light, in the order of the line. */
+	run: number[];
+	/** Places picked right so far in this run. */
+	progress: number;
+	lastPick: number;
+	/** The line indices written so far, age by age. */
+	kept: number[];
+	/** Runs replayed after a wrong pick. */
+	replays: number;
+	/** The last wrong pick: the cracked place and the right one. */
+	wrong: { slot: number; right: number } | null;
 	phase: "playing" | "won" | "lost";
 	endedAt: number | null;
 }
 
-export type GenerationsEvent = { type: "right"; name: string } | { type: "wrong"; name: string } | { type: "shuffle" } | { type: "won" } | { type: "lost" };
+export type GenerationsEvent =
+	| { type: "light"; slot: number }
+	| { type: "flip" }
+	| { type: "right"; slot: number }
+	| { type: "wrong"; slot: number; right: number }
+	| { type: "replay" }
+	| { type: "kept"; age: number }
+	| { type: "won" }
+	| { type: "lost" };
 
-/** Tap a point of the stage, or pick a place 0-3 (number keys). */
+/** Pick a place 0-5 (number keys), or tap a point of the stage. */
 export interface GenerationsInput {
-	tap?: { x: number; y: number } | null;
 	slot?: number | null;
+	tap?: { x: number; y: number } | null;
 }
 
 function nextRandom(state: GenerationsState): number {
@@ -127,46 +167,23 @@ function nextRandom(state: GenerationsState): number {
 	return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 
-/** The name the current link asks about and the one that answers it. */
-export function generationsPrompt(state: GenerationsState): { name: string; answer: string; index: number } {
-	const index = state.start + Math.min(state.link, GENERATIONS_LINKS - 1);
-	return { name: GENERATIONS_LINE[index], answer: GENERATIONS_LINE[index + 1], index };
-}
-
-function shuffleIn<T>(state: GenerationsState, items: T[]): T[] {
-	for (let i = items.length - 1; i > 0; i--) {
-		const j = Math.floor(nextRandom(state) * (i + 1));
-		[items[i], items[j]] = [items[j], items[i]];
-	}
-	return items;
-}
-
+/** Lays an age's tablets: six consecutive names of the age, a run of them, at random places. */
 function deal(state: GenerationsState) {
-	const { index, name, answer } = generationsPrompt(state);
-	// Every name that ever follows the prompt's name (Jacob begat Judas, and Jacob begat Joseph) is never a decoy.
-	const followers = new Set<string>();
-	GENERATIONS_LINE.forEach((item, at) => {
-		if (item === name && at + 1 < GENERATIONS_LINE.length) followers.add(GENERATIONS_LINE[at + 1]);
-	});
-	const near: string[] = [];
-	for (let at = Math.max(0, index - 5); at <= Math.min(GENERATIONS_LINE.length - 1, index + 6); at++) {
-		const item = GENERATIONS_LINE[at];
-		if (item === name || item === answer || followers.has(item) || near.includes(item)) continue;
-		near.push(item);
+	const span = GENERATIONS_AGES[state.age];
+	const length = GENERATIONS_RUNS[state.age];
+	const size = span.to - span.from + 1;
+	const first = span.from + Math.floor(nextRandom(state) * (size - GENERATIONS_TABLETS + 1));
+	const offset = Math.floor(nextRandom(state) * (GENERATIONS_TABLETS - length + 1));
+	const places = [0, 1, 2, 3, 4, 5];
+	for (let i = places.length - 1; i > 0; i--) {
+		const j = Math.floor(nextRandom(state) * (i + 1));
+		[places[i], places[j]] = [places[j], places[i]];
 	}
-	const grandchild = GENERATIONS_LINE[index + 2];
-	const count = state.link < 3 ? 3 : 4;
-	const decoys: string[] = [];
-	if (grandchild && near.includes(grandchild) && nextRandom(state) < 0.65) decoys.push(grandchild);
-	for (const item of shuffleIn(state, near.filter((item) => item !== grandchild))) {
-		if (decoys.length >= count - 1) break;
-		decoys.push(item);
-	}
-	const slots = shuffleIn(state, [0, 1, 2, 3]);
-	const names = shuffleIn(state, [answer, ...decoys]);
-	state.tiles = names.map((item, at) => ({ name: item, correct: item === answer, slot: slots[at], from: slots[at], movedAt: -999, gone: null }));
-	state.arrivedAt = state.tick;
-	state.nextSwap = state.tick + GENERATIONS_ARRIVE_TICKS + 30 + Math.floor(nextRandom(state) * 18);
+	state.tablets = new Array(GENERATIONS_TABLETS);
+	places.forEach((place, at) => (state.tablets[place] = first + at));
+	state.run = places.slice(offset, offset + length);
+	state.progress = 0;
+	state.wrong = null;
 }
 
 export function newGenerations(seed: number): GenerationsState {
@@ -174,100 +191,119 @@ export function newGenerations(seed: number): GenerationsState {
 		tick: 0,
 		t: 0,
 		rng: seed >>> 0 || 1,
-		start: 0,
-		link: 0,
-		tiles: [],
-		arrivedAt: 0,
-		nextSwap: 0,
-		penalty: 0,
-		mistakes: 0,
+		age: 0,
+		stage: "watch",
+		stageAt: 0,
+		tablets: [],
+		run: [],
+		progress: 0,
+		lastPick: -999,
+		kept: [],
+		replays: 0,
 		wrong: null,
 		phase: "playing",
 		endedAt: null,
 	};
-	state.start = Math.floor(nextRandom(state) * (GENERATIONS_LINE.length - GENERATIONS_LINKS));
 	deal(state);
 	return state;
 }
 
-/** True once this link's tablets have landed and can be taken. */
-export function generationsReady(state: GenerationsState): boolean {
-	return state.tick - state.arrivedAt >= GENERATIONS_ARRIVE_TICKS;
+/** The place lit now while watching (and how far through its light, 0-1), or null. */
+export function generationsLit(state: GenerationsState): { slot: number; k: number } | null {
+	if (state.stage !== "watch") return null;
+	const since = state.tick - state.stageAt - GENERATIONS_PREVIEW;
+	if (since < 0) return null;
+	const beat = GENERATIONS_LIGHT[state.age] + GENERATIONS_GAP;
+	const index = Math.floor(since / beat);
+	const into = since - index * beat;
+	if (index >= state.run.length || into >= GENERATIONS_LIGHT[state.age]) return null;
+	return { slot: state.run[index], k: into / GENERATIONS_LIGHT[state.age] };
 }
 
-/** Where a tablet is now, carried along a shuffle (eased). */
-export function generationsTilePosition(state: GenerationsState, tile: GenerationsTile, tick = state.tick): { x: number; y: number } {
-	const to = GENERATIONS_SLOTS[tile.slot];
-	const from = GENERATIONS_SLOTS[tile.from];
-	const k = Math.max(0, Math.min(1, (tick - tile.movedAt) / GENERATIONS_SWAP_TICKS));
-	const e = k * k * (3 - 2 * k);
-	return { x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e };
+/** How far the unpicked tablets are turned face down, 0 (names up) to 1 (down). */
+export function generationsDown(state: GenerationsState): number {
+	if (state.stage === "recall" || state.stage === "wrong") return 1;
+	if (state.stage === "write") return 1;
+	const since = state.tick - state.stageAt - (generationsWatchTicks(state.age) - GENERATIONS_FLIP);
+	return Math.max(0, Math.min(1, since / GENERATIONS_FLIP));
 }
 
-/** Seconds left on the clock, wrong names taken off. */
+/** True while a pick would count. */
+export function generationsCanPick(state: GenerationsState): boolean {
+	return state.phase === "playing" && state.stage === "recall" && state.tick + 1 - state.lastPick >= GENERATIONS_PICK_GAP;
+}
+
+/** The tablet's place under a point of the stage, or null. */
+export function generationsSlotAt(x: number, y: number): number | null {
+	const index = GENERATIONS_SLOTS.findIndex((slot) => Math.abs(x - slot.x) <= GENERATIONS_TILE_W / 2 + 4 && Math.abs(y - slot.y) <= GENERATIONS_TILE_H / 2 + 4);
+	return index >= 0 ? index : null;
+}
+
 export function generationsLeft(state: GenerationsState): number {
-	return Math.max(0, GENERATIONS_SECONDS - state.t - state.penalty);
-}
-
-function tileAt(state: GenerationsState, input: GenerationsInput): GenerationsTile | null {
-	if (input.slot !== undefined && input.slot !== null) return state.tiles.find((tile) => tile.slot === input.slot && tile.gone === null) ?? null;
-	if (!input.tap) return null;
-	const { x, y } = input.tap;
-	let best: GenerationsTile | null = null;
-	let bestDistance = Infinity;
-	for (const tile of state.tiles) {
-		if (tile.gone !== null) continue;
-		const at = generationsTilePosition(state, tile);
-		const dx = Math.abs(x - at.x);
-		const dy = Math.abs(y - at.y);
-		if (dx <= GENERATIONS_TILE_W / 2 + 4 && dy <= GENERATIONS_TILE_H / 2 + 4 && dx + dy < bestDistance) {
-			best = tile;
-			bestDistance = dx + dy;
-		}
-	}
-	return best;
+	return Math.max(0, GENERATIONS_SECONDS - (state.endedAt ?? state.t));
 }
 
 export function stepGenerations(state: GenerationsState, input: GenerationsInput, events: GenerationsEvent[] = []): GenerationsState {
 	if (state.phase !== "playing") return state;
 	state.tick += 1;
 	state.t = state.tick / 60;
-	if (generationsReady(state)) {
-		const tile = tileAt(state, input);
-		if (tile && tile.correct) {
-			state.link += 1;
-			events.push({ type: "right", name: tile.name });
-			if (state.link >= GENERATIONS_LINKS) {
-				state.phase = "won";
-				state.endedAt = state.t;
-				events.push({ type: "won" });
-				return state;
-			}
-			deal(state);
-		} else if (tile) {
-			state.penalty += GENERATIONS_PENALTY;
-			state.mistakes += 1;
-			state.wrong = { name: tile.name, tick: state.tick };
-			tile.gone = state.tick;
-			events.push({ type: "wrong", name: tile.name });
+	const since = state.tick - state.stageAt;
+	if (state.stage === "watch") {
+		const beat = GENERATIONS_LIGHT[state.age] + GENERATIONS_GAP;
+		const lit = since - GENERATIONS_PREVIEW;
+		if (lit >= 0 && lit % beat === 0 && lit / beat < state.run.length) events.push({ type: "light", slot: state.run[lit / beat] });
+		if (since === generationsWatchTicks(state.age) - GENERATIONS_FLIP) events.push({ type: "flip" });
+		if (since >= generationsWatchTicks(state.age)) {
+			state.stage = "recall";
+			state.stageAt = state.tick;
+			state.progress = 0;
 		}
-		// The tablets shuffle: two places trade, faster as the line goes on.
-		if (state.tick >= state.nextSwap) {
-			const a = Math.floor(nextRandom(state) * 4);
-			const b = (a + 1 + Math.floor(nextRandom(state) * 3)) % 4;
-			for (const item of state.tiles) {
-				if (item.slot !== a && item.slot !== b) continue;
-				const here = generationsTilePosition(state, item);
-				const nearest = GENERATIONS_SLOTS.findIndex((slot) => Math.abs(slot.x - here.x) < 1 && Math.abs(slot.y - here.y) < 1);
-				item.from = nearest >= 0 ? nearest : item.slot;
-				item.slot = item.slot === a ? b : a;
-				item.movedAt = state.tick;
-			}
-			events.push({ type: "shuffle" });
-			state.nextSwap = state.tick + GENERATIONS_SWAP_TICKS + Math.max(14, 40 - state.link * 3) + Math.floor(nextRandom(state) * 14);
+	} else if (state.stage === "wrong") {
+		if (since >= GENERATIONS_SHOW_RIGHT) {
+			state.stage = "watch";
+			state.stageAt = state.tick;
+			state.progress = 0;
+			state.wrong = null;
+			state.replays += 1;
+			events.push({ type: "replay" });
+		}
+	} else if (state.stage === "write") {
+		if (since >= GENERATIONS_WRITE) {
+			state.age += 1;
+			deal(state);
+			state.stage = "watch";
+			state.stageAt = state.tick;
 		}
 	}
-	if (GENERATIONS_SECONDS - state.t - state.penalty <= 1e-9) {
+	if (state.stage === "recall" && state.tick - state.lastPick >= GENERATIONS_PICK_GAP) {
+		const slot = input.slot !== undefined && input.slot !== null ? input.slot : input.tap ? generationsSlotAt(input.tap.x, input.tap.y) : null;
+		if (slot !== null && slot >= 0 && slot < GENERATIONS_TABLETS) {
+			state.lastPick = state.tick;
+			const right = state.run[state.progress];
+			if (slot === right) {
+				state.progress += 1;
+				events.push({ type: "right", slot });
+				if (state.progress >= state.run.length) {
+					for (const place of state.run) state.kept.push(state.tablets[place]);
+					events.push({ type: "kept", age: state.age });
+					if (state.age >= GENERATIONS_AGES.length - 1) {
+						state.phase = "won";
+						state.endedAt = state.t;
+						events.push({ type: "won" });
+						return state;
+					}
+					state.stage = "write";
+					state.stageAt = state.tick;
+				}
+			} else if (!state.run.slice(0, state.progress).includes(slot)) {
+				state.stage = "wrong";
+				state.stageAt = state.tick;
+				state.wrong = { slot, right };
+				events.push({ type: "wrong", slot, right });
+			}
+		}
+	}
+	if (state.t >= GENERATIONS_SECONDS - 1e-9) {
 		state.phase = "lost";
 		state.endedAt = state.t;
 		events.push({ type: "lost" });
@@ -275,10 +311,10 @@ export function stepGenerations(state: GenerationsState, input: GenerationsInput
 	return state;
 }
 
-/** The round's result once it has ended: quick and true is a higher score. */
+/** The round's result once it has ended: no replays and quick is a higher score. */
 export function generationsResult(state: GenerationsState): { won: boolean; score: number; count: number; seconds: number } | null {
 	if (state.phase === "playing" || state.endedAt === null) return null;
 	const seconds = Math.round(state.endedAt * 10) / 10;
-	const score = state.phase === "won" ? Math.round(Math.max(20, Math.min(100, 100 - state.mistakes * 12 - Math.max(0, state.endedAt - 7) * 6))) : 0;
-	return { won: state.phase === "won", score, count: state.link, seconds };
+	const score = state.phase === "won" ? Math.round(Math.max(20, Math.min(100, 100 - state.replays * 15 - Math.max(0, state.endedAt - 9.5) * 10.5))) : 0;
+	return { won: state.phase === "won", score, count: state.kept.length, seconds };
 }

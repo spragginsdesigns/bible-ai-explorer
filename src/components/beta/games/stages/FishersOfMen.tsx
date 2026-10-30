@@ -1,35 +1,50 @@
 "use client";
 
 import { useCallback, useRef, type PointerEvent as ReactPointerEvent } from "react";
-import { STAGE, stagePoint, takePresses, useStageLoop, useSynth } from "../stage-kit";
+import { STAGE, STAGE_STEP, stagePoint, takePresses, useStageLoop, useSynth } from "../stage-kit";
 import type { StageProps } from "../types";
 import {
-	FISH_NET_Y,
-	FISH_SEA_Y,
+	FISH_AIM_MAX,
+	FISH_BOAT_X,
+	FISH_BOAT_Y,
+	FISH_FAR,
+	FISH_FLIGHT,
+	FISH_HAUL,
+	FISH_NEAR,
+	FISH_NET_R,
+	FISH_QUOTA,
 	FISH_SECONDS,
-	FISH_TARGET,
-	FISH_TEARS_TO_BREAK,
-	airborne,
+	FISH_SNAG_HAUL,
+	depthScale,
+	fishAt,
 	fishResult,
-	itemAt,
-	netHalf,
+	logAt,
 	newFish,
+	shoalAt,
 	stepFish,
 	type FishEvent,
-	type FishItem,
 	type FishState,
 } from "@/lib/beta/games/fishers-of-men-rules";
 
 /**
- * Fishers of Men (LC-17851), Matthew 4:18-22: the sea of Galilee at dawn.
- * Peter and Andrew wade in the shallows with their net between them; fish
- * leap from the sea and fall toward it. Hold ← → (or drag) to move the net
- * under each fish; a gold ring on the water shows where a fish comes down, a
- * red one where driftwood or a stone does. Jesus stands on the shore in soft
- * light.
+ * Fishers of Men (LC-17908), Matthew 4:18-22: the sea of Galilee at dawn.
+ * Simon Peter and Andrew are in their boat at the foot of the stage, casting
+ * a net into the sea; shoals of fish drift under the water, some small and
+ * some rich, among floating driftwood. The net's open circle lies on the
+ * water where it is aimed: the arrows glide it, a finger or the mouse puts it
+ * straight there; Space, or letting go, casts it. The net flies a moment,
+ * opens where it lands and hauls in the fish inside it, so a good cast leads
+ * the shoal (LC-17908). Jesus walks by on the shore, a robed figure in
+ * light; when the catch is full he calls, "Follow me, and I will make you
+ * fishers of men" (v19), and they leave their nets (v20).
  */
 
-const WATER_TOP = 148;
+const SERIF = "Georgia, 'Times New Roman', serif";
+const HORIZON = 92;
+const HAND = { x: FISH_BOAT_X - 4, y: 318 };
+const OUTRO_WON = 190;
+const OUTRO_LOST = 45;
+const SHORE_JESUS_Y = 330;
 
 interface Particle {
 	x: number;
@@ -40,6 +55,7 @@ interface Particle {
 	life: number;
 	color: string;
 	size: number;
+	gravity: number;
 }
 
 interface Floater {
@@ -50,147 +66,313 @@ interface Floater {
 	color: string;
 }
 
-function drawBrother(context: CanvasRenderingContext2D, x: number, waist: number, robe: string, side: number, bob: number) {
-	const top = waist - 44 + bob;
-	// Robe above the water, head, and the arm holding the net's corner.
-	context.fillStyle = robe;
-	context.beginPath();
-	context.moveTo(x - 11, waist + 6);
-	context.lineTo(x - 8, top + 14);
-	context.quadraticCurveTo(x, top + 8, x + 8, top + 14);
-	context.lineTo(x + 11, waist + 6);
-	context.closePath();
-	context.fill();
-	context.fillStyle = "#c99a74";
-	context.beginPath();
-	context.arc(x, top + 4, 7.5, 0, Math.PI * 2);
-	context.fill();
-	context.fillStyle = "#3b2a22";
-	context.beginPath();
-	context.arc(x, top + 1.5, 7.5, Math.PI, Math.PI * 2);
-	context.fill();
-	context.strokeStyle = robe;
-	context.lineWidth = 5;
-	context.lineCap = "round";
-	context.beginPath();
-	context.moveTo(x + side * 5, top + 18);
-	context.lineTo(x + side * 14, FISH_NET_Y - 2);
-	context.stroke();
+interface Ripple {
+	x: number;
+	y: number;
+	born: number;
+	size: number;
 }
 
-function drawFish(context: CanvasRenderingContext2D, x: number, y: number, angle: number, glow: boolean) {
+/** A fish under the water: a dark shape with a flicking tail and fins and a shimmer along its back. */
+function drawFish(context: CanvasRenderingContext2D, x: number, y: number, heading: number, scale: number, flick: number, rich: boolean, shimmer: number, alpha: number) {
+	context.save();
+	context.translate(x, y);
+	context.rotate(heading);
+	context.scale(scale, scale);
+	context.globalAlpha = alpha;
+	context.fillStyle = rich ? "rgba(16,40,46,.82)" : "rgba(13,34,50,.72)";
+	context.beginPath();
+	context.ellipse(0, 0, 12, 4.4, 0, 0, Math.PI * 2);
+	context.fill();
+	context.beginPath();
+	context.moveTo(-9, 0);
+	context.lineTo(-18, -5 + flick * 3);
+	context.lineTo(-16, flick * 1.5);
+	context.lineTo(-18, 5 + flick * 3);
+	context.closePath();
+	context.fill();
+	context.beginPath();
+	context.moveTo(3, -3);
+	context.lineTo(-3, -8 - flick * 1.5);
+	context.lineTo(-5, -3);
+	context.moveTo(3, 3);
+	context.lineTo(-3, 8 - flick * 1.5);
+	context.lineTo(-5, 3);
+	context.fill();
+	context.strokeStyle = rich ? `rgba(255,214,130,${0.35 + 0.5 * shimmer})` : `rgba(196,232,250,${0.2 + 0.35 * shimmer})`;
+	context.lineWidth = 1.3;
+	context.beginPath();
+	context.moveTo(-7, -1.5);
+	context.quadraticCurveTo(0, -3.6, 8, -1.2);
+	context.stroke();
+	context.restore();
+	context.globalAlpha = 1;
+}
+
+/** A silver fish out of the water (in the boat, and the HUD). */
+function drawSilver(context: CanvasRenderingContext2D, x: number, y: number, angle: number, size = 1) {
 	context.save();
 	context.translate(x, y);
 	context.rotate(angle);
-	if (glow) {
-		context.fillStyle = "rgba(255,226,140,.35)";
-		context.beginPath();
-		context.ellipse(0, 0, 20, 12, 0, 0, Math.PI * 2);
-		context.fill();
-	}
-	const body = context.createLinearGradient(0, -7, 0, 7);
-	body.addColorStop(0, "#dfe9f2");
-	body.addColorStop(0.5, "#9fb8cc");
-	body.addColorStop(1, "#5d7e98");
+	context.scale(size, size);
+	const body = context.createLinearGradient(0, -5, 0, 5);
+	body.addColorStop(0, "#eef4f8");
+	body.addColorStop(0.55, "#a9c1d2");
+	body.addColorStop(1, "#5e7f97");
 	context.fillStyle = body;
 	context.beginPath();
-	context.ellipse(0, 0, 13, 6.5, 0, 0, Math.PI * 2);
+	context.ellipse(0, 0, 10, 4.2, 0, 0, Math.PI * 2);
 	context.fill();
 	context.beginPath();
-	context.moveTo(-10, 0);
-	context.lineTo(-19, -7);
-	context.lineTo(-17, 0);
-	context.lineTo(-19, 7);
+	context.moveTo(-8, 0);
+	context.lineTo(-15, -5);
+	context.lineTo(-15, 5);
 	context.closePath();
 	context.fill();
 	context.fillStyle = "#1d2b38";
 	context.beginPath();
-	context.arc(7, -1.5, 1.6, 0, Math.PI * 2);
+	context.arc(6, -1, 1.2, 0, Math.PI * 2);
 	context.fill();
 	context.restore();
 }
 
-function drawDebris(context: CanvasRenderingContext2D, item: FishItem, x: number, y: number, t: number) {
+/** The net: a round mesh with a weighted rim. */
+function drawNet(context: CanvasRenderingContext2D, x: number, y: number, r: number, spin: number, alpha: number, bright = false) {
 	context.save();
-	context.translate(x, y);
-	context.rotate((t - item.born) * (item.id % 2 ? 4 : -3.4));
-	if (item.kind === "wood") {
-		context.fillStyle = "#6b4a2f";
+	context.globalAlpha = alpha;
+	context.strokeStyle = bright ? "#fff1c8" : "rgba(238,226,196,.9)";
+	context.lineWidth = 0.9;
+	context.beginPath();
+	for (let i = 0; i < 16; i++) {
+		const angle = spin + (i / 16) * Math.PI * 2;
+		context.moveTo(x, y);
+		context.lineTo(x + Math.cos(angle) * r, y + Math.sin(angle) * r);
+	}
+	for (const ring of [0.35, 0.68]) {
+		context.moveTo(x + r * ring, y);
+		context.arc(x, y, r * ring, 0, Math.PI * 2);
+	}
+	context.stroke();
+	context.lineWidth = 2.2;
+	context.strokeStyle = bright ? "#ffe39a" : "#e8d6a6";
+	context.beginPath();
+	context.arc(x, y, r, 0, Math.PI * 2);
+	context.stroke();
+	context.fillStyle = "#4b4038";
+	for (let i = 0; i < 10; i++) {
+		const angle = spin * 0.5 + (i / 10) * Math.PI * 2;
 		context.beginPath();
-		context.roundRect(-17, -5, 34, 10, 4);
-		context.fill();
-		context.fillStyle = "#4a321f";
-		context.fillRect(-11, -5, 3, 10);
-		context.fillRect(5, -5, 3, 10);
-		context.fillStyle = "#8a6544";
-		context.beginPath();
-		context.ellipse(17, 0, 3, 5, 0, 0, Math.PI * 2);
-		context.fill();
-	} else {
-		context.fillStyle = "#6f6a66";
-		context.beginPath();
-		context.moveTo(-10, -4);
-		context.lineTo(-4, -10);
-		context.lineTo(8, -8);
-		context.lineTo(11, 2);
-		context.lineTo(4, 10);
-		context.lineTo(-8, 8);
-		context.closePath();
-		context.fill();
-		context.fillStyle = "#94908b";
-		context.beginPath();
-		context.arc(-2, -3, 3.5, 0, Math.PI * 2);
+		context.arc(x + Math.cos(angle) * r, y + Math.sin(angle) * r, Math.max(1, r / 14), 0, Math.PI * 2);
 		context.fill();
 	}
+	context.restore();
+}
+
+/** How far out from the boat a point is, 0 at the nearest cast and 1 at the farthest. */
+function reachOf(x: number, y: number) {
+	return Math.max(0, Math.min(1, (Math.hypot(x - FISH_BOAT_X, FISH_BOAT_Y - y) - FISH_NEAR) / (FISH_FAR - FISH_NEAR)));
+}
+
+/** Where the net is aimed: its open circle laid on the water as a rope ring, with the line it will fly along from Peter's hands. */
+function drawAim(context: CanvasRenderingContext2D, from: { x: number; y: number }, x: number, y: number, live: boolean, time: number, still: boolean) {
+	context.save();
+	context.globalAlpha = live ? 1 : 0.38;
+	const lift = 26 + 44 * reachOf(x, y);
+	context.setLineDash([2, 7]);
+	context.lineDashOffset = still ? 0 : -time * 18;
+	context.lineCap = "round";
+	context.strokeStyle = "rgba(255,240,200,.6)";
+	context.lineWidth = 1.8;
+	context.beginPath();
+	context.moveTo(from.x, from.y);
+	context.quadraticCurveTo((from.x + x) / 2, Math.min(from.y, y) - lift, x, y - FISH_NET_R);
+	context.stroke();
+	context.fillStyle = live ? "rgba(255,236,180,.12)" : "rgba(255,236,180,.05)";
+	context.beginPath();
+	context.arc(x, y, FISH_NET_R, 0, Math.PI * 2);
+	context.fill();
+	context.setLineDash([]);
+	context.strokeStyle = "rgba(10,24,36,.45)";
+	context.lineWidth = 4.5;
+	context.beginPath();
+	context.arc(x, y, FISH_NET_R, 0, Math.PI * 2);
+	context.stroke();
+	context.setLineDash([8, 5]);
+	context.lineDashOffset = still || !live ? 0 : -time * 10;
+	context.strokeStyle = live ? "#ffe8a8" : "rgba(238,226,196,.9)";
+	context.lineWidth = 2.6;
+	context.beginPath();
+	context.arc(x, y, FISH_NET_R, 0, Math.PI * 2);
+	context.stroke();
+	context.setLineDash([]);
+	context.fillStyle = "#4b4038";
+	for (let i = 0; i < 8; i++) {
+		const angle = (i / 8) * Math.PI * 2 + 0.2;
+		context.beginPath();
+		context.arc(x + Math.cos(angle) * FISH_NET_R, y + Math.sin(angle) * FISH_NET_R, 2.2, 0, Math.PI * 2);
+		context.fill();
+	}
+	context.strokeStyle = live ? "#fff4d6" : "rgba(255,244,214,.8)";
+	context.lineWidth = 1.6;
+	context.beginPath();
+	context.moveTo(x - 5, y);
+	context.lineTo(x + 5, y);
+	context.moveTo(x, y - 5);
+	context.lineTo(x, y + 5);
+	context.stroke();
+	context.restore();
+}
+
+/** One of the brothers: a robed figure, head covered, no face drawn in detail. */
+function drawBrother(context: CanvasRenderingContext2D, x: number, feet: number, robe: string, height: number, arm: { x: number; y: number } | null) {
+	const top = feet - height;
+	context.fillStyle = robe;
+	context.beginPath();
+	context.moveTo(x - 9, feet);
+	context.lineTo(x - 7, top + 12);
+	context.quadraticCurveTo(x, top + 6, x + 7, top + 12);
+	context.lineTo(x + 9, feet);
+	context.closePath();
+	context.fill();
+	context.fillStyle = "rgba(0,0,0,.25)";
+	context.fillRect(x - 8, top + height * 0.52, 16, 3);
+	context.fillStyle = "#c69a72";
+	context.beginPath();
+	context.arc(x, top + 4, 6.5, 0, Math.PI * 2);
+	context.fill();
+	context.fillStyle = "#3a2a20";
+	context.beginPath();
+	context.arc(x, top + 2, 6.8, Math.PI * 1.02, Math.PI * 1.98);
+	context.fill();
+	context.beginPath();
+	context.arc(x, top + 8.5, 4.2, 0.1 * Math.PI, 0.9 * Math.PI);
+	context.fill();
+	if (arm) {
+		context.strokeStyle = robe;
+		context.lineWidth = 4.5;
+		context.lineCap = "round";
+		context.beginPath();
+		context.moveTo(x, top + 15);
+		context.lineTo(arm.x, arm.y);
+		context.stroke();
+	}
+}
+
+/** Jesus, a simple robed figure in light (no face drawn). */
+function drawJesus(context: CanvasRenderingContext2D, x: number, feet: number, light: number) {
+	const glow = context.createRadialGradient(x, feet - 22, 2, x, feet - 22, 34 + light * 40);
+	glow.addColorStop(0, `rgba(255,248,226,${0.75 + 0.25 * light})`);
+	glow.addColorStop(0.5, `rgba(255,236,190,${0.3 + 0.3 * light})`);
+	glow.addColorStop(1, "rgba(255,236,190,0)");
+	context.fillStyle = glow;
+	context.beginPath();
+	context.arc(x, feet - 22, 34 + light * 40, 0, Math.PI * 2);
+	context.fill();
+	context.fillStyle = "#fbf5e6";
+	context.beginPath();
+	context.moveTo(x - 9, feet);
+	context.lineTo(x - 6, feet - 28);
+	context.quadraticCurveTo(x, feet - 34, x + 6, feet - 28);
+	context.lineTo(x + 9, feet);
+	context.closePath();
+	context.fill();
+	context.fillStyle = "rgba(196,150,96,.55)";
+	context.fillRect(x - 6, feet - 18, 12, 2.5);
+	context.fillStyle = "#fffaf0";
+	context.beginPath();
+	context.arc(x, feet - 37, 5.5, 0, Math.PI * 2);
+	context.fill();
+}
+
+function drawLog(context: CanvasRenderingContext2D, x: number, y: number, tilt: number, scale: number, bob: number) {
+	context.save();
+	context.translate(x, y + bob);
+	context.rotate(tilt);
+	context.scale(scale, scale);
+	context.strokeStyle = "rgba(220,236,255,.28)";
+	context.lineWidth = 1.5;
+	context.beginPath();
+	context.ellipse(0, 3, 26, 6, 0, 0, Math.PI * 2);
+	context.stroke();
+	context.fillStyle = "#5e4128";
+	context.beginPath();
+	context.roundRect(-21, -5, 42, 10, 5);
+	context.fill();
+	context.fillStyle = "#7c5838";
+	context.fillRect(-18, -4, 36, 2.5);
+	context.strokeStyle = "#5e4128";
+	context.lineWidth = 3;
+	context.lineCap = "round";
+	context.beginPath();
+	context.moveTo(8, -3);
+	context.lineTo(15, -11);
+	context.stroke();
+	context.fillStyle = "#9a7650";
+	context.beginPath();
+	context.ellipse(21, 0, 2.5, 4.6, 0, 0, Math.PI * 2);
+	context.fill();
 	context.restore();
 }
 
 export default function FishersOfMen({ seed, paused, muted, reducedMotion, keys, onTime, onEnd }: StageProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const state = useRef<FishState>(newFish(seed));
-	const drag = useRef<number | null>(null);
+	/** A finger or the mouse on the water: where it is (the aim goes there) and whether it has let go (a cast). */
+	const pointer = useRef<{ id: number | null; to: { x: number; y: number } | null; cast: boolean }>({ id: null, to: null, cast: false });
+	const clock = useRef(0);
+	const endClock = useRef(0);
+	const outro = useRef(0);
+	const ended = useRef(false);
 	const particles = useRef<Particle[]>([]);
 	const floaters = useRef<Floater[]>([]);
-	const flash = useRef<{ at: number; color: string } | null>(null);
-	const shake = useRef(0);
-	const ended = useRef(false);
-	const lastData = useRef(-1);
+	const ripples = useRef<Ripple[]>([]);
+	const haul = useRef<{ count: number; snag: boolean }>({ count: 0, snag: false });
+	const flash = useRef(-9);
+	const shake = useRef(-9);
 	const synth = useSynth(muted);
 
-	const burst = useCallback((x: number, y: number, count: number, colors: string[], speed: number, t: number) => {
+	const burst = useCallback((x: number, y: number, count: number, colors: string[], speed: number, gravity: number) => {
+		const t = clock.current;
 		for (let i = 0; i < count; i++) {
-			const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.3;
-			const power = speed * (0.4 + Math.random() * 0.8);
-			particles.current.push({ x, y, vx: Math.cos(angle) * power, vy: Math.sin(angle) * power, born: t, life: 0.5 + Math.random() * 0.4, color: colors[i % colors.length], size: 1.5 + Math.random() * 2.5 });
+			const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.5;
+			const power = speed * (0.35 + Math.random() * 0.8);
+			particles.current.push({ x, y, vx: Math.cos(angle) * power, vy: Math.sin(angle) * power, born: t, life: 0.45 + Math.random() * 0.45, color: colors[i % colors.length], size: 1.2 + Math.random() * 2.2, gravity });
 		}
 	}, []);
 
 	const react = useCallback(
-		(event: FishEvent, run: FishState) => {
+		(event: FishEvent) => {
 			const play = synth.current;
-			if (event.type === "catch") {
-				burst(event.x, FISH_NET_Y - 4, 14, ["#ffe39a", "#ffffff", "#bfe3f5"], 140, run.t);
-				floaters.current.push({ x: event.x, y: FISH_NET_Y - 24, born: run.t, text: "+1", color: "#ffe39a" });
-				flash.current = { at: run.t, color: "255,226,140" };
-				play?.tone(620 + Math.min(run.caught, 20) * 18, 0.13, { type: "triangle", volume: 0.16, to: 980 });
+			const t = clock.current;
+			if (event.type === "throw") {
+				play?.noise(0.32, { volume: 0.14, filter: 1700, type: "bandpass" });
+				play?.tone(240, 0.3, { type: "sine", volume: 0.08, to: 520 });
 			}
-			if (event.type === "tear") {
-				burst(event.x, FISH_NET_Y, 18, ["#ff6b5a", "#7a4a2f", "#ffffff"], 170, run.t);
-				floaters.current.push({ x: event.x, y: FISH_NET_Y - 26, born: run.t, text: "Torn!", color: "#ff8a7a" });
-				flash.current = { at: run.t, color: "255,80,60" };
-				if (!reducedMotion) shake.current = run.t + 0.3;
-				play?.noise(0.22, { volume: 0.3, filter: 2400, type: "highpass" });
-				play?.tone(170, 0.3, { type: "sawtooth", volume: 0.14, to: 90 });
+			if (event.type === "land") {
+				play?.noise(0.4, { volume: 0.32, filter: 900 });
+				burst(event.x, event.y, 14, ["#e6f6ff", "#ffffff", "#9fd2ea"], 120, 320);
+				ripples.current.push({ x: event.x, y: event.y, born: t, size: FISH_NET_R }, { x: event.x, y: event.y, born: t + 0.15, size: FISH_NET_R * 0.7 });
+				haul.current = { count: event.caught, snag: event.snag };
+				if (event.snag) {
+					floaters.current.push({ x: event.x, y: event.y - 30, born: t, text: "Snagged!", color: "#ffbf94" });
+					play?.tone(130, 0.22, { type: "square", volume: 0.08, to: 90, delay: 0.05 });
+					play?.noise(0.2, { volume: 0.12, filter: 500, type: "bandpass", delay: 0.05 });
+				} else if (event.caught > 0) {
+					floaters.current.push({ x: event.x, y: event.y - 30, born: t, text: `+${event.caught}`, color: "#ffe39a" });
+					burst(event.x, event.y, 6 + event.caught * 3, ["#ffe39a", "#fff6d8", "#ffd060"], 150, 200);
+					flash.current = t;
+					if (event.caught >= 5 && !reducedMotion) shake.current = t;
+					const notes = [523, 587, 659, 784, 880, 988, 1047, 1175, 1319];
+					for (let i = 0; i < Math.min(event.caught, notes.length); i++) play?.tone(notes[i], 0.16, { type: "triangle", volume: 0.12, delay: 0.12 + i * 0.055 });
+				} else {
+					floaters.current.push({ x: event.x, y: event.y - 30, born: t, text: "Empty", color: "rgba(235,245,255,.85)" });
+					play?.tone(330, 0.3, { type: "sine", volume: 0.08, to: 220, delay: 0.1 });
+				}
 			}
-			if (event.type === "splash") {
-				burst(event.x, FISH_NET_Y + 22, 8, ["#d8f1ff", "#ffffff"], 90, run.t);
-				if (event.kind === "fish") play?.noise(0.18, { volume: 0.1, filter: 900 });
+			if (event.type === "hauled") play?.noise(0.18, { volume: 0.08, filter: 600 });
+			if (event.type === "won") {
+				[523, 659, 784, 1047].forEach((note, index) => play?.tone(note, 1.4, { type: "triangle", volume: 0.13, delay: 0.5 + index * 0.12 }));
 			}
-			if (event.type === "broken") {
-				play?.noise(0.6, { volume: 0.35, filter: 1500 });
-				play?.tone(150, 0.9, { type: "sawtooth", volume: 0.16, to: 60 });
-			}
-			if (event.type === "won") [523, 659, 784, 1047].forEach((note, index) => play?.tone(note, 1.1, { type: "triangle", volume: 0.15, delay: index * 0.1 }));
 			if (event.type === "lost") play?.tone(240, 0.8, { type: "sine", volume: 0.16, to: 150 });
 		},
 		[burst, reducedMotion, synth],
@@ -198,287 +380,406 @@ export default function FishersOfMen({ seed, paused, muted, reducedMotion, keys,
 
 	const step = useCallback(() => {
 		const run = state.current;
-		if (run.phase !== "playing") return;
-		takePresses(keys);
-		const left = keys.held.has("arrowleft");
-		const right = keys.held.has("arrowright");
-		const dir = (right ? 1 : 0) - (left ? 1 : 0);
+		clock.current += STAGE_STEP;
+		if (run.phase !== "playing") {
+			takePresses(keys);
+			pointer.current.to = null;
+			pointer.current.cast = false;
+			if (ended.current) return;
+			outro.current += 1;
+			if (outro.current >= (run.phase === "won" ? OUTRO_WON : OUTRO_LOST)) {
+				const result = fishResult(run);
+				if (result) {
+					ended.current = true;
+					onEnd(result);
+				}
+			}
+			return;
+		}
+		const presses = takePresses(keys);
+		const held = keys.held;
+		const move = { x: (held.has("arrowright") ? 1 : 0) - (held.has("arrowleft") ? 1 : 0), y: (held.has("arrowdown") ? 1 : 0) - (held.has("arrowup") ? 1 : 0) };
+		const touch = pointer.current;
+		const input = { move, to: touch.to, cast: touch.cast || presses.includes(" ") };
+		touch.to = null;
+		touch.cast = false;
 		const events: FishEvent[] = [];
-		stepFish(run, { dir, target: left || right ? null : drag.current }, events);
-		for (const event of events) react(event, run);
+		stepFish(run, input, events);
+		for (const event of events) react(event);
+		if (run.phase !== "playing") endClock.current = clock.current;
 		onTime(Math.max(0, FISH_SECONDS - run.t));
 		const canvas = canvasRef.current;
-		const tick = Math.floor(run.t * 10);
-		if (canvas && tick !== lastData.current) {
-			lastData.current = tick;
-			canvas.dataset.net = `${Math.round(run.netX)},${run.tears},${run.caught}`;
-			canvas.dataset.drops = airborne(run)
-				.filter((item) => item.outcome === null)
-				.map((item) => `${item.kind[0]}${Math.round(item.landX)}@${(item.landAt - run.t).toFixed(2)}`)
-				.join(" ");
-		}
-		const result = fishResult(run);
-		if (result && !ended.current) {
-			ended.current = true;
-			onEnd(result);
+		if (canvas) {
+			// What the proof bot reads: the net's stage and how long it has been in it, the aim, the catch, and the water.
+			const cast = run.cast;
+			canvas.dataset.cast = `${cast.stage},${(run.t - cast.since).toFixed(3)},${run.aimX.toFixed(1)},${run.aimY.toFixed(1)},${run.caught},${run.phase}`;
+			canvas.dataset.shoals = run.shoals
+				.map((shoal) => {
+					const now = shoalAt(shoal, run.t);
+					const soon = shoalAt(shoal, run.t + 0.1);
+					// Where it will be if the net is cast now (the lead).
+					const lead = shoalAt(shoal, run.t + FISH_FLIGHT);
+					return `${now.x.toFixed(1)},${now.y.toFixed(1)},${((soon.x - now.x) * 10).toFixed(1)},${((soon.y - now.y) * 10).toFixed(1)},${shoal.fish.length},${lead.x.toFixed(1)},${lead.y.toFixed(1)}`;
+				})
+				.join(";");
+			canvas.dataset.logs = run.logs
+				.map((log) => {
+					const at = logAt(log, run.t);
+					const soon = logAt(log, run.t + 0.1);
+					return `${at.x.toFixed(0)},${at.y.toFixed(0)},${((soon.x - at.x) * 10).toFixed(1)},${((soon.y - at.y) * 10).toFixed(1)}`;
+				})
+				.join(";");
 		}
 	}, [keys, onEnd, onTime, react]);
 
 	const draw = useCallback(
 		(context: CanvasRenderingContext2D, time: number) => {
 			const run = state.current;
-			const t = run.t;
-			const half = netHalf(run.tears);
+			const now = clock.current;
+			const won = run.phase === "won";
+			// The water keeps moving through the closing beat.
+			const vt = run.phase === "playing" ? run.t : (run.endedAt ?? run.t) + (now - endClock.current);
 			const wave = reducedMotion ? 0 : time;
+			const outroK = won ? Math.min(1, outro.current / 60) : 0;
 			context.save();
-			if (shake.current > t) context.translate((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6);
+			if (!reducedMotion && now - shake.current < 0.25) context.translate((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5);
 
 			// Dawn over Galilee.
-			const sky = context.createLinearGradient(0, 0, 0, WATER_TOP);
-			sky.addColorStop(0, "#2b3a67");
-			sky.addColorStop(0.5, "#b8728a");
-			sky.addColorStop(1, "#f7c58a");
+			const sky = context.createLinearGradient(0, 0, 0, HORIZON);
+			sky.addColorStop(0, "#1e2752");
+			sky.addColorStop(0.55, "#9a5f86");
+			sky.addColorStop(1, "#f6b77c");
 			context.fillStyle = sky;
-			context.fillRect(-10, -10, STAGE + 20, WATER_TOP + 10);
-			const sun = context.createRadialGradient(262, WATER_TOP - 6, 4, 262, WATER_TOP - 6, 70);
-			sun.addColorStop(0, "rgba(255,240,200,1)");
-			sun.addColorStop(0.25, "rgba(255,214,140,.8)");
-			sun.addColorStop(1, "rgba(255,200,120,0)");
+			context.fillRect(-10, -10, STAGE + 20, HORIZON + 10);
+			const sun = context.createRadialGradient(306, HORIZON - 4, 3, 306, HORIZON - 4, 80);
+			sun.addColorStop(0, "rgba(255,244,210,1)");
+			sun.addColorStop(0.18, "rgba(255,220,150,.85)");
+			sun.addColorStop(1, "rgba(255,190,120,0)");
 			context.fillStyle = sun;
-			context.fillRect(180, WATER_TOP - 80, 170, 80);
+			context.fillRect(200, HORIZON - 90, 200, 90);
+			context.fillStyle = "rgba(255,206,170,.35)";
+			context.fillRect(40, 38, 120, 3);
+			context.fillRect(210, 52, 150, 2.5);
+			context.fillRect(90, 60, 70, 2);
 			// The far hills.
-			context.fillStyle = "#6c4f6b";
+			context.fillStyle = "#5c4466";
 			context.beginPath();
-			context.moveTo(0, WATER_TOP);
-			context.bezierCurveTo(60, 104, 120, 132, 170, 118);
-			context.bezierCurveTo(210, 108, 230, 138, 300, 124);
-			context.bezierCurveTo(350, 114, 380, 120, 400, 112);
-			context.lineTo(400, WATER_TOP);
+			context.moveTo(0, HORIZON);
+			context.bezierCurveTo(40, 64, 100, 80, 150, 72);
+			context.bezierCurveTo(200, 64, 236, 86, 290, 78);
+			context.bezierCurveTo(340, 70, 372, 76, 400, 70);
+			context.lineTo(400, HORIZON);
+			context.closePath();
+			context.fill();
+			context.fillStyle = "#71526a";
+			context.beginPath();
+			context.moveTo(0, HORIZON);
+			context.bezierCurveTo(80, 82, 160, 90, 230, 84);
+			context.bezierCurveTo(300, 80, 350, 88, 400, 84);
+			context.lineTo(400, HORIZON);
 			context.closePath();
 			context.fill();
 
-			// The sea, with the sun's path on it.
-			const sea = context.createLinearGradient(0, WATER_TOP, 0, STAGE);
-			sea.addColorStop(0, "#5f7fa3");
-			sea.addColorStop(0.45, "#2f5f80");
-			sea.addColorStop(1, "#173a55");
+			// The sea, the sun's path laid across it.
+			const sea = context.createLinearGradient(0, HORIZON, 0, STAGE);
+			sea.addColorStop(0, "#c99a8e");
+			sea.addColorStop(0.18, "#4f7f97");
+			sea.addColorStop(0.6, "#245a72");
+			sea.addColorStop(1, "#123a4f");
 			context.fillStyle = sea;
-			context.fillRect(-10, WATER_TOP, STAGE + 20, STAGE - WATER_TOP + 10);
-			for (let row = 0; row < 14; row++) {
-				const y = WATER_TOP + 6 + row * row * 1.5;
-				const width = 26 + row * 7;
-				const sway = Math.sin(wave * 1.3 + row) * 6;
-				context.fillStyle = `rgba(255,214,150,${0.5 - row * 0.03})`;
-				context.fillRect(262 - width / 2 + sway, y, width, 2);
+			context.fillRect(-10, HORIZON, STAGE + 20, STAGE - HORIZON + 10);
+			for (let row = 0; row < 18; row++) {
+				const y = HORIZON + 3 + row * row * 0.9;
+				const width = 14 + row * 5;
+				const sway = Math.sin(wave * 1.3 + row * 1.7) * 5;
+				context.fillStyle = `rgba(255,214,160,${0.5 - row * 0.026})`;
+				context.fillRect(306 - width / 2 + sway, y, width, 1.6);
 			}
-			context.strokeStyle = "rgba(220,236,255,.18)";
-			context.lineWidth = 1.5;
-			for (let row = 0; row < 7; row++) {
-				const y = 190 + row * 30;
+			context.strokeStyle = "rgba(220,240,255,.12)";
+			context.lineWidth = 1.2;
+			for (let row = 0; row < 9; row++) {
+				const y = 112 + row * row * 3.4;
 				context.beginPath();
-				for (let x = 0; x <= STAGE; x += 20) context.lineTo(x, y + Math.sin(x / 30 + wave * 1.6 + row) * 2.5);
+				for (let x = -10; x <= STAGE + 10; x += 16) context.lineTo(x, y + Math.sin(x / 26 + wave * 1.4 + row) * (1 + row * 0.3));
 				context.stroke();
 			}
 
-			// Jesus on the shore, a robed figure in soft light (v18-19).
-			const glow = context.createRadialGradient(56, WATER_TOP - 14, 2, 56, WATER_TOP - 14, 34);
-			glow.addColorStop(0, "rgba(255,246,220,.9)");
-			glow.addColorStop(1, "rgba(255,246,220,0)");
-			context.fillStyle = glow;
-			context.fillRect(20, WATER_TOP - 50, 72, 60);
-			context.fillStyle = "#c9a77e";
-			context.fillRect(0, WATER_TOP - 2, 110, 5);
-			context.fillStyle = "#fbf3e2";
-			context.beginPath();
-			context.moveTo(50, WATER_TOP);
-			context.lineTo(53, WATER_TOP - 22);
-			context.lineTo(59, WATER_TOP - 22);
-			context.lineTo(62, WATER_TOP);
-			context.closePath();
-			context.fill();
-			context.beginPath();
-			context.arc(56, WATER_TOP - 25, 3.6, 0, Math.PI * 2);
-			context.fill();
+			// The reach of a cast, faint on the water.
+			const cast = run.cast;
+			if (run.phase === "playing") {
+				context.strokeStyle = cast.stage === "ready" ? "rgba(255,236,190,.08)" : "rgba(255,236,190,.04)";
+				context.lineWidth = FISH_FAR - FISH_NEAR;
+				context.beginPath();
+				context.arc(FISH_BOAT_X, FISH_BOAT_Y, (FISH_NEAR + FISH_FAR) / 2, -Math.PI / 2 - FISH_AIM_MAX, -Math.PI / 2 + FISH_AIM_MAX);
+				context.stroke();
+			}
 
-			// Where the leaping fish come out of the sea.
-			for (const item of run.items) {
-				const age = t - item.born;
-				if (item.kind === "stone" || age < 0 || age > 0.35) continue;
-				const ring = age / 0.35;
-				context.strokeStyle = `rgba(230,245,255,${0.7 * (1 - ring)})`;
+			// Ripples where the net came down.
+			ripples.current = ripples.current.filter((ripple) => now - ripple.born < 1.1);
+			for (const ripple of ripples.current) {
+				const age = (now - ripple.born) / 1.1;
+				if (age < 0) continue;
+				context.strokeStyle = `rgba(230,246,255,${0.55 * (1 - age)})`;
 				context.lineWidth = 2;
 				context.beginPath();
-				context.ellipse(item.x0, FISH_SEA_Y + 6, 6 + ring * 16, 2 + ring * 5, 0, 0, Math.PI * 2);
+				context.ellipse(ripple.x, ripple.y, ripple.size * (0.8 + age * 0.9), ripple.size * (0.8 + age * 0.9) * 0.55, 0, 0, Math.PI * 2);
 				context.stroke();
 			}
 
-			// The rings on the water: gold where a fish comes down, red where debris does.
-			const flying = airborne(run);
-			for (const item of flying) {
-				if (item.outcome !== null) continue;
-				const flight = item.landAt - item.born;
-				const left = Math.max(0, (item.landAt - t) / flight);
-				const fish = item.kind === "fish";
-				context.strokeStyle = fish ? `rgba(255,214,102,${0.95 - left * 0.5})` : `rgba(255,90,70,${0.95 - left * 0.45})`;
-				context.lineWidth = fish ? 3 : 3.5;
+			// Driftwood.
+			for (const log of run.logs) {
+				const at = logAt(log, vt);
+				drawLog(context, at.x, at.y, log.tilt * 0.6, depthScale(at.y), reducedMotion ? 0 : Math.sin(time * 1.6 + log.d) * 1.2);
+			}
+
+			// The shoals, moving under the water.
+			for (const shoal of run.shoals) {
+				const centre = shoalAt(shoal, vt);
+				const ahead = shoalAt(shoal, vt + 0.08);
+				const heading = Math.atan2(ahead.y - centre.y, ahead.x - centre.x);
+				const fade = Math.min(1, (vt - shoal.born) / 0.6);
+				const scale = depthScale(centre.y);
+				// The water stirs over them, warm over a rich shoal.
+				const stir = (time * 0.9 + shoal.id * 0.37) % 1;
+				context.strokeStyle = shoal.rich ? `rgba(255,222,150,${0.45 * (1 - stir) * fade})` : `rgba(220,240,255,${0.28 * (1 - stir) * fade})`;
+				context.lineWidth = 1.5;
 				context.beginPath();
-				context.ellipse(item.landX, FISH_NET_Y + 14, 9 + left * 22, 3.5 + left * 7, 0, 0, Math.PI * 2);
+				context.ellipse(centre.x, centre.y, (12 + stir * 26) * scale, (5 + stir * 10) * scale, 0, 0, Math.PI * 2);
 				context.stroke();
-				if (!fish) {
-					context.beginPath();
-					context.moveTo(item.landX - 5, FISH_NET_Y + 10);
-					context.lineTo(item.landX + 5, FISH_NET_Y + 18);
-					context.moveTo(item.landX + 5, FISH_NET_Y + 10);
-					context.lineTo(item.landX - 5, FISH_NET_Y + 18);
-					context.stroke();
+				for (const one of shoal.fish) {
+					const at = fishAt(shoal, one, vt);
+					const flick = reducedMotion ? 0 : Math.sin(time * 13 + one.ph * 3);
+					const shimmer = reducedMotion ? 0.5 : 0.5 + 0.5 * Math.sin(time * 4 + one.ph * 5);
+					drawFish(context, at.x, at.y, heading + Math.sin(time * 2 + one.ph) * 0.12, scale, flick, shoal.rich, shimmer, fade);
+				}
+				if (shoal.rich && !reducedMotion) {
+					context.fillStyle = `rgba(255,236,170,${0.7 * fade})`;
+					for (let i = 0; i < 3; i++) {
+						const glint = (time * 1.4 + i * 0.33 + shoal.id * 0.21) % 1;
+						context.fillRect(centre.x + Math.sin(i * 2.3 + shoal.id) * 16 * scale, centre.y - glint * 14 * scale, 1.8, 1.8);
+					}
 				}
 			}
 
-			// Peter and Andrew wading, the net between them.
-			const netX = run.netX;
-			const bob = reducedMotion ? 0 : Math.sin(time * 2.2) * 1.2;
-			const flashAge = flash.current ? t - flash.current.at : 9;
-			drawBrother(context, netX - half - 14, FISH_NET_Y + 18, "#7a5a3a", 1, bob);
-			drawBrother(context, netX + half + 14, FISH_NET_Y + 18, "#5b6b7a", -1, -bob);
-			// The net: a mesh bowl under a glowing rim, the zone that catches.
-			const rimGlow = context.createLinearGradient(0, FISH_NET_Y - 14, 0, FISH_NET_Y + 4);
-			rimGlow.addColorStop(0, "rgba(255,226,140,0)");
-			rimGlow.addColorStop(1, `rgba(255,226,140,${run.t < 2 ? 0.35 + 0.25 * Math.sin(time * 8) : 0.28})`);
-			context.fillStyle = rimGlow;
-			context.fillRect(netX - half, FISH_NET_Y - 14, half * 2, 18);
-			context.strokeStyle = "rgba(240,226,190,.75)";
-			context.lineWidth = 1.2;
-			const depth = 30;
-			for (let i = 0; i <= 8; i++) {
-				const x = netX - half + (i / 8) * half * 2;
-				context.beginPath();
-				context.moveTo(x, FISH_NET_Y);
-				context.quadraticCurveTo(x + (netX - x) * 0.3, FISH_NET_Y + depth * 0.7, netX + (x - netX) * 0.45, FISH_NET_Y + depth);
-				context.stroke();
-			}
-			for (let row = 1; row <= 3; row++) {
-				const y = FISH_NET_Y + (row / 3) * depth;
-				const w = half * (1 - row * 0.18);
-				context.beginPath();
-				context.moveTo(netX - w, y - 2);
-				context.quadraticCurveTo(netX, y + 4, netX + w, y - 2);
-				context.stroke();
-			}
-			// The tears, ragged holes in the mesh.
-			for (let tear = 0; tear < run.tears; tear++) {
-				const x = netX + (tear % 2 ? 1 : -1) * half * 0.45;
-				context.fillStyle = "rgba(23,58,85,.95)";
-				context.beginPath();
-				context.ellipse(x, FISH_NET_Y + 14, 8, 6, 0.4, 0, Math.PI * 2);
-				context.fill();
-				context.strokeStyle = "#ff8a7a";
-				context.lineWidth = 1.5;
-				context.stroke();
-			}
-			context.strokeStyle = flashAge < 0.25 && flash.current ? `rgba(${flash.current.color},1)` : "#f1dca0";
-			context.lineWidth = 4;
-			context.lineCap = "round";
+			// The shore, and Jesus walking by it (v18).
+			const sand = context.createLinearGradient(0, 300, 0, 400);
+			sand.addColorStop(0, "#d9b98a");
+			sand.addColorStop(1, "#a9875c");
+			context.fillStyle = sand;
 			context.beginPath();
-			context.moveTo(netX - half, FISH_NET_Y);
-			context.quadraticCurveTo(netX, FISH_NET_Y + 5, netX + half, FISH_NET_Y);
+			context.moveTo(-10, 292);
+			context.quadraticCurveTo(62, 290, 92, 324);
+			context.quadraticCurveTo(116, 352, 120, 410);
+			context.lineTo(-10, 410);
+			context.closePath();
+			context.fill();
+			context.strokeStyle = "rgba(255,255,255,.4)";
+			context.lineWidth = 1.5;
+			context.beginPath();
+			context.moveTo(-10, 293 + (reducedMotion ? 0 : Math.sin(time) * 1.5));
+			context.quadraticCurveTo(62, 291, 92, 325);
+			context.quadraticCurveTo(116, 353, 120, 410);
 			context.stroke();
-			// Fish caught so far, shining in the net.
-			for (let i = 0; i < Math.min(run.caught, 8); i++) {
-				drawFish(context, netX - half * 0.55 + (i % 4) * half * 0.36, FISH_NET_Y + 12 + Math.floor(i / 4) * 8, (i % 2 ? 0.2 : -0.2) + Math.PI * (i % 2), false);
-			}
-			// The water in front of the wading brothers.
-			context.fillStyle = "rgba(23,58,85,.55)";
-			context.fillRect(-10, FISH_NET_Y + 26, STAGE + 20, STAGE);
+			const walk = Math.min(1, vt / FISH_SECONDS);
+			const jesusX = won ? 34 + 26 * Math.min(1, (run.endedAt ?? 0) / FISH_SECONDS) : 34 + 26 * walk;
+			drawJesus(context, jesusX, SHORE_JESUS_Y, outroK);
 
-			// What is in the air.
-			for (const item of flying) {
-				const at = itemAt(item, Math.min(t, item.landAt + 0.4));
-				if (item.kind === "fish") {
-					const age = t - item.born;
-					const angle = Math.atan2(item.vy + 620 * age, item.vx || 0.001);
-					drawFish(context, at.x, at.y, angle, item.outcome === null);
-				} else drawDebris(context, item, at.x, at.y, t);
+			// The boat, rocking gently.
+			const rock = reducedMotion ? 0 : Math.sin(time * 1.8) * 1.4;
+			context.save();
+			context.translate(0, rock);
+			const hull = context.createLinearGradient(0, 352, 0, 388);
+			hull.addColorStop(0, "#80522e");
+			hull.addColorStop(1, "#42261a");
+			context.fillStyle = "#33200f";
+			context.beginPath();
+			context.ellipse(200, 356, 74, 8, 0, 0, Math.PI * 2);
+			context.fill();
+			// What they have caught, shining in the boat.
+			for (let i = 0; i < Math.min(run.caught, 14); i++) {
+				drawSilver(context, 222 + (i % 5) * 9 - Math.floor(i / 5) * 4, 356 - Math.floor(i / 5) * 3, (i % 2 ? 0.4 : -0.3) + (i % 3) * 0.5, 0.75);
+			}
+			// The brothers: Peter casting at the bow side, Andrew with the line.
+			const castStage = cast.stage;
+			const flying = run.phase === "playing" && castStage === "flight";
+			const leave = won ? Math.max(0, Math.min(1, (outro.current - 70) / 90)) : 0;
+			const ready = run.phase === "playing" && castStage === "ready";
+			const aimAngle = Math.atan2(run.aimX - FISH_BOAT_X, FISH_BOAT_Y - run.aimY);
+			const reachArm = ready ? { x: HAND.x + Math.sin(aimAngle) * 14, y: HAND.y - 6 - Math.cos(aimAngle) * 6 } : { x: HAND.x + 10, y: HAND.y + 4 };
+			if (leave < 1) {
+				context.globalAlpha = 1 - leave;
+				const lx = leave * (jesusX + 22 - 186);
+				const ly = leave * (SHORE_JESUS_Y - 352);
+				drawBrother(context, 186 + lx, 354 + ly, "#8a6440", 40, leave > 0 ? null : { x: reachArm.x + lx, y: reachArm.y + ly });
+				drawBrother(context, 244 + leave * (jesusX + 40 - 244), 354 + ly, "#56697c", 34, leave > 0 ? null : { x: 232, y: 340 });
+				context.globalAlpha = 1;
+			}
+			// The net in Peter's hands, ready to cast (and left in the boat at the end).
+			if (run.phase !== "playing" && won) drawNet(context, 166, 352, 9, 0.4, 1);
+			else if (ready) drawNet(context, reachArm.x, reachArm.y, 7, time * (reducedMotion ? 0 : 0.6), 1);
+			context.fillStyle = hull;
+			context.beginPath();
+			context.moveTo(118, 348);
+			context.quadraticCurveTo(200, 362, 284, 348);
+			context.quadraticCurveTo(272, 384, 248, 388);
+			context.lineTo(152, 388);
+			context.quadraticCurveTo(128, 384, 118, 348);
+			context.closePath();
+			context.fill();
+			context.strokeStyle = "rgba(0,0,0,.28)";
+			context.lineWidth = 1;
+			for (const y of [364, 374]) {
+				context.beginPath();
+				context.moveTo(130, y - 6);
+				context.quadraticCurveTo(200, y + 4, 272, y - 6);
+				context.stroke();
+			}
+			context.strokeStyle = "#a8784a";
+			context.lineWidth = 2.5;
+			context.beginPath();
+			context.moveTo(118, 348);
+			context.quadraticCurveTo(200, 362, 284, 348);
+			context.stroke();
+			context.restore();
+			// The sea laps the hull.
+			context.fillStyle = "rgba(18,58,79,.6)";
+			context.beginPath();
+			context.moveTo(-10, 384);
+			for (let x = -10; x <= STAGE + 10; x += 10) context.lineTo(x, 381 + Math.sin(x / 18 + wave * 2) * 2);
+			context.lineTo(STAGE + 10, 410);
+			context.lineTo(-10, 410);
+			context.closePath();
+			context.fill();
+
+			// Where the net is aimed (dim while the net is out), and the net in the air.
+			const since = (run.phase === "playing" ? run.t : vt) - cast.since;
+			if (run.phase === "playing") drawAim(context, ready ? reachArm : { x: HAND.x + 8, y: HAND.y - 8 }, run.aimX, run.aimY, ready, time, reducedMotion);
+			if (flying) {
+				const u = Math.min(1, since / FISH_FLIGHT);
+				const from = { x: HAND.x + 8, y: HAND.y - 8 };
+				const x = from.x + (cast.landX - from.x) * u;
+				const ground = from.y + (cast.landY - from.y) * u;
+				const lift = Math.sin(Math.PI * u) * (46 + 70 * reachOf(cast.landX, cast.landY));
+				// Its shadow on the water, and the ring where it is going.
+				context.strokeStyle = "rgba(255,240,200,.35)";
+				context.lineWidth = 1.5;
+				context.beginPath();
+				context.arc(cast.landX, cast.landY, FISH_NET_R, 0, Math.PI * 2);
+				context.stroke();
+				context.fillStyle = "rgba(8,24,36,.35)";
+				context.beginPath();
+				context.ellipse(x, ground, 8 + 10 * u, 3 + 4 * u, 0, 0, Math.PI * 2);
+				context.fill();
+				context.strokeStyle = "rgba(230,220,190,.6)";
+				context.lineWidth = 1;
+				context.beginPath();
+				context.moveTo(232, 340);
+				context.quadraticCurveTo((232 + x) / 2, ground - lift - 30, x, ground - lift);
+				context.stroke();
+				const open = u < 0.6 ? 0 : (u - 0.6) / 0.4;
+				drawNet(context, x, ground - lift, 7 + (FISH_NET_R - 7) * open * open, reducedMotion ? 0 : time * 9, 1);
+			}
+			if (run.phase !== "lost" && castStage === "haul") {
+				const length = cast.snag ? FISH_SNAG_HAUL : FISH_HAUL;
+				const u = Math.min(1, since / length);
+				const pull = cast.snag ? Math.max(0, (u - 0.45) / 0.55) : u;
+				const ease = pull * pull;
+				const to = { x: 214, y: 344 };
+				const x = cast.landX + (to.x - cast.landX) * ease;
+				const y = cast.landY + (to.y - cast.landY) * ease;
+				const r = FISH_NET_R * (1 - 0.75 * Math.min(1, pull * 1.6));
+				const tug = cast.snag && !reducedMotion && u < 0.45 ? Math.sin(time * 30) * 2 : 0;
+				context.strokeStyle = "rgba(230,220,190,.7)";
+				context.lineWidth = 1;
+				context.beginPath();
+				context.moveTo(232, 340);
+				context.lineTo(x + tug, y);
+				context.stroke();
+				drawNet(context, x + tug, y, r, 0.3, won ? Math.max(0, 1 - outro.current / 30) : 1, haul.current.count > 0);
+				for (let i = 0; i < Math.min(haul.current.count, 9); i++) {
+					const a = i * 2.4;
+					const d = r * 0.55 * ((i % 3) + 1) / 3;
+					drawSilver(context, x + Math.cos(a) * d, y + Math.sin(a) * d * 0.7, a + (reducedMotion ? 0 : Math.sin(time * 14 + i) * 0.4), 0.7);
+				}
 			}
 
-			// Spray and sparkle.
-			particles.current = particles.current.filter((particle) => t - particle.born < particle.life);
+			// Spray, sparkle and words.
+			particles.current = particles.current.filter((particle) => now - particle.born < particle.life);
 			for (const particle of particles.current) {
-				const age = t - particle.born;
+				const age = now - particle.born;
 				context.globalAlpha = Math.max(0, 1 - age / particle.life);
 				context.fillStyle = particle.color;
 				context.beginPath();
-				context.arc(particle.x + particle.vx * age, particle.y + particle.vy * age + 260 * age * age, particle.size, 0, Math.PI * 2);
+				context.arc(particle.x + particle.vx * age, particle.y + particle.vy * age + particle.gravity * age * age, particle.size, 0, Math.PI * 2);
 				context.fill();
 			}
 			context.globalAlpha = 1;
-			floaters.current = floaters.current.filter((floater) => t - floater.born < 0.8);
+			floaters.current = floaters.current.filter((floater) => now - floater.born < 0.9);
 			context.textAlign = "center";
-			context.font = "900 18px system-ui, sans-serif";
+			context.font = "900 20px system-ui, sans-serif";
 			for (const floater of floaters.current) {
-				const age = (t - floater.born) / 0.8;
-				context.globalAlpha = 1 - age;
+				const age = (now - floater.born) / 0.9;
+				context.globalAlpha = 1 - age * age;
+				context.fillStyle = "rgba(8,20,32,.6)";
+				context.fillText(floater.text, floater.x + 1.5, floater.y - age * 24 + 1.5);
 				context.fillStyle = floater.color;
-				context.fillText(floater.text, floater.x, floater.y - age * 26);
+				context.fillText(floater.text, floater.x, floater.y - age * 24);
 			}
 			context.globalAlpha = 1;
+			if (!reducedMotion && now - flash.current < 0.18) {
+				context.fillStyle = `rgba(255,236,170,${0.16 * (1 - (now - flash.current) / 0.18)})`;
+				context.fillRect(0, 0, STAGE, STAGE);
+			}
 
-			// The count and the net's strength.
-			context.fillStyle = "rgba(10,20,36,.55)";
+			// The count, and what the next press does.
+			context.fillStyle = "rgba(10,20,36,.6)";
 			context.beginPath();
-			context.roundRect(10, 10, 116, 34, 12);
+			context.roundRect(10, 10, 112, 36, 12);
 			context.fill();
-			drawFish(context, 30, 27, 0, false);
+			drawSilver(context, 34, 28, 0, 1.1);
 			context.textAlign = "left";
-			context.font = "900 19px system-ui, sans-serif";
-			context.fillStyle = run.caught >= FISH_TARGET ? "#ffe39a" : "#ffffff";
-			context.fillText(`${run.caught}/${FISH_TARGET}`, 52, 34);
-			context.fillStyle = "rgba(10,20,36,.55)";
-			context.beginPath();
-			context.roundRect(STAGE - 106, 10, 96, 34, 12);
-			context.fill();
-			context.font = "800 11px system-ui, sans-serif";
-			context.fillStyle = "#ffffff";
-			context.fillText("NET", STAGE - 98, 31);
-			for (let knot = 0; knot < FISH_TEARS_TO_BREAK; knot++) {
-				const torn = knot >= FISH_TEARS_TO_BREAK - run.tears;
-				const x = STAGE - 66 + knot * 18;
-				context.strokeStyle = torn ? "#ff6b5a" : "#f1dca0";
-				context.lineWidth = 2;
-				context.strokeRect(x, 19, 13, 13);
+			context.font = "900 20px system-ui, sans-serif";
+			context.fillStyle = run.caught >= FISH_QUOTA ? "#ffe39a" : "#ffffff";
+			context.fillText(`${run.caught}/${FISH_QUOTA}`, 54, 35);
+			if (run.phase === "playing") {
+				const label = ready ? "Cast!" : run.cast.stage === "flight" ? "..." : "Haul";
+				const live = ready;
+				context.fillStyle = live ? "rgba(255,227,154,.92)" : "rgba(10,20,36,.6)";
 				context.beginPath();
-				if (torn) {
-					context.moveTo(x + 2, 21);
-					context.lineTo(x + 11, 30);
-					context.moveTo(x + 11, 21);
-					context.lineTo(x + 2, 30);
-				} else {
-					context.moveTo(x + 6.5, 19);
-					context.lineTo(x + 6.5, 32);
-					context.moveTo(x, 25.5);
-					context.lineTo(x + 13, 25.5);
-				}
-				context.stroke();
+				context.roundRect(STAGE - 102, 10, 92, 36, 12);
+				context.fill();
+				context.textAlign = "center";
+				context.fillStyle = live ? "#2a1a08" : "#ffffff";
+				context.fillText(label, STAGE - 56, 35);
+			}
+			if (run.phase === "playing" && run.casts === 0 && run.t < 4) {
+				context.font = "800 15px system-ui, sans-serif";
+				context.textAlign = "center";
+				context.fillStyle = "rgba(10,20,36,.55)";
+				context.beginPath();
+				context.roundRect(76, 56, 248, 28, 10);
+				context.fill();
+				context.fillStyle = "#fff4d8";
+				context.fillText("Lead the shoal, then cast", 200, 75);
 			}
 
-			// The first moments: show what moves and what to catch.
-			if (t < 2.2 && run.phase === "playing") {
-				const pulse = reducedMotion ? 0.5 : 0.5 + 0.5 * Math.sin(time * 7);
-				context.strokeStyle = `rgba(255,226,140,${0.5 + 0.5 * pulse})`;
-				context.lineWidth = 3;
+			// The closing beat: he calls, and they leave their nets (v19-20).
+			if (won && outro.current > 30) {
+				const fade = Math.min(1, (outro.current - 30) / 30, (OUTRO_WON - outro.current) / 25);
+				context.globalAlpha = fade;
+				context.fillStyle = "rgba(255,248,230,.9)";
 				context.beginPath();
-				context.ellipse(netX, FISH_NET_Y + 6, half + 26 + pulse * 6, 26 + pulse * 3, 0, 0, Math.PI * 2);
-				context.stroke();
-				context.fillStyle = "#ffe39a";
-				context.font = "900 26px system-ui, sans-serif";
+				context.roundRect(40, 110, 320, 76, 16);
+				context.fill();
+				context.fillStyle = "#3a2508";
 				context.textAlign = "center";
-				context.fillText("◀", netX - half - 52, FISH_NET_Y + 14);
-				context.fillText("▶", netX + half + 52, FISH_NET_Y + 14);
-				context.font = "900 17px system-ui, sans-serif";
-				context.fillStyle = "#ffffff";
-				context.fillText(`Catch ${FISH_TARGET} fish · dodge the wood and stones`, STAGE / 2, 72);
+				context.font = `italic 700 20px ${SERIF}`;
+				context.fillText("Follow me, and I will make you", 200, 142);
+				context.fillText("fishers of men.", 200, 170);
+				context.globalAlpha = 1;
 			}
-			if (run.phase === "won") {
-				context.fillStyle = "rgba(255,240,200,.2)";
+			if (run.phase === "lost") {
+				context.fillStyle = `rgba(6,14,24,${0.4 * Math.min(1, outro.current / 30)})`;
 				context.fillRect(0, 0, STAGE, STAGE);
 			}
 			context.restore();
@@ -488,28 +789,42 @@ export default function FishersOfMen({ seed, paused, muted, reducedMotion, keys,
 
 	useStageLoop(canvasRef, { paused, step, draw });
 
-	const onPointer = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-		if (event.type === "pointerdown") {
-			event.preventDefault();
-			event.currentTarget.setPointerCapture?.(event.pointerId);
-		} else if (event.buttons === 0 && event.pointerType === "mouse") return;
+	// A finger or the mouse puts the aim where it is pressed and follows a drag; letting go casts there.
+	const onPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+		event.preventDefault();
 		const canvas = canvasRef.current;
-		if (canvas) drag.current = stagePoint(canvas, event).x;
+		if (paused || !canvas) return;
+		canvas.setPointerCapture?.(event.pointerId);
+		pointer.current.id = event.pointerId;
+		pointer.current.to = stagePoint(canvas, event);
 	};
-	const onRelease = () => {
-		drag.current = null;
+	const onPointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+		const canvas = canvasRef.current;
+		if (paused || !canvas || pointer.current.id !== event.pointerId) return;
+		pointer.current.to = stagePoint(canvas, event);
+	};
+	const onPointerUp = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+		const canvas = canvasRef.current;
+		if (!canvas || pointer.current.id !== event.pointerId) return;
+		pointer.current.id = null;
+		if (paused) return;
+		pointer.current.to = stagePoint(canvas, event);
+		pointer.current.cast = true;
+	};
+	const onPointerCancel = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+		if (pointer.current.id === event.pointerId) pointer.current.id = null;
 	};
 
 	return (
 		<canvas
 			ref={canvasRef}
-			onPointerDown={onPointer}
-			onPointerMove={onPointer}
-			onPointerUp={onRelease}
-			onPointerCancel={onRelease}
+			onPointerDown={onPointerDown}
+			onPointerMove={onPointerMove}
+			onPointerUp={onPointerUp}
+			onPointerCancel={onPointerCancel}
 			className="absolute inset-0 h-full w-full touch-none"
 			role="img"
-			aria-label={`The sea of Galilee at dawn. Fish leap toward Peter and Andrew's net. Hold the left and right arrows, or drag, to move the net under the fish; let the driftwood and stones fall by. Catch ${FISH_TARGET} fish.`}
+			aria-label={`The sea of Galilee at dawn. Peter and Andrew cast their net from the boat while shoals of fish drift under the water. The net's circle lies on the water where it is aimed: move it with the arrow keys and press Space to cast, or touch the water and let go to cast there. The net takes a moment to fall, so cast where a shoal is going; it hauls in the fish inside its circle, and driftwood snags it. Catch ${FISH_QUOTA} fish.`}
 		/>
 	);
 }
