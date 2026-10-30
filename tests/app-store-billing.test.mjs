@@ -293,7 +293,7 @@ test("unknown types, stale deliveries and other subscriptions are no-ops", () =>
 // ---------------------------------------------------------------------------
 
 function harness(t) {
-	const state = { rows: [], events: new Set(), decoded: new Map(), verifierEnvs: [], locked: false };
+	const state = { rows: [], events: new Set(), decoded: new Map(), verifierEnvs: [], locked: false, stripe: null, play: null, beforeLock: undefined };
 	class VerificationException extends Error {
 		constructor(status) {
 			super(`verification ${status}`);
@@ -323,7 +323,7 @@ function harness(t) {
 	}
 	const match = (r, where) => Object.entries(where).every(([k, v]) => r[k] === v);
 	const db = {
-		$queryRaw: async () => { state.locked = true; return []; },
+		$queryRaw: async () => { state.beforeLock?.(); state.beforeLock = undefined; state.locked = true; return []; },
 		$transaction: async (fn) => {
 			const before = structuredClone(state.rows);
 			const events = new Set(state.events);
@@ -339,6 +339,14 @@ function harness(t) {
 				return structuredClone(r);
 			},
 		},
+		billingSubscription: { findUnique: async ({ where }) => {
+			assert.ok(state.locked, "competing Stripe period must be checked under the User lock");
+			return state.stripe?.userId === where.userId ? state.stripe : null;
+		} },
+		googlePlaySubscription: { findUnique: async ({ where }) => {
+			assert.ok(state.locked, "competing Play period must be checked under the User lock");
+			return state.play?.userId === where.userId ? state.play : null;
+		} },
 		billingEvent: {
 			findUnique: async ({ where }) => (state.events.has(where.id) ? { id: where.id } : null),
 			create: async ({ data }) => { state.events.add(data.id); return data; },
@@ -349,6 +357,7 @@ function harness(t) {
 		if (id === "@/lib/prisma") return { prisma: db };
 		if (id === "./app-store-rules") return rules;
 		if (id === "./apple-root-ca") return rootCa;
+		if (id === "./plans") return load("src/lib/billing/plans.ts", () => undefined);
 		if (id === "@apple/app-store-server-library")
 			return { SignedDataVerifier, VerificationException, VerificationStatus, Environment: { PRODUCTION: "Production", SANDBOX: "Sandbox", XCODE: "Xcode" } };
 		return undefined;
@@ -398,6 +407,48 @@ test("verify binds a genuine purchase to the account its appAccountToken names (
 	// Idempotent for the same transaction.
 	assert.equal((await api.verifyDeviceTransaction("user-1", sign(liveTx(), "Sandbox"))).active, true);
 	assert.equal(state.rows.length, 1);
+});
+
+for (const provider of ["stripe", "play"]) {
+	test(`a ${provider} period committed before the User lock blocks a new paid Apple relationship`, async (t) => {
+		const { api, state, sign } = harness(t);
+		state.beforeLock = () => { state[provider] = { userId: "user-1", status: "active", periodEnd: new Date("2099-01-01") }; };
+		await assert.rejects(api.verifyDeviceTransaction("user-1", sign(liveTx())), (error) =>
+			error instanceof api.AppStoreVerificationError && error.retryable && /subscription already exists/.test(error.message));
+		assert.equal(state.rows.length, 0);
+	});
+}
+
+test("expired, revoked, and another account's paid stores do not block a new Apple relationship", async (t) => {
+	const { api, state, sign } = harness(t);
+	for (const extra of [{ periodEnd: new Date(0) }, { status: "revoked" }, { userId: "other" }]) {
+		state.rows = [];
+		state.stripe = state.play = { userId: "user-1", status: "active", periodEnd: new Date("2099-01-01"), ...extra };
+		assert.equal((await api.verifyDeviceTransaction("user-1", sign(liveTx()))).active, true);
+		assert.equal(state.rows.length, 1);
+	}
+});
+
+test("known Apple chain restores and device or notification renewals reconcile despite legacy duplicate stores", async (t) => {
+	const { api, state, sign, notification } = harness(t);
+	await api.verifyDeviceTransaction("user-1", sign(liveTx()));
+	state.stripe = state.play = { userId: "user-1", status: "active", periodEnd: new Date("2099-01-01") };
+	assert.equal((await api.verifyDeviceTransaction("user-1", sign(liveTx({ appAccountToken: undefined })))).active, true);
+	state.rows[0].status = "expired";
+	state.rows[0].expiresAt = new Date(0);
+	const renewed = liveTx({ transactionId: "1002", appAccountToken: undefined, expiresDate: Date.now() + 59 * DAY });
+	assert.equal((await api.verifyDeviceTransaction("user-1", sign(renewed))).active, true);
+	const nextRenewal = liveTx({ transactionId: "1003", appAccountToken: undefined, expiresDate: Date.now() + 89 * DAY });
+	assert.deepEqual(await api.processNotification(notification("DID_RENEW", nextRenewal)), { result: "applied" });
+	assert.equal(state.rows.length, 1);
+	assert.equal(state.rows[0].latestTransactionId, "1003");
+});
+
+test("an inactive Apple receipt can record history while another provider is paid", async (t) => {
+	const { api, state, sign } = harness(t);
+	state.play = { userId: "user-1", status: "active", periodEnd: new Date("2099-01-01") };
+	assert.equal((await api.verifyDeviceTransaction("user-1", sign(liveTx({ purchaseDate: 1, expiresDate: 2 })))).active, false);
+	assert.equal(state.rows[0].status, "expired");
 });
 
 test("verify refuses another account's purchase and an unsigned or foreign one", async (t) => {

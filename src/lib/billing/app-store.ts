@@ -8,6 +8,7 @@ import {
 } from "@apple/app-store-server-library";
 import { prisma } from "@/lib/prisma";
 import { APPLE_ROOT_CA_G3_BASE64 } from "./apple-root-ca";
+import { activeSubscription } from "./plans";
 import {
 	appAccountToken,
 	appStoreConfig,
@@ -129,6 +130,20 @@ export async function verifyDeviceTransaction(userId: string, signedTransaction:
 			if (tx.appAccountToken ? !sameToken(tx.appAccountToken, token) : !existing)
 				throw new AppStoreBindingError("This App Store purchase is not bound to this account.");
 			const next = stateFromTransaction(tx, undefined, now, existing ?? undefined);
+			if (!existing && next.status === "active" && next.expiresAt > now) {
+				// Known Apple chains must still restore and renew. Only a new paid
+				// relationship conflicts with another store, regardless of checkout flags.
+				const [stripe, play] = await Promise.all([
+					db.billingSubscription.findUnique({ where: { userId } }),
+					db.googlePlaySubscription.findUnique({ where: { userId } }),
+				]);
+				// Leave StoreKit unfinished so a conflict can be reconciled and retried;
+				// 403 is reserved for another account's purchase and finishes on-device.
+				if (stripe && activeSubscription(stripe))
+					throw new AppStoreVerificationError("An active web subscription already exists for this account.", true);
+				if (play && activeSubscription(play))
+					throw new AppStoreVerificationError("An active Google Play subscription already exists for this account.", true);
+			}
 			if (!shouldApplyDeviceTransaction(existing, next, now)) {
 				return {
 					active: existing!.status === "active" && existing!.expiresAt > now,

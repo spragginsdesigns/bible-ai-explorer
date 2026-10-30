@@ -12,6 +12,7 @@ struct NotificationArtTests {
     func kindFromScreen() {
         #expect(NotificationArt(userInfo: ["screen": "cross"]) == .cross)
         #expect(NotificationArt(userInfo: ["screen": "chat", "conversationId": "c1"]) == .answer)
+        #expect(NotificationArt(userInfo: ["body": ["screen": "cross"]]) == .cross)
         #expect(NotificationArt(userInfo: ["type": "sermon-watchdog"]) == nil)
         #expect(NotificationArt(userInfo: [:]) == nil)
     }

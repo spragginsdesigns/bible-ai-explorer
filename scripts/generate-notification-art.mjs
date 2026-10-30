@@ -22,6 +22,7 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseEnv } from "node:util";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MASTERS = path.join(ROOT, ".logo-work", "notifications");
@@ -42,13 +43,11 @@ const JOBS = {
 };
 
 async function apiKey() {
-	if (process.env.OPENAI_API_KEY) return process.env.OPENAI_API_KEY.trim();
 	const envFile = path.join(ROOT, ".env.local");
-	const line = existsSync(envFile)
-		? (await readFile(envFile, "utf8")).split(/\r?\n/).find((l) => l.startsWith("OPENAI_API_KEY="))
-		: undefined;
-	if (!line) throw new Error("OPENAI_API_KEY is not set (environment or .env.local)");
-	return line.slice("OPENAI_API_KEY=".length).trim().replace(/^["']|["']$/g, "");
+	const key = process.env.OPENAI_API_KEY?.trim()
+		|| (existsSync(envFile) ? parseEnv(await readFile(envFile, "utf8")).OPENAI_API_KEY?.trim() : "");
+	if (!key) throw new Error("OPENAI_API_KEY is not set (environment or .env.local)");
+	return key;
 }
 
 async function generate() {

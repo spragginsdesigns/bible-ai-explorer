@@ -11,13 +11,15 @@ export const GOOGLE_PLAY_PRODUCT_ID = "sureword_pro";
 const PACKAGE_NAME = process.env.SUREWORD_PLAY_PACKAGE_NAME ?? "com.spragginsdesigns.sureword";
 
 type PlayLineItem = { productId?: string; expiryTime?: string; latestSuccessfulOrderId?: string };
+type PlayAccountIdentifiers = { obfuscatedExternalAccountId?: string };
 export type PlaySubscription = {
   subscriptionState?: string;
   startTime?: string;
   lineItems?: PlayLineItem[];
   acknowledgementState?: string;
-  externalAccountIdentifiers?: { obfuscatedExternalAccountId?: string };
+  externalAccountIdentifiers?: PlayAccountIdentifiers;
   linkedPurchaseToken?: string;
+  outOfAppPurchaseContext?: { expiredExternalAccountIdentifiers?: PlayAccountIdentifiers; expiredPurchaseToken?: string };
 };
 
 export function userBinding(userId: string): string {
@@ -59,17 +61,24 @@ async function googleAccessToken(): Promise<string> {
   return data.access_token;
 }
 
+class PlayPurchaseReadError extends Error {
+  constructor(readonly status: number) { super("Google Play could not verify this purchase."); }
+}
+
 export async function getSubscription(purchaseToken: string): Promise<PlaySubscription> {
   const token = await googleAccessToken();
   const response = await fetch(`https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(PACKAGE_NAME)}/purchases/subscriptionsv2/tokens/${encodeURIComponent(purchaseToken)}`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15_000) });
-  if (!response.ok) throw new Error("Google Play could not verify this purchase.");
+  if (!response.ok) throw new PlayPurchaseReadError(response.status);
   return (await response.json()) as PlaySubscription;
 }
 
-export async function acknowledgeSubscription(productId: string, purchaseToken: string): Promise<void> {
+export async function acknowledgeSubscription(productId: string, purchaseToken: string, obfuscatedAccountId?: string): Promise<void> {
   const token = await googleAccessToken();
-  const response = await fetch(`https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(PACKAGE_NAME)}/purchases/subscriptions/${encodeURIComponent(productId)}/tokens/${encodeURIComponent(purchaseToken)}:acknowledge`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" }, body: "{}", signal: AbortSignal.timeout(15_000) });
-  if (!response.ok && response.status !== 409) throw new Error("Google Play acknowledgement failed.");
+  const body = obfuscatedAccountId ? { externalAccountIds: { obfuscatedAccountId } } : {};
+  const response = await fetch(`https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(PACKAGE_NAME)}/purchases/subscriptions/${encodeURIComponent(productId)}/tokens/${encodeURIComponent(purchaseToken)}:acknowledge`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(15_000) });
+  // A 409 is a concurrent update, not proof of acknowledgement. Let RTDN retry
+  // and skip the POST once Google's next read reports ACKNOWLEDGED.
+  if (!response.ok) throw new Error("Google Play acknowledgement failed.");
 }
 
 /** 404 and 410: Google no longer knows the token (long expired or never valid). */
@@ -119,8 +128,8 @@ export function stateForPlayPurchase(purchase: PlaySubscription, now = new Date(
   if (Number.isNaN(periodEnd.getTime())) throw new Error("Google Play purchase has an invalid expiry.");
   const lifetimeStart = purchase.startTime ? new Date(purchase.startTime) : undefined;
   if (lifetimeStart && Number.isNaN(lifetimeStart.getTime())) throw new Error("Google Play purchase has an invalid start.");
-  // SureWord Pro is a monthly base plan. startTime is the subscription lifetime
-  // start, so derive the current quota period from its current expiry.
+  // V2 startTime is lifetime start. This parser's monthly estimate is replaced
+  // before active persistence by validated Orders accounting or a retained bucket.
   const state = purchase.subscriptionState;
   // Grace expiry can move daily without a successful renewal. Repeated verification
   // of the same expiry must also keep the original usage bucket.
@@ -128,10 +137,118 @@ export function stateForPlayPurchase(purchase: PlaySubscription, now = new Date(
   const sameOrder = item.latestSuccessfulOrderId && item.latestSuccessfulOrderId === previous?.latestSuccessfulOrderId;
   const preservePeriod = previous && (state === "SUBSCRIPTION_STATE_IN_GRACE_PERIOD" || sameOrder || periodEnd.getTime() === previous.periodEnd.getTime());
   let periodStart = preservePeriod ? new Date(previous.periodStart) : previousMonth(periodEnd);
-  if (lifetimeStart && lifetimeStart > periodStart) periodStart = lifetimeStart;
-  if (periodStart >= periodEnd) throw new Error("Google Play purchase has an invalid period.");
+  // A zero-price re-signup can change startTime and the token while keeping the
+  // paid renewal date. A preserved usage bucket must survive that new startTime.
+  if (!preservePeriod && lifetimeStart && lifetimeStart > periodStart) periodStart = lifetimeStart;
+  if (periodStart >= periodEnd || (lifetimeStart && lifetimeStart >= periodEnd)) throw new Error("Google Play purchase has an invalid period.");
   const active = (state === "SUBSCRIPTION_STATE_ACTIVE" || state === "SUBSCRIPTION_STATE_IN_GRACE_PERIOD" || state === "SUBSCRIPTION_STATE_CANCELED") && periodEnd > now;
   return { status: active ? "active" : "revoked", periodStart, periodEnd, cancelAtPeriodEnd: state === "SUBSCRIPTION_STATE_CANCELED", productId: item.productId!, latestSuccessfulOrderId };
+}
+
+function previousPeriodForPurchase(purchase: PlaySubscription, current: GooglePlaySubscription | null, hash: string): PreviousPeriod | undefined {
+  if (!current) return undefined;
+  if (current.purchaseTokenHash === hash) return current;
+  const linkedHash = purchase.linkedPurchaseToken ? tokenHash(purchase.linkedPurchaseToken) : undefined;
+  const expiry = purchase.lineItems?.find((item) => item.productId === GOOGLE_PLAY_PRODUCT_ID)?.expiryTime;
+  // Call only after ownership verification. A direct replacement with the same
+  // expiry continues the paid period; a purchase after expiry starts a new one.
+  return linkedHash === current.purchaseTokenHash && expiry && new Date(expiry).getTime() === current.periodEnd.getTime() ? current : undefined;
+}
+
+type PendingAcknowledgement = { obfuscatedAccountId?: string };
+type PlayRefreshResult = { acknowledgement?: PendingAcknowledgement; accountingPending: boolean };
+
+async function accountQuotaPeriod(purchase: PlaySubscription, purchaseToken: string, current: GooglePlaySubscription | null, state: ReturnType<typeof stateForPlayPurchase>) {
+  if (state.status !== "active") return { state, accountingPending: false };
+  const hash = tokenHash(purchaseToken);
+  const sameAccountedOrder = current && current.lastVerifiedAt.getTime() > 0 && Boolean(current.latestSuccessfulOrderId) &&
+    state.latestSuccessfulOrderId === current.latestSuccessfulOrderId;
+  const unchangedReplacement = current && purchase.linkedPurchaseToken && state.periodEnd.getTime() === current.periodEnd.getTime() &&
+    (current.purchaseTokenHash !== hash ? tokenHash(purchase.linkedPurchaseToken) === current.purchaseTokenHash :
+      sameAccountedOrder && new Date(purchase.startTime ?? "") > current.periodStart);
+  // A recovered paid order can share the previous grace expiry. Known tokens
+  // preserve only an already-accounted order; epoch still requires Orders retry.
+  // Grace extends access without buying a quota period. A zero-price token
+  // replacement with the same renewal date also keeps the existing bucket.
+  if (current && (purchase.subscriptionState === "SUBSCRIPTION_STATE_IN_GRACE_PERIOD" || unchangedReplacement))
+    return { state: { ...state, periodStart: current.periodStart }, accountingPending: false };
+  try {
+    const orderId = purchase.lineItems?.find((item) => item.productId === GOOGLE_PLAY_PRODUCT_ID)?.latestSuccessfulOrderId;
+    if (!orderId) throw new Error("Google Play accounting order is missing.");
+    const access = await googleAccessToken();
+    const response = await fetch(`https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(PACKAGE_NAME)}/orders/${encodeURIComponent(orderId)}`, {
+      headers: { Authorization: `Bearer ${access}` }, signal: AbortSignal.timeout(5_000),
+    });
+    if (!response.ok) throw new Error("Google Play accounting order is unavailable.");
+    const order = await response.json() as {
+      orderId?: string; purchaseToken?: string;
+      lineItems?: { productId?: string; subscriptionDetails?: { basePlanId?: string; servicePeriodStartTime?: string; servicePeriodEndTime?: string } }[];
+    };
+    const items = order.lineItems?.filter((item) => item.productId === GOOGLE_PLAY_PRODUCT_ID);
+    const details = items?.length === 1 ? items[0].subscriptionDetails : undefined;
+    const start = new Date(details?.servicePeriodStartTime ?? "");
+    const end = new Date(details?.servicePeriodEndTime ?? "");
+    if (order.orderId !== orderId || order.purchaseToken !== purchaseToken || details?.basePlanId !== "monthly" ||
+      !Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || start >= end || start >= state.periodEnd || end > state.periodEnd)
+      throw new Error("Google Play accounting order does not match this purchase.");
+    // Orders funds the quota period; subscriptionsv2 still owns access expiry.
+    // Re-reading the same order also repairs periods derived by older servers.
+    return { state: { ...state, periodStart: start }, accountingPending: false };
+  } catch {
+    const lifetimeStart = purchase.startTime ? new Date(purchase.startTime) : undefined;
+    return { state: { ...state, periodStart: current?.periodStart ?? lifetimeStart ?? state.periodStart }, accountingPending: true };
+  }
+}
+
+// Failed optional accounting must retry on the next V2 refresh, even if the
+// entitlement itself was successfully verified and committed just now.
+const verificationTime = (accountingPending: boolean) => accountingPending ? new Date(0) : new Date();
+
+function pendingAcknowledgement(purchase: PlaySubscription, userId: string): PendingAcknowledgement | undefined {
+  if (purchase.acknowledgementState !== "ACKNOWLEDGEMENT_STATE_PENDING") return undefined;
+  // Google removes the expired-account context after acknowledgement. Preserve
+  // the verified account binding on Play-center resubscriptions for the next one.
+  return purchase.outOfAppPurchaseContext ? { obfuscatedAccountId: userBinding(userId) } : {};
+}
+
+function predecessorHashes(purchase: PlaySubscription): string[] {
+  return [purchase.linkedPurchaseToken, purchase.outOfAppPurchaseContext?.expiredPurchaseToken]
+    .filter((token): token is string => Boolean(token)).map(tokenHash);
+}
+
+async function purchaseOwnershipError(tx: Prisma.TransactionClient, userId: string, hash: string, purchase: PlaySubscription, current: GooglePlaySubscription | null): Promise<string | null> {
+  const expectedBinding = userBinding(userId);
+  const binding = purchase.externalAccountIdentifiers?.obfuscatedExternalAccountId;
+  const expiredBinding = purchase.outOfAppPurchaseContext?.expiredExternalAccountIdentifiers?.obfuscatedExternalAccountId;
+  if ((binding !== undefined && binding !== expectedBinding) || (expiredBinding !== undefined && expiredBinding !== expectedBinding)) return "This purchase is not bound to this account.";
+  for (const predecessorHash of predecessorHashes(purchase)) {
+    const predecessor = await tx.googlePlaySubscription.findUnique({ where: { purchaseTokenHash: predecessorHash } });
+    if (predecessor && predecessor.userId !== userId) return "This replacement purchase belongs to another account.";
+  }
+  const known = current?.purchaseTokenHash === hash;
+  const newStart = new Date(purchase.startTime ?? "");
+  const freshAfterExpiry = current && current.periodEnd <= new Date() && newStart >= current.periodEnd;
+  const expiredHash = purchase.outOfAppPurchaseContext?.expiredPurchaseToken ? tokenHash(purchase.outOfAppPurchaseContext.expiredPurchaseToken) : undefined;
+  // The expired token is an ownership hint only when it is still stored for this
+  // account. A client-supplied token or matching hash alone cannot grant Pro.
+  const expiredReplacement = current && expiredHash === current.purchaseTokenHash && expiredBinding === expectedBinding && freshAfterExpiry;
+  if (!known && binding !== expectedBinding && !expiredReplacement) return "This purchase is not bound to this account.";
+  if (current && !known) {
+    const linkedHash = purchase.linkedPurchaseToken ? tokenHash(purchase.linkedPurchaseToken) : undefined;
+    if (linkedHash !== current.purchaseTokenHash && !freshAfterExpiry) return "This purchase does not replace the account's current subscription.";
+  }
+  return null;
+}
+
+async function competingSubscriptionError(tx: Prisma.TransactionClient, userId: string): Promise<string | null> {
+  // Existing paid periods still matter when a store's new checkout is disabled.
+  const [stripe, appStore] = await Promise.all([
+    tx.billingSubscription.findUnique({ where: { userId } }),
+    tx.appStoreSubscription.findFirst({ where: { userId, status: "active", expiresAt: { gt: new Date() } }, select: { id: true } }),
+  ]);
+  if (stripe && activeSubscription(stripe)) return "An active web subscription already exists for this account.";
+  if (appStore) return "An active App Store subscription already exists for this account.";
+  return null;
 }
 
 export async function verifyAndBindPurchase(userId: string, purchaseToken: string, productId: string): Promise<void> {
@@ -139,100 +256,141 @@ export async function verifyAndBindPurchase(userId: string, purchaseToken: strin
   const hash = tokenHash(purchaseToken);
   const result = await prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
-    const stripe = await tx.billingSubscription.findUnique({ where: { userId } });
-    if (stripe && activeSubscription(stripe)) throw new Error("An active web subscription already exists for this account.");
     const existing = await tx.googlePlaySubscription.findUnique({ where: { purchaseTokenHash: hash } });
     if (existing && existing.userId !== userId) throw new Error("This purchase belongs to another account.");
     const current = await tx.googlePlaySubscription.findUnique({ where: { userId } });
+    // Restore and renew an existing Play relationship even if legacy duplicate
+    // billing exists. A new Play relationship must not add another paid store.
+    if (!current || (current.purchaseTokenHash !== hash && !activeSubscription(current))) {
+      const conflict = await competingSubscriptionError(tx, userId);
+      if (conflict) throw new Error(conflict);
+    }
     // Read Google only after acquiring the lock. A delayed RTDN cannot commit a
     // snapshot taken before a more recent refresh of this user's subscription.
     const purchase = await getSubscription(purchaseToken);
-    const binding = purchase.externalAccountIdentifiers?.obfuscatedExternalAccountId;
-    if ((!existing || binding !== undefined) && binding !== userBinding(userId)) throw new Error("This purchase is not bound to this account.");
-    const linkedHash = purchase.linkedPurchaseToken ? tokenHash(purchase.linkedPurchaseToken) : undefined;
-    if (linkedHash) {
-      const linked = await tx.googlePlaySubscription.findUnique({ where: { purchaseTokenHash: linkedHash } });
-      if (linked && linked.userId !== userId) throw new Error("This replacement purchase belongs to another account.");
-    }
-    if (current && current.purchaseTokenHash !== hash) {
-      const newStart = new Date(purchase.startTime ?? "");
-      const freshAfterExpiry = current.periodEnd <= new Date() && newStart >= current.periodEnd;
-      if (linkedHash !== current.purchaseTokenHash && !freshAfterExpiry) throw new Error("This purchase does not replace the account's current subscription.");
-    }
+    const ownershipError = await purchaseOwnershipError(tx, userId, hash, purchase, current);
+    if (ownershipError) throw new Error(ownershipError);
     let state: ReturnType<typeof stateForPlayPurchase>;
     try {
-      state = stateForPlayPurchase(purchase, new Date(), current?.purchaseTokenHash === hash ? current : undefined);
+      state = stateForPlayPurchase(purchase, new Date(), previousPeriodForPurchase(purchase, current, hash));
     } catch (error) {
       if (!existing) throw error;
       await revokeBoundPurchase(tx, userId);
-      return { active: false, acknowledge: false };
+      return { active: false, acknowledgement: undefined };
     }
     if (state.status === "revoked") {
       if (existing) await tx.googlePlaySubscription.update({ where: { userId }, data: { ...state, lastVerifiedAt: new Date() } });
-      return { active: false, acknowledge: false };
+      return { active: false, acknowledgement: undefined };
     }
-    await tx.googlePlaySubscription.upsert({ where: { userId }, update: { purchaseTokenHash: hash, encryptedPurchaseToken: encryptSecret(purchaseToken), ...state, lastVerifiedAt: new Date() }, create: { userId, purchaseTokenHash: hash, encryptedPurchaseToken: encryptSecret(purchaseToken), ...state, lastVerifiedAt: new Date() } });
-    return { active: true, acknowledge: purchase.acknowledgementState === "ACKNOWLEDGEMENT_STATE_PENDING" };
+    const accounted = await accountQuotaPeriod(purchase, purchaseToken, current, state);
+    await tx.googlePlaySubscription.upsert({ where: { userId }, update: { purchaseTokenHash: hash, encryptedPurchaseToken: encryptSecret(purchaseToken), ...accounted.state, lastVerifiedAt: verificationTime(accounted.accountingPending) }, create: { userId, purchaseTokenHash: hash, encryptedPurchaseToken: encryptSecret(purchaseToken), ...accounted.state, lastVerifiedAt: verificationTime(accounted.accountingPending) } });
+    return { active: true, acknowledgement: pendingAcknowledgement(purchase, userId) };
   }, { timeout: 45_000 });
   // Throw after commit so an invalid known purchase actually loses entitlement.
   if (!result.active) throw new Error("This Google Play subscription is not active.");
-  if (result.acknowledge) await acknowledgeSubscription(GOOGLE_PLAY_PRODUCT_ID, purchaseToken);
+  if (result.acknowledgement) await acknowledgeSubscription(GOOGLE_PLAY_PRODUCT_ID, purchaseToken, result.acknowledgement.obfuscatedAccountId);
 }
 
 async function revokeBoundPurchase(tx: Prisma.TransactionClient, userId: string): Promise<void> {
   await tx.googlePlaySubscription.update({ where: { userId }, data: { status: "revoked", cancelAtPeriodEnd: false, lastVerifiedAt: new Date() } });
 }
 
-async function refreshLockedPurchase(tx: Prisma.TransactionClient, current: GooglePlaySubscription, purchaseToken: string): Promise<void> {
+async function refreshLockedPurchase(tx: Prisma.TransactionClient, current: GooglePlaySubscription, purchaseToken: string): Promise<PlayRefreshResult> {
   // Transport/auth failures throw before any mutation. A successfully fetched
   // malformed entitlement is different: revoke the bound row atomically.
   const purchase = await getSubscription(purchaseToken);
+  const ownershipError = await purchaseOwnershipError(tx, current.userId, current.purchaseTokenHash, purchase, current);
   let state: ReturnType<typeof stateForPlayPurchase>;
   try {
-    const binding = purchase.externalAccountIdentifiers?.obfuscatedExternalAccountId;
-    if (binding !== undefined && binding !== userBinding(current.userId)) throw new Error("Invalid account binding.");
+    if (ownershipError) throw new Error(ownershipError);
     state = stateForPlayPurchase(purchase, new Date(), current);
   } catch {
     await revokeBoundPurchase(tx, current.userId);
-    return;
+    return { accountingPending: false };
   }
-  await tx.googlePlaySubscription.update({ where: { userId: current.userId }, data: { ...state, lastVerifiedAt: new Date() } });
+  const accounted = await accountQuotaPeriod(purchase, purchaseToken, current, state);
+  await tx.googlePlaySubscription.update({ where: { userId: current.userId }, data: { ...accounted.state, lastVerifiedAt: verificationTime(accounted.accountingPending) } });
+  return { accountingPending: accounted.accountingPending, acknowledgement: state.status === "active" ? pendingAcknowledgement(purchase, current.userId) : undefined };
 }
 
 export async function refreshBoundPurchase(purchaseToken: string): Promise<void> {
   const hash = tokenHash(purchaseToken);
-  const existing = await prisma.googlePlaySubscription.findUnique({ where: { purchaseTokenHash: hash } });
+  let existing = await prisma.googlePlaySubscription.findUnique({ where: { purchaseTokenHash: hash } });
+  if (!existing) {
+    // An RTDN can be the first sighting of a Play-center resubscription. This
+    // unlocked read discovers the owner only. Never persist its snapshot.
+    let discovery: PlaySubscription;
+    try { discovery = await getSubscription(purchaseToken); } catch (error) {
+      // Old replaced tokens eventually disappear from Google. They cannot affect
+      // any bound row and must not cause endless Pub/Sub redelivery.
+      if (error instanceof PlayPurchaseReadError && purchaseGone(error.status)) return;
+      throw error;
+    }
+    for (const predecessorHash of predecessorHashes(discovery)) {
+      existing = await prisma.googlePlaySubscription.findUnique({ where: { purchaseTokenHash: predecessorHash } });
+      if (existing) break;
+    }
+  }
   if (!existing) return;
-  await prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${existing.userId} FOR UPDATE`;
-    const current = await tx.googlePlaySubscription.findUnique({ where: { userId: existing.userId } });
-    if (!current || current.purchaseTokenHash !== hash) return;
-    await refreshLockedPurchase(tx, current, purchaseToken);
+  const owner = existing;
+  const result = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${owner.userId} FOR UPDATE`;
+    const current = await tx.googlePlaySubscription.findUnique({ where: { userId: owner.userId } });
+    if (!current || current.purchaseTokenHash !== owner.purchaseTokenHash) return;
+    if (current.purchaseTokenHash === hash) return refreshLockedPurchase(tx, current, purchaseToken);
+    const purchase = await getSubscription(purchaseToken);
+    // Discovery cannot authorize a new token. Recheck both the current chain and
+    // Google's account evidence under the same lock used by authenticated bind.
+    if (!predecessorHashes(purchase).includes(current.purchaseTokenHash)) return;
+    if (await purchaseOwnershipError(tx, current.userId, hash, purchase, current)) return;
+    if (!activeSubscription(current) && await competingSubscriptionError(tx, current.userId)) return;
+    let state: ReturnType<typeof stateForPlayPurchase>;
+    try { state = stateForPlayPurchase(purchase, new Date(), previousPeriodForPurchase(purchase, current, hash)); } catch { return; }
+    if (state.status !== "active") return;
+    const accounted = await accountQuotaPeriod(purchase, purchaseToken, current, state);
+    await tx.googlePlaySubscription.update({ where: { userId: current.userId }, data: { purchaseTokenHash: hash, encryptedPurchaseToken: encryptSecret(purchaseToken), ...accounted.state, lastVerifiedAt: verificationTime(accounted.accountingPending) } });
+    return { accountingPending: accounted.accountingPending, acknowledgement: pendingAcknowledgement(purchase, current.userId) };
   }, { timeout: 45_000 });
+  // Keep the verified binding committed if acknowledgement fails. Throw so
+  // Pub/Sub redelivers and retries instead of silently allowing a refund.
+  if (result?.acknowledgement) await acknowledgeSubscription(GOOGLE_PLAY_PRODUCT_ID, purchaseToken, result.acknowledgement.obfuscatedAccountId);
+  if (result?.accountingPending) throw new Error("Google Play accounting retry required.");
+}
+
+function freshVerification(current: GooglePlaySubscription): boolean {
+  return current.lastVerifiedAt > new Date(Date.now() - 5 * 60_000) && (current.status !== "active" || current.periodEnd > new Date());
 }
 
 /** Refresh a user's Play entitlement when its cached verification is stale.
- * A failed Google/API/decryption call leaves the last known row untouched so a
+ * A failed subscription read or decryption leaves the last known row untouched so a
  * transient outage cannot revoke a paid user. The caller can then apply the
  * normal expiry check to that unchanged authoritative snapshot.
+ * Acknowledgement errors keep the freshly verified row and are retried on a
+ * later refresh or RTDN delivery.
  * Resolves true only when the row was re-read from Google.
  */
 export async function refreshGooglePlaySubscription(userId: string): Promise<boolean> {
-  if (!billingEnabled()) return false;
+  // Disabling new checkout must not stop existing paid receipts from renewing.
+  if (!process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON?.trim()) return false;
   let refreshed = false;
   try {
     const existing = await prisma.googlePlaySubscription.findUnique({ where: { userId } });
-    if (!existing || existing.lastVerifiedAt > new Date(Date.now() - 5 * 60_000)) return false;
-    await prisma.$transaction(async (tx) => {
+    if (!existing || freshVerification(existing)) return false;
+    let purchaseToken: string | undefined;
+    const result = await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
       const current = await tx.googlePlaySubscription.findUnique({ where: { userId } });
-      if (!current || current.lastVerifiedAt > new Date(Date.now() - 5 * 60_000)) return;
-      await refreshLockedPurchase(tx, current, decryptSecret(current.encryptedPurchaseToken));
-      refreshed = true;
+      if (!current || freshVerification(current)) return;
+      purchaseToken = decryptSecret(current.encryptedPurchaseToken);
+      return refreshLockedPurchase(tx, current, purchaseToken);
     }, { timeout: 45_000 });
+    // Only a committed verification lets callers re-read the paid state. A
+    // later acknowledgement failure must not hide that successful renewal.
+    refreshed = Boolean(result);
+    if (result?.acknowledgement && purchaseToken) await acknowledgeSubscription(GOOGLE_PLAY_PRODUCT_ID, purchaseToken, result.acknowledgement.obfuscatedAccountId);
   } catch {
-    // Preserve the last verified state on transient failures.
-    return false;
+    // Keep committed entitlement updates visible while acknowledgement retries.
+    return refreshed;
   }
   return refreshed;
 }

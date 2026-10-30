@@ -1,4 +1,5 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
+import type { Prisma } from "@prisma/client";
 import { del, list } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import {
@@ -19,6 +20,22 @@ export const dynamic = "force-dynamic";
 
 const json = (body: Record<string, unknown>, status: number) => NextResponse.json(body, { status });
 
+async function stopGooglePlayRenewal(
+	userId: string,
+	db: Pick<Prisma.TransactionClient, "googlePlaySubscription">,
+): Promise<void> {
+	// A purchase can outlive the billing feature flag.
+	const row = await db.googlePlaySubscription.findUnique({
+		where: { userId },
+		select: { encryptedPurchaseToken: true, productId: true },
+	});
+	if (!row) return;
+	await stopPlayRenewal(decryptSecret(row.encryptedPurchaseToken), {
+		readState: readSubscriptionState,
+		cancel: (purchaseToken) => cancelSubscriptionRenewal(row.productId, purchaseToken),
+	});
+}
+
 async function listPrefix(prefix: string): Promise<string[]> {
 	const found: string[] = [];
 	let cursor: string | undefined;
@@ -31,18 +48,8 @@ async function listPrefix(prefix: string): Promise<string[]> {
 }
 
 const deps: AccountDeletionDeps = {
-	// Reads the row whether or not Play billing is switched on: a row means a
-	// real purchase, and it can outlive the flag.
 	async stopGooglePlayRenewal(userId) {
-		const row = await prisma.googlePlaySubscription.findUnique({
-			where: { userId },
-			select: { encryptedPurchaseToken: true, productId: true },
-		});
-		if (!row) return;
-		await stopPlayRenewal(decryptSecret(row.encryptedPurchaseToken), {
-			readState: readSubscriptionState,
-			cancel: (purchaseToken) => cancelSubscriptionRenewal(row.productId, purchaseToken),
-		});
+		await stopGooglePlayRenewal(userId, prisma);
 	},
 	async cancelBilling(userId) {
 		if (!billingAvailable()) return;
@@ -73,6 +80,10 @@ const deps: AccountDeletionDeps = {
 	},
 	async deleteDatabaseRows(userId) {
 		await prisma.$transaction(async (tx) => {
+			// Purchase binding takes this same lock. Re-read after acquiring it so
+			// a token replaced during blob collection cannot be deleted still renewing.
+			await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+			await stopGooglePlayRenewal(userId, tx);
 			const user = await tx.user.findUnique({ where: { id: userId }, select: { email: true } });
 			// Note-derived rows follow Note's FK cascade. Their copied userId can
 			// lag behind account rekeying and must never authorize deletion.
@@ -88,7 +99,7 @@ const deps: AccountDeletionDeps = {
 			});
 			// Every other user-owned table is ON DELETE CASCADE from User.
 			await tx.user.deleteMany({ where: { id: userId } });
-		});
+		}, { timeout: 75_000 }); // Two bounded OAuth/Publisher round trips plus DB work.
 		forgetConfirmedUser(userId);
 	},
 	async deleteBlobs(pathnames) {

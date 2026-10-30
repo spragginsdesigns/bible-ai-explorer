@@ -38,16 +38,13 @@ class SureWordPresentationDelegate(context: Context) : ExpoPresentationDelegate(
 		val title = base.extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
 		val text = base.extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()
 
-		val collapsed = RemoteViews(context.packageName, R.layout.sureword_notification_collapsed).apply {
-			setImageViewResource(R.id.sureword_notification_mark, art.mark)
+		fun views(layout: Int, imageId: Int, image: Int) = RemoteViews(context.packageName, layout).apply {
+			setImageViewResource(imageId, image)
 			setTextViewText(R.id.sureword_notification_title, title)
 			setTextViewText(R.id.sureword_notification_text, text)
 		}
-		val expanded = RemoteViews(context.packageName, R.layout.sureword_notification_expanded).apply {
-			setImageViewResource(R.id.sureword_notification_banner, art.banner)
-			setTextViewText(R.id.sureword_notification_title, title)
-			setTextViewText(R.id.sureword_notification_text, text)
-		}
+		val collapsed = views(R.layout.sureword_notification_collapsed, R.id.sureword_notification_mark, art.mark)
+		val expanded = views(R.layout.sureword_notification_expanded, R.id.sureword_notification_banner, art.banner)
 
 		return Notification.Builder.recoverBuilder(context, base)
 			.setStyle(Notification.DecoratedCustomViewStyle())

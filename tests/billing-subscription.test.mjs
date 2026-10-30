@@ -19,18 +19,27 @@ new Function('require','module','exports',code)(id => {
   if(id==='./app-store-rules')return {appStoreConfig:()=>({available:false}),asAccountSubscription:()=>null,pickAppStoreRow:()=>null};
   throw new Error('Unexpected import '+id);
 },mod,mod.exports);
-const { accountSubscription }=mod.exports;
+const { accountSubscription, playBillingAvailable }=mod.exports;
 const active = {status:'active',periodStart:new Date(Date.now()-86400000),periodEnd:new Date(Date.now()+86400000)};
-test('Play data stays untouched until its complete configuration is enabled',async()=>{
+test('turning off Play checkout preserves an existing verified subscription',async()=>{
   process.env.SUREWORD_USAGE_ENABLED='true';
   process.env.SUREWORD_PLAY_BILLING_ENABLED='false';
   state.play={...active};state.stripe=null;state.playReads=0;
-  assert.equal(await accountSubscription('test'),null);
-  assert.equal(state.playReads,0);
+  assert.equal(playBillingAvailable(),false);
+  assert.equal((await accountSubscription('test')).provider,'google-play');
+  assert.equal(state.playReads,1);
   process.env.SUREWORD_PLAY_BILLING_ENABLED='true';
   delete process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON;
-  assert.equal(await accountSubscription('test'),null);
-  assert.equal(state.playReads,0);
+  assert.equal(playBillingAvailable(),false);
+  assert.equal((await accountSubscription('test')).provider,'google-play');
+  assert.equal(state.playReads,2);
+});
+test('checkout disabled still reports expired Play history without granting active access',async()=>{
+  state.play={...active,status:'revoked',periodEnd:new Date(0)};
+  const result=await accountSubscription('test');
+  assert.equal(result.provider,'google-play');
+  assert.equal(result.status,'revoked');
+  state.play={...active};
 });
 test('an active Play subscription supersedes expired Stripe history',async()=>{
   process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON='fixture';
