@@ -180,6 +180,43 @@ export function needsStillListening(lastActionAt: number, now: number): boolean 
 }
 
 /**
+ * A listening session that was playing when the reader closed (LC-17905):
+ * the reader went to the chapter's game or quiz, or anywhere else, mid-read.
+ * `next` is the chapter after the one playing, or null after Revelation.
+ */
+export interface ListeningHandoff {
+  book: number;
+  chapter: number;
+  /** The verse being read when it closed; null on the opening cue and heading. */
+  verse: number | null;
+  edition: AudioEdition;
+  next: { book: number; chapter: number } | null;
+  /** When it closed, in epoch ms. */
+  at: number;
+}
+
+/** How long a closed session still carries on when a reader opens again. */
+export const HANDOFF_FRESH_MS = 30 * 60 * 1000;
+
+/**
+ * Where a reader opening at `book` `chapter` carries a closed session on:
+ * the chapter after it from the top (0), or the same chapter from the verse
+ * it was reading. Null for any other chapter, or once the session is stale,
+ * so opening some other chapter later never starts reading by itself.
+ */
+export function resumeFromHandoff(
+  handoff: ListeningHandoff | null,
+  book: number,
+  chapter: number,
+  now: number
+): number | null {
+  if (!handoff || now - handoff.at > HANDOFF_FRESH_MS || now < handoff.at) return null;
+  if (handoff.next && handoff.next.book === book && handoff.next.chapter === chapter) return 0;
+  if (handoff.book === book && handoff.chapter === chapter) return handoff.verse ?? 0;
+  return null;
+}
+
+/**
  * Validate the timing file the render writes, so a malformed or mismatched
  * file reads as "no narration" rather than a player that highlights the wrong
  * verse.

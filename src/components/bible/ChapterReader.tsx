@@ -397,6 +397,7 @@ const ChapterReader: React.FC = () => {
     enabled: translation === "KJV" && !!book,
     onChapterEnd,
     nextNarrated: !!nextChapter && hasNarration(nextChapter.order),
+    next: nextChapter ? { book: nextChapter.order, chapter: nextChapter.chapter } : null,
   });
   const { available: canListen, play: playFrom, editions: listenEditions } = player;
 

@@ -10,8 +10,10 @@ import {
 	STILL_LISTENING_AFTER_MS,
 	hasAlive,
 	hasNarration,
+	HANDOFF_FRESH_MS,
 	needsStillListening,
 	parseEdition,
+	resumeFromHandoff,
 	parseChapterTiming,
 	verseAt,
 	verseStart,
@@ -226,4 +228,28 @@ test("route: rejects bad input", async () => {
 	for (const query of ["book=43&chapter=22", "book=0&chapter=1", "book=x&chapter=1", "book=43", "book=41&chapter=1&edition=drama"]) {
 		assert.equal((await call(GET, query)).status, 400, query);
 	}
+});
+
+test("a session closed mid-read carries on in the next chapter or the same one, nowhere else (LC-17905)", () => {
+	const at = 1_000_000;
+	const handoff = { book: 40, chapter: 5, verse: 12, edition: "alive", next: { book: 40, chapter: 6 }, at };
+	assert.equal(resumeFromHandoff(handoff, 40, 6, at + 60_000), 0, "the next chapter reads from the top");
+	assert.equal(resumeFromHandoff(handoff, 40, 5, at + 60_000), 12, "the same chapter goes back to its verse");
+	assert.equal(resumeFromHandoff({ ...handoff, verse: null }, 40, 5, at), 0, "closed on the heading: from the top");
+	assert.equal(resumeFromHandoff(handoff, 40, 7, at), null, "any other chapter never starts by itself");
+	assert.equal(resumeFromHandoff(handoff, 41, 6, at), null);
+	assert.equal(resumeFromHandoff(handoff, 40, 6, at + HANDOFF_FRESH_MS), 0, "fresh up to the limit");
+	assert.equal(resumeFromHandoff(handoff, 40, 6, at + HANDOFF_FRESH_MS + 1), null, "stale after it");
+	assert.equal(resumeFromHandoff(handoff, 40, 6, at - 1), null, "a clock that went backwards is not trusted");
+	assert.equal(resumeFromHandoff(null, 40, 6, at), null);
+	assert.equal(resumeFromHandoff({ ...handoff, book: 66, chapter: 22, next: null }, 1, 1, at), null, "after Revelation nothing follows");
+});
+
+test("the reader keeps one audio element for the app and hands a playing session on (LC-17905)", () => {
+	const hook = read("../src/components/bible/useChapterAudio.ts");
+	assert.match(hook, /let sharedElement: HTMLAudioElement \| null = null;/);
+	assert.equal(/new Audio\(\)/g.test(hook.replace(/sharedElement = new Audio\(\);/, "")), false, "no reader makes its own element");
+	assert.match(hook, /if \(openRef\.current && !element\.paused && current\) \{\s*handoff = \{/, "only a playing session is handed on");
+	assert.match(hook, /resumeFromHandoff\(handoff, book, chapter, Date\.now\(\)\)/);
+	assert.match(hook, /if \(!narrated\) \{[^}]*handoff = null;/, "a chapter with no narration clears the session");
 });

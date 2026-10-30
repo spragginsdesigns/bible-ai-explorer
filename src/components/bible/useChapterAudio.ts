@@ -7,11 +7,13 @@ import {
   hasNarration,
   LISTEN_ORDER,
   needsStillListening,
+  resumeFromHandoff,
   verseAt,
   verseStart,
   type AudioEdition,
   type ChapterAudio,
   type ChapterAudioResponse,
+  type ListeningHandoff,
 } from "@/lib/bible/audioBible";
 import { readListenRatePref } from "@/lib/preferences";
 import { setListenRatePreference, usePreference } from "@/lib/preferencesSync";
@@ -33,6 +35,8 @@ interface Options {
   onChapterEnd: () => void;
   /** Whether the chapter after this one has narration, so playback can roll into it. */
   nextNarrated: boolean;
+  /** The chapter after this one, so a session closed mid-read can carry on there. */
+  next: { book: number; chapter: number } | null;
 }
 
 export interface ChapterAudioPlayer {
@@ -63,6 +67,24 @@ export interface ChapterAudioPlayer {
   cycleRate: () => void;
   keepListening: () => void;
 }
+
+/**
+ * One element for every reader the app opens, not one per reader (LC-17905).
+ * Phones (iOS Safari above all) let a page start audio by itself only on an
+ * element that once played from a tap; keeping that element across the game
+ * and quiz pages lets a listening session carry on into the next chapter.
+ */
+let sharedElement: HTMLAudioElement | null = null;
+function readerElement(): HTMLAudioElement {
+  if (!sharedElement) {
+    sharedElement = new Audio();
+    sharedElement.preload = "metadata";
+  }
+  return sharedElement;
+}
+
+/** The session left playing when the last reader closed, until a reader carries it on. */
+let handoff: ListeningHandoff | null = null;
 
 /**
  * Seek once the new source's metadata is in: iOS Safari can ignore a
@@ -123,6 +145,7 @@ export function useChapterAudio({
   enabled,
   onChapterEnd,
   nextNarrated,
+  next,
 }: Options): ChapterAudioPlayer {
   const elementRef = useRef<HTMLAudioElement | null>(null);
   const [recordings, setRecordings] = useState<Recordings>({});
@@ -145,8 +168,8 @@ export function useChapterAudio({
   const pendingPlay = useRef<number | null>(null);
   const lastActionAt = useRef(Date.now());
   const lastScrollAt = useRef(0);
-  const endHandlers = useRef({ onChapterEnd, nextNarrated });
-  endHandlers.current = { onChapterEnd, nextNarrated };
+  const endHandlers = useRef({ onChapterEnd, nextNarrated, next });
+  endHandlers.current = { onChapterEnd, nextNarrated, next };
 
   const narrated = enabled && hasNarration(book);
   const playingEdition: AudioEdition = audio?.edition ?? "regular";
@@ -158,10 +181,9 @@ export function useChapterAudio({
     lastActionAt.current = Date.now();
   }, []);
 
-  // One element for the life of the reader.
+  // One element for the life of the app (readerElement); this reader listens to it while open.
   useEffect(() => {
-    const element = new Audio();
-    element.preload = "metadata";
+    const element = readerElement();
     elementRef.current = element;
     const onPlay = () => setPlaying(true);
     const onPause = () => setPlaying(false);
@@ -186,6 +208,19 @@ export function useChapterAudio({
     element.addEventListener("timeupdate", onTime);
     element.addEventListener("ended", onEnded);
     return () => {
+      // Closing mid-read (the chapter's game or quiz, or anywhere else):
+      // remember it, so the next chapter, or this one, carries on reading.
+      const current = audioRef.current;
+      if (openRef.current && !element.paused && current) {
+        handoff = {
+          book: current.book,
+          chapter: current.chapter,
+          verse: verseAt(current.verses, element.currentTime),
+          edition: current.edition ?? "regular",
+          next: endHandlers.current.next,
+          at: Date.now(),
+        };
+      }
       element.pause();
       element.removeEventListener("play", onPlay);
       element.removeEventListener("pause", onPause);
@@ -205,6 +240,8 @@ export function useChapterAudio({
     setVerse(null);
     setStillListeningPrompt(false);
     if (!narrated) {
+      // A chapter with no narration here (another translation) never carries a session on later.
+      handoff = null;
       pendingPlay.current = null;
       const element = elementRef.current;
       if (element && openRef.current) {
@@ -219,6 +256,17 @@ export function useChapterAudio({
     if (element && openRef.current && !element.paused && pendingPlay.current === null) {
       pendingPlay.current = 0;
     }
+    // A session closed mid-read carries on here: the next chapter from the
+    // top, the same one from its verse (resumeFromHandoff). It is only read
+    // here and cleared once playback starts, so an aborted load keeps it.
+    const resumeAt = openRef.current ? null : resumeFromHandoff(handoff, book, chapter, Date.now());
+    const resuming = resumeAt !== null && handoff !== null;
+    // Any other chapter ends the session's claim, so a later visit never starts by itself.
+    if (resumeAt === null) handoff = null;
+    if (resuming && handoff) {
+      pendingPlay.current = resumeAt;
+      chosenEdition.current = handoff.edition;
+    }
     element?.pause();
     const controller = new AbortController();
     readRecordings(book, chapter, controller.signal)
@@ -231,6 +279,11 @@ export function useChapterAudio({
           pendingPlay.current = null;
           setOpen(false);
           return;
+        }
+        if (resuming) {
+          handoff = null;
+          openRef.current = true;
+          setOpen(true);
         }
         if (!element || !openRef.current) return;
         // A new src resets playbackRate to the default, so the rate follows it.
