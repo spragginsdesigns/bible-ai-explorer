@@ -229,10 +229,10 @@ export default function TheGenerations({ game, seed, paused, muted, reducedMotio
 					const bob = reducedMotion ? 0 : Math.sin(time * 2.2 + tile.slot * 1.7) * 3;
 					const rise = (1 - arriving) * 60;
 					// A wrong name shakes, then crumbles away.
-					const since = tile.gone === null ? Infinity : run.tick - tile.gone;
+					const wrong = tile.gone !== null;
+					const since = wrong ? run.tick - (tile.gone ?? 0) : 0;
 					if (since > 40) continue;
-					const wrong = since <= 40;
-					const crumble = Math.max(0, (since - 16) / 24);
+					const crumble = wrong ? Math.max(0, (since - 16) / 24) : 0;
 					const jiggle = wrong && !reducedMotion ? Math.sin(since * 1.6) * 6 * (1 - crumble) : 0;
 					const x = at.x + jiggle;
 					const y = at.y + bob + rise + crumble * crumble * 60;
