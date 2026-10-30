@@ -85,6 +85,16 @@ export async function POST(req: Request) {
     const result = await prisma.$transaction(
       async (tx) => {
         await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+        // A native purchase can commit after the preflight above. Check each
+        // store under its binding lock before returning even an existing session.
+        const [play, appStore] = await Promise.all([
+          tx.googlePlaySubscription.findUnique({ where: { userId } }),
+          tx.appStoreSubscription.findFirst({ where: { userId, status: "active", expiresAt: { gt: new Date() } }, select: { id: true } }),
+        ]);
+        if (play && activeSubscription(play))
+          return Response.json({ error: "Your Pro subscription is managed by Google Play." }, { status: 409 });
+        if (appStore)
+          return Response.json({ error: "Your Pro subscription is managed by the App Store." }, { status: 409 });
         const subscriptions = await stripe.subscriptions.list({
           customer: customerId,
           status: "all",

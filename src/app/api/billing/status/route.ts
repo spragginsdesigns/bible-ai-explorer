@@ -1,25 +1,23 @@
 import { getAuthUser } from "@/lib/auth";
-import { getUserPlan } from "@/lib/entitlements";
+import { getMembershipSnapshot } from "@/lib/entitlements";
 import { isServerCredentialUser, aiAccessFor } from "@/lib/ai/provider";
 import { usageEnabled, usageSnapshot } from "@/lib/billing/usage";
 import { PRO_MONTHLY_PRICE_CENTS } from "@/lib/billing/plans";
 import { billingAvailable } from "@/lib/billing/stripe";
 import { rejectCrossSiteMutation } from "@/lib/billing/request";
-import { accountSubscription, appStoreBillingAvailable, playBillingAvailable } from "@/lib/billing/subscription";
+import { appStoreBillingAvailable, playBillingAvailable } from "@/lib/billing/subscription";
 
 export async function GET() {
   try {
     const userId = await getAuthUser();
     const enabled = usageEnabled();
     const owner = isServerCredentialUser(userId);
-    const [plan, access, subscription, usage] = await Promise.all([
-      getUserPlan(userId),
+    const [membership, access] = await Promise.all([
+      getMembershipSnapshot(userId),
       aiAccessFor(userId),
-      enabled
-        ? accountSubscription(userId)
-        : null,
-      enabled && !owner ? usageSnapshot(userId) : null,
     ]);
+    const { plan, subscription } = membership;
+    const usage = enabled && !owner ? await usageSnapshot(userId, new Date(), membership) : null;
     return Response.json(
       {
         plan,

@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { waitUntil } from "@vercel/functions";
 import { wrapLanguageModel, type LanguageModel } from "ai";
 import { prisma } from "@/lib/prisma";
-import { getUserPlan, type UserPlan } from "@/lib/entitlements";
+import { getUserPlan, type MembershipSnapshot, type UserPlan } from "@/lib/entitlements";
 import { calendarMonthWindow, quotaDecision, utcDayWindow } from "./plans";
 import { IncludedAiLimitError, includedLimitBody } from "./usage-errors";
 import type { AiAccess } from "@/lib/ai/access";
@@ -77,10 +77,10 @@ export function resolveRequestAccess(
   return (scope.accessResolution ??= resolve());
 }
 
-export async function usageSnapshot(userId: string, now = new Date()) {
-  const pro = (await getUserPlan(userId)) === "pro";
+export async function usageSnapshot(userId: string, now = new Date(), membership?: MembershipSnapshot) {
+  const pro = (membership?.plan ?? await getUserPlan(userId)) === "pro";
   const subscription = pro
-    ? await accountSubscription(userId)
+    ? membership ? membership.subscription : await accountSubscription(userId)
     : null;
   const month =
     subscription &&

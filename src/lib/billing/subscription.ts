@@ -20,7 +20,8 @@ export async function accountSubscription(
   // Independent stores, so read them together; this sits in front of every metered answer.
   const [stripe, play, appStoreRows] = await Promise.all([
     db.billingSubscription.findUnique({ where: { userId } }),
-    playBillingAvailable() ? db.googlePlaySubscription.findUnique({ where: { userId } }) : null,
+    // Stopping new sales must not remove an already verified paid period.
+    db.googlePlaySubscription.findUnique({ where: { userId } }),
     appStoreBillingAvailable() ? db.appStoreSubscription.findMany({ where: { userId } }) : null,
   ]);
   const appStoreRow = appStoreRows ? pickAppStoreRow(appStoreRows) : null;
