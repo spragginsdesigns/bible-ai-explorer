@@ -1,8 +1,9 @@
 # Chapter Games (`games`)
 
-**Where:** SureWord Beta, at the end of each chapter of Matthew in the reader
-(founders only, web only), and Bible → Chapter Games, `/beta/bible/games`.
-Every game plays right there in the page; there are no game pages.
+**Where:** SureWord Beta (founders only, web only). Each game has its own page,
+`/beta/bible/games/<slug>`, reached three ways: the end of its chapter of
+Matthew in the reader, Bible → Chapter Games (`/beta/bible/games`), and the
+chapter's quiz results while the game is not yet won.
 **Issue:** LC-17850 (Austin): "incorporate minigames into the bible for each
 chapter ... should feel like a real flash mini-game, should be fun and feel
 immersive and slightly challenging, and get an award when you complete it."
@@ -13,11 +14,36 @@ instead of i.e. 1 min long ... the UI should load within the page ... let's
 just isolate it to whichever 1 game you think is best for each, and then do a
 mini-game for each chapter ... just the book of matthew to start ... can have
 fish audio etc as well for any voices."
+LC-17905 (Austin): "the games should maybe be a button like '(minigame
+name)' or 'quiz' or 'next chapter' and it's on it's own page, and after you
+beat it, it's like 'quiz/minigame' (if one of them hasn't been completed yet)
+or 'continue to next chapter'", and a Listen session carrying on into the
+next chapter.
 **Status:** building (all 28 chapters of Matthew have a game).
+
+## The end of a chapter
+
+At the end of a Matthew chapter, a founder sees "Finished Matthew N? Keep
+going" with three buttons (`ChapterGameCard.tsx`): the game by name (its
+medal and grade once won), **Quiz** ("Taken" once the founder has finished the
+chapter's quiz) and **Next chapter**. The next thing not yet done is gold: the
+game, then the quiz, then the next chapter. Settings' quiz offer switch hides
+the Quiz button. Everyone off the list, and every chapter without a game,
+keeps the reader's "Quiz me" card unchanged.
+
+- **The game's page** (`ChapterGameScreen.tsx`): the game, and once it is
+  beaten (or already held), "What's next": the chapter's quiz if it has not
+  been taken, then "Continue to <next chapter>".
+- **The quiz results** (`QuizGameStep.tsx` in the reader's quiz): "Play <game>"
+  while the game is not won, beside "Continue to <next chapter>".
+- **Listen carries on.** If a chapter was playing when the founder left for
+  the game or the quiz, "Continue to" the next chapter starts reading it by
+  itself, and coming back to the same chapter resumes at its verse
+  (`docs/FEATURES.md`, "Carrying on across pages").
 
 ## How a round plays
 
-Every game runs in one player (`MicroGame.tsx`), the same everywhere:
+Every game runs in one player (`MicroGame.tsx`) on the game's page:
 
 1. **How to play.** The game's command ("Hop!") in large type, each control
    as big key caps (or, on a touch screen, the gesture first), what it does,
@@ -123,7 +149,7 @@ Account deletion cascades through the store. No table and no migration.
 
 | Route | Does |
 |---|---|
-| `GET /api/beta/games/<game>/award` | `{ award }`, the founder's award for the game or `null`; the reader card shows the medal from it. |
+| `GET /api/beta/games/<game>/award` | `{ award, quizTaken }`: the founder's award for the game or `null`, and whether they have finished the chapter's quiz (their own `QuizAttempt` rows, `hasQuizAttempt` in `src/lib/quiz.ts`); the chapter-end card and the quiz results read it. |
 | `POST /api/beta/games/<game>/award` `{ faithKept, seconds, swellsCleared }` | Records a won round and returns `{ award }`. `faithKept` is the round's 0-100 score, `seconds` at least the game's `minSeconds` and at most an hour, and `swellsCleared` the game's count (fish caught, stones laid), 0-500. Anything else is a 400; an unknown game, or anyone off `BETA_USER_IDS`, the ordinary 404. |
 
 ## A game's stage
@@ -153,15 +179,16 @@ there.
 
 | What | Where |
 |---|---|
-| Games list page | `src/app/beta/bible/games/page.tsx` |
-| Reader card, games list, player, medal | `src/components/beta/games/` (`ChapterGameCard.tsx`, `GamesHome.tsx`, `ChapterGamePlayer.tsx`, `MicroGame.tsx`, `AwardMedal.tsx`) |
+| Games list page, a game's page | `src/app/beta/bible/games/page.tsx`, `src/app/beta/bible/games/[game]/page.tsx` |
+| Chapter-end card, game page, quiz step, games list, player, medal | `src/components/beta/games/` (`ChapterGameCard.tsx`, `ChapterGameScreen.tsx`, `QuizGameStep.tsx`, `GamesHome.tsx`, `ChapterGamePlayer.tsx`, `MicroGame.tsx`, `AwardMedal.tsx`) |
+| Founders probe and award/quiz read outside the beta | `src/components/beta/games/betaProbe.ts` |
 | Stage kit, voice, props | `src/components/beta/games/stage-kit.ts`, `verse-voice.ts`, `types.ts`, `shared.tsx` |
 | Each game's stage | `src/components/beta/games/stages/` (The Caravan and Crest Hopper keep their `<slug>-scene.ts` and `<slug>-audio.ts` beside them) |
 | Registry, grades, award rules | `src/lib/beta/games/games-rules.ts` |
 | Each game's simulation | `src/lib/beta/games/<slug>-rules.ts` |
 | Awards in the study store | `src/lib/beta/games/awards.ts` |
 | API | `src/app/api/beta/games/[game]/award/route.ts` |
-| Tests | `tests/beta-games.test.mjs` (registry, awards, gate, in-page play), `tests/beta-games-<slug>.test.mjs` (each game) |
+| Tests | `tests/beta-games.test.mjs` (registry, awards, gate, the game pages and chapter-end flow), `tests/beta-games-<slug>.test.mjs` (each game) |
 
 ## Proof
 

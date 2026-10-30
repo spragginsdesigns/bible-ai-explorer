@@ -1418,6 +1418,17 @@ ends, the reader pages to the next one and keeps playing on the same audio
 element, so it continues with the screen off. The OS media card names the
 chapter, and its previous/next buttons step a verse.
 
+**Carrying on across pages (web, every reader on the SureWord Beta deployment, LC-17905).** The reader keeps
+one audio element for the whole app session (`useChapterAudio.ts`), so a phone
+that unlocked it with a tap lets it play again without one. If the reader
+closes while a chapter is playing (the chapter's game or quiz, or any other
+page), coming back within 30 minutes carries on: the next chapter reads from
+the top (the game's and the quiz's "Continue to <next chapter>"), the same
+chapter goes back to the verse it was reading, in the same recording. Any
+other chapter, a chapter shown in a translation with no narration, a paused
+or stopped session, or a reload starts nothing by itself (`resumeFromHandoff` in `src/lib/bible/audioBible.ts`). Word-by-word
+highlighting is LC-17909.
+
 **Still listening?** After an hour of playback with no tap, key press or
 media-key press, the player pauses and asks "Still listening?" with Keep
 listening / Stop, so a phone left playing overnight stops streaming
