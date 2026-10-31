@@ -442,6 +442,54 @@ function quoteBody(quote: Quotation, groups: CitationGroup[], identifiers: Origi
   return body.split("\n").map((line) => line.replace(/^\s*>\s?/, "").replace(/^\s*(?:\*\*)?\[?\d{1,3}\]?[.)]?(?:\*\*)?\s+/, "").replace(/^\s*[-\u2013\u2014]?\s*[*_`]*\s*[,;]?\s*\(?(?:KJV|NKJV|BSB|ASV|RV1909|LUT1912)\)?\s*[*_`]*\s*$/i, "")).join(" ").replace(/\((?:KJV|NKJV|BSB|ASV|RV1909|LUT1912)\)/gi, "").replace(literalUnderscore ? /[*`]/g : /[*_`]/g, "").replace(/^\s*["\u201c]|["\u201d]\s*$/g, "").replace(/\s+/g, " ").trim().replace(/^[\s\u2014-]+|[\s\u2014-]+$/g, "");
 }
 
+/** Only redundant labels owned by a real standalone marker may be consumed. */
+function adjacentMarkerHeadingStart(input: string, markerStart: number, markerEnd: number, group: CitationGroup, translation: TranslationId, minimumStart: number): number {
+  const markerLine = input.lastIndexOf("\n", markerStart - 1) + 1;
+  if (!/^[ ]{0,3}$/.test(input.slice(markerLine, markerStart)) || !/^[ \t]*(?:\r?\n|$)/.test(input.slice(markerEnd))) return markerStart;
+  let start = markerStart;
+  let before = markerLine;
+  const expected = group.parts.map(formatPart).join(";");
+  while (before > minimumStart) {
+    const prefix = input.slice(minimumStart, before).replace(/[ \t\r\n]+$/, "");
+    if (!prefix) break;
+    const lineOffset = prefix.lastIndexOf("\n") + 1;
+    const line = prefix.slice(lineOffset);
+    const heading = /^[ ]{0,3}(?:#{1,6}[ \t]+)?(.+)$/.exec(line);
+    if (!heading) break;
+    let label = heading[1];
+    if (/^[ ]{0,3}#/.test(line)) label = label.replace(/[ \t]+#+$/, "");
+    for (const wrapper of ["**", "__"]) if (label.startsWith(wrapper) && label.endsWith(wrapper)) label = label.slice(wrapper.length, -wrapper.length);
+    const edition = /[ \t]+\((KJV|NKJV|BSB|ASV|RV1909|LUT1912)\)$/i.exec(label);
+    if (!edition || edition[1].toUpperCase() !== translation) break;
+    const reference = label.slice(0, edition.index);
+    const headingIssues: ScriptureVerificationIssue[] = [];
+    const headings = scanCitations(reference, headingIssues);
+    if (headingIssues.length || headings.length !== 1 || headings[0].start !== 0 || headings[0].end !== reference.length || headings[0].parts.map(formatPart).join(";") !== expected) break;
+    start = minimumStart + lineOffset;
+    before = start;
+  }
+  if (start === markerStart) return markerStart;
+  // Literal examples/quotations and raw HTML must keep their original labels.
+  // CommonMark permits unprefixed lazy continuation within a quoted paragraph.
+  const precedingLines = input.slice(0, start).split(/\r?\n/);
+  precedingLines.pop();
+  for (let index = precedingLines.length - 1; index >= 0 && !/^[ \t]*$/.test(precedingLines[index]); index--) {
+    if (/^[ ]{0,3}>/.test(precedingLines[index])) return markerStart;
+  }
+  if (input.slice(0, markerStart).includes("<")) return markerStart;
+  let fence: { marker: string; length: number } | null = null;
+  for (const line of input.slice(0, markerLine).split("\n")) {
+    const match = /^[ ]{0,3}(\x60{3,}|~{3,})(.*)$/.exec(line);
+    if (!match) continue;
+    if (!fence) fence = { marker: match[1][0], length: match[1].length };
+    else if (match[1][0] === fence.marker && match[1].length >= fence.length && /^[ \t\r]*$/.test(match[2])) fence = null;
+  }
+  if (fence) return markerStart;
+  const literals = /"[^"]*(?:"|$)|(?<![\p{L}\p{N}])'[^']*(?:'|$)|“[^”]*(?:”|$)|‘[^’]*(?:’|$)|«[^»]*(?:»|$)|„[^“]*(?:“|$)|(`+)[\s\S]*?(?:\1|$)/gu;
+  for (const literal of input.matchAll(literals)) if (literal.index <= start && literal.index + literal[0].length > markerStart) return markerStart;
+  return start;
+}
+
 /**
  * Checks textual citation/quotation fidelity against the translation loader.
  * This does not prove a theological claim, speaker, or interpretation. Callers
@@ -578,6 +626,8 @@ export async function verifyScriptureDraft(
       if (groups[0].evidence.length !== groups[0].parts.length) text += marker[0];
       else {
         const verses = groups[0].evidence.flatMap((evidence) => evidence.verses);
+        const headingStart = adjacentMarkerHeadingStart(inputText, marker.index, marker.index + marker[0].length, groups[0], options.translation, cursor);
+        if (headingStart < marker.index) text = text.slice(0, text.length - (marker.index - headingStart));
         text += `**${groups[0].sourceText} (${options.translation})**\n`;
         const start = text.length;
         text += verses.map((verse) => `> ${verse.verse} ${verse.text.replace(/\n/g, "\n> ")}`).join("\n");
