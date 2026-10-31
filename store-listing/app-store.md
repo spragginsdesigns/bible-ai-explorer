@@ -166,8 +166,9 @@ what people search for: KJV Bible, King James Version, audio Bible, verse of
 the day, daily devotional, Strong's concordance, Bible reading plans, prayer
 list, Scripture memory, Bible timeline, Bible study notes. Apple does not
 index the description for search (the name, subtitle and keywords do), but
-Play does, so the phrases earn their place there. The complete current
-description is saved in the submitted 1.30.0 version, as checked above.
+Play does, so the phrases earn their place there. The earlier description
+was saved with 1.30.0; the saved-answer checking and original-download copy
+remains pending the 1.31.0 acceptance and listing readback described above.
 
 Historical verification checklist from the earlier 1.21.0-1.25.0 submissions:
 the `source` and "today" labels below are preserved from that period, not the

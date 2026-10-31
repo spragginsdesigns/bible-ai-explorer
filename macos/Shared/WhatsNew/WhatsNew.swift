@@ -172,7 +172,10 @@ enum WhatsNewRules {
     ///   German, Ways to Serve and text size all between), including Pro
     ///   upgrade routes, an anchored Getting started Bible destination, and
     ///   the creator's faith-story link.
-    static let appleParityVersionCode = 128
+    /// - 133: the 1.31.0 candidate includes saved-answer checks, note-write
+    ///   recovery, gentler owner speech and distinct notification artwork.
+    ///   Release acceptance is tracked separately in docs/PARITY.md.
+    static let appleParityVersionCode = 133
 
     /// `GET /api/whats-new/catch-up`, capped at this build's features.
     static var catchUpPath: String { "/api/whats-new/catch-up?upTo=\(appleParityVersionCode)" }

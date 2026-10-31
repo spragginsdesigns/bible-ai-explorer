@@ -7,7 +7,7 @@ This file is the **single source of truth for Google Play "What's new" release n
 **What's new (Play):**
 
 IMPROVED
-- Notes keep your edits safe while AI writes, and show what was saved.
+- Notes keep your edits and line breaks safe while AI writes, and show what was saved.
 - Clearer Scripture checks and a way to review older saved answers.
 - Spoken guidance uses a gentler pace.
 - Distinct notification artwork and plain-text answer previews.
