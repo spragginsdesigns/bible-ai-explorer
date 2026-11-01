@@ -59,4 +59,18 @@ export interface SermonView {
 	passages: PassageView[];
 	study: (Omit<SermonStudyNotes, "sections" | "memory"> & { sections: StudySectionView[]; memory: MemoryVerseView[] }) | null;
 	research: string[];
+	/** The Study Projects it was saved into that still exist, newest first. */
+	savedProjects: SavedProjectView[];
+	/** The founder's projects it can be saved into (not archived). */
+	projectChoices: { id: string; title: string }[];
+}
+
+export interface SavedProjectView {
+	projectId: string;
+	title: string;
+	href: string;
+	/** The project was started from this sermon. */
+	created: boolean;
+	archived: boolean;
+	savedAt: string;
 }

@@ -8,7 +8,18 @@ import { BIBLE_TRANSCRIPTION_PROMPT } from "@/lib/audio-transcription-rules";
 import { houseKeyFor } from "@/lib/ai/house-key";
 import { stripDashes } from "@/lib/ai/plain-dashes";
 import { resolveModel } from "@/lib/ai/provider";
-import { createBetaItem, deleteBetaItem, getBetaItem, listBetaItems, updateBetaItem } from "@/lib/beta/store";
+import {
+	ProjectInputError,
+	addToProject,
+	createProject,
+	createSourceText,
+	listProjects,
+	loadChild,
+	loadProject,
+	touchProject,
+} from "@/lib/beta/projects/projects";
+import { PASTED_TITLE_MAX, normalizeSourceText, projectHref } from "@/lib/beta/projects/projects-rules";
+import { createBetaItem, deleteBetaItem, getBetaItem, linkBetaItems, listBetaItems, updateBetaItem } from "@/lib/beta/store";
 import { BOOKS, bookByOrder, resolveReference } from "@/lib/bible/books";
 import { getKjvBook, getKjvChapter } from "@/lib/bible/kjv";
 import { bibleVersePlainText } from "@/lib/bible/verseMarkup";
@@ -32,17 +43,21 @@ import {
 	mergePassages,
 	passageRefKeys,
 	pieceOffset,
+	projectSectionsFor,
 	placeSegments,
 	readSermonData,
+	SERMON_PROJECTS_MAX,
 	sermonBody,
+	transcriptSourceText,
 	wavSeconds,
 	withResearchMark,
 	type ComparisonDraft,
 	type KjvVerse,
 	type SermonData,
+	type SermonProjectLink,
 	type StudyDraft,
 } from "./sermons-rules";
-import type { PassageView, SermonCardView, SermonView } from "./view-types";
+import type { PassageView, SavedProjectView, SermonCardView, SermonView } from "./view-types";
 
 /**
  * The server half of Sermon to Study (LC-17643, docs/beta/sermons.md). A
@@ -129,6 +144,7 @@ export async function createSermon(
 		study: null,
 		comparisons: [],
 		research: [],
+		projects: [],
 	};
 	const title = cleanSermonTitle(input.title, fileName?.replace(/\.[a-z0-9]+$/i, "") || "Untitled sermon");
 	const item = await createBetaItem(userId, {
@@ -349,6 +365,110 @@ export async function comparePassage(userId: string, id: string, key: string): P
 }
 
 /* -------------------------------------------------------------------------
+ * Save into a Study Project
+ * ---------------------------------------------------------------------- */
+
+export interface SavedToProject {
+	projectId: string;
+	href: string;
+	/** The project was started from this sermon by this request. */
+	created: boolean;
+	added: { transcript: boolean; passages: number; questions: number };
+	/** Why some passages or questions were left out (the project is full), or null. */
+	note: string | null;
+}
+
+/**
+ * Save the sermon into a Study Project (docs/beta/projects.md, Building on
+ * Study Projects), only through that module's own functions: the transcript
+ * becomes a source, each passage a passage and each question marked for
+ * research an open question. `{ create: true }` starts a topic study named
+ * after the sermon, its sections the chapters the sermon draws on. Saving
+ * again is safe: the transcript is not added twice, and only passages and
+ * questions the project does not hold yet are added. No AI, no spend.
+ */
+export async function saveSermonToProject(userId: string, id: string, target: { projectId?: unknown; create?: unknown }): Promise<SavedToProject | SermonsError> {
+	const own = await ownSermon(userId, id);
+	if (!own) return NOT_FOUND;
+	const { item, data } = own;
+	if (data.status !== "ready") return { error: "The sermon is still being transcribed.", status: 409 };
+	if (!data.segments.some((segment) => segment.text.trim())) return { error: "This sermon has no transcript to save.", status: 409 };
+
+	let projectId: string;
+	let created = false;
+	if (target.create === true) {
+		// A second press finds the project this sermon already started instead of making another.
+		const started = (await liveSavedProjects(userId, data.projects.filter((link) => link.created))).filter((entry) => !entry.archived);
+		if (started[0]) {
+			projectId = started[0].link.projectId;
+		} else {
+			const project = await createProject(userId, {
+				title: item.title,
+				description: `From the sermon "${item.title}"${data.preacher ? ` by ${data.preacher}` : ""}, saved from Sermon to Study.`,
+				scope: { type: "topic" },
+				sections: projectSectionsFor(data.passages, (book, chapter) => passageLabel(`${book}.${chapter}`)),
+			});
+			projectId = project.id;
+			created = true;
+		}
+	} else if (typeof target.projectId === "string") {
+		const row = await loadProject(userId, target.projectId);
+		if (!row) return { error: "That project was not found.", status: 404 };
+		if (row.data.archived) return { error: "That project is archived. Restore it in Study Projects first.", status: 409 };
+		projectId = row.item.id;
+	} else {
+		return { error: "Choose a project, or start a new one.", status: 400 };
+	}
+
+	const earlier = data.projects.find((link) => link.projectId === projectId);
+	let sourceId = earlier && (await loadChild(userId, projectId, earlier.sourceId)) ? earlier.sourceId : null;
+	const transcriptAdded = sourceId === null;
+	if (sourceId === null) {
+		const project = await loadProject(userId, projectId);
+		if (!project) return { error: "That project was not found.", status: 404 };
+		const { text, truncated } = normalizeSourceText(transcriptSourceText(data, item.title));
+		const source = await createSourceText(userId, projectId, { title: `Transcript: ${item.title}`.slice(0, PASTED_TITLE_MAX), text, truncated, type: "pasted" }, project.item.topics);
+		sourceId = source.id;
+	}
+	// Remember the save straight after the transcript, before anything else can fail, so a retry never adds a second one.
+	await rememberProject(userId, id, { projectId, sourceId, created: created || Boolean(earlier?.created), savedAt: new Date().toISOString() });
+	if (transcriptAdded) await linkBetaItems(userId, { fromId: item.id, toId: sourceId, kind: "transcript", reason: "Saved from Sermon to Study", origin: "user" });
+
+	let passages = 0;
+	let questions = 0;
+	let note: string | null = null;
+	const add = async (input: Parameters<typeof addToProject>[2]) => {
+		try {
+			const result = await addToProject(userId, projectId, input);
+			return Boolean(result && !result.duplicate);
+		} catch (error) {
+			if (!(error instanceof ProjectInputError)) throw error;
+			note ??= error.message;
+			return false;
+		}
+	};
+	for (const passage of data.passages) if (await add({ kind: "passage", reference: passageLabel(passage.key) })) passages++;
+	for (const question of data.research) if (await add({ kind: "question", text: question })) questions++;
+	await touchProject(userId, projectId);
+	return { projectId, href: projectHref(projectId), created, added: { transcript: transcriptAdded, passages, questions }, note };
+}
+
+async function rememberProject(userId: string, id: string, link: SermonProjectLink): Promise<void> {
+	const fresh = await ownSermon(userId, id);
+	if (!fresh) return;
+	const projects = [...fresh.data.projects.filter((entry) => entry.projectId !== link.projectId), link].slice(-SERMON_PROJECTS_MAX);
+	await saveData(userId, fresh.item, { ...fresh.data, projects });
+}
+
+/** The saves whose project still exists, newest first, with the project's title. */
+async function liveSavedProjects(userId: string, links: readonly SermonProjectLink[]) {
+	const rows = await Promise.all(links.map(async (link) => ({ link, row: await loadProject(userId, link.projectId) })));
+	return rows
+		.flatMap(({ link, row }) => (row ? [{ link, title: row.item.title, archived: row.data.archived }] : []))
+		.sort((a, b) => b.link.savedAt.localeCompare(a.link.savedAt));
+}
+
+/* -------------------------------------------------------------------------
  * Small edits
  * ---------------------------------------------------------------------- */
 
@@ -446,6 +566,8 @@ export async function sermonView(userId: string, id: string): Promise<SermonView
 				),
 			}
 		: null;
+	const [saved, choices] = await Promise.all([liveSavedProjects(userId, data.projects), listProjects(userId)]);
+	const savedProjects: SavedProjectView[] = saved.map(({ link, title, archived }) => ({ projectId: link.projectId, title, href: projectHref(link.projectId), created: link.created, archived, savedAt: link.savedAt }));
 	return {
 		id: item.id,
 		title: item.title,
@@ -460,5 +582,7 @@ export async function sermonView(userId: string, id: string): Promise<SermonView
 		passages,
 		study,
 		research: data.research,
+		savedProjects,
+		projectChoices: choices.filter((project) => !project.archived).map((project) => ({ id: project.id, title: project.title })),
 	};
 }

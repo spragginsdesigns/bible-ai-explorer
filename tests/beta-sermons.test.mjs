@@ -21,12 +21,15 @@ import {
 	passageRefKeys,
 	pieceOffset,
 	placeSegments,
+	projectSectionsFor,
 	quoteIsVerbatim,
 	readSermonData,
 	sermonBody,
+	transcriptSourceText,
 	wavSeconds,
 	withResearchMark,
 } from "../src/lib/beta/sermons/sermons-rules.ts";
+import { findQuote } from "../src/lib/beta/projects/projects-rules.ts";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const books = JSON.parse(readFileSync(join(repoRoot, "src/data/books.json"), "utf8"));
@@ -224,4 +227,53 @@ test("research marks: only the sermon's own questions, toggled, and they reach t
 	assert.match(body, /Transcript \(the sermon's words\):\n\[0:00\] We have this treasure\.\n\[1:05\] Amen\./);
 	assert.equal(readSermonData({ status: "weird" }), null);
 	assert.equal(excerptAround(marked.segments, 66, 3), "Amen.");
+});
+
+test("study project: the transcript source keeps the time in paragraphs of a minute, so a quote across segments is found", () => {
+	const segments = [
+		{ start: 0, end: 4, text: "We have this treasure in earthen vessels." },
+		{ start: 4, end: 9, text: "  2 Corinthians 4, 7. " },
+		{ start: 30, end: 40, text: "" },
+		{ start: 59, end: 64, text: "The vessel is weak, the treasure is not." },
+		{ start: 61, end: 66, text: "Hold that thought." },
+		{ start: 125, end: 130, text: "Amen." },
+	];
+	const text = transcriptSourceText({ preacher: "John Wesley", durationSec: 771, segments }, "Earthen Vessels");
+	assert.equal(
+		text,
+		[
+			'Transcript of the sermon "Earthen Vessels", preached by John Wesley (12:51), from Sermon to Study. These are the preacher\'s words as transcribed, which may contain mistakes; they are not Scripture.',
+			"",
+			"[0:00] We have this treasure in earthen vessels. 2 Corinthians 4, 7. The vessel is weak, the treasure is not.",
+			"",
+			"[1:01] Hold that thought.",
+			"",
+			"[2:05] Amen.",
+		].join("\n"),
+	);
+	// Study Projects checks a cited quote against the source; one that runs across two segments of the same minute holds.
+	assert.equal(findQuote(text, "earthen vessels. 2 Corinthians 4, 7. The vessel is weak"), "earthen vessels. 2 Corinthians 4, 7. The vessel is weak");
+	assert.doesNotMatch(transcriptSourceText({ preacher: null, durationSec: 5, segments: [] }, "Untitled"), /preached by|\[/);
+});
+
+test("study project: a new project's sections are the chapters the sermon draws on, in the order it reaches them", () => {
+	const at = (key, time) => {
+		const [book, chapter, verse] = key.split(".").map(Number);
+		return { key, book, chapter, verse: verse ?? null, how: "named", at: time, times: [time] };
+	};
+	const sections = projectSectionsFor([at("45.8.37", 684), at("47.4.7", 30), at("47.4.17", 711), at("19.144.3", 566)], (book, chapter) => `${book}:${chapter}`);
+	assert.deepEqual(sections, [
+		{ title: "47:4", ref: "47.4" },
+		{ title: "19:144", ref: "19.144" },
+		{ title: "45:8", ref: "45.8" },
+	]);
+	assert.deepEqual(projectSectionsFor([], () => "x"), []);
+});
+
+test("study project: saves are read back defensively, and a sermon from before Study Projects has none", () => {
+	const base = { status: "ready", permissionAt: "x", segments: [], passages: [] };
+	assert.deepEqual(readSermonData(base).projects, []);
+	const good = { projectId: "p1", sourceId: "s1", created: true, savedAt: "2026-11-01T00:00:00.000Z" };
+	const read = readSermonData({ ...base, projects: [good, { projectId: "p2" }, null, "x", { ...good, projectId: "" }] });
+	assert.deepEqual(read.projects, [good]);
 });

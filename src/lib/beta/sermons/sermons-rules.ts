@@ -111,7 +111,22 @@ export interface SermonData {
 	comparisons: PassageComparison[];
 	/** Questions marked for later research, in the order they were marked. */
 	research: string[];
+	/** The Study Projects this sermon was saved into, and the transcript source it left in each. */
+	projects: SermonProjectLink[];
 }
+
+/** One save of the sermon into a Study Project (docs/beta/projects.md, Building on Study Projects). */
+export interface SermonProjectLink {
+	projectId: string;
+	/** The project source holding the transcript. */
+	sourceId: string;
+	/** The project was started from this sermon. */
+	created: boolean;
+	savedAt: string;
+}
+
+/** Projects one sermon remembers being saved into. */
+export const SERMON_PROJECTS_MAX = 20;
 
 /* -------------------------------------------------------------------------
  * Clock
@@ -549,7 +564,69 @@ export function readSermonData(value: unknown): SermonData | null {
 		study: data.study && typeof data.study === "object" ? data.study : null,
 		comparisons: Array.isArray(data.comparisons) ? data.comparisons : [],
 		research: Array.isArray(data.research) ? data.research.filter((entry): entry is string => typeof entry === "string") : [],
+		// Sermons saved before Study Projects existed have none.
+		projects: Array.isArray(data.projects) ? data.projects.filter(isProjectLink).slice(-SERMON_PROJECTS_MAX) : [],
 	};
+}
+
+function isProjectLink(value: unknown): value is SermonProjectLink {
+	const link = value as Partial<SermonProjectLink> | null;
+	return (
+		typeof link === "object" && link !== null &&
+		typeof link.projectId === "string" && link.projectId.length > 0 &&
+		typeof link.sourceId === "string" && link.sourceId.length > 0 &&
+		typeof link.created === "boolean" && typeof link.savedAt === "string"
+	);
+}
+
+/* -------------------------------------------------------------------------
+ * Saving into a Study Project
+ * ---------------------------------------------------------------------- */
+
+/** A transcript paragraph covers about this many seconds, so a quotation rarely crosses a time mark. */
+export const TRANSCRIPT_PARAGRAPH_SECONDS = 60;
+
+/**
+ * The transcript as a Study Project source: a line saying whose words these
+ * are, then paragraphs of about a minute, each opening with its time. The
+ * project's assistant checks every quote it cites against this text, so the
+ * time marks sit between paragraphs, not inside sentences.
+ */
+export function transcriptSourceText(data: Pick<SermonData, "preacher" | "durationSec" | "segments">, title: string): string {
+	const lines = [
+		`Transcript of the sermon "${title}"${data.preacher ? `, preached by ${data.preacher}` : ""} (${formatClock(data.durationSec)}), from Sermon to Study. These are the preacher's words as transcribed, which may contain mistakes; they are not Scripture.`,
+	];
+	let paragraph: string[] = [];
+	let startedAt = 0;
+	const flush = () => {
+		if (paragraph.length) lines.push("", `[${formatClock(startedAt)}] ${paragraph.join(" ")}`);
+		paragraph = [];
+	};
+	for (const segment of data.segments) {
+		const text = segment.text.replace(/\s+/g, " ").trim();
+		if (!text) continue;
+		if (paragraph.length && segment.start - startedAt >= TRANSCRIPT_PARAGRAPH_SECONDS) flush();
+		if (!paragraph.length) startedAt = segment.start;
+		paragraph.push(text);
+	}
+	flush();
+	return lines.join("\n");
+}
+
+/**
+ * A new project's sections: each chapter the sermon draws on, in the order it
+ * first comes up, so Continue study reads every passage in its context.
+ */
+export function projectSectionsFor(passages: readonly SermonPassage[], chapterLabel: (book: number, chapter: number) => string, max = 150): { title: string; ref: string }[] {
+	const seen = new Set<string>();
+	const sections: { title: string; ref: string }[] = [];
+	for (const passage of [...passages].sort((a, b) => a.at - b.at)) {
+		const ref = `${passage.book}.${passage.chapter}`;
+		if (seen.has(ref)) continue;
+		seen.add(ref);
+		sections.push({ title: chapterLabel(passage.book, passage.chapter), ref });
+	}
+	return sections.slice(0, max);
 }
 
 /** Title and preacher as typed, trimmed to their limits; the title falls back to the file's name. */

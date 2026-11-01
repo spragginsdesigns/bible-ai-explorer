@@ -168,15 +168,16 @@ export const BETA_MODULES: readonly BetaModule[] = [
 		tagline: "Turn a sermon into a study you can keep",
 		inspiredBy: "Meeting-notes and transcription apps",
 		priority: "P2",
-		status: "building",
+		status: "live",
 		issue: "LC-17643",
 		summary:
-			"Record or upload a sermon you have permission to use. SureWord transcribes it with timestamps, finds every passage it names or quotes in the King James words, and on request writes study notes, discussion questions and verses to memorise, with the sermon's words always kept apart from Scripture. Saved sermons are searchable in the Knowledge Vault.",
+			"Record or upload a sermon you have permission to use. SureWord transcribes it with timestamps, finds every passage it names or quotes in the King James words, and on request writes study notes, discussion questions and verses to memorise, with the sermon's words always kept apart from Scripture. Keep it in a Study Project with its transcript as a source; sermons and their transcripts are searchable in the Knowledge Vault.",
 		capabilities: [
 			"Upload or record a sermon and get a timestamped transcript",
 			"See every passage it names or quotes, in the KJV beside the sermon's words, opened in the reader",
 			"Get study notes, discussion questions and memory verses for Learn a verse",
 			"Compare the sermon with each passage's context and mark questions to research later",
+			"Save it into a Study Project: the transcript as a source, its passages and your research questions",
 		],
 		builtOn: ["Voice transcription", "Sermon studies", "Study Projects", "Notes"],
 	},

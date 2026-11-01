@@ -3,6 +3,8 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { AiCredentialError } from "@/lib/ai/provider";
 import { BETA_PRIVATE_HEADERS } from "@/lib/beta/access";
+import { ProjectInputError } from "@/lib/beta/projects/projects";
+import { BetaStoreError } from "@/lib/beta/store";
 import { SermonsUnavailableError, type SermonsError } from "./server";
 
 /** JSON with the beta's private, no-store headers. */
@@ -17,6 +19,8 @@ export function sermonsFailure(error: SermonsError): NextResponse {
 /** A thrown error as the browser sees it; the details stay in the server log. */
 export function sermonsServerError(where: string, error: unknown, unavailable: string): NextResponse {
 	if (error instanceof AiCredentialError) return sermonsJson({ error: error.message }, 403);
+	// Study Projects refused the save (a full project, say): its message is for the founder.
+	if (error instanceof ProjectInputError || error instanceof BetaStoreError) return sermonsJson({ error: error.message }, 400);
 	console.error(`[api/beta/sermons/${where}]`, error);
 	if (error instanceof SermonsUnavailableError || (error instanceof Error && /abort|timeout/i.test(error.name + error.message))) {
 		return sermonsJson({ error: unavailable }, 502);

@@ -7,6 +7,7 @@ import { ArrowLeft, BookOpen, Bookmark, BookmarkCheck, Sparkles, Trash2 } from "
 import { AddLearnButton } from "@/components/learn/AddLearnButton";
 import { formatClock, type PassageComparison } from "@/lib/beta/sermons/sermons-rules";
 import type { PassageView, SermonView } from "@/lib/beta/sermons/view-types";
+import SaveToProject from "./SaveToProject";
 import { CARD, EYEBROW, GOLD_BUTTON, INPUT, MUTED, PAGE, QUIET_BUTTON, SCRIPTURE, SCRIPTURE_TEXT, SERIF, SERMON_TEXT, SERMON_WORDS, TEXT_LINK, FOCUS, readerHref } from "./ui";
 
 type Tab = "passages" | "study" | "transcript" | "research";
@@ -213,7 +214,9 @@ export default function SermonStudyView({ view }: { view: SermonView }) {
 				</section>
 			) : (
 				<>
-					<div role="tablist" aria-label="Sermon sections" className="mt-6 flex gap-1 overflow-x-auto rounded-2xl border border-black/[.09] p-1 dark:border-white/[.09]">
+					<SaveToProject sermonId={view.id} title={view.title} passages={view.passages.length} research={research.length} saved={view.savedProjects} choices={view.projectChoices} />
+					{/* Two rows of two on a phone, so no tab is cut off at the edge; one row from sm up. */}
+					<div role="tablist" aria-label="Sermon sections" className="mt-6 grid grid-cols-2 gap-1 rounded-2xl border border-black/[.09] p-1 sm:flex sm:overflow-x-auto dark:border-white/[.09]">
 						{tabs.map((entry) => (
 							<button
 								key={entry.id}

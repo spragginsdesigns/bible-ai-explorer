@@ -5,12 +5,10 @@ use; SureWord transcribes it with timestamps, finds every passage it names or
 quotes, and on request writes a study of it: notes for each movement,
 discussion questions and verses to memorise. Each passage can be compared with
 its biblical context, and any question can be marked for later research. The
-sermon's words and Scripture are never mixed (below).
+sermon can then be kept in a Study Project, with its transcript as a source.
+The sermon's words and Scripture are never mixed (below).
 
-Status `building`: everything above shipped. Saving a sermon into a Study
-Project (LC-17642) waits for Study Projects to reach `main`; until then a
-sermon is its own item in the shared study store, which the Knowledge Vault
-already indexes.
+Status `live`.
 
 ## Flow
 
@@ -71,6 +69,30 @@ already indexes.
      says where it stands (from the KJV verses around it), how the sermon used
      it, a gentle judgement (close to the text, applies the text, goes beyond
      the text) labelled as SureWord's interpretation, and questions to weigh.
+6. **Keep it in a Study Project** (the card above the tabs, LC-17642's
+   module). The founder picks one of their projects, or "A new project" named
+   after the sermon: a topic study whose sections are the chapters the sermon
+   draws on, in the order it reaches them, so Continue study reads each
+   passage in its context. Saving goes only through Study Projects' own
+   functions (`docs/beta/projects.md`, Building on Study Projects):
+   - the transcript becomes a source (`createSourceText`, type `pasted`,
+     titled "Transcript: <title>"): a line saying these are the preacher's
+     words as transcribed and not Scripture, then paragraphs of about a
+     minute, each opening with its time (`transcriptSourceText`), so a quote
+     the project's assistant cites rarely crosses a time mark;
+   - each passage becomes a passage and each question marked for research an
+     open question (`addToProject`, which skips any the project already
+     holds);
+   - a `BetaLink` (kind `transcript`) joins the sermon to that source.
+
+   Saving again is safe: the transcript is not added twice (unless the
+   founder removed it from the project), only new passages and questions come
+   in, and "A new project" a second time opens the one this sermon already
+   started. An archived project is refused until it is restored. A full
+   project (400 items) keeps what fit and says so. The study notes stay on the
+   sermon: they are SureWord's writing, not a source for the project's
+   assistant to cite. Deleting the sermon leaves the project and its
+   transcript source; deleting the project leaves the sermon.
 
 ## Scripture and the sermon's words
 
@@ -99,7 +121,9 @@ One item per sermon in the shared study store, module `sermons`, kind
   (`transcribing`/`ready`), `preacher`, `permissionAt`, `source`
   (`upload`/`recording`), `fileName`, `durationSec`, `parts` (seconds per
   transcribed piece), `segments` (`start`, `end`, `text`), `passages`,
-  `study`, `comparisons`, `research`. A 90-minute sermon is about 100 KB, well
+  `study`, `comparisons`, `research`, `projects` (each save: `projectId`, the
+  transcript's `sourceId`, `created`, `savedAt`; up to 20). A 90-minute
+  sermon is about 100 KB, well
   under the store's 256 KB.
 
 Deleting a sermon deletes the item; account deletion cascades through
@@ -131,16 +155,20 @@ the ordinary 404 and a signed-out request 401.
 | `POST /api/beta/sermons/<id>/finish` | Find the passages and open the study |
 | `POST /api/beta/sermons/<id>/study` | Write the study |
 | `POST /api/beta/sermons/<id>/compare` | Compare `{ key }` with its context |
+| `POST /api/beta/sermons/<id>/project` | Save into `{ projectId }` or `{ create: true }`; 201 when a project was started |
+
+`/beta/study/sermons?item=<id>`, the Knowledge Vault's link to a sermon, opens
+that sermon's page (someone else's id is the page's ordinary 404).
 
 ## Files
 
 - `src/app/beta/study/sermons/` (hub and `[sermonId]` page)
 - `src/app/api/beta/sermons/**`
-- `src/components/beta/sermons/` (`SermonsHub`, `SermonCapture`, `audio.ts`, `SermonStudyView`, `ui.ts`)
+- `src/components/beta/sermons/` (`SermonsHub`, `SermonCapture`, `audio.ts`, `SermonStudyView`, `SaveToProject`, `ui.ts`)
 - `src/lib/beta/sermons/` (`sermons-rules.ts` pure, `server.ts`, `http.ts`, `view-types.ts`)
 - `tests/beta-sermons.test.mjs` (spoken references, quotation matching against
   the real bundled KJV, merging, the WAV and clock rules, the study and
-  research guards)
+  research guards, the transcript source and a new project's sections)
 
 ## Reuse
 
@@ -153,6 +181,8 @@ the ordinary 404 and a signed-out request 401.
 - Learn a verse (`AddLearnButton`, `/api/learn`), the reader
   (`/bible/chapter`), `resolveReference`, the bundled KJV, and the shared
   study store.
+- Study Projects (`createProject`, `createSourceText`, `addToProject`,
+  `touchProject`): a sermon saved into a project is ordinary project material.
 
 ## Proof
 
@@ -162,8 +192,3 @@ founder stand-in, with the public-domain LibriVox reading of John Wesley's
 page and a 40-second clip of it played into Chrome's microphone for the
 recording path, at 1280 and at 375px with touch, light and dark, the
 off-list account getting the ordinary 404 on every page and API route.
-
-## Next
-
-- Save a sermon into a Study Project, with the transcript as a source, once
-  Study Projects (LC-17642) is on `main`; then this module goes `live`.
