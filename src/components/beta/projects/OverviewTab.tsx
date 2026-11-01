@@ -118,26 +118,25 @@ export default function OverviewTab({ project, refresh, goTo }: TabProps) {
 			setGenerating(false);
 		}
 	};
-	const addQuestion = async (text: string, theme: string | null) => {
+	// Marked added as soon as it is pressed, so a second tap cannot add it twice; unmarked if it fails.
+	const addOnce = async (key: string, body: Record<string, unknown>) => {
+		if (added.has(key)) return;
 		setError(null);
+		setAdded((current) => new Set(current).add(key));
 		try {
-			await projectsApi.add(project.id, { kind: "question", text, origin: "overview", topics: theme ? [theme] : [] });
-			setAdded((current) => new Set(current).add(text));
+			await projectsApi.add(project.id, body);
 			await refresh();
 		} catch (caught) {
+			setAdded((current) => {
+				const next = new Set(current);
+				next.delete(key);
+				return next;
+			});
 			setError(caught instanceof Error ? caught.message : "Not added. Try again.");
 		}
 	};
-	const addPassage = async (reference: string) => {
-		setError(null);
-		try {
-			await projectsApi.add(project.id, { kind: "passage", reference, origin: "overview" });
-			setAdded((current) => new Set(current).add(reference));
-			await refresh();
-		} catch (caught) {
-			setError(caught instanceof Error ? caught.message : "Not added. Try again.");
-		}
-	};
+	const addQuestion = (text: string, theme: string | null) => addOnce(text, { kind: "question", text, origin: "overview", topics: theme ? [theme] : [] });
+	const addPassage = (reference: string) => addOnce(reference, { kind: "passage", reference, origin: "overview" });
 
 	return (
 		<div className="space-y-4">

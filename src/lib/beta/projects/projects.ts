@@ -280,11 +280,39 @@ export interface ProjectPatch {
 	section?: SectionChange;
 }
 
+type ProjectChange = { title?: string; body?: string | null; data?: Record<string, unknown>; refs?: string[] };
+
+const REWRITE_ATTEMPTS = 4;
+
+/**
+ * Read the project, work out a change from what is there now, and write it
+ * only if nothing else wrote the project in between (the store's
+ * `ifUpdatedAt`, LC-17650). A lost race reads again and works the change out
+ * afresh, so a section ticked done while an upload refreshes the counts is
+ * never overwritten. Null when the project is gone.
+ */
+async function rewriteProject(userId: string, id: string, plan: (row: ProjectRow) => Promise<{ change: ProjectChange; data: ProjectData }>): Promise<ProjectRow | null> {
+	for (let attempt = 0; attempt < REWRITE_ATTEMPTS; attempt++) {
+		const row = await loadProject(userId, id);
+		if (!row) return null;
+		const { change, data } = await plan(row);
+		const item = await updateBetaItem(userId, id, change, { ifUpdatedAt: row.item.updatedAt });
+		if (item) return { item, data };
+	}
+	throw new ProjectInputError("This project is being changed somewhere else. Try again.");
+}
+
 export async function updateProject(userId: string, id: string, patch: ProjectPatch): Promise<ProjectSummary | null> {
-	const row = await loadProject(userId, id);
-	if (!row) return null;
+	const written = await rewriteProject(userId, id, (row) => projectChange(userId, id, row, patch));
+	if (!written) return null;
+	const children = await listBetaItems(userId, { module: PROJECTS_MODULE, parentId: id, take: 500 });
+	return summarize(written, children);
+}
+
+/** What `patch` changes on the project as it stands in `row`; throws ProjectInputError for a bad patch. */
+async function projectChange(userId: string, id: string, row: ProjectRow, patch: ProjectPatch): Promise<{ change: ProjectChange; data: ProjectData }> {
 	let data = row.data;
-	const change: { title?: string; body?: string | null; data?: Record<string, unknown>; refs?: string[] } = {};
+	const change: ProjectChange = {};
 	if (patch.title !== undefined) {
 		const title = typeof patch.title === "string" ? patch.title.trim().replace(/\s+/g, " ") : "";
 		if (!title || title.length > PROJECT_TITLE_MAX) throw new ProjectInputError(`Give the project a name of up to ${PROJECT_TITLE_MAX} characters.`);
@@ -324,10 +352,7 @@ export async function updateProject(userId: string, id: string, patch: ProjectPa
 		change.refs = projectRefs(data, passages);
 	}
 	if (Object.keys(change).length === 0) throw new ProjectInputError("Nothing to change.");
-	const item = await updateBetaItem(userId, id, change);
-	if (!item) return null;
-	const children = await listBetaItems(userId, { module: PROJECTS_MODULE, parentId: id, take: 500 });
-	return summarize({ item, data }, children);
+	return { change, data };
 }
 
 /** Deletes the project and, through the store, everything gathered in it. Notes it pointed at are untouched. */
@@ -706,14 +731,20 @@ export async function assertRoom(userId: string, projectId: string): Promise<voi
 	}
 }
 
-/** After something is added or removed: the project's chapter refs and its counts, from a fresh read. */
+/**
+ * After something is added or removed: the project's chapter refs and its
+ * counts, from a fresh read, written without overwriting a change made in
+ * between. What was added is already saved, so a project too busy to update
+ * is left for the next add or remove to bring up to date.
+ */
 export async function touchProject(userId: string, projectId: string): Promise<void> {
-	const [fresh, children] = await Promise.all([loadProject(userId, projectId), listBetaItems(userId, { module: PROJECTS_MODULE, parentId: projectId, take: 500 })]);
-	if (!fresh) return;
-	const passages = children.filter((child) => child.kind === PROJECT_KINDS.passage);
-	await updateBetaItem(userId, projectId, {
-		refs: projectRefs(fresh.data, passages),
-		data: { ...fresh.data, counts: countsOf(children) } as unknown as Record<string, unknown>,
+	await rewriteProject(userId, projectId, async (fresh) => {
+		const children = await listBetaItems(userId, { module: PROJECTS_MODULE, parentId: projectId, take: 500 });
+		const data = { ...fresh.data, counts: countsOf(children) };
+		const passages = children.filter((child) => child.kind === PROJECT_KINDS.passage);
+		return { change: { refs: projectRefs(data, passages), data: data as unknown as Record<string, unknown> }, data };
+	}).catch((error) => {
+		if (!(error instanceof ProjectInputError)) throw error;
 	});
 }
 

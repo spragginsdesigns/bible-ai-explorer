@@ -324,6 +324,18 @@ export function passageLabel(bookName: string, chapter: number, start?: number |
 	return end && end > start ? `${bookName} ${chapter}:${start}-${end}` : `${bookName} ${chapter}:${start}`;
 }
 
+/** "Romans 5:1-5, 9-11": the verses of one chapter actually held, so a label never claims a verse that is not there. */
+export function versesLabel(bookName: string, chapter: number, verses: readonly number[]): string {
+	const runs: [number, number][] = [];
+	for (const verse of [...new Set(verses)].filter((n) => Number.isInteger(n) && n > 0).sort((a, b) => a - b)) {
+		const last = runs[runs.length - 1];
+		if (last && verse === last[1] + 1) last[1] = verse;
+		else runs.push([verse, verse]);
+	}
+	if (runs.length === 0) return `${bookName} ${chapter}`;
+	return `${bookName} ${chapter}:${runs.map(([first, last]) => (last > first ? `${first}-${last}` : `${first}`)).join(", ")}`;
+}
+
 /** Every verse key a passage covers, in order. */
 export function passageVerseKeys(book: number, chapter: number, start: number, end: number): string[] {
 	const keys: string[] = [];
@@ -359,7 +371,14 @@ export function normalizeSourceText(raw: string): { text: string; truncated: boo
 	return { text: (lastBreak > SOURCE_TEXT_MAX * 0.9 ? cut.slice(0, lastBreak + 1) : cut).trimEnd(), truncated: true };
 }
 
-/** The label a new source is cited by ("S5"): one past the highest ever given, so labels never shift. */
+/**
+ * The label a new source is cited by ("S5"): one past the highest a source in
+ * the project holds, so adding a source never relabels another. Removing the
+ * newest source frees its number for the next one (an answer that cited the
+ * removed source keeps its own copy of the label and title), and removing one
+ * of two sources added at the same moment can renumber the other
+ * (`assignSourceLabels`).
+ */
 export function nextSourceLabel(labels: readonly (string | null | undefined)[]): string {
 	const highest = labels.reduce<number>((max, label) => {
 		const match = typeof label === "string" ? /^S(\d{1,4})$/.exec(label) : null;
@@ -532,7 +551,9 @@ export const QUOTE_MAX_GAP = 300;
  * ellipsis splits the quote into parts of at least two words that must each
  * appear, in order, each within QUOTE_MAX_GAP of the one before, so an
  * ellipsis cannot stitch a sentence together out of words scattered across a
- * chapter. Quotes under three words are refused: they prove nothing.
+ * chapter. When an earlier part also appears elsewhere, every place it appears
+ * is tried, so a phrase that recurs in a long source does not hide the real
+ * quotation. Quotes under three words are refused: they prove nothing.
  */
 export function findQuote(source: string, quote: string): string | null {
 	const parts = quote
@@ -542,29 +563,42 @@ export function findQuote(source: string, quote: string): string | null {
 	if (parts.length === 0 || parts.reduce((words, part) => words + part.split(" ").length, 0) < 3) return null;
 	if (parts.length > 1 && parts.some((part) => part.split(" ").length < 2)) return null;
 	const haystack = fold(source);
-	let from = 0;
-	let start = -1;
-	let end = -1;
-	for (const [index, part] of parts.entries()) {
-		let at = haystack.text.indexOf(part, from);
-		// Whole words only: "faith" must not match inside "faithful".
-		while (at >= 0) {
-			const before = at === 0 || haystack.text[at - 1] === " ";
-			const afterIndex = at + part.length;
-			const after = afterIndex === haystack.text.length || haystack.text[afterIndex] === " ";
-			if (before && after) break;
-			at = haystack.text.indexOf(part, at + 1);
+	const text = haystack.text;
+	// The next whole-word place `part` starts at or after `from` ("faith" must not match inside "faithful"), no later than `latest`.
+	const next = (part: string, from: number, latest: number): number => {
+		// Searched only up to `latest`, so trying every place an earlier part appears stays cheap in a long source.
+		const window = latest + part.length >= text.length ? text : text.slice(0, latest + part.length);
+		for (let at = window.indexOf(part, from); at >= 0; at = window.indexOf(part, at + 1)) {
+			const end = at + part.length;
+			if ((at === 0 || text[at - 1] === " ") && (end === text.length || text[end] === " ")) return at;
 		}
-		if (at < 0) return null;
-		// Later parts are searched from the end of the earlier one; too far away is no quotation.
-		if (index > 0 && at - from > QUOTE_MAX_GAP) return null;
-		if (start < 0) start = at;
-		end = at + part.length - 1;
-		from = at + part.length;
+		return -1;
+	};
+	// The end of parts[index...] placed after `from`, each within QUOTE_MAX_GAP of the one before, or -1.
+	// Remembered per (index, from): without it a repetitive source makes the search exponential in the parts.
+	const tried = new Map<number, number>();
+	const rest = (index: number, from: number): number => {
+		if (index === parts.length) return from - 1;
+		const key = index * (text.length + 1) + from;
+		const known = tried.get(key);
+		if (known !== undefined) return known;
+		const part = parts[index];
+		let found = -1;
+		for (let at = next(part, from, from + QUOTE_MAX_GAP); at >= 0; at = next(part, at + 1, from + QUOTE_MAX_GAP)) {
+			const end = rest(index + 1, at + part.length);
+			if (end >= 0) {
+				found = end;
+				break;
+			}
+		}
+		tried.set(key, found);
+		return found;
+	};
+	for (let start = next(parts[0], 0, text.length); start >= 0; start = next(parts[0], start + 1, text.length)) {
+		const end = rest(1, start + parts[0].length);
+		if (end >= 0) return source.slice(haystack.map[start], haystack.map[end] + 1);
 	}
-	const originalStart = haystack.map[start];
-	const originalEnd = haystack.map[end];
-	return source.slice(originalStart, originalEnd + 1);
+	return null;
 }
 
 /**
@@ -639,12 +673,26 @@ function citationLabel(citation: ResolvedCitation): string {
 	return citation.type === "verse" ? citation.reference : citation.title;
 }
 
-/** "Romans 2:1-3" for the verses actually quoted, from their own references. */
+/**
+ * A section heading may quote only the words its own points cite, like every
+ * other line of a study. One that quotes anything else (Scripture from the
+ * model's memory) is replaced by the label of the section's first citation.
+ */
+export function groundedHeading(heading: string, cited: string, points: readonly StudyPoint[]): string {
+	if (heading && quotesFoundIn(heading, cited)) return heading;
+	const first = points[0]?.citations[0];
+	return first ? citationLabel(first) : "";
+}
+
+/** "Romans 2:1-3" (or "Romans 5:1-5, 9" when there is a gap) for the verses actually quoted, from their own references. */
 export function quotedRange(verses: readonly ResolvedVerse[]): string | null {
 	if (verses.length === 0) return null;
 	const first = verses[0].reference;
-	const last = verses[verses.length - 1].reference.split(":").pop();
-	return verses.length === 1 ? first : `${first}-${last}`;
+	const head = first.slice(0, first.lastIndexOf(":"));
+	const space = head.lastIndexOf(" ");
+	const chapter = Number(head.slice(space + 1));
+	if (space < 0 || !Number.isInteger(chapter)) return verses.length === 1 ? first : `${first}-${verses[verses.length - 1].reference.split(":").pop()}`;
+	return versesLabel(head.slice(0, space), chapter, verses.map((verse) => Number(verse.reference.split(":").pop())));
 }
 
 function quoteBlock(citation: ResolvedCitation, indent: string, max: number): string[] {

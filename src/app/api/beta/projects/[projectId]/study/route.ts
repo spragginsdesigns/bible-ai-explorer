@@ -3,7 +3,7 @@ import { resolveModel } from "@/lib/ai/provider";
 import { withIncludedAiRequest } from "@/lib/billing/usage";
 import { betaNotFound, requireBetaApi } from "@/lib/beta/access";
 import { assembleStudy } from "@/lib/beta/projects/ai";
-import { projectError, projectJson, readJson } from "@/lib/beta/projects/http";
+import { aiConsentRefusal, projectError, projectJson, readJson } from "@/lib/beta/projects/http";
 import { loadProject } from "@/lib/beta/projects/projects";
 
 export const maxDuration = 120;
@@ -23,6 +23,8 @@ const study = withIncludedAiRequest(async (req: Request, userId: string, project
 		if (!mode) return projectJson({ error: "Choose an outline or a written study." }, 400);
 		const project = await loadProject(userId, projectId);
 		if (!project) return betaNotFound();
+		const refused = await aiConsentRefusal(userId);
+		if (refused) return refused;
 		const resolved = await resolveModel({ userId, structured: true });
 		return projectJson({ study: await assembleStudy({ userId, project, mode, resolved }) }, 201);
 	} catch (error) {

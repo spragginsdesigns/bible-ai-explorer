@@ -298,3 +298,61 @@ test("sources added at the same moment still get labels of their own, and older 
 	assert.deepEqual(assignSourceLabels(["S1", "S1"]).slice(0, 1), assignSourceLabels(["S1", "S1", "S1"]).slice(0, 1), "adding a source never relabels an older one");
 	assert.deepEqual(assignSourceLabels(["S2", "S1", "S2"]), ["S2", "S1", "S3"]);
 });
+
+test("the AI routes refuse an account without AI consent on the server, before any model is chosen", () => {
+	for (const name of ["ask", "overview", "study"]) {
+		const source = read(`src/app/api/beta/projects/[projectId]/${name}/route.ts`);
+		const refusal = source.indexOf("await aiConsentRefusal(userId)");
+		assert.ok(refusal > 0, `${name} checks consent on the server`);
+		assert.ok(refusal < source.indexOf("resolveModel({"), `${name} checks consent before the model`);
+	}
+	assert.match(read("src/lib/beta/projects/http.ts"), /hasCurrentAiConsent\(user\)/);
+});
+
+test("an ellipsis quote is found even when its opening words also appear earlier in the source", () => {
+	const source = `Grace is free to all men. ${"Filler words about other things entirely. ".repeat(14)}Grace is free and the gift of God, not of works.`;
+	assert.equal(findQuote(source, "Grace is free ... the gift of God"), "Grace is free and the gift of God");
+	assert.equal(findQuote(source, "Grace is free … not of works"), "Grace is free and the gift of God, not of works");
+	assert.equal(findQuote(source, "free to all ... not of works"), null, "still no stitching across the gap limit");
+	const long = `${"the Lord is good and his mercy endureth. ".repeat(5_000)}`;
+	const started = Date.now();
+	assert.equal(findQuote(long, "the Lord is ... unknown words here"), null);
+	assert.ok(Date.now() - started < 2_000, "trying every place a common phrase appears stays cheap");
+	const dense = "grace and peace ".repeat(20_000);
+	const many = Date.now();
+	assert.equal(findQuote(dense, "grace and ... grace and ... grace and ... grace and ... grace and ... grace and ... nowhere found here"), null);
+	assert.ok(Date.now() - many < 2_000, "many ellipsis parts over a repetitive source stay cheap");
+});
+
+test("a citation's label names only the verses it holds", async () => {
+	const { versesLabel, quotedRange } = await import("../src/lib/beta/projects/projects-rules.ts");
+	assert.equal(versesLabel("Romans", 5, [1, 2, 3, 4, 5, 9, 10, 11]), "Romans 5:1-5, 9-11");
+	assert.equal(versesLabel("Romans", 5, [8]), "Romans 5:8");
+	assert.equal(versesLabel("Romans", 5, [3, 1, 2, 2]), "Romans 5:1-3");
+	assert.equal(versesLabel("Romans", 5, []), "Romans 5");
+	const verses = [1, 2, 3, 4, 5, 9].map((verse) => ({ reference: `Romans 5:${verse}`, text: `verse ${verse}.` }));
+	assert.equal(quotedRange(verses), "Romans 5:1-5, 9", "a gap is not quoted as a range");
+	assert.equal(quotedRange([{ reference: "Song of Solomon 2:3", text: "a" }, { reference: "Song of Solomon 2:4", text: "b" }]), "Song of Solomon 2:3-4");
+	const md = studyMarkdown({ mode: "study", title: "T", intro: "", sections: [{ heading: "H", points: [{ text: "Point.", basis: "scripture", citations: [{ type: "verse", reference: "Romans 5:1-5, 9-11", href: "#", verses }] }] }] });
+	assert.match(md, /> \(Romans 5:1-5, 9, KJV; the passage runs Romans 5:1-5, 9-11\)/);
+});
+
+test("a study heading may quote only what its own section cites", async () => {
+	const { groundedHeading } = await import("../src/lib/beta/projects/projects-rules.ts");
+	const points = [{ text: "Point.", basis: "scripture", citations: [{ type: "verse", reference: "Romans 5:1-5", href: "#", verses: [] }] }];
+	const cited = "Therefore being justified by faith, we have peace with God through our Lord Jesus Christ:";
+	assert.equal(groundedHeading("Peace with God", cited, points), "Peace with God", "no quotation: kept");
+	assert.equal(groundedHeading("“we have peace with God”", cited, points), "“we have peace with God”", "a quotation its verses hold: kept");
+	assert.equal(groundedHeading("“The just shall live by faith”", cited, points), "Romans 5:1-5", "a quotation from memory becomes the first citation's label");
+	assert.equal(groundedHeading("", cited, points), "Romans 5:1-5");
+	assert.equal(groundedHeading("“The just shall live by faith”", cited, []), "", "nothing cited: no heading, so the section is dropped");
+});
+
+test("the project record is rewritten only if nothing else wrote it in between", () => {
+	const source = read("src/lib/beta/projects/projects.ts");
+	assert.match(source, /updateBetaItem\(userId, id, change, \{ ifUpdatedAt: row\.item\.updatedAt \}\)/, "the write is conditional on what was read");
+	assert.match(source, /export async function updateProject[\s\S]*?rewriteProject\(userId, id,/, "renames, covers, archive and sections go through it");
+	assert.match(source, /export async function touchProject[\s\S]*?rewriteProject\(userId, projectId,/, "counts and refs after an add or remove go through it");
+	const writes = [...source.matchAll(/updateBetaItem\(userId, (id|projectId),/g)];
+	assert.equal(writes.length, 1, "no other unconditional write of the project record");
+});

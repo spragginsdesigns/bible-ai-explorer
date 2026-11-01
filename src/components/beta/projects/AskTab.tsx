@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ArrowUp, CircleAlert, Plus } from "lucide-react";
+import { ArrowUp, Check, CircleAlert, Plus } from "lucide-react";
 import type { AnswerView } from "@/lib/beta/projects/projects";
 import Citations from "./Citations";
 import { projectsApi } from "./api";
@@ -10,7 +10,7 @@ import type { TabProps } from "./ProjectWorkspace";
 
 const BASIS_LABEL = { interpretation: "Interpretation", source: "From a source", gap: "Not in your materials", scripture: null } as const;
 
-function Answer({ answer, onAddQuestion }: { answer: AnswerView; onAddQuestion: () => void }) {
+function Answer({ answer, kept, keeping, onAddQuestion }: { answer: AnswerView; kept: boolean; keeping: boolean; onAddQuestion: () => void }) {
 	return (
 		<article className={`${card} p-5`} aria-label={`Answer to: ${answer.question}`}>
 			<div className="space-y-4">
@@ -37,9 +37,12 @@ function Answer({ answer, onAddQuestion }: { answer: AnswerView; onAddQuestion: 
 					<p className="mt-0.5 text-sm leading-6">{answer.missing}</p>
 				</div>
 			)}
-			{!answer.answerable && (
-				<button type="button" onClick={onAddQuestion} className={`${ghostButton} -ml-3 mt-2`}><Plus size={16} aria-hidden /> Keep this as an open question</button>
-			)}
+			{!answer.answerable &&
+				(kept ? (
+					<p className={`mt-2 flex min-h-11 items-center gap-1.5 text-sm font-bold ${muted}`}><Check size={16} aria-hidden /> In your questions</p>
+				) : (
+					<button type="button" onClick={onAddQuestion} disabled={keeping} className={`${ghostButton} -ml-3 mt-2`}><Plus size={16} aria-hidden /> Keep this as an open question</button>
+				))}
 		</article>
 	);
 }
@@ -74,12 +77,20 @@ export default function AskTab({ project, refresh, prefill }: TabProps & { prefi
 			setPending(null);
 		}
 	};
+	const [keeping, setKeeping] = useState<string | null>(null);
+	const sameQuestion = (text: string) => text.replace(/\s+/g, " ").trim().toLowerCase();
+	const kept = new Set(project.questions.map((q) => sameQuestion(q.text)));
+	// One press at a time, so a double tap cannot keep the same question twice.
 	const keep = async (text: string) => {
+		if (keeping) return;
+		setKeeping(text);
 		try {
 			await projectsApi.add(project.id, { kind: "question", text, origin: "answer" });
 			await refresh();
 		} catch (caught) {
 			setError(caught instanceof Error ? caught.message : "Not added. Try again.");
+		} finally {
+			setKeeping(null);
 		}
 	};
 
@@ -98,7 +109,7 @@ export default function AskTab({ project, refresh, prefill }: TabProps & { prefi
 			{project.answers.map((answer) => (
 				<div key={answer.id} className="space-y-2">
 					<p className="ml-auto w-fit max-w-[85%] rounded-[20px] rounded-br-md bg-[#24281f] px-4 py-2.5 text-[15px] leading-6 text-white dark:bg-[#2b3126]">{answer.question}</p>
-					<Answer answer={answer} onAddQuestion={() => keep(answer.question)} />
+					<Answer answer={answer} kept={kept.has(sameQuestion(answer.question))} keeping={keeping !== null} onAddQuestion={() => keep(answer.question)} />
 				</div>
 			))}
 

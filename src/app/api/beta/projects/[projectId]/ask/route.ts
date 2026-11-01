@@ -3,7 +3,7 @@ import { resolveModel } from "@/lib/ai/provider";
 import { withIncludedAiRequest } from "@/lib/billing/usage";
 import { betaNotFound, requireBetaApi } from "@/lib/beta/access";
 import { askProject, QUESTION_MAX_LENGTH } from "@/lib/beta/projects/ai";
-import { projectError, projectJson, readJson } from "@/lib/beta/projects/http";
+import { aiConsentRefusal, projectError, projectJson, readJson } from "@/lib/beta/projects/http";
 import { loadProject } from "@/lib/beta/projects/projects";
 
 export const maxDuration = 120;
@@ -25,6 +25,8 @@ const ask = withIncludedAiRequest(async (req: Request, userId: string, projectId
 		if (question.length > QUESTION_MAX_LENGTH) return projectJson({ error: `Keep the question under ${QUESTION_MAX_LENGTH} characters.` }, 400);
 		const project = await loadProject(userId, projectId);
 		if (!project) return betaNotFound();
+		const refused = await aiConsentRefusal(userId);
+		if (refused) return refused;
 		const resolved = await resolveModel({ userId, structured: true });
 		const answer = await askProject({ userId, project, question, resolved });
 		return projectJson({ answer }, 201);

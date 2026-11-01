@@ -1,16 +1,29 @@
 import "server-only";
 
 import { NextResponse } from "next/server";
+import { CONSENT_DECLINED_NOTICE } from "@/lib/ai-consent-gate";
 import { AiCredentialError } from "@/lib/ai/provider";
 import { BETA_PRIVATE_HEADERS } from "@/lib/beta/access";
 import { BetaStoreError } from "@/lib/beta/store";
 import { ProjectAiError } from "@/lib/beta/projects/ai";
 import { UploadError } from "@/lib/beta/projects/extract";
 import { ProjectInputError } from "@/lib/beta/projects/projects";
+import { hasCurrentAiConsent } from "@/lib/preferences-contract";
+import { prisma } from "@/lib/prisma";
 
 /** Study Projects' JSON responses: private, never cached, never indexed. */
 export function projectJson(body: unknown, status = 200): NextResponse {
 	return NextResponse.json(body, { status, headers: BETA_PRIVATE_HEADERS });
+}
+
+/**
+ * The 403 for an account that has not agreed to AI, or null when it has. The
+ * client asks first; this holds even for a stale tab or a direct request, as
+ * in vault/ask, so nothing of the project reaches the model without consent.
+ */
+export async function aiConsentRefusal(userId: string): Promise<NextResponse | null> {
+	const user = await prisma.user.findUnique({ where: { id: userId }, select: { aiConsentVersion: true, aiConsentAt: true } });
+	return hasCurrentAiConsent(user) ? null : projectJson({ error: CONSENT_DECLINED_NOTICE, code: "AI_CONSENT_REQUIRED" }, 403);
 }
 
 /** A request body as a plain object, or {} when it is not one. */

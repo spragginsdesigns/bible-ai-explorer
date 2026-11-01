@@ -29,6 +29,7 @@ import {
 	STUDIES_KEPT,
 	chunkText,
 	findQuote,
+	groundedHeading,
 	isSubstantialQuote,
 	passageLabel,
 	quotesFoundIn,
@@ -36,6 +37,7 @@ import {
 	studyMarkdown,
 	studyPlainText,
 	topicsInText,
+	versesLabel,
 	type AssembledStudy,
 	type ProjectData,
 	type ResolvedCitation,
@@ -73,6 +75,8 @@ interface VerseEntry {
 	verse: number;
 	reference: string;
 	text: string;
+	/** Verses in its chapter, when the whole chapter was read (not for a highlight). */
+	chapterLength?: number;
 }
 
 interface SourceEntry {
@@ -107,7 +111,7 @@ async function chapterEntries(book: number, chapter: number, start = 1, end?: nu
 	const name = bookName(book);
 	const out: VerseEntry[] = [];
 	for (let verse = start; verse <= last; verse++) {
-		out.push({ key: betaRefKey(book, chapter, verse), book, chapter, verse, reference: `${name} ${chapter}:${verse}`, text: verses[verse - 1] });
+		out.push({ key: betaRefKey(book, chapter, verse), book, chapter, verse, reference: `${name} ${chapter}:${verse}`, text: verses[verse - 1], chapterLength: verses.length });
 	}
 	return out;
 }
@@ -266,11 +270,16 @@ function resolveVerseCitation(ref: string, materials: Materials): { citation: Re
 		keys = [];
 		for (let verse = start.verse; verse <= Math.min(Math.max(end, start.verse), start.verse + 40); verse++) keys.push(betaRefKey(start.order, start.chapter, verse));
 	}
-	const kept = keys.flatMap((key) => materials.verses.get(key) ?? []);
+	const kept = keys.flatMap((key) => materials.verses.get(key) ?? []).sort((a, b) => a.verse - b.verse);
 	if (kept.length === 0) return null;
 	const first = kept[0];
 	const last = kept[kept.length - 1];
-	const reference = start.verse === undefined && kept.length > 6 ? passageLabel(bookName(first.book), first.chapter) : passageLabel(bookName(first.book), first.chapter, first.verse, last.verse);
+	// The label names only the verses held: "Romans 5" only when all of it was sent, else "Romans 5:1-5, 9-11".
+	const wholeChapter = first.verse === 1 && last.verse === last.chapterLength && kept.length === last.chapterLength;
+	const reference =
+		start.verse === undefined && wholeChapter && kept.length > 6
+			? passageLabel(bookName(first.book), first.chapter)
+			: versesLabel(bookName(first.book), first.chapter, kept.map((verse) => verse.verse));
 	return {
 		citation: {
 			type: "verse",
@@ -601,8 +610,9 @@ export async function generateOverview(options: {
 		const refs = resolvedRefs.flatMap(({ citation }) => (citation.type === "verse" ? [{ reference: citation.reference, href: citation.href }] : []));
 		const name = plain(theme.name);
 		const summary = plain(theme.summary);
-		// A theme that quotes words its own verses do not say is left out.
-		if (!name || !summary || refs.length === 0 || !quotesFoundIn(summary, resolvedRefs.map((entry) => entry.text).join("\n"))) return [];
+		const verseText = resolvedRefs.map((entry) => entry.text).join("\n");
+		// A theme whose name or summary quotes words its own verses do not say is left out.
+		if (!name || !summary || refs.length === 0 || !quotesFoundIn(name, verseText) || !quotesFoundIn(summary, verseText)) return [];
 		return [{ name, summary, refs: [...new Map(refs.map((ref) => [ref.reference, ref])).values()] }];
 	});
 	if (themes.length < 2) throw new ProjectAiError("The Overview could not be grounded in the project's passages. Try again.");
@@ -733,15 +743,17 @@ export async function assembleStudy(options: {
 
 	const citedTexts: string[] = [];
 	const sections: StudySection[] = output.sections.flatMap((section) => {
+		const sectionCited: string[] = [];
 		const points = section.points.flatMap((point) => {
 			const text = plain(point.text);
 			const checked = checkCitations(point.citations, materials);
 			// A study keeps only what the project backs, and quotes only the words a point cites.
 			if (!text || checked.citations.length === 0 || !quotesFoundIn(text, checked.text)) return [];
 			citedTexts.push(checked.text);
+			sectionCited.push(checked.text);
 			return [{ text, basis: point.basis, citations: checked.citations }];
 		});
-		const heading = plain(section.heading);
+		const heading = groundedHeading(plain(section.heading), sectionCited.join("\n"), points);
 		return heading && points.length ? [{ heading, points }] : [];
 	});
 	if (sections.length === 0) throw new ProjectAiError("The study could not be grounded in the project's passages. Try again.");

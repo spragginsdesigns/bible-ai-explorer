@@ -67,7 +67,9 @@ Every AI call is a structured response (`Output.object`) checked in
 
 - A **verse citation** is kept only for verses that were in the material
   sent, and it is displayed from the bundled KJV (`kjvChapter`), never in the
-  model's words. A citation to a verse outside the project is dropped.
+  model's words. A citation to a verse outside the project is dropped, and
+  its label names only the verses kept (`versesLabel`: "Romans 5:1-5, 9-11"
+  when 6 to 8 were not sent; "Romans 5" only when the whole chapter was).
 - A **source citation** must quote words that are really in that source:
   `findQuote` (`projects-rules.ts`) matches ignoring case, punctuation and
   spacing, whole words only, with `...` allowed between parts, and returns the
@@ -80,7 +82,12 @@ Every AI call is a structured response (`Output.object`) checked in
   sentence cites is shown with a warning. A sentence left with no citation is
   shown dimmed with "No citation in this project backs this sentence". In an
   assembled study, a point that is not backed, or quotes anything its own
-  citations do not say, is left out altogether.
+  citations do not say, is left out altogether; a section heading that quotes
+  words its points do not cite becomes the label of its first citation
+  (`groundedHeading`), and an Overview theme whose name or summary does is
+  left out. `findQuote` tries every place an earlier part of an ellipsis
+  quote appears, so a phrase that recurs in a long commentary does not hide
+  the real quotation.
 - When a project's gathered passages are more than one request can carry,
   the ones whose words the question shares are sent first (`rankPieces`).
 - The prompts carry SureWord's mission (`doctrinalFoundation`,
@@ -111,6 +118,13 @@ answers, 20 drafts and one Overview, all inside the store's 500-item page.
 Only items of module `projects` are read as a project's contents. An item's
 `refs` stop at 480 keys (each verse key brings its chapter key, under the
 store's 500), verse ranges held to the chapter's real verses.
+
+The project record is read, changed and written back whole (`updateProject`,
+and `touchProject` after every add or remove), so both go through
+`rewriteProject`: the write carries the `updatedAt` it read (the store's
+`ifUpdatedAt`, LC-17650) and a lost race reads again and works the change out
+afresh, up to four times. A section ticked done while an upload refreshes the
+counts is never overwritten.
 
 ## Routes
 
@@ -145,7 +159,10 @@ founder's plan effort), structured output, about 25k input tokens per question
 at most. It runs only when a founder presses Ask, Write the Overview, Outline
 or Written study. Nothing is scheduled, pre-generated or backfilled. Before
 each AI call the client asks for SureWord's AI consent like chat does
-(`aiConsentGate.ensure`). The Overview's connected passages and every quoted
+(`aiConsentGate.ensure`), and the three AI routes refuse an account without
+current consent on the server too (`aiConsentRefusal` in `http.ts`: 403
+`AI_CONSENT_REQUIRED` before any model is chosen, as `vault/ask` does), so a
+stale tab or a direct request sends nothing to the model. The Overview's connected passages and every quoted
 verse come from bundled data at no cost. Saving a study as a note syncs its
 note embeddings, as any note does.
 

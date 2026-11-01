@@ -239,6 +239,11 @@ function SourceRow({ source, projectId, refresh }: { source: SourceView; project
 			setError(caught instanceof Error ? caught.message : "Not removed. Try again.");
 		}
 	};
+	const cancelRename = () => {
+		setTitle(source.title);
+		setError(null);
+		setRenaming(false);
+	};
 	const rename = async (event: FormEvent) => {
 		event.preventDefault();
 		setError(null);
@@ -257,10 +262,23 @@ function SourceRow({ source, projectId, refresh }: { source: SourceView; project
 				<span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-sky-500/[.13] text-sky-800 dark:bg-sky-300/[.12] dark:text-sky-200" aria-hidden><Icon size={19} /></span>
 				<div className="min-w-0 flex-1">
 					{renaming ? (
-						<form onSubmit={rename} className="flex gap-2">
+						<form onSubmit={rename} className="space-y-2">
 							<label className="sr-only" htmlFor={`rename-${source.id}`}>Source name</label>
-							<input id={`rename-${source.id}`} value={title} onChange={(event) => setTitle(event.target.value)} maxLength={120} className={`${field} py-2`} autoFocus />
-							<button type="submit" className={secondaryButton}>Save</button>
+							<input
+								id={`rename-${source.id}`}
+								value={title}
+								onChange={(event) => setTitle(event.target.value)}
+								onKeyDown={(event) => {
+									if (event.key === "Escape") cancelRename();
+								}}
+								maxLength={120}
+								className={`${field} py-2`}
+								autoFocus
+							/>
+							<div className="flex gap-2">
+								<button type="submit" className={secondaryButton}>Save</button>
+								<button type="button" onClick={cancelRename} className={ghostButton}>Cancel</button>
+							</div>
 						</form>
 					) : (
 						<h3 className="font-bold leading-snug">

@@ -3,7 +3,7 @@ import { resolveModel } from "@/lib/ai/provider";
 import { withIncludedAiRequest } from "@/lib/billing/usage";
 import { betaNotFound, requireBetaApi } from "@/lib/beta/access";
 import { generateOverview } from "@/lib/beta/projects/ai";
-import { projectError, projectJson } from "@/lib/beta/projects/http";
+import { aiConsentRefusal, projectError, projectJson } from "@/lib/beta/projects/http";
 import { loadProject } from "@/lib/beta/projects/projects";
 
 export const maxDuration = 120;
@@ -19,6 +19,8 @@ const overview = withIncludedAiRequest(async (_req: Request, userId: string, pro
 	try {
 		const project = await loadProject(userId, projectId);
 		if (!project) return betaNotFound();
+		const refused = await aiConsentRefusal(userId);
+		if (refused) return refused;
 		const resolved = await resolveModel({ userId, structured: true });
 		return projectJson({ overview: await generateOverview({ userId, project, resolved }) }, 201);
 	} catch (error) {
