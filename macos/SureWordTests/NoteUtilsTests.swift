@@ -31,7 +31,7 @@ struct NoteUtilsTests {
         #expect(
             NoteUtils.htmlToPlainText(
                 "<blockquote><p>John 3:16</p><p>For God so loved</p></blockquote><p>End</p>"
-            ) == "John 3:16\nFor God so loved\n\nEnd"
+            ) == "John 3:16\nFor God so loved\nEnd"
         )
         #expect(NoteUtils.htmlToPlainText("<p>one<br>two<br/>three</p>") == "one\ntwo\nthree")
     }
@@ -52,9 +52,57 @@ struct NoteUtilsTests {
         )
     }
 
-    @Test("Collapses runs of blank lines")
-    func collapsesBlankLines() {
-        #expect(NoteUtils.htmlToPlainText("<p>one</p><p></p><p></p><p>two</p>") == "one\n\ntwo")
+    @Test("Preserves explicit empty paragraphs and repeated breaks")
+    func preservesBlankLines() {
+        #expect(NoteUtils.htmlToPlainText("<p>one</p><p></p><p></p><p>two</p>") == "one\n\n\ntwo")
+        #expect(NoteUtils.htmlToPlainText("<p>one<br><br/><br />two</p>") == "one\n\n\ntwo")
+    }
+
+    @Test("Derives canonical leaf blocks across nesting, tasks and preformatted text")
+    func canonicalLeafBlocks() {
+        let cases: [(String, String)] = [
+            ("<p>QA immutable seed synthetic-owned-marker<br>QA_NEW_synthetic-owned-marker</p>", "QA immutable seed synthetic-owned-marker\nQA_NEW_synthetic-owned-marker"),
+            ("<p>QA immutable seed synthetic-owned-marker</p>\n<p>QA_NEW_synthetic-owned-marker</p>", "QA immutable seed synthetic-owned-marker\nQA_NEW_synthetic-owned-marker"),
+            ("<p>QA immutable seed synthetic-owned-marker<br>QA_NEW_synthetic-owned-marker</p>", "QA immutable seed synthetic-owned-marker\nQA_NEW_synthetic-owned-marker"),
+            ("<p>QA immutable seed synthetic-owned-marker<br>QA_NEW_synthetic-owned-marker</p>", "QA immutable seed synthetic-owned-marker\nQA_NEW_synthetic-owned-marker"),
+            ("<p>QA immutable seed synthetic-owned-marker</p><p>QA_NEW_synthetic-owned-marker</p>", "QA immutable seed synthetic-owned-marker\nQA_NEW_synthetic-owned-marker"),
+            ("<p>QA immutable seed synthetic-owned-marker\nQA_NEW_synthetic-owned-marker</p>", "QA immutable seed synthetic-owned-marker QA_NEW_synthetic-owned-marker"),
+            ("<p>QA immutable seed synthetic-owned-marker<br><br><br>QA_NEW_synthetic-owned-marker</p>", "QA immutable seed synthetic-owned-marker\n\n\nQA_NEW_synthetic-owned-marker"),
+            ("<p>QA immutable seed synthetic-owned-marker</p><p></p><p></p><p>QA_NEW_synthetic-owned-marker</p>", "QA immutable seed synthetic-owned-marker\n\n\nQA_NEW_synthetic-owned-marker"),
+            ("<p><strong>QA immutable seed synthetic-owned-marker</strong> <a href=\"https://example.invalid/\">QA_NEW_synthetic-owned-marker</a> end</p>", "QA immutable seed synthetic-owned-marker QA_NEW_synthetic-owned-marker end"),
+            ("<blockquote><ul><li><p>A</p></li></ul></blockquote><p>B</p>", "A\nB"),
+            ("<ul><li><p>A</p><ul><li><p>B</p></li></ul></li><li><p>C</p></li></ul>", "A\nB\nC"),
+            ("<ul data-type=\"taskList\"><li data-type=\"taskItem\" data-checked=\"false\"><label><input type=\"checkbox\"><span></span></label><div><p>A</p></div></li></ul><p>B</p>", "A\nB"),
+            ("<ul><li>A</li><li>B</li></ul>", "A\nB"),
+            ("<ol><li><p>A</p><p>B</p></li><li><p>C</p></li></ol>", "A\nB\nC"),
+            ("<ul><li><p>A</p></li><li></li><li><p>C</p></li></ul>", "A\n\nC"),
+            ("<ul data-type=\"taskList\"><li data-type=\"taskItem\" data-checked=\"true\"><div><p>A</p></div></li><li data-type=\"taskItem\" data-checked=\"false\"><label><input type=\"checkbox\"><span></span></label><div></div></li><li data-type=\"taskItem\" data-checked=\"false\"><div><p>C</p></div></li></ul>", "A\n\nC"),
+            ("<blockquote><p>A</p><p></p><ul><li><p>B</p></li></ul></blockquote>", "A\n\nB"),
+            ("<pre><code> A\n\n\nB </code></pre><p>C</p>", " A\n\n\nB \nC")
+        ]
+        for (html, expected) in cases { #expect(NoteUtils.htmlToPlainText(html) == expected) }
+    }
+
+    @Test("Preserves legacy div and row leaf boundaries")
+    func legacyLeafContainers() {
+        let cases: [(String, String)] = [
+            ("<div>A</div><div>B</div>", "A\nB"),
+            ("<table><tr><td>A</td></tr><tr><td>B</td></tr></table>", "A\nB"),
+            ("<div><p>A</p><div><p>B</p></div></div><p>C</p>", "A\nB\nC"),
+            ("<div>A</div><div></div><div>B</div>", "A\n\nB"),
+            ("<div><div></div></div><div>A</div>", "\nA")
+        ]
+        for (html, expected) in cases { #expect(NoteUtils.htmlToPlainText(html) == expected) }
+    }
+
+    @Test("Raw script/style less-than contents cannot swallow later visible text")
+    func rawTextContents() {
+        let cases: [(String, String)] = [
+            ("<script>if (a<b) alert(1)</script><p>Visible safe words</p>", "Visible safe words"),
+            ("<style>.x:before{content:\"<b\"}</style><p>Visible safe words</p>", "Visible safe words"),
+            ("<p>&lt;script&gt;if (a&lt;b) alert(1)&lt;/script&gt; &lt;style&gt;.x&lt;b&lt;/style&gt;</p>", "<script>if (a<b) alert(1)</script> <style>.x<b</style>")
+        ]
+        for (html, expected) in cases { #expect(NoteUtils.htmlToPlainText(html) == expected) }
     }
 
     // MARK: countWords

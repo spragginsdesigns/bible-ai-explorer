@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { normalizeAssistantMarkdown } from "../src/utils/assistantMarkdown.ts";
+import * as notePlainText from "../src/lib/note-plain-text.mjs";
 import { analyzeMarkdownUnderscores, markdownRangeHasLiteralUnderscore } from "../src/lib/ai/markdown-underscore-guard.ts";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
@@ -24,7 +25,7 @@ function load(relative, mocks = {}) {
 const bookData = json("src/data/books.json");
 const books = load("src/lib/bible/books.ts", { "@/data/books.json": bookData, "@/data/book-names.json": json("src/data/book-names.json") });
 const foundation = load("src/utils/systemPrompt.ts");
-const markdown = load("src/lib/markdown.ts");
+const markdown = load("src/lib/markdown.ts", { "./note-plain-text.mjs": notePlainText });
 const rules = load("src/lib/reading-overview-rules.ts");
 const chapters = new Map();
 const john316 = json("src/data/kjv/43-john.json")[2][15];

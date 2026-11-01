@@ -2,7 +2,7 @@
 export const HISTORY_FOUNDATION_DIGEST = "d94fb1749d77ce12b4fa429944bc8eefed974f227a51c0ec2226e3f38cfaa237";
 export const HISTORY_RENDERER_DIGEST = "ed46649caec754d87c1c06a6ba86ef3bd297277ea087311e28abebcdec99ed73";
 export const HISTORY_CHECKER_DIGEST = "bd7652fee926ad163631badaf0f2a20011d8949223b634f43fe3ddaf9ad027c5";
-export const HISTORY_IMPLEMENTATION_DIGEST = "30b8b0917b272dc817ddec8fa931c462d9994884f46e5692538f62f78e29ba4b";
+export const HISTORY_IMPLEMENTATION_DIGEST = "69e5d5c39bb44536fe93e0436b202b23d2512d971ef6163cc9a1f50012d32c05";
 export const HISTORY_CORPUS_DIGEST = "480b2ee7cd143e6fd19f9fc130801f3831a0ee7f3e2ef68a98a0adbdb7e23fce";
 export const HISTORY_CORPUS_IDENTITIES = {
   "KJV": "a8d24b1b10efbb80483d86faf7300005b048d66b5ac45379feadfd051053c44d",
@@ -77,6 +77,10 @@ export const HISTORY_SOURCE_MANIFEST = {
     "src/lib/ai/verified-answer-stream.ts": "c95b0dad19da6b54d30353aef20688ec96c0eb9c6b84df97112ca38a3fee41af",
     "src/lib/ai/status-narration.ts": "73103e6d8e27df13de4fe766d5d36b33e72713a9172b7df18f9662d409e58101",
     "src/lib/ai-tools.ts": "8ff5f61f3281bedc99af3a09e5d2a9acbbce82bd4ea38624eea95fbcbea8dc66",
+    "src/lib/notes-io.ts": "549ada221491956d74381052ffdfe408bbca17a35c1c57c8b78cea66c1e34b26",
+    "src/lib/markdown.ts": "b17e0bf730ed20964f758046c2b0ff06032e03809891707a0769c9f45e147c4a",
+    "src/lib/note-plain-text.mjs": "80472b3f071d09b38a1d83292feab3e56b38874c525bc6f84d832eab9ea27fc1",
+    "src/lib/note-plain-text.d.mts": "f8b68f9a594ab291f70ba5c6a3a7435869dd56dc84e85640b4c1c692e2a11b3b",
     "src/lib/ai/provider.ts": "bc5ca1b3bffa9712188a52b5feaf69229a5472be8ee7a7366df517898a5f5e24",
     "src/lib/billing/usage.ts": "3ac1ee10a69dc3d039d037d8101b9915e8c76900d2682bacfc9359d614fe4572"
   },

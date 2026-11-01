@@ -1,5 +1,6 @@
 "use client";
 
+import { htmlToPlainText } from "@/lib/note-plain-text.mjs";
 import React, { useEffect, useRef, useCallback, forwardRef, useImperativeHandle, useState } from "react";
 import { clearEditorDraft, readEditorDraft, retainEditorDraft, type EditorDraft, type EditorDraftOwner } from "@/lib/notes/editor-draft";
 import { adoptCanonicalDocument } from "@/lib/notes/canonical-document";
@@ -91,7 +92,7 @@ const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(function 
 	const lastDraft = useRef<{ draft: EditorDraft; persisted: boolean } | null>(null);
 	const draftStorage = () => { try { return window.localStorage; } catch { return null; } };
 	const bodyFor = (value: Editor): NoteSaveData => {
-		const text = value.getText();
+		const text = htmlToPlainText(value.getHTML());
 		return { content: JSON.stringify(value.getJSON()), htmlContent: value.getHTML(), plainText: text, wordCount: text.trim() ? text.trim().split(/\s+/).length : 0 };
 	};
 	const lockedRef = useRef(readOnly);
@@ -164,7 +165,7 @@ const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(function 
 
 			let data: NoteSaveData;
 			try {
-				const text = editor.getText();
+				const text = htmlToPlainText(editor.getHTML());
 				data = {
 					content: JSON.stringify(editor.getJSON()),
 					htmlContent: editor.getHTML(),

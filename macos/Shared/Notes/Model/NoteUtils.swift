@@ -3,37 +3,102 @@ import Foundation
 /// Derivations shared by the notes list and editor — a port of
 /// `mobile/src/features/notes/utils.ts`.
 ///
-/// Like the Android client this has no DOM to lean on, so `plainText` and
-/// `wordCount` are derived from the editor HTML by the same regex chain. The
-/// order of those substitutions is load-bearing (entities are decoded *after*
-/// tags are stripped, so a literal `&lt;p&gt;` in the text survives), and the
-/// Vitest suite that pins it is ported alongside in `NoteUtilsTests`.
+/// Derives text from leaf blocks, matching web and Android without treating
+/// list, quote or task wrappers as additional blank lines. Entity decoding is
+/// applied to text tokens, preserving escaped markup as visible text.
 enum NoteUtils {
 
-    /// Closing tags that end a visual block and therefore become a newline.
-    private static let blockClose = "</(p|div|h[1-6]|li|blockquote|tr|pre)>"
-
+    /// One separator per leaf block. Wrappers do not create empty lines;
+    /// explicit BRs, empty paragraphs/items and preformatted text remain.
     static func htmlToPlainText(_ html: String) -> String {
-        guard !html.isEmpty else { return "" }
-        var text = html
-        text = text.replacing("<(script|style)[\\s\\S]*?</\\1>", with: "", caseInsensitive: true)
-        text = text.replacing("<br\\s*/?>", with: "\n", caseInsensitive: true)
-        text = text.replacing(blockClose, with: "\n", caseInsensitive: true)
-        text = text.replacing("<[^>]*>", with: "")
-        text = text.replacing("&nbsp;", with: " ", caseInsensitive: true)
-        text = text.replacing("&lt;", with: "<", caseInsensitive: true)
-        text = text.replacing("&gt;", with: ">", caseInsensitive: true)
-        text = text.replacing("&quot;", with: "\"", caseInsensitive: true)
-        // Deliberately matches both `&#34;` and `&#39;`, exactly as the TS
-        // original's `/&#3[49];/g` does. It is a quirk, not a Swift slip: the
-        // three clients must derive byte-identical plainText or a note saved on
-        // one shows a different search preview on another.
-        text = text.replacing("&#3[49];", with: "'")
-        text = text.replacing("&amp;", with: "&", caseInsensitive: true)
-        text = text.replacing("[ \\t]+", with: " ")
-        text = text.replacing(" ?\n ?", with: "\n")
-        text = text.replacing("\n{3,}", with: "\n\n")
-        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        func decode(_ text: String) -> String {
+            text.replacing("&nbsp;", with: " ", caseInsensitive: true)
+                .replacing("&lt;", with: "<", caseInsensitive: true)
+                .replacing("&gt;", with: ">", caseInsensitive: true)
+                .replacing("&quot;", with: "\"", caseInsensitive: true)
+                .replacing("&#3[49];", with: "'")
+                .replacing("&amp;", with: "&", caseInsensitive: true)
+        }
+        func matches(_ pattern: String, _ text: String) -> [NSTextCheckingResult] {
+            let regex = try! NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
+            return regex.matches(in: text, range: NSRange(text.startIndex..., in: text))
+        }
+        // Raw script/style contents are not HTML token streams (e.g. a < b).
+        let source = html.replacing("<(script|style)[\\s\\S]*?</\\1>", with: "", caseInsensitive: true)
+        if matches("<[a-z/!][^>]*>", source).isEmpty {
+            return decode(source).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        var blocks: [String] = []
+        var current: String?
+        var preDepth = 0
+        var skipDepth = 0
+        var items: [Bool] = []
+        var wrappers: [Bool] = []
+        func finish() {
+            guard let text = current else { return }
+            blocks.append(preDepth > 0 ? text : text.replacing("^ +| +$", with: ""))
+            current = nil
+            if !items.isEmpty { items[items.count - 1] = true }
+            for index in wrappers.indices { wrappers[index] = true }
+        }
+        let voidTags: Set<String> = ["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"]
+        for match in matches(#"<!--[\s\S]*?-->|<(?:"[^"]*"|'[^']*'|[^'">])*>|[^<]+|<"#, source) {
+            let token = (source as NSString).substring(with: match.range)
+            if token.hasPrefix("<!--") { continue }
+            guard let tag = matches(#"^<\s*(/?)\s*([a-z][\w:-]*)\b"#, token).first else {
+                if skipDepth > 0 || token.hasPrefix("<!") { continue }
+                let text = preDepth > 0 ? decode(token) : decode(token).replacing("[ \\t\\r\\n]+", with: " ")
+                if text == " " && (current == nil || current == "") { continue }
+                current = (current ?? "") + text
+                continue
+            }
+            let closing = (token as NSString).substring(with: tag.range(at: 1)) == "/"
+            let name = (token as NSString).substring(with: tag.range(at: 2)).lowercased()
+            let selfClosing = !matches(#"/\s*>$"#, token).isEmpty || voidTags.contains(name)
+            if skipDepth > 0 {
+                skipDepth += closing ? -1 : selfClosing ? 0 : 1
+                continue
+            }
+            if !closing && ["script", "style", "noscript", "label"].contains(name) {
+                if !selfClosing { skipDepth = 1 }
+                continue
+            }
+            if name == "br" {
+                if !closing { current = (current ?? "") + "\n" }
+                continue
+            }
+            if name == "hr" {
+                if !closing { finish(); current = ""; finish() }
+                continue
+            }
+            if name == "div" || name == "tr" {
+                finish()
+                if !closing { wrappers.append(false) }
+                else {
+                    if wrappers.last == false { current = ""; finish() }
+                    if !wrappers.isEmpty { wrappers.removeLast() }
+                }
+                continue
+            }
+            if !matches("^(p|h[1-6])$", name).isEmpty {
+                finish()
+                if !closing { current = "" }
+                continue
+            }
+            if ["blockquote", "ul", "ol", "li", "pre"].contains(name) {
+                finish()
+                if name == "li" {
+                    if !closing { items.append(false) }
+                    else {
+                        if items.last == false { current = ""; finish() }
+                        if !items.isEmpty { items.removeLast() }
+                    }
+                }
+                if name == "pre" { preDepth = max(0, preDepth + (closing ? -1 : 1)) }
+            }
+        }
+        finish()
+        return blocks.joined(separator: "\n")
     }
 
     static func countWords(_ text: String) -> Int {
@@ -43,7 +108,7 @@ enum NoteUtils {
     /// True for the empty documents the rich editors produce
     /// (`""`, `<p></p>`, `<p><br></p>`).
     static func isBlankHTML(_ html: String) -> Bool {
-        htmlToPlainText(html).isEmpty
+        htmlToPlainText(html).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     /// The web stores Tiptap JSON in `content` and HTML in `htmlContent`, but

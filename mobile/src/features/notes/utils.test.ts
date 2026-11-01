@@ -16,7 +16,7 @@ describe("htmlToPlainText", () => {
 	it("turns blockquote closings and <br> into newlines", () => {
 		expect(
 			htmlToPlainText("<blockquote><p>John 3:16</p><p>For God so loved</p></blockquote><p>End</p>")
-		).toBe("John 3:16\nFor God so loved\n\nEnd");
+		).toBe("John 3:16\nFor God so loved\nEnd");
 		expect(htmlToPlainText("<p>one<br>two<br/>three</p>")).toBe("one\ntwo\nthree");
 	});
 
@@ -32,9 +32,107 @@ describe("htmlToPlainText", () => {
 		);
 	});
 
-	it("collapses runs of blank lines", () => {
-		expect(htmlToPlainText("<p>one</p><p></p><p></p><p>two</p>")).toBe("one\n\ntwo");
+	it("preserves explicit empty paragraphs and repeated breaks", () => {
+		expect(htmlToPlainText("<p>one</p><p></p><p></p><p>two</p>")).toBe("one\n\n\ntwo");
+		expect(htmlToPlainText("<p>one<br><br/><br />two</p>")).toBe("one\n\n\ntwo");
 	});
+	it.each([
+  [
+    "soft LF",
+    "<p>QA immutable seed synthetic-owned-marker<br>QA_NEW_synthetic-owned-marker</p>",
+    "QA immutable seed synthetic-owned-marker\nQA_NEW_synthetic-owned-marker"
+  ],
+  [
+    "Markdown paragraphs",
+    "<p>QA immutable seed synthetic-owned-marker</p>\n<p>QA_NEW_synthetic-owned-marker</p>",
+    "QA immutable seed synthetic-owned-marker\nQA_NEW_synthetic-owned-marker"
+  ],
+  [
+    "two-space hard break",
+    "<p>QA immutable seed synthetic-owned-marker<br>QA_NEW_synthetic-owned-marker</p>",
+    "QA immutable seed synthetic-owned-marker\nQA_NEW_synthetic-owned-marker"
+  ],
+  [
+    "backslash hard break",
+    "<p>QA immutable seed synthetic-owned-marker<br>QA_NEW_synthetic-owned-marker</p>",
+    "QA immutable seed synthetic-owned-marker\nQA_NEW_synthetic-owned-marker"
+  ],
+  [
+    "supplied HTML paragraphs",
+    "<p>QA immutable seed synthetic-owned-marker</p><p>QA_NEW_synthetic-owned-marker</p>",
+    "QA immutable seed synthetic-owned-marker\nQA_NEW_synthetic-owned-marker"
+  ],
+  [
+    "HTML soft whitespace",
+    "<p>QA immutable seed synthetic-owned-marker\nQA_NEW_synthetic-owned-marker</p>",
+    "QA immutable seed synthetic-owned-marker QA_NEW_synthetic-owned-marker"
+  ],
+  [
+    "three explicit breaks",
+    "<p>QA immutable seed synthetic-owned-marker<br><br><br>QA_NEW_synthetic-owned-marker</p>",
+    "QA immutable seed synthetic-owned-marker\n\n\nQA_NEW_synthetic-owned-marker"
+  ],
+  [
+    "two empty paragraphs",
+    "<p>QA immutable seed synthetic-owned-marker</p><p></p><p></p><p>QA_NEW_synthetic-owned-marker</p>",
+    "QA immutable seed synthetic-owned-marker\n\n\nQA_NEW_synthetic-owned-marker"
+  ],
+  [
+    "inline formatting spaces",
+    "<p><strong>QA immutable seed synthetic-owned-marker</strong> <a href=\"https://example.invalid/\">QA_NEW_synthetic-owned-marker</a> end</p>",
+    "QA immutable seed synthetic-owned-marker QA_NEW_synthetic-owned-marker end"
+  ],
+  [
+    "nested quote and list",
+    "<blockquote><ul><li><p>A</p></li></ul></blockquote><p>B</p>",
+    "A\nB"
+  ],
+  [
+    "nested list",
+    "<ul><li><p>A</p><ul><li><p>B</p></li></ul></li><li><p>C</p></li></ul>",
+    "A\nB\nC"
+  ],
+  [
+    "task item div and label",
+    "<ul data-type=\"taskList\"><li data-type=\"taskItem\" data-checked=\"false\"><label><input type=\"checkbox\"><span></span></label><div><p>A</p></div></li></ul><p>B</p>",
+    "A\nB"
+  ],
+  [
+    "bare list item",
+    "<ul><li>A</li><li>B</li></ul>",
+    "A\nB"
+  ],
+  [
+    "multi paragraph list item",
+    "<ol><li><p>A</p><p>B</p></li><li><p>C</p></li></ol>",
+    "A\nB\nC"
+  ],
+  [
+    "empty list item",
+    "<ul><li><p>A</p></li><li></li><li><p>C</p></li></ul>",
+    "A\n\nC"
+  ],
+  [
+    "empty task item",
+    "<ul data-type=\"taskList\"><li data-type=\"taskItem\" data-checked=\"true\"><div><p>A</p></div></li><li data-type=\"taskItem\" data-checked=\"false\"><label><input type=\"checkbox\"><span></span></label><div></div></li><li data-type=\"taskItem\" data-checked=\"false\"><div><p>C</p></div></li></ul>",
+    "A\n\nC"
+  ],
+  [
+    "empty paragraph inside quote",
+    "<blockquote><p>A</p><p></p><ul><li><p>B</p></li></ul></blockquote>",
+    "A\n\nB"
+  ],
+  [
+    "literal pre whitespace",
+    "<pre><code> A\n\n\nB </code></pre><p>C</p>",
+    " A\n\n\nB \nC"
+  ]
+])("derives canonical leaf blocks: %s", (_name, html, expected) => { expect(htmlToPlainText(html)).toBe(expected); });
+
+	it.each([["<div>A</div><div>B</div>", "A\nB"], ["<table><tr><td>A</td></tr><tr><td>B</td></tr></table>", "A\nB"], ["<div><p>A</p><div><p>B</p></div></div><p>C</p>", "A\nB\nC"], ["<div>A</div><div></div><div>B</div>", "A\n\nB"], ["<div><div></div></div><div>A</div>", "\nA"]])("preserves legacy leaf containers: %s", (html, expected) => { expect(htmlToPlainText(html)).toBe(expected); });
+
+	it.each([["raw script less-than", "<script>if (a<b) alert(1)</script><p>Visible safe words</p>", "Visible safe words"], ["raw style less-than", "<style>.x:before{content:\"<b\"}</style><p>Visible safe words</p>", "Visible safe words"], ["escaped markup remains text", "<p>&lt;script&gt;if (a&lt;b) alert(1)&lt;/script&gt; &lt;style&gt;.x&lt;b&lt;/style&gt;</p>", "<script>if (a<b) alert(1)</script> <style>.x<b</style>"]])("preserves visible text after %s", (_name, html, expected) => { expect(htmlToPlainText(html)).toBe(expected); });
+
 });
 
 describe("initialHtmlFor", () => {

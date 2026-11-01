@@ -12,6 +12,26 @@ import Testing
 @Suite("Note HTML round-trip (iOS)")
 struct NoteHTMLIOSTests {
 
+    @Test(
+        "Canonical save text matches the editor without adding wrapper breaks",
+        arguments: [
+            ("<p>A<br>B</p>", "A\nB"),
+            ("<p>A<br><br><br>B</p>", "A\n\n\nB"),
+            ("<p>A</p><p></p><p></p><p>B</p>", "A\n\n\nB"),
+            ("<blockquote><ul><li><p>A</p></li></ul></blockquote><p>B</p>", "A\nB"),
+            ("<ul><li><p>A</p><ul><li><p>B</p></li></ul></li></ul><p>C</p>", "A\nB\nC"),
+            ("<ul><li></li><li><p>A</p></li></ul>", "\nA"),
+            ("<ul data-type=\"taskList\"><li data-type=\"taskItem\" data-checked=\"false\"><label><input type=\"checkbox\"><span></span></label><div><p>A</p></div></li></ul><p>B</p>", "A\nB"),
+            ("<pre><code>A\n\n\nB</code></pre>", "A\n\n\nB"),
+        ]
+    )
+    func canonicalSaveText(fixture: (String, String)) {
+        let document = NoteHTMLParser.parse(fixture.0)
+        let visible = document.plainText.replacingOccurrences(of: "\u{2028}", with: "\n")
+        #expect(visible == fixture.1)
+        #expect(NoteUtils.htmlToPlainText(NoteHTMLSerializer.serialize(document)) == visible)
+    }
+
     private func roundTrip(_ html: String) -> String {
         NoteHTMLSerializer.serialize(NoteHTMLParser.parse(html))
     }
