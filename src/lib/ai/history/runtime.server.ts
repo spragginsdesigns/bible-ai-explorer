@@ -47,6 +47,7 @@ export const historyService = createHistoryService({repository, loadCurrentPolic
 /** Reuse the actual server-resolved current model, utility meter and bounded allowance. */
 export function createCurrentRequestReview(definition:ModelDefinition,model:LanguageModel,providerOptions?:Record<string,Record<string,JSONValue>>){
  return{reviewer:reviewerIdentity(definition),review:createVerifyOnlyAdapter({
+  allowEvidenceCompletion:true,
   houseChatModel:async()=>({definition}),resolveVerificationModel:async()=>model,
   providerOptionsForReview:()=>providerOptions??{},verifyScriptureDraft,verifyGeneratedAnswer,
   isQuotaError:error=>error instanceof IncludedAiLimitError,
