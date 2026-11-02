@@ -41,9 +41,13 @@ audio was withheld; the remaining Pro cases were not run. A subsequent
 diagnostic identified a conversational-comprehension acknowledgment being
 classified as a completed operation. The classification correction retains
 owned execution proof for actual app/tool operations and separately checks
-listening, transcription and speaker claims. New live acceptance remains
-pending. The next complete Free pass requires the normal daily quota reset;
-no test allowance or account quota is bypassed.
+listening, transcription and speaker claims. A real post-fix Pro audio case
+passed final review and saved-answer checks. Separate real saved-text controls
+verified the captured comprehension acknowledgment and withheld false note-save
+and listening/speaker claims; source fields stayed unchanged and the fixtures
+were cleaned up. These checks do not replace the complete Free/Pro matrix.
+The next complete Free pass requires the normal daily quota reset; no test
+allowance or account quota is bypassed.
 
 Owner speech remains restricted to the verified owner with Pro, uses device
 speech at 1.05x, and shares normal chat history and tools. GPT-Live remains
