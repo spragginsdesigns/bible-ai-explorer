@@ -7,33 +7,52 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
-## Combined release candidate, 2026-10-31
+## Combined release candidate, 2026-11-01
 
 The accuracy, Apple parity and owner speech work is integrated on
 `codex/sureword-integrated-release-20261030`. The saved-believer foundation
 remains byte-identical. This checkpoint supersedes the older build and
 branch status below; their receipts remain historical evidence.
 
-Android 1.112.0/code 133 and Apple 1.31.0 are pending final release acceptance.
-Mac build 53 replaces build 52 after the shared Notes line-break correction;
-iOS uses the next unused build allocated by App Store Connect. Existing
-signed binaries and test receipts are preserved before rebuilding.
+Signed Android 1.112.0/code 133, notarized Mac 1.31.0/build 53, and exported
+iOS 1.31.0/build 1 are prepared and unpublished. Mac build 53 is installed
+locally. Prior binaries, archives, worktrees and test receipts are preserved.
 
 The current checker passed all 155,510 bundled verse slots, including 32
 expected omissions, with no unexpected failures. This checks canonical
 quotation fidelity, not semantic accuracy or the complete remote NKJV corpus.
 The Notes correction preserves explicit breaks and empty paragraphs through
-canonical saves. Final authenticated API, Android, web and Apple runtime
-checks remain release gates. The interrupted saved-history test reached seven
-observed UI phases but did not finish its final original-export step; it is
-not counted as acceptance.
+canonical saves. Actual iOS append, rewrite, manual save and editor reopen
+passed; the rewrite assistant explanation was withheld, so that result proves
+note persistence rather than verified answer generation. Mac manual notes
+also survived navigation and a full application quit/relaunch.
+
+All eight iOS saved-history UI phases passed: valid chat/note answers were
+shown after checking, invalid answers stayed withheld, and four original
+export sheets opened and canceled. The export assertions checked expected
+original snippets; they do not prove complete file-byte equality or a saved
+file. History rechecks now preserve the projection block IDs referenced by
+the review envelope.
+
+Fresh final review can load one bounded batch of missing bundled canonical
+evidence without editing the answer or relaxing the strict gate. The latest
+live matrix passed all four Free cases and Pro PDF, then stopped when Pro
+audio was withheld; the remaining Pro cases were not run. A subsequent
+diagnostic identified a conversational-comprehension acknowledgment being
+classified as a completed operation. The classification correction retains
+owned execution proof for actual app/tool operations and separately checks
+listening, transcription and speaker claims. New live acceptance remains
+pending. The next complete Free pass requires the normal daily quota reset;
+no test allowance or account quota is bypassed.
 
 Owner speech remains restricted to the verified owner with Pro, uses device
 speech at 1.05x, and shares normal chat history and tools. GPT-Live remains
-experimental and disabled in production. Physical Galaxy access is on hold
-while Austin uses his phone; the existing Windows emulator is the Android
-test target. Notification permission/runtime testing was explicitly skipped
-by Austin. No integrated release publication is claimed at this checkpoint.
+experimental and disabled in production. Galaxy access remains on hold while
+Austin uses his phone. The Windows emulator is also on hold at his request;
+the Mac's existing Android emulator cannot fit the candidate safely. Android
+runtime acceptance awaits a device window. Notification permission/runtime
+testing was explicitly skipped by Austin. No integrated release publication
+is claimed at this checkpoint.
 
 ## Account-restricted GPT-Live voice, 2026-10-29
 
