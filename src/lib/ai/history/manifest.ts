@@ -2,7 +2,7 @@
 export const HISTORY_FOUNDATION_DIGEST = "d94fb1749d77ce12b4fa429944bc8eefed974f227a51c0ec2226e3f38cfaa237";
 export const HISTORY_RENDERER_DIGEST = "ed46649caec754d87c1c06a6ba86ef3bd297277ea087311e28abebcdec99ed73";
 export const HISTORY_CHECKER_DIGEST = "bd7652fee926ad163631badaf0f2a20011d8949223b634f43fe3ddaf9ad027c5";
-export const HISTORY_IMPLEMENTATION_DIGEST = "69e5d5c39bb44536fe93e0436b202b23d2512d971ef6163cc9a1f50012d32c05";
+export const HISTORY_IMPLEMENTATION_DIGEST = "3eda6f862834fc02cfb5487d2cbc42124beca3b9b38ffcc5dd3672ee142bb941";
 export const HISTORY_CORPUS_DIGEST = "480b2ee7cd143e6fd19f9fc130801f3831a0ee7f3e2ef68a98a0adbdb7e23fce";
 export const HISTORY_CORPUS_IDENTITIES = {
   "KJV": "a8d24b1b10efbb80483d86faf7300005b048d66b5ac45379feadfd051053c44d",
@@ -67,7 +67,7 @@ export const HISTORY_SOURCE_MANIFEST = {
     "src/lib/ai/history/renderer.ts": "0b6657061dc894623d490c310c989903a076dd06e26dd621c3a9b00d03be0472",
     "src/lib/ai/history/repository.mjs": "566fca4fa2a36dbabea0764a50e05514a1f638b3a3a71ef113eec9a3744fa956",
     "src/lib/ai/history/runtime.server.ts": "48863487a4476db36d1382199e3f2ff8984f2fcfc48fac1fba7aeb97af7c005f",
-    "src/lib/ai/history/service.mjs": "09254ed5d43c1e94853715cd452af8c78b70023d8f7fddaa490ec14a6d17d019",
+    "src/lib/ai/history/service.mjs": "871fe955713e8b785f267f27728758e7764427be61f06c966f98c9f257d95556",
     "src/lib/ai/history/shared-boundary.server.ts": "b90834dd9d4cddefe2853d907396b5f9b71946abebb8011353a2b757cc234ac0",
     "src/lib/ai/history/shared-boundary.ts": "733de31bc7eecb96834103218f039099767e226824f83a1eee0467ced160e1fd",
     "src/lib/ai/history/transaction-conflicts.mjs": "8d6e443851cfcd74d2d1252c2f218846f46b5d59716273534587577e82dae91d",

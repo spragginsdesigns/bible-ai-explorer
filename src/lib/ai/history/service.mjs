@@ -383,7 +383,7 @@ export function createHistoryService({ repository, loadCurrentPolicy, renderer, 
                 return claim.reply;
             let result, errorCode = null, retryAfter = null;
             try {
-                const blocks = claim.built.review.blocks.map((block, i) => ({ id: `history-${i}`, text: block.text }));
+                const blocks = claim.built.review.blocks.map(block => ({ id: block.path, text: block.text }));
                 result = await boundedReview(signal => verifyOnly({ ownerId, policy: claim.built.policy, translation: claim.built.context.translation, question: claim.built.context.question, context: claim.built.reviewContext, canonicalContext: claim.built.canonicalReviewContext??claim.built.reviewContext, blocks, manifest: claim.built.review, signal, allowRepair: false, authorizeInference: async () => repository.withOwnerLock(ownerId, async (tx) => { const current = await tx.currentTime(); if (!await tx.findLease(claim.recordId, claim.leaseToken, current))
                         throw new HistoryError('stale_lease', 409); if (!await tx.hasConsent())
                         throw new HistoryError('consent_required', 412); const currentBuilt = await build(tx, ownerId, locator, await policy(tx, ownerId,external), renderer); if (!bindingEqual(currentBuilt.binding, claim.built.binding))
