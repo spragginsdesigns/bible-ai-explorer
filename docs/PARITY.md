@@ -7,7 +7,7 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
-## Combined release candidate, 2026-11-03
+## Integrated release, 2026-11-03
 
 The accuracy, Apple parity and owner speech work is integrated on
 `codex/sureword-integrated-release-20261030`. The saved-believer foundation
@@ -15,7 +15,7 @@ remains byte-identical. This checkpoint supersedes the older build and
 branch status below; their receipts remain historical evidence.
 
 Signed Android 1.112.1/code 137 replaces the unpublished 136 candidate.
-Notarized Mac 1.31.0/build 53 remains prepared and unpublished. Mac build 53 is installed locally. Code 136 also integrates
+Notarized Mac 1.31.0/build 53 is published on GitHub and installed locally. Code 136 also integrates
 the upstream notification tap queue and daily Cross refresh fixes; the
 Android voice implementation remains integrated. A separate authorized disk
 cleanup deleted the prepared iOS archive, eight SureWord simulators and the
@@ -74,7 +74,7 @@ Owner speech remains restricted to the verified owner with Pro, uses device
 speech at 1.05x, and shares normal chat history and tools. GPT-Live remains
 experimental and disabled in production. Galaxy access remains on hold while
 Austin uses his phone. The Windows emulator is also on hold at his request;
-the Mac's sole existing Android emulator now has code 136 installed through a
+the Mac's sole existing Android emulator received code 137 through a
 normal update, preserving its apps, accounts and existing notes. Code 133
 passed note-formatting, immediate-departure/cold-relaunch persistence, offline
 Atlas, KJV reading and non-owner voice checks on that emulator. The final
@@ -95,10 +95,38 @@ voice controls were hidden in screenshots; animated Chat prevented a fresh
 XML idle dump, so this does not establish TalkBack or owner-positive voice
 acceptance. Both APK and AAB remain byte-identical after the concurrent
 upstream dev-only type/CI fix was merged and canonically rebuilt. Final
-production deployment, a native Note AI canary and store readbacks remain
-pending. Notification permission/runtime
-testing was explicitly skipped by Austin. No integrated release publication
-is claimed at this checkpoint.
+production deployment is READY at `sureword.app`, from `b65e072d`, with all
+three normal cron definitions. The separate cronless QA deployment was not
+promoted. One normal foreground Android Note AI request against production
+appended the complete KJV John 3:16 to a new owned note. The original paragraph,
+manual edit and formatting survived immediate departure and reopen. Root
+independently reopened the saved assistant receipt, then deleted only the
+canary and confirmed the prior note count and nearby previews were restored.
+An initial bulk keyboard input dropped characters before any AI request;
+its cause remains unresolved. The exact paced correction was verified before
+the single request, and the failed initial receipt remains preserved.
+
+Independent Play API readback confirms internal and closed (`alpha`) both
+have completed code 137, bound to the exact tested AAB SHA-256
+`7b6bef95b1e170011edfa1cc31e7fe435d2d550af5bcd18225be2667222dd06b`.
+This proves track configuration, not delivery to closed testers. GitHub tags
+`android-v1.112.1` and `macos-v1.31.0` point to `b65e072d`. The latest release
+carries both fixed-name APK and notarized DMG assets with matching digests.
+Both store listings were applied and independently checked against this repo.
+
+iOS 1.31.0/build 1 is uploaded, VALID and APP_STORE_ELIGIBLE. App Review is
+WAITING_FOR_REVIEW with automatic release AFTER_APPROVAL. The same build is
+attached to the existing Friends and Church group with prior builds preserved;
+external TestFlight is WAITING_FOR_BETA_REVIEW and internal testing is
+READY_FOR_BETA_TESTING. Public iOS remains 1.26.0 until Apple's approval and
+release. Reviewer instructions now correctly describe the supplied Pro account.
+Notification permission/runtime testing was explicitly skipped by Austin.
+Owner microphone, TalkBack and blind-user acceptance remain separate unverified
+preview gates. All used emulators and Simulator.app are closed completely;
+the sole existing iOS simulator is shut down, within Austin's maximum of two.
+See [the sanitized release receipt](releases/2026-11-03-integrated-release.json)
+for artifact digests and platform readbacks. Detailed recovery and runtime
+receipts are retained in `Documents/SureWord Release Recovery/2026-11-03`.
 
 ## Account-restricted GPT-Live voice, 2026-10-29
 

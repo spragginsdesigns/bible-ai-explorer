@@ -4,19 +4,19 @@ The exact text for SureWord's App Store page. Start at
 [`store-listing/README.md`](README.md); the Play twin is
 [`play-store.md`](play-store.md).
 
-**PENDING 1.31.0 release:** saved-answer checking and original downloads are in the copy below. Apply after final acceptance. Live API readback on 2026-10-30 shows 1.30.0 (2) is `DEVELOPER_REJECTED`; public 1.26.0 (2) remains `READY_FOR_SALE`. The following submission receipt is historical.
+**Submitted 1.31.0 (1), 2026-11-03:** `asc.py listing apply` and `check`
+matched this copy. The version and submission read back WAITING_FOR_REVIEW,
+with automatic release AFTER_APPROVAL. The exact build is VALID and attached
+to the existing Friends and Church group, preserving its previous builds.
+External TestFlight is WAITING_FOR_BETA_REVIEW; internal testing is
+READY_FOR_BETA_TESTING. Reviewer instructions correctly describe the supplied
+Pro account. Public iOS remains 1.26.0 until Apple's approval and release.
+[Sanitized release receipt](../docs/releases/2026-11-03-integrated-release.json).
 
-**Submitted in App Store Connect (2026-10-29 Pacific):** the complete text below,
-including Ways to Serve and adjustable text, matches `asc.py listing check`.
-Build **1.30.0 (2)** was submitted at **06:12:34 Pacific**; both the version and
-submission read back as `WAITING_FOR_REVIEW`. At Austin's request, release is
-now **automatic after approval** (`AFTER_APPROVAL`), read back at **06:44:20
-Pacific**; no manual release action is needed. Public version **1.26.0** stays
-unchanged until review and release.
-The same build is attached to the existing Friends and Church TestFlight group
-and is `WAITING_FOR_BETA_REVIEW`; its testing notes and reviewer instructions
-were updated. [Submission receipt](../docs/ios/evidence/release-1.30.0/submission.json).
-[Automatic-release receipt](../docs/ios/evidence/release-1.30.0/auto-release.json).
+Historical 1.30.0 submission receipts remain available:
+[submission](../docs/ios/evidence/release-1.30.0/submission.json) and
+[automatic release](../docs/ios/evidence/release-1.30.0/auto-release.json).
+That version was subsequently developer-rejected and superseded by 1.31.0.
 
 Entered 2026-10-19: `asc.py listing apply` wrote this name, subtitle,
 promotional text, description and keywords to 1.21.0 and `listing check`
@@ -196,6 +196,14 @@ For future releases, remove any description claim unsupported by that build.
 - "Bible quiz after each chapter" (added 2026-10-25, Apple 1.25.0): the
   PARITY "Quiz me" iOS row. Written to App Store Connect 2026-10-25
   with `asc.py listing apply`; `listing check` matches.
+
+## What's new for 1.31.0
+
+```
+Notes preserve your formatting and line breaks while AI writes, with clearer save and recovery status.
+Saved answers are checked against Scripture before display. You can review older answers and download their originals separately.
+Improved Scripture verification and feedback handling.
+```
 
 ## Keywords (100 max, comma separated, no spaces)
 

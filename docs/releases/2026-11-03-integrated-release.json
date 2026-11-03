@@ -1,0 +1,229 @@
+{
+  "recordedAt": "2026-11-03T21:59:08.024165+00:00",
+  "releaseSourceCommit": "b65e072ddc850b676271df5e003490a987dcedbf",
+  "androidBinarySourceCommit": "728b7571805cb9ce48b5367b51bd2c4dc9f93d09",
+  "protectedFiles": {
+    "src/utils/systemPrompt.ts": "d94fb1749d77ce12b4fa429944bc8eefed974f227a51c0ec2226e3f38cfaa237",
+    "prisma/migrations/20261028210000_private_data_access/migration.sql": "44b8180f7f24cfc2efe5fe89b0bfcab53cd66533f6f974a50a2e1fda5cc91992"
+  },
+  "production": {
+    "url": "https://sureword.app",
+    "deploymentId": "dpl_E8XEhiGDE9jMHdoHXUmmCigKKYDN",
+    "state": "READY",
+    "normalCronDefinitions": 3,
+    "cronlessQaCandidatePromoted": false,
+    "nativeFeed": {
+      "sureword.app": {
+        "status": 200,
+        "body": {
+          "android": {
+            "version": "1.112.1",
+            "url": "https://github.com/spragginsdesigns/bible-ai-explorer/releases/download/android-v1.112.1/SureWord.apk"
+          },
+          "macos": {
+            "version": "1.31.0",
+            "url": "https://github.com/spragginsdesigns/bible-ai-explorer/releases/download/macos-v1.31.0/SureWord.dmg"
+          }
+        },
+        "sha256": "1e7d022ff0c9e9d7edfad79fc5f1978c675efdc96dabef7b3accffa01c91fd7f",
+        "cache": {
+          "age": "157",
+          "x-vercel-cache": "HIT",
+          "cache-control": "public"
+        }
+      },
+      "bible-ai-explorer.vercel.app": {
+        "status": 200,
+        "body": {
+          "android": {
+            "version": "1.112.1",
+            "url": "https://github.com/spragginsdesigns/bible-ai-explorer/releases/download/android-v1.112.1/SureWord.apk"
+          },
+          "macos": {
+            "version": "1.31.0",
+            "url": "https://github.com/spragginsdesigns/bible-ai-explorer/releases/download/macos-v1.31.0/SureWord.dmg"
+          }
+        },
+        "sha256": "1e7d022ff0c9e9d7edfad79fc5f1978c675efdc96dabef7b3accffa01c91fd7f",
+        "cache": {
+          "age": "10",
+          "x-vercel-cache": "HIT",
+          "cache-control": "public"
+        }
+      }
+    }
+  },
+  "android": {
+    "version": "1.112.1",
+    "versionCode": 137,
+    "apkSha256": "6428d87c63f0646e4bfad4b1e765211c62c20fb92661973e373954d5911256e7",
+    "bundle": {
+      "versionCode": 137,
+      "sha1": "b8a078fadfa9d942594b0460df8cfe319aca746d",
+      "sha256": "7b6bef95b1e170011edfa1cc31e7fe435d2d550af5bcd18225be2667222dd06b"
+    },
+    "tracks": [
+      {
+        "track": "internal",
+        "releases": [
+          {
+            "versionCodes": [
+              "137"
+            ],
+            "status": "completed"
+          }
+        ]
+      },
+      {
+        "track": "alpha",
+        "releases": [
+          {
+            "versionCodes": [
+              "137"
+            ],
+            "status": "completed"
+          }
+        ]
+      }
+    ],
+    "closedTesterDeliveryConfirmed": false,
+    "githubRelease": "https://github.com/spragginsdesigns/bible-ai-explorer/releases/tag/android-v1.112.1"
+  },
+  "macos": {
+    "version": "1.31.0",
+    "build": "53",
+    "dmgSha256": "4a1ceafcb8c8bd18682f251fe4b70d8f9340bce71c151bb68417f478b96dcec5",
+    "signedNotarizedAndStapled": true,
+    "installedLocally": true,
+    "originalBuildSourceCommit": "fb9fcd4984607e5189d6af4ff85d3a39ef24860d",
+    "originalBuildDirtyFiles": 1,
+    "githubRelease": "https://github.com/spragginsdesigns/bible-ai-explorer/releases/tag/macos-v1.31.0"
+  },
+  "ios": {
+    "version": {
+      "versionString": "1.31.0",
+      "appStoreState": "WAITING_FOR_REVIEW",
+      "releaseType": "AFTER_APPROVAL"
+    },
+    "build": {
+      "version": "1",
+      "processingState": "VALID",
+      "buildAudienceType": "APP_STORE_ELIGIBLE",
+      "usesNonExemptEncryption": false
+    },
+    "appReviewState": "WAITING_FOR_REVIEW",
+    "beta": {
+      "internalBuildState": "READY_FOR_BETA_TESTING",
+      "externalBuildState": "WAITING_FOR_BETA_REVIEW",
+      "autoNotifyEnabled": true
+    },
+    "public": [
+      {
+        "version": "1.26.0",
+        "state": "READY_FOR_SALE"
+      }
+    ],
+    "betaGroup": "Friends and Church",
+    "previousBetaBuildsPreserved": true,
+    "newLocalExportSha256": "edfcb515a3f4968f8a8f133bc5121b9b913060eedea055bbfa1e163dc8654ded",
+    "uploadProvenance": "Xcode re-export/upload from the independently verified archive; local export hash is recorded separately"
+  },
+  "githubLatest": {
+    "tag": "macos-v1.31.0",
+    "assets": [
+      {
+        "name": "SureWord.apk",
+        "size": 174007105,
+        "digest": "sha256:6428d87c63f0646e4bfad4b1e765211c62c20fb92661973e373954d5911256e7",
+        "browser_download_url": "https://github.com/spragginsdesigns/bible-ai-explorer/releases/download/macos-v1.31.0/SureWord.apk"
+      },
+      {
+        "name": "SureWord.dmg",
+        "size": 50102264,
+        "digest": "sha256:4a1ceafcb8c8bd18682f251fe4b70d8f9340bce71c151bb68417f478b96dcec5",
+        "browser_download_url": "https://github.com/spragginsdesigns/bible-ai-explorer/releases/download/macos-v1.31.0/SureWord.dmg"
+      }
+    ],
+    "fixedDownloadChecks": [
+      {
+        "name": "SureWord.apk",
+        "status": 200,
+        "contentLength": "174007105",
+        "redirectsToReleaseAsset": true
+      },
+      {
+        "name": "SureWord.dmg",
+        "status": 200,
+        "contentLength": "50102264",
+        "redirectsToReleaseAsset": true
+      }
+    ]
+  },
+  "verification": {
+    "mobile": {
+      "passed": 1368,
+      "files": 104,
+      "typecheck": "PASS"
+    },
+    "iosFreshUnit": {
+      "passed": 1156,
+      "skipped": 11,
+      "failed": 0
+    },
+    "iosOfflineAtlasUi": {
+      "passed": 3,
+      "scope": "evidence shell"
+    },
+    "canonicalQuotationChecker": {
+      "slots": 155510,
+      "expectedOmissions": 32,
+      "unexpectedFailures": 0,
+      "scope": "quotation fidelity, not semantic accuracy"
+    },
+    "historicalFinalMatrix": {
+      "runId": "d380172d-bbd8-4279-af66-0afeb9919f5b",
+      "passed": 8,
+      "scope": "Free/Pro PDF, actual audio, selected NKJV and combined image/context",
+      "rawStreamsRecovered": false,
+      "acceptanceSummaryAndManualReviewRecoveredWithOriginalHashes": true
+    },
+    "productionAndroidNoteAiCanary": {
+      "requests": 1,
+      "result": "PASS",
+      "immediateDepartureAndReopen": "PASS",
+      "savedAssistantReceiptReopened": true,
+      "ownedCanaryDeleted": true,
+      "priorNoteCountRestored": 10
+    },
+    "finalListingReleaseAndNativeMetadataTests": {
+      "passed": 13,
+      "failed": 0
+    }
+  },
+  "limits": [
+    "Apple App Store and external TestFlight review are pending; public iOS is still 1.26.0.",
+    "Play track configuration is verified; closed tester delivery is not established.",
+    "Notification permission/runtime testing was explicitly skipped.",
+    "Owner-positive microphone, TalkBack and blind-user preview acceptance remain unverified.",
+    "Original raw eight-case response streams were deleted by authorized disk cleanup; recovered summaries are records of the completed run, not a new execution.",
+    "Initial bulk keyboard input dropped characters before AI; cause remains unresolved. Exact corrected text was verified before the single production request.",
+    "Atlas UI evidence-shell checks are not a new full authenticated iPhone run."
+  ],
+  "devices": {
+    "iosTotal": 1,
+    "iosMaximum": 2,
+    "allUsedDevicesClosed": true,
+    "androidClaimReleased": true,
+    "galaxyAccessOnHold": true,
+    "windowsEmulatorOnHold": true
+  },
+  "receiptSha256": {
+    "play-final-track-readback.json": "e4791ddfadd0cc79745157d0d228123c53bdcc48278c95bd9f5bc3ce39ee2f8a",
+    "asc-final-submission.json": "a7c2a0ec1c1b1d9c8ad1a77b611ab43326d3c2d31efe615fef3b02214b0a34e7",
+    "asc-independent-final-readback.json": "309c342312815a2663d24c44acbc320808c3a96af87d0dd834a59e9244bf2e57",
+    "github-final-release-readback.json": "592e545c89fc56131715e754eb52b254b83d12e70d5fe46400aaf399e0490ea9",
+    "public-native-final-readback.json": "8dffb8951fc3c3ac2f268ae2fdb0670999f7cbc0dd844a880ae03ebd0ddf1a0f",
+    "final-device-shutdown.json": "999e67de557336acc2f21b5f868581950117d62ec65a66aba62107e3b5ba58d5",
+    "vercel-final-deployment-readback.json": "87fb33228422483f6201a700b1dcf147dea1307086490e20f233aac0ff1fd3ce"
+  }
+}

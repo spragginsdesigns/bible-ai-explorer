@@ -1,11 +1,14 @@
 # App Review notes
 
-Prepared for iOS 1.31.0 on 2026-11-03; not yet written to App Store Connect.
-The live 1.30.0 notes still describe the review account as Free. The final
+Prepared for iOS 1.31.0 and written/read back in both App Store Connect
+reviewer-note fields on 2026-11-03. The prior live 1.30.0 notes incorrectly
+described the review account as Free. The final
 acceptance run restored that account to Pro, and native Android QA confirmed
 Pro active. Keep the account on Pro and correct the notes rather than change
 its plan to match stale copy. App Store Connect currently reports the monthly
-subscription APPROVED and 1.30.0 DEVELOPER_REJECTED; 1.26.0 is READY_FOR_SALE.
+subscription APPROVED. Version 1.31.0 (1) is WAITING_FOR_REVIEW with automatic
+release AFTER_APPROVAL; 1.26.0 remains READY_FOR_SALE. External TestFlight for
+the same build is WAITING_FOR_BETA_REVIEW.
 
 Credentials belong only in App Store Connect's Sign-in Information and the
 private vault. Preserve the existing email, password and contact fields;

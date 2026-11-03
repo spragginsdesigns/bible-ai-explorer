@@ -7,7 +7,27 @@ linked), `device` (verified in simulator, device gate still open), `deferred`
 (only with Austin's written approval). Baseline 2026-10-07: iOS 1.9.0 (10),
 Android bar 1.79.0 (88).
 
-## Current release: 1.30.0 submitted, 2026-10-29
+## Current release: 1.31.0 submitted, 2026-11-03
+
+Mac 1.31.0 (53) is published as a signed, notarized GitHub DMG. Freshly rebuilt
+iOS 1.31.0 (1) is uploaded, VALID and APP_STORE_ELIGIBLE. App Store Connect
+readback confirms WAITING_FOR_REVIEW and automatic release AFTER_APPROVAL.
+The same build is attached to Friends and Church with prior builds preserved;
+external beta review is WAITING_FOR_BETA_REVIEW and internal testing is
+READY_FOR_BETA_TESTING. The listing and both reviewer-note fields were applied
+and read back; the supplied review account correctly remains Pro. Public iOS
+remains 1.26.0 pending Apple's approval and release.
+
+The fresh simulator suite passed 1,156 tests, with 11 skipped and no failures.
+Three offline Atlas UI cases passed in the evidence shell; this is bounded
+simulator proof, not a new full signed-in iPhone acceptance run. Notification
+runtime was explicitly skipped, and owner-positive microphone/TalkBack preview
+acceptance remains open. The one existing iOS simulator is shut down and
+Simulator.app is closed, within Austin's maximum of two total simulators.
+[Release receipt](../releases/2026-11-03-integrated-release.json) and
+[current parity evidence](../PARITY.md).
+
+## Historical release: 1.30.0 submitted, 2026-10-29
 
 The accepted Apple parity implementation is shipped on macOS as the notarized
 public **1.30.0 (39)** DMG. The user accepted simulator/native checks for this
