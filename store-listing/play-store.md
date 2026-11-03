@@ -5,7 +5,7 @@ The exact text for SureWord's Play Store page. Start at
 [`app-store.md`](app-store.md), and `tests/store-listing-parity.test.mjs`
 keeps the two identical.
 
-**PENDING 1.112.0 release:** saved-answer checking and original downloads are in the copy below. Apply after final acceptance.
+**PENDING 1.112.1 release:** saved-answer checking and original downloads are in the copy below. Apply after final acceptance.
 
 Previous copy live on Play since 2026-10-25 (published by API). Check or publish with
 `node mobile/scripts/play-listing.mjs check|apply`.

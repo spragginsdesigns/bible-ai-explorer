@@ -7,16 +7,27 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
-## Combined release candidate, 2026-11-01
+## Combined release candidate, 2026-11-03
 
 The accuracy, Apple parity and owner speech work is integrated on
 `codex/sureword-integrated-release-20261030`. The saved-believer foundation
 remains byte-identical. This checkpoint supersedes the older build and
 branch status below; their receipts remain historical evidence.
 
-Signed Android 1.112.0/code 133, notarized Mac 1.31.0/build 53, and exported
-iOS 1.31.0/build 1 are prepared and unpublished. Mac build 53 is installed
-locally. Prior binaries, archives, worktrees and test receipts are preserved.
+Android 1.112.1/code 137 is replacing the unpublished 136 candidate.
+Notarized Mac 1.31.0/build 53 remains prepared and unpublished. Mac build 53 is installed locally. Code 136 also integrates
+the upstream notification tap queue and daily Cross refresh fixes; the
+Android voice implementation remains integrated. A separate authorized disk
+cleanup deleted the prepared iOS archive, eight SureWord simulators and the
+original Codex test-evidence folders. All 3,605 tracked source files, the 17
+voice commits and eight registered worktrees survived. The exact Android 136
+artifacts and Mac 53 DMG survive; iOS 1.31.0/build 1 has been freshly rebuilt and exported from the
+unchanged Apple source. The fresh simulator unit run passed 1,156 tests, with
+11 skipped and zero failures. Restoring the original 1.112.0/code 133 notes
+fixed the Apple catch-up cap regression caused by renaming that entry; the
+new Android patch uses 1.112.1 so both entries remain distinct. Recovery and fresh evidence now live in Documents,
+outside cache/QA folders. At most two iOS simulators may exist on this Mac;
+the existing single simulator is reused.
 
 The current checker passed all 155,510 bundled verse slots, including 32
 expected omissions, with no unexpected failures. This checks canonical
@@ -35,7 +46,7 @@ file. History rechecks now preserve the projection block IDs referenced by
 the review envelope.
 
 Fresh final review can load one bounded batch of missing bundled canonical
-evidence without editing the answer or relaxing the strict gate. The latest
+evidence without editing the answer or relaxing the strict gate. An earlier
 live matrix passed all four Free cases and Pro PDF, then stopped when Pro
 audio was withheld; the remaining Pro cases were not run. A subsequent
 diagnostic identified a conversational-comprehension acknowledgment being
@@ -46,15 +57,32 @@ passed final review and saved-answer checks. Separate real saved-text controls
 verified the captured comprehension acknowledgment and withheld false note-save
 and listening/speaker claims; source fields stayed unchanged and the fixtures
 were cleaned up. These checks do not replace the complete Free/Pro matrix.
-The next complete Free pass requires the normal daily quota reset; no test
-allowance or account quota is bypassed.
+After the ordinary daily quota reset, the immutable final stage 5f run
+`d380172d-bbd8-4279-af66-0afeb9919f5b` passed all eight Free/Pro cases on
+2026-11-03: PDF, real audio, selected NKJV and combined image/context. The
+manual answer review passed, seven owned fixtures were cleaned up and the
+final Pro handoff was retained; Pro and memory were restored. No quota reset,
+account substitution or test allowance was used. The earlier failed runs
+remain failed. The cleanup subsequently deleted the raw response streams.
+The acceptance receipt, complete case summary, manual review and original
+3,603-file source manifest were recovered from the transcript with their
+original SHA-256 values. These are records of the completed run, not a new
+execution or recovery of the missing raw streams. All backend execution
+inputs remain byte-identical in the code 136 integration.
 
 Owner speech remains restricted to the verified owner with Pro, uses device
 speech at 1.05x, and shares normal chat history and tools. GPT-Live remains
 experimental and disabled in production. Galaxy access remains on hold while
 Austin uses his phone. The Windows emulator is also on hold at his request;
-the Mac's existing Android emulator cannot fit the candidate safely. Android
-runtime acceptance awaits a device window. Notification permission/runtime
+the Mac's sole existing Android emulator now has code 136 installed through a
+normal update, preserving its apps, accounts and existing notes. Code 133
+passed note-formatting, immediate-departure/cold-relaunch persistence, offline
+Atlas, KJV reading and non-owner voice checks on that emulator. The final
+code 136 pass failed after Home and same-process activity recreation, leaving
+the account/consent boundary on Opening SureWord. Its failed receipt is
+retained. Code 137 fixes transport ownership between overlapping app shells;
+all 1,368 mobile tests and TypeScript pass, while the new binary and actual
+code 137 runtime acceptance remain pending. Notification permission/runtime
 testing was explicitly skipped by Austin. No integrated release publication
 is claimed at this checkpoint.
 
