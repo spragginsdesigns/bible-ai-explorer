@@ -70,7 +70,10 @@ test("the source digest ignores only files that cannot reach the binary", () => 
 
 test("the macOS DMG is checked for its signer and provenance before any GitHub write", () => {
 	const releaseDmg = read("macos/release-dmg.sh");
-	const firstWrite = releaseDmg.indexOf("git -C \"$repo_root\" tag -f");
+	const firstWrite = releaseDmg.indexOf('git -C "$repo_root" tag "$tag" "$commit"');
+	assert.ok(firstWrite > 0, "the publisher creates a normal release tag");
+	assert.doesNotMatch(releaseDmg, /git[^\n]*\b(?:tag|push)\b[^\n]*(?:--force|-f\b)/,
+		"publishing must preserve existing tag history");
 	for (const check of ["codesign --verify --deep --strict", 'team_id="389LLKGY3Y"', "release_require_unchanged_source", "dmgSha256"]) {
 		const at = releaseDmg.indexOf(check);
 		assert.ok(at > 0 && at < firstWrite, `${check} runs before the tag and release are written`);
