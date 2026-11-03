@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const harness = vi.hoisted(() => ({
-	userId: "reader", userLoaded: true, clerk: { user: { id: "reader" } },
+	userId: "reader", sessionId: "session-one", userLoaded: true,
+	user: { id: "reader" }, clerk: { user: { id: "reader" } as { id: string } | null },
 	token: async () => "token",
 	cursor: 0,
 	slots: [] as Array<{ value?: unknown; current?: unknown; deps?: unknown[]; cleanup?: (() => void) | void }>,
@@ -32,9 +33,9 @@ vi.mock("react", async (importOriginal) => ({
 }));
 vi.mock("react-native", () => ({ ActivityIndicator: "ActivityIndicator", Alert: {}, AppState: { addEventListener: () => ({ remove() {} }) }, Linking: {}, Modal: "Modal", Pressable: "Pressable", ScrollView: "ScrollView", View: "View" }));
 vi.mock("@clerk/expo", () => ({
-	useAuth: () => ({ userId: harness.userId, isLoaded: true, isSignedIn: true }),
+	useAuth: () => ({ userId: harness.userId, sessionId: harness.sessionId, isLoaded: true, isSignedIn: true }),
 	useClerk: () => harness.clerk,
-	useUser: () => ({ user: harness.clerk.user, isLoaded: harness.userLoaded }),
+	useUser: () => ({ user: harness.user, isLoaded: harness.userLoaded }),
 }));
 vi.mock("@react-native-async-storage/async-storage", () => ({ default: { setItem: vi.fn(), getItem: vi.fn() } }));
 vi.mock("@/components/AppText", () => ({ AppText: "Text" }));
@@ -46,15 +47,29 @@ import { AIConsentPresenter } from "./AIConsentPresenter";
 import { aiConsentGate } from "@/lib/aiConsentGate";
 
 const child = "authenticated-route";
-const render = () => { harness.cursor = 0; return AIConsentPresenter({ children: child }).props.children[0]; };
+const renderTree = () => { harness.cursor = 0; return AIConsentPresenter({ children: child }); };
+const render = () => renderTree().props.children[0];
 const flushEffects = () => { for (const effect of harness.effects.splice(0)) effect(); };
 const tick = async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); };
 const agreed = { aiConsent: { version: 2, acceptedAt: "2026-10-19T00:00:00Z" }, aiConsentDeclined: false };
+const presenter = () => {
+	const slots: typeof harness.slots = [];
+	return {
+		render: () => { harness.slots = slots; return render(); },
+		modal: () => { harness.slots = slots; return renderTree().props.children[1]; },
+		unmount: () => { for (const slot of slots) slot.cleanup?.(); },
+	};
+};
+const mount = async (instance: ReturnType<typeof presenter>) => {
+	instance.render(); flushEffects(); await tick();
+};
 
 beforeEach(() => {
 	aiConsentGate.configure(null);
 	harness.slots = []; harness.effects = []; harness.cursor = 0;
-	harness.userId = "reader"; harness.userLoaded = true; harness.clerk = { user: { id: "reader" } };
+	harness.userId = "reader"; harness.sessionId = "session-one"; harness.userLoaded = true;
+	harness.user = { id: "reader" }; harness.clerk = { user: { id: "reader" } };
+	harness.token = async () => "token";
 	harness.api.mockReset();
 });
 
@@ -107,9 +122,100 @@ describe("authenticated route startup", () => {
 		expect(render()).not.toBe(child); flushEffects();
 		expect(aiConsentGate.isCurrentAccount()).toBe(false);
 		harness.clerk = { user: { id: "another-reader" } };
+		harness.user = { id: "another-reader" };
 		harness.api.mockResolvedValue({ aiConsent: null, aiConsentDeclined: true });
 		expect(render()).not.toBe(child); flushEffects(); await tick();
 		expect(render()).toBe(child);
 		expect(await aiConsentGate.ensure()).toBe(false);
+	});
+
+	it("does not let an older presenter's cleanup clear the newer live route", async () => {
+		harness.api.mockResolvedValue(agreed);
+		const older = presenter(); const newer = presenter();
+		await mount(older); await mount(newer);
+		expect(newer.render()).toBe(child);
+		older.unmount(); await tick();
+		expect(newer.render()).toBe(child);
+		expect(await aiConsentGate.ensure()).toBe(true);
+		newer.unmount();
+		expect(aiConsentGate.isCurrentAccount()).toBe(false);
+	});
+
+	it("restores the older live route when the newer presenter unmounts", async () => {
+		harness.api.mockResolvedValue(agreed);
+		const older = presenter(); const newer = presenter();
+		await mount(older); await mount(newer);
+		expect(older.render()).not.toBe(child);
+		newer.unmount(); await tick();
+		expect(older.render()).toBe(child);
+		expect(await aiConsentGate.ensure()).toBe(true);
+		older.unmount();
+		expect(aiConsentGate.isCurrentAccount()).toBe(false);
+	});
+
+	it("does not let an unloaded presenter clear another presenter's transport", async () => {
+		harness.api.mockResolvedValue(agreed);
+		const ready = presenter(); const loading = presenter();
+		await mount(ready);
+		harness.userLoaded = false;
+		await mount(loading);
+		harness.userLoaded = true;
+		expect(ready.render()).toBe(child);
+		loading.unmount(); ready.unmount();
+	});
+
+	it("uses coherent subscribed SDK identity while raw Clerk user is transiently absent", async () => {
+		harness.clerk.user = null;
+		harness.api.mockResolvedValue(agreed);
+		await mount(presenter());
+		expect(render()).toBe(child);
+		expect(await aiConsentGate.ensure()).toBe(true);
+	});
+
+	it("invalidates a pending token when the same user gets a different session", async () => {
+		harness.api.mockResolvedValue(agreed);
+		const instance = presenter(); await mount(instance);
+		const ownedToken = harness.api.mock.calls[0][0] as () => Promise<string>;
+		let finish!: (token: string) => void;
+		harness.token = () => new Promise<string>(resolve => { finish = resolve; });
+		instance.render();
+		const pending = ownedToken();
+		harness.sessionId = "session-two";
+		instance.render(); flushEffects();
+		finish("old-session-token");
+		await expect(pending).rejects.toThrow("Your account changed");
+		instance.unmount();
+	});
+
+	it("rejects an old shell's token after another owner registers, before the old hook snapshot updates", async () => {
+		harness.api.mockResolvedValue(agreed);
+		const older = presenter(); await mount(older);
+		const ownedToken = harness.api.mock.calls[0][0] as () => Promise<string>;
+		let finish!: (token: string) => void;
+		harness.token = () => new Promise<string>(resolve => { finish = resolve; });
+		older.render(); const pending = ownedToken();
+		harness.userId = "another-reader"; harness.user = { id: "another-reader" };
+		harness.sessionId = "another-session"; harness.token = async () => "new-token";
+		const newer = presenter(); await mount(newer);
+		finish("old-token");
+		await expect(pending).rejects.toThrow("Your account changed");
+		expect(newer.render()).toBe(child);
+		newer.unmount(); older.unmount();
+		expect(aiConsentGate.isCurrentAccount()).toBe(false);
+	});
+
+	it("shows unanswered consent only in the presenter that owns the active registration", async () => {
+		harness.api.mockResolvedValue({ aiConsent: null, aiConsentDeclined: false });
+		const older = presenter(); const newer = presenter();
+		await mount(older); await mount(newer);
+		expect(aiConsentGate.getSnapshot().prompt).toBe(true);
+		expect(older.modal().props.visible).toBe(false);
+		expect(newer.modal().props.visible).toBe(true);
+		harness.api.mockResolvedValue(agreed);
+		await aiConsentGate.agree();
+		expect(aiConsentGate.allowed).toBe(true);
+		expect(newer.modal().props.visible).toBe(false);
+		expect(older.modal().props.visible).toBe(false);
+		newer.unmount(); older.unmount();
 	});
 });

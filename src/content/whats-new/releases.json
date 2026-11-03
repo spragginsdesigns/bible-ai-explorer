@@ -1,25 +1,25 @@
 {
 	"releases": [
 		{
-			"version": "1.112.0",
-			"versionCode": 136,
+			"version": "1.112.1",
+			"versionCode": 137,
 			"date": "2026-11-03",
 			"sections": [
 				{
 					"kind": "improved",
 					"items": [
-						"Notes keep your edits and line breaks safe while AI writes, and show what was saved.",
-						"Clearer Scripture checks and a way to review older saved answers.",
-						"Spoken guidance uses a gentler pace.",
-						"Distinct notification artwork and plain-text answer previews.",
-						"Security: updated the Android network library."
+						"Notes preserve edits, formatting and line breaks while AI writes.",
+						"Check older saved answers and download their originals.",
+						"Gentler spoken guidance and distinct notification artwork.",
+						"Updated Android network security."
 					]
 				},
 				{
 					"kind": "fixed",
 					"items": [
-						"Morning notification taps open today's word without getting stuck.",
-						"Returning to Pick Up Your Cross retries stalled loads."
+						"Morning notification taps open today's word.",
+						"Coming back to SureWord no longer gets stuck opening.",
+						"Pick Up Your Cross retries stalled loads when you return."
 					]
 				}
 			]
@@ -34,6 +34,23 @@
 					"items": [
 						"Tapping the morning Pick Up Your Cross notification opens today's word again. It used to stay on \"Preparing your day in the Word...\" when the tap opened the app, and Back then left SureWord stuck on \"Opening SureWord...\" until it was closed.",
 						"Pick Up Your Cross tries again when you come back to it instead of waiting on a request that stalled."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.112.0",
+			"versionCode": 133,
+			"date": "2026-10-30",
+			"sections": [
+				{
+					"kind": "improved",
+					"items": [
+						"Notes keep your edits and line breaks safe while AI writes, and show what was saved.",
+						"Clearer Scripture checks and a way to review older saved answers.",
+						"Spoken guidance uses a gentler pace.",
+						"Distinct notification artwork and plain-text answer previews.",
+						"Security: updated the Android network library."
 					]
 				}
 			]

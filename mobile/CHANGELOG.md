@@ -2,22 +2,22 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
-## 1.112.0 (versionCode 136) - 2026-11-03 - internal and closed testing
+## 1.112.1 (versionCode 137) - 2026-11-03 - internal and closed testing
 
 **What's new (Play):**
 
 FIXED
-- Morning notification taps open today's word without getting stuck.
-- Returning to Pick Up Your Cross retries stalled loads.
+- Morning notification taps open today's word.
+- Coming back to SureWord no longer gets stuck opening.
+- Pick Up Your Cross retries stalled loads when you return.
 
 IMPROVED
-- Notes keep your edits and line breaks safe while AI writes, and show what was saved.
-- Clearer Scripture checks and a way to review older saved answers.
-- Spoken guidance uses a gentler pace.
-- Distinct notification artwork and plain-text answer previews.
-- Security: updated the Android network library.
+- Notes preserve edits, formatting and line breaks while AI writes.
+- Check older saved answers and download their originals.
+- Gentler spoken guidance and distinct notification artwork.
+- Updated Android network security.
 
-**Dev notes:** Code 136 integrates the unpublished code 133 candidate with main's code 135 notification-tap fix for issue #30. All earlier artifacts and test evidence are preserved. Notification taps wait for the mounted tab navigator, and stale daily loads can be replaced on refocus. Codes 131 and 132 were unpublished QA drafts. The combined build includes the newer notification presentation and closes the final saved-answer, editor-lock and feedback guards; the original draft bundles and QA evidence are preserved. Prepares the final Android candidate with durable per-note AI operation receipts, recovery after interrupted requests, canonical note reload before manual editing resumes, and structurally checked editor adoption that preserves formatting. Saved-answer review uses the shared owner-authenticated history endpoints; unchecked originals are available only as file downloads. Includes the current Scripture verification changes. Speech controls remain restricted to the verified owner account with Pro: spoken choices, navigation, and normal SureWord chat use existing tools and saved history. Other accounts do not receive the controls. Playback uses 1.05x after owner feedback that 1.15x was too fast. Capture pauses for narration and durable assistant readback; Stop, session changes and background cleanup fence delayed callbacks. The separate paid GPT-Live relay remains experimental and disabled in production. This is release preparation, not a claim of completed Android microphone/accessibility acceptance or publication. Includes the notification artwork and Android network security baseline from 1.111.0.
+**Dev notes:** Final replacement for unpublished code 133 and 136 QA candidates, integrating main's code 135 notification-tap fix for issue #30. Code 136 passed cold note persistence, Bible and Cross navigation, but same-process activity recreation left its account/consent boundary on Opening SureWord. The consent transport now belongs to an explicit presenter lease, so overlapping app shells cannot clear each other's transport; current-owner and consent checks still fence every AI request. Notification taps wait for the mounted tab navigator, and stale daily loads can be replaced on refocus. The existing 1.112.0/code 133 notes remain the Apple 1.31.0 capability anchor; using a new patch version keeps the release-note parser from merging that anchor out of the document. A separately authorized Mac cleanup deleted earlier archives and raw QA files; surviving artifacts and hash-identical transcript recoveries are documented separately, not claimed as complete preservation of those files. The note-write recovery, saved-answer checks, owner-only device speech at 1.05x, notification artwork and network-library update from the prior candidate remain integrated. Experimental GPT-Live stays disabled in production. Owner microphone, blind-user acceptance and skipped notification runtime are separate gates, not inferred from review-account tests.
 
 ## 1.111.1 (versionCode 135) - 2026-11-03 - internal and closed testing
 
@@ -28,6 +28,19 @@ FIXED
 - Pick Up Your Cross tries again when you come back to it instead of waiting on a request that stalled.
 
 **Dev notes:** Issue #30, Austin's report (2026-11-03): every morning the notification tap sat on the skeleton forever, and Back led to "Opening SureWord..." until the app was killed. PostHog showed the cold-launch signature `/` -> `/today/cross` -> `/today` inside a second on 10-27 and 11-03, with no request failure. Cause: `usePushNotifications` runs in the (app) layout, outside `AIConsentPresenter`, which keeps `<Tabs>` unmounted until the consent gate is configured. Child effects run before parent effects, so the cold-start `router.push("/today/cross")` ran while no tab navigator existed, and the root Stack pushed a SECOND `(app)` shell. The cross screen inside that copy never loaded; Back popped the copy, and its `AIConsentPresenter` cleanup called `aiConsentGate.configure(null)`, which left the original shell's presenter on its placeholder for good. Fix: taps go through `createTapQueue` (`src/features/notifications/tapQueue.ts`) and are routed by `NotificationTapOutlet`, mounted beside the tabs inside the presenter, one frame after mount. `today/cross.tsx` also loads on mount (not only on focus), and its one-in-flight lock is now an AbortController with a 60 s staleness ceiling, so a refocus or return to the app replaces a stalled request instead of being ignored for the 300 s budget. Proved on emulator-5554 with a harness bundle swapped into the 1.111.0 APK (local notification `data.screen = "cross"`, process killed, tapped from the shade): before, the skeleton never cleared and Back showed "Opening SureWord..." forever; after, today's word rendered within 10 s, Back landed on the Today hub, and a warm tap (same process) opened the loaded cross. Built from `main` at 1.111.0 plus this fix. versionCodes 131-134 are another lane's unpublished 1.112.0/1.114.0 drafts (uncommitted in the shared checkout), so this takes 135 to stay clear of them; that lane's next publish needs 136 or higher.
+
+## 1.112.0 (versionCode 133) - 2026-10-30 - internal and closed testing
+
+**What's new (Play):**
+
+IMPROVED
+- Notes keep your edits and line breaks safe while AI writes, and show what was saved.
+- Clearer Scripture checks and a way to review older saved answers.
+- Spoken guidance uses a gentler pace.
+- Distinct notification artwork and plain-text answer previews.
+- Security: updated the Android network library.
+
+**Dev notes:** Unpublished candidate retained as the unchanged Apple 1.31.0 capability anchor. Codes 131 and 132 were unpublished QA drafts. Code 133 includes the newer notification presentation and closes the final saved-answer, editor-lock and feedback guards; the original draft bundles and QA evidence were preserved at that checkpoint; the later authorized cleanup deleted their cache/evidence copies. Surviving artifacts and transcript recoveries are described in the code 137 entry. Prepares the final Android candidate with durable per-note AI operation receipts, recovery after interrupted requests, canonical note reload before manual editing resumes, and structurally checked editor adoption that preserves formatting. Saved-answer review uses the shared owner-authenticated history endpoints; unchecked originals are available only as file downloads. Includes the current Scripture verification changes. Speech controls remain restricted to the verified owner account with Pro: spoken choices, navigation, and normal SureWord chat use existing tools and saved history. Other accounts do not receive the controls. Playback uses 1.05x after owner feedback that 1.15x was too fast. Capture pauses for narration and durable assistant readback; Stop, session changes and background cleanup fence delayed callbacks. The separate paid GPT-Live relay remains experimental and disabled in production. This is release preparation, not a claim of completed Android microphone/accessibility acceptance or publication. Includes the notification artwork and Android network security baseline from 1.111.0.
 
 ## 1.111.0 (versionCode 130) - 2026-10-29 - internal and closed testing
 

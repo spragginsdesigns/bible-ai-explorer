@@ -10,6 +10,11 @@ export interface ConsentTransport {
   load: () => Promise<ConsentDocument>;
   save: (version: number | null) => Promise<ConsentDocument>;
 }
+export interface ConsentRegistration {
+  isActive: () => boolean;
+  release: () => void;
+}
+type RegisteredTransport = { scope: string; transport: ConsentTransport };
 export const CONSENT_DECLINED_NOTICE = "AI is turned off for your account. You can turn it on in Settings → AI.";
 
 /** Only calls that can send study content to a provider. Reading stored history,
@@ -44,6 +49,9 @@ export class ConsentGate {
   private state = { record: null as ConsentRecord | null, declined: false, required: AI_CONSENT_VERSION, prompt: false, confirming: false, saving: false, error: null as string | null };
   private listeners = new Set<() => void>();
   private transport: ConsentTransport | null = null;
+  private registrations: RegisteredTransport[] = [];
+  private activeRegistration: RegisteredTransport | null = null;
+  private registrationScope: string | null = null;
   private session = 0;
   private hydrated = false;
   private edits = 0;
@@ -56,6 +64,33 @@ export class ConsentGate {
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   private update(patch: Partial<typeof this.state>) { this.state = { ...this.state, ...patch }; this.listeners.forEach(listener => listener()); }
   configure(transport: ConsentTransport | null) {
+    this.registrations = []; this.activeRegistration = null; this.registrationScope = null;
+    this.install(transport);
+  }
+  /** Route shells can overlap during navigation/activity recreation. Each
+   * shell releases only its own lease; removing the newest restores a still
+   * live transport from the same account/session, never a previous account. */
+  registerTransport(scope: string, transport: ConsentTransport): ConsentRegistration {
+    if (scope !== this.registrationScope) this.registrations = [];
+    this.registrationScope = scope;
+    const registration = { scope, transport };
+    this.registrations.push(registration);
+    this.activeRegistration = registration;
+    this.install(transport);
+    return {
+      isActive: () => this.activeRegistration === registration && this.isCurrentAccount(),
+      release: () => {
+        const index = this.registrations.indexOf(registration);
+        if (index < 0) return;
+        this.registrations.splice(index, 1);
+        if (this.activeRegistration !== registration) return;
+        const previous = [...this.registrations].reverse().find(item => item.transport.isCurrentAccount?.() ?? true) ?? null;
+        this.activeRegistration = previous;
+        this.install(previous?.transport ?? null);
+      },
+    };
+  }
+  private install(transport: ConsentTransport | null) {
     this.finish(false); this.session++; this.transport = transport; this.hydrated = false;
     this.update({ record: null, declined: false, required: AI_CONSENT_VERSION, prompt: false, confirming: false, saving: false, error: null });
     if (transport) void this.refresh();

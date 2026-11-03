@@ -1,36 +1,37 @@
 import React, { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ActivityIndicator, Alert, AppState, Linking, Modal, Pressable, ScrollView, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useAuth, useClerk, useUser } from "@clerk/expo";
+import { useAuth, useUser } from "@clerk/expo";
 import { AppText as Text } from "@/components/AppText";
 import { apiJson } from "@/lib/api";
 import { useStableGetToken } from "@/features/notes/useStableGetToken";
 import { useTheme } from "./settingsStore";
 import * as copy from "@/lib/aiConsent";
-import { aiConsentGate, type ConsentDocument } from "@/lib/aiConsentGate";
+import { aiConsentGate, type ConsentDocument, type ConsentRegistration } from "@/lib/aiConsentGate";
 
 export function AIConsentPresenter({ children }: { children: React.ReactNode }) {
-  const { userId, isLoaded, isSignedIn } = useAuth();
-  const clerk = useClerk();
+  const { userId, sessionId, isLoaded, isSignedIn } = useAuth();
   const { user, isLoaded: userLoaded } = useUser();
   const getToken = useStableGetToken();
-  const bridge = useRef({ clerk, getToken }); bridge.current = { clerk, getToken };
-  const account = useRef(userId); account.current = userId;
+  const token = useRef(getToken); token.current = getToken;
   const identity = isLoaded && isSignedIn && userLoaded && user?.id === userId ? userId : null;
+  const account = useRef({ identity, sessionId }); account.current = { identity, sessionId };
   const [configuredFor, setConfiguredFor] = useState<string | null>(null);
+  const [registration, setRegistration] = useState<ConsentRegistration | null>(null);
   const state = useSyncExternalStore(aiConsentGate.subscribe, aiConsentGate.getSnapshot);
   const { colors } = useTheme();
   useEffect(() => {
-    if (!identity) { aiConsentGate.configure(null); setConfiguredFor(null); return; }
+    if (!identity) { setConfiguredFor(null); setRegistration(null); return; }
     const owner = identity;
     const key = `sureword.aiConsent.${owner}`;
     const cache = async (doc: ConsentDocument) => {
       await AsyncStorage.setItem(key, JSON.stringify({ aiConsent: doc.aiConsent, aiConsentDeclined: doc.aiConsentDeclined, aiConsentRequired: doc.aiConsentRequired }));
     };
-    const isCurrentAccount = () => account.current === owner && bridge.current.clerk.user?.id === owner;
-    const requireAccount = () => { if (!isCurrentAccount()) throw new Error("Your account changed. Try again."); };
-    const ownedToken: typeof getToken = async options => { requireAccount(); const token = await bridge.current.getToken(options); requireAccount(); return token; };
-    aiConsentGate.configure({
+    const isCurrentAccount = () => account.current.identity === owner && account.current.sessionId === sessionId;
+    let lease: ConsentRegistration | null = null;
+    const requireAccount = () => { if (!isCurrentAccount() || (lease && !lease.isActive())) throw new Error("Your account changed. Try again."); };
+    const ownedToken: typeof getToken = async options => { requireAccount(); const value = await token.current(options); requireAccount(); return value; };
+    const registered = aiConsentGate.registerTransport(JSON.stringify([owner, sessionId]), {
       isCurrentAccount,
       askOnLaunch: true,
       load: async () => {
@@ -51,16 +52,19 @@ export function AIConsentPresenter({ children }: { children: React.ReactNode }) 
         requireAccount(); await cache(doc); return doc;
       },
     });
+    lease = registered;
     // Route effects can request AI immediately on a cold deep link. Mount them
     // only after their account transport exists; ensure() still waits for the
     // actual saved agreement and retains the explicit refusal flow.
     setConfiguredFor(owner);
-    const listener = AppState.addEventListener("change", status => { if (status === "active") void aiConsentGate.refresh(); });
-    return () => { listener.remove(); aiConsentGate.configure(null); };
-  }, [identity]);
+    setRegistration(registered);
+    const listener = AppState.addEventListener("change", status => { if (status === "active" && registered.isActive()) void aiConsentGate.refresh(); });
+    return () => { listener.remove(); registered.release(); };
+  }, [identity, sessionId]);
+  const ownsAccount = !!identity && configuredFor === identity && registration?.isActive() === true;
   return <>
-    {identity && configuredFor === identity && aiConsentGate.isCurrentAccount() ? children : <View accessibilityRole="progressbar" accessibilityLabel="Opening SureWord" style={{ flex: 1, justifyContent: "center", alignItems: "center", gap: 16, backgroundColor: colors.bg }}><ActivityIndicator color={colors.accent} /><Text style={{ color: colors.textMuted }}>Opening SureWord...</Text></View>}
-    <Modal visible={state.prompt} transparent animationType="fade" onRequestClose={state.confirming ? aiConsentGate.back : aiConsentGate.decline}>
+    {ownsAccount ? children : <View accessibilityRole="progressbar" accessibilityLabel="Opening SureWord" style={{ flex: 1, justifyContent: "center", alignItems: "center", gap: 16, backgroundColor: colors.bg }}><ActivityIndicator color={colors.accent} /><Text style={{ color: colors.textMuted }}>Opening SureWord...</Text></View>}
+    <Modal visible={ownsAccount && state.prompt} transparent animationType="fade" onRequestClose={state.confirming ? aiConsentGate.back : aiConsentGate.decline}>
     <View style={{ flex: 1, justifyContent: "center", padding: 24, backgroundColor: "rgba(0,0,0,0.7)" }}>
       {state.confirming ? <View style={{ maxHeight: "90%", backgroundColor: colors.bgElevated, borderRadius: 16, padding: 24 }}>
         <ScrollView><Text accessibilityRole="header" style={{ color: colors.text, fontSize: 24, marginBottom: 16 }}>{copy.AI_CONSENT_CONFIRM_TITLE}</Text>
