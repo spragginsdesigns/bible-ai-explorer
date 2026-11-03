@@ -1,6 +1,20 @@
 {
 	"releases": [
 		{
+			"version": "1.111.1",
+			"versionCode": 135,
+			"date": "2026-11-03",
+			"sections": [
+				{
+					"kind": "fixed",
+					"items": [
+						"Tapping the morning Pick Up Your Cross notification opens today's word again. It used to stay on \"Preparing your day in the Word...\" when the tap opened the app, and Back then left SureWord stuck on \"Opening SureWord...\" until it was closed.",
+						"Pick Up Your Cross tries again when you come back to it instead of waiting on a request that stalled."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.111.0",
 			"versionCode": 130,
 			"date": "2026-10-29",
