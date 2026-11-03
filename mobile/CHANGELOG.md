@@ -2,6 +2,16 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.111.1 (versionCode 135) - 2026-11-03 - internal and closed testing
+
+**What's new (Play):**
+
+FIXED
+- Tapping the morning Pick Up Your Cross notification opens today's word again. It used to stay on "Preparing your day in the Word..." when the tap opened the app, and Back then left SureWord stuck on "Opening SureWord..." until it was closed.
+- Pick Up Your Cross tries again when you come back to it instead of waiting on a request that stalled.
+
+**Dev notes:** Issue #30, Austin's report (2026-11-03): every morning the notification tap sat on the skeleton forever, and Back led to "Opening SureWord..." until the app was killed. PostHog showed the cold-launch signature `/` -> `/today/cross` -> `/today` inside a second on 10-27 and 11-03, with no request failure. Cause: `usePushNotifications` runs in the (app) layout, outside `AIConsentPresenter`, which keeps `<Tabs>` unmounted until the consent gate is configured. Child effects run before parent effects, so the cold-start `router.push("/today/cross")` ran while no tab navigator existed, and the root Stack pushed a SECOND `(app)` shell. The cross screen inside that copy never loaded; Back popped the copy, and its `AIConsentPresenter` cleanup called `aiConsentGate.configure(null)`, which left the original shell's presenter on its placeholder for good. Fix: taps go through `createTapQueue` (`src/features/notifications/tapQueue.ts`) and are routed by `NotificationTapOutlet`, mounted beside the tabs inside the presenter, one frame after mount. `today/cross.tsx` also loads on mount (not only on focus), and its one-in-flight lock is now an AbortController with a 60 s staleness ceiling, so a refocus or return to the app replaces a stalled request instead of being ignored for the 300 s budget. Proved on emulator-5554 with a harness bundle swapped into the 1.111.0 APK (local notification `data.screen = "cross"`, process killed, tapped from the shade): before, the skeleton never cleared and Back showed "Opening SureWord..." forever; after, today's word rendered within 10 s, Back landed on the Today hub, and a warm tap (same process) opened the loaded cross. Built from `main` at 1.111.0 plus this fix. versionCodes 131-134 are another lane's unpublished 1.112.0/1.114.0 drafts (uncommitted in the shared checkout), so this takes 135 to stay clear of them; that lane's next publish needs 136 or higher.
+
 ## 1.111.0 (versionCode 130) - 2026-10-29 - internal and closed testing
 
 **What's new (Play):**

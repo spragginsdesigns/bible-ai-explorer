@@ -78,9 +78,10 @@ export type DailyCrossDirection = "stay" | "fresh";
  * cron hasn't run for this user — that generation is a model call, so the
  * timeout gets extra room.
  */
-export function fetchTodayCross(getToken: GetToken) {
+export function fetchTodayCross(getToken: GetToken, signal?: AbortSignal) {
 	return apiJson<DailyCrossEntry>(getToken, "/api/verse-of-day/today", undefined, {
 		timeoutMs: 300_000,
+		signal,
 	});
 }
 

@@ -13,7 +13,7 @@ import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 import { usePreferencesSync } from "@/features/settings/preferencesSync";
 import { AIConsentPresenter } from "@/features/settings/AIConsentPresenter";
 import { WhatsNewPresenter } from "@/features/whatsNew/WhatsNewPresenter";
-import { usePushNotifications } from "@/features/notifications/usePushNotifications";
+import { NotificationTapOutlet, usePushNotifications } from "@/features/notifications/usePushNotifications";
 import { useReadingLogSync } from "@/features/reading/readingLogStore";
 import { useInAppUpdates } from "@/features/updates/inAppUpdates";
 import { isPrimaryTabRoute, type PrimaryTabRoute } from "@/lib/primaryTabs";
@@ -176,6 +176,8 @@ export default function AppLayout() {
 			{/* Push-only screen: reachable from Settings → Manage memories. */}
 			<Tabs.Screen name="memories" options={{ href: null }} />
 		</Tabs>
+		{/* Notification taps land here, only once the tabs exist (issue #30). */}
+		<NotificationTapOutlet />
 		{/* After the consent sheet is answered, at most once per release. */}
 		<WhatsNewPresenter />
 		{/* Walk with me: a brand-new account lands in its welcome; the spotlight draws over every tab. */}

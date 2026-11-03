@@ -37,6 +37,13 @@ import { signalNotificationPermissionMoment } from "@/features/notifications/per
 import { fonts, radius, spacing, type Colors } from "@/theme";
 import { useTheme, useThemedStyles } from "@/features/settings/settingsStore";
 
+/**
+ * A load older than this is replaced by the next refocus or return to the app.
+ * A stored day answers in about a second; generating one on demand is a model
+ * call that can take tens of seconds, so this stays well above that.
+ */
+const STALE_LOAD_MS = 60_000;
+
 /** Softly glowing placeholder bars while the day is being prepared. */
 function LoadingBars() {
 	const styles = useThemedStyles(createStyles);
@@ -93,7 +100,7 @@ export default function DailyCrossScreen() {
 	const [focus, setFocus] = useState("");
 	const [shareTarget, setShareTarget] = useState<ShareCardTarget | null>(null);
 	const requestVersion = useRef(0);
-	const loadInFlight = useRef(false);
+	const loadInFlight = useRef<{ controller: AbortController; startedAt: number } | null>(null);
 	const scrollRef = useRef<ScrollView>(null);
 	// The day's study path is built out of the reading plan when one is
 	// running; this is how the user sees that it was.
@@ -110,21 +117,35 @@ export default function DailyCrossScreen() {
 	const tabBarSpace = useTabBarSpace();
 
 	const load = useCallback(() => {
-		if (loadInFlight.current) return;
-		loadInFlight.current = true;
+		// One request at a time, but never one that has gone quiet: the old
+		// boolean lock kept a stalled morning request (up to its 300 s budget)
+		// in charge while every refocus and return to the app was ignored.
+		const current = loadInFlight.current;
+		if (current && Date.now() - current.startedAt < STALE_LOAD_MS) return;
+		current?.controller.abort();
+		const flight = { controller: new AbortController(), startedAt: Date.now() };
+		loadInFlight.current = flight;
 		const version = ++requestVersion.current;
 		setError(null);
-		fetchTodayCross(getToken)
+		fetchTodayCross(getToken, flight.controller.signal)
 			.then((next) => {
 				if (version === requestVersion.current) setEntry(next);
 			})
 			.catch((err: unknown) => {
+				if (flight.controller.signal.aborted) return;
 				if (version === requestVersion.current) showFailure(err);
 			})
 			.finally(() => {
-				loadInFlight.current = false;
+				if (loadInFlight.current === flight) loadInFlight.current = null;
 			});
 	}, [getToken, showFailure]);
+
+	// Load on mount as well as on focus: a screen that is showing must never
+	// wait on a focus event to fetch the day it is showing (issue #30).
+	useEffect(() => {
+		load();
+		return () => loadInFlight.current?.controller.abort();
+	}, [load]);
 
 	/**
 	 * Replace today's word - the same route the assistant's setDailyCross tool
