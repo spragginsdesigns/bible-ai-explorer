@@ -137,11 +137,16 @@ title="SureWord for macOS $version"
 notes="SureWord for macOS $version. The app and installer are signed with Developer ID Application, notarized by Apple, and include stapled notarization tickets. Open the DMG and drag SureWord to Applications."
 commit="$(git -C "$repo_root" rev-parse HEAD)"
 
-# The tag and release are deliberately mutable only when this script is run.
-# Re-running the same command points the tag at the current commit and replaces
-# the fixed-name DMG asset, making retries safe after an interrupted upload.
-git -C "$repo_root" tag -f "$tag" "$commit" >/dev/null
-git -C "$repo_root" push origin "refs/tags/$tag:refs/tags/$tag" --force
+# A retry may reuse this commit's tag, but must never rewrite another build's
+# history. Normal push also refuses a conflicting remote tag before any
+# release asset is changed.
+if git -C "$repo_root" show-ref --verify --quiet "refs/tags/$tag"; then
+	[ "$(git -C "$repo_root" rev-parse "$tag^{commit}")" = "$commit" ] ||
+		die "$tag already identifies another commit; use a new release version"
+else
+	git -C "$repo_root" tag "$tag" "$commit"
+fi
+git -C "$repo_root" push origin "refs/tags/$tag:refs/tags/$tag"
 
 if (cd -- "$repo_root" && gh release view "$tag" >/dev/null 2>&1); then
 	(cd -- "$repo_root" && gh release edit "$tag" --title "$title" --notes "$notes")
