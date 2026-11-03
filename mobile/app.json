@@ -19,7 +19,7 @@
     },
     "android": {
       "package": "com.spragginsdesigns.sureword",
-      "versionCode": 133,
+      "versionCode": 136,
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

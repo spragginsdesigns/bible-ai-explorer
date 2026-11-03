@@ -20,6 +20,9 @@
 			"why": "Notes stay protected while AI writes. Older saved answers can be checked before they are shown.",
 			"target": "chat"
 		},
+		"1.111.1": {
+			"title": "The morning tap opens your day"
+		},
 		"1.111.0": {
 			"title": "Notifications you can tell apart"
 		},

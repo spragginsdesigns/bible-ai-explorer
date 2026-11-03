@@ -18,6 +18,41 @@ import {
 } from "./notificationSettings";
 import { shouldRequestPermission, subscribePermissionTriggers } from "./permissionPrompt";
 import { notificationTapTarget } from "./tapTarget";
+import { createTapQueue } from "./tapQueue";
+
+type TapTarget = NonNullable<ReturnType<typeof notificationTapTarget>>;
+
+/** Taps wait here until NotificationTapOutlet (mounted beside the tabs) routes them. */
+const notificationTaps = createTapQueue<TapTarget>();
+
+/**
+ * Routes notification taps. Render it inside AIConsentPresenter's children,
+ * after `<Tabs>`, so it only exists while the tab navigator does. Attaching
+ * waits one frame so the navigator has registered with the router before the
+ * first push.
+ */
+export function NotificationTapOutlet(): null {
+	const router = useRouter();
+	useEffect(() => {
+		let detach: (() => void) | null = null;
+		const frame = requestAnimationFrame(() => {
+			detach = notificationTaps.attach((target) => {
+				if ("reference" in target) {
+					openReferenceInReader(router, target.reference);
+				} else if (target.screen === "chat") {
+					router.push({ pathname: "/", params: { conversationId: target.conversationId } });
+				} else {
+					router.push("/today/cross", { withAnchor: true });
+				}
+			});
+		});
+		return () => {
+			cancelAnimationFrame(frame);
+			detach?.();
+		};
+	}, [router]);
+	return null;
+}
 
 // HIGH-importance channel so the morning word arrives as a heads-up banner.
 // Android ignores in-place importance upgrades on an existing channel, so the
@@ -123,7 +158,6 @@ let handledTapId: string | null = null;
  * network failures are all swallowed - push must never break app startup.
  */
 export function usePushNotifications(): void {
-	const router = useRouter();
 	const getToken = useStableGetToken();
 	const { enabled, chatReplies, hour } = useNotificationSettings();
 	/** Bumped when the deferred dialog is granted, so registration runs again. */
@@ -161,17 +195,13 @@ export function usePushNotifications(): void {
 	// Tap → the "Pick Up Your Cross" screen (the guided day), or the chat
 	// conversation whose answer landed while the app was away. Older
 	// notifications that carry only a verse reference fall back to the reader.
+	// The tap is queued, not routed here: on a cold launch this effect runs
+	// before the tabs exist (see tapQueue.ts), and NotificationTapOutlet routes
+	// it once they do.
 	useEffect(() => {
 		const handleTap = (response: Notifications.NotificationResponse) => {
 			const target = notificationTapTarget(response.notification.request.content.data ?? {});
-			if (!target) return;
-			if ("reference" in target) {
-				openReferenceInReader(router, target.reference);
-			} else if (target.screen === "chat") {
-				router.push({ pathname: "/", params: { conversationId: target.conversationId } });
-			} else {
-				router.push("/today/cross", { withAnchor: true });
-			}
+			if (target) notificationTaps.deliver(target);
 		};
 
 		const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
@@ -199,7 +229,7 @@ export function usePushNotifications(): void {
 		}
 
 		return () => subscription.remove();
-	}, [router]);
+	}, []);
 
 	useEffect(() => {
 		let cancelled = false;

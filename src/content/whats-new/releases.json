@@ -2,8 +2,8 @@
 	"releases": [
 		{
 			"version": "1.112.0",
-			"versionCode": 133,
-			"date": "2026-10-30",
+			"versionCode": 136,
+			"date": "2026-11-03",
 			"sections": [
 				{
 					"kind": "improved",
@@ -13,6 +13,27 @@
 						"Spoken guidance uses a gentler pace.",
 						"Distinct notification artwork and plain-text answer previews.",
 						"Security: updated the Android network library."
+					]
+				},
+				{
+					"kind": "fixed",
+					"items": [
+						"Morning notification taps open today's word without getting stuck.",
+						"Returning to Pick Up Your Cross retries stalled loads."
+					]
+				}
+			]
+		},
+		{
+			"version": "1.111.1",
+			"versionCode": 135,
+			"date": "2026-11-03",
+			"sections": [
+				{
+					"kind": "fixed",
+					"items": [
+						"Tapping the morning Pick Up Your Cross notification opens today's word again. It used to stay on \"Preparing your day in the Word...\" when the tap opened the app, and Back then left SureWord stuck on \"Opening SureWord...\" until it was closed.",
+						"Pick Up Your Cross tries again when you come back to it instead of waiting on a request that stalled."
 					]
 				}
 			]
