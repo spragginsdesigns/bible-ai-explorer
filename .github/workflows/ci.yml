@@ -72,7 +72,9 @@ jobs:
 
   apple:
     name: Apple (compile and unit tests)
-    runs-on: macos-26
+    # Releases build with Xcode 27 (iOS 27 SDK APIs such as pasteDestination);
+    # macos-26 tops out at Xcode 26.6 and cannot compile them.
+    runs-on: xcode-27
     defaults:
       run:
         working-directory: macos
