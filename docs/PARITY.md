@@ -14,7 +14,7 @@ The accuracy, Apple parity and owner speech work is integrated on
 remains byte-identical. This checkpoint supersedes the older build and
 branch status below; their receipts remain historical evidence.
 
-Android 1.112.1/code 137 is replacing the unpublished 136 candidate.
+Signed Android 1.112.1/code 137 replaces the unpublished 136 candidate.
 Notarized Mac 1.31.0/build 53 remains prepared and unpublished. Mac build 53 is installed locally. Code 136 also integrates
 the upstream notification tap queue and daily Cross refresh fixes; the
 Android voice implementation remains integrated. A separate authorized disk
@@ -68,7 +68,7 @@ The acceptance receipt, complete case summary, manual review and original
 3,603-file source manifest were recovered from the transcript with their
 original SHA-256 values. These are records of the completed run, not a new
 execution or recovery of the missing raw streams. All backend execution
-inputs remain byte-identical in the code 136 integration.
+inputs remain byte-identical in the code 137 integration.
 
 Owner speech remains restricted to the verified owner with Pro, uses device
 speech at 1.05x, and shares normal chat history and tools. GPT-Live remains
@@ -81,8 +81,22 @@ Atlas, KJV reading and non-owner voice checks on that emulator. The final
 code 136 pass failed after Home and same-process activity recreation, leaving
 the account/consent boundary on Opening SureWord. Its failed receipt is
 retained. Code 137 fixes transport ownership between overlapping app shells;
-all 1,368 mobile tests and TypeScript pass, while the new binary and actual
-code 137 runtime acceptance remain pending. Notification permission/runtime
+all 1,368 mobile tests and TypeScript pass. The signed code 137 update
+preserved the QA account, the existing formatted note and four nearby notes.
+Three same-process Home/activity-recreation cycles reached interactive
+navigation in 2.8–3.2 seconds with Cross reopen/Back working. Cold restart
+retained the same account and note. Offline Atlas, its related event and
+exact bundled KJV verse text rendered with no default network; radio state
+was restored. An additional process-cold offline screenshot showed the
+protected Chat shell before radio restoration, but its helper sampled PID
+readiness too early and did not run its separate Genesis step. Its failed
+helper receipt remains separate from that narrow visual observation. QA
+voice controls were hidden in screenshots; animated Chat prevented a fresh
+XML idle dump, so this does not establish TalkBack or owner-positive voice
+acceptance. Both APK and AAB remain byte-identical after the concurrent
+upstream dev-only type/CI fix was merged and canonically rebuilt. Final
+production deployment, a native Note AI canary and store readbacks remain
+pending. Notification permission/runtime
 testing was explicitly skipped by Austin. No integrated release publication
 is claimed at this checkpoint.
 
