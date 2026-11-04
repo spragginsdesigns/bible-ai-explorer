@@ -2,6 +2,15 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.112.2 (versionCode 138) - 2026-11-04 - internal and closed testing
+
+**What's new (Play):**
+
+FIXED
+- You can now hide the voice controls bar, and turn it back on in Settings > Appearance.
+
+**Dev notes:** Ships 77c637f. The "Voice controls off. Tap Start voice controls" bar sat under the bottom nav on every screen for eligible accounts with no way to dismiss it. While voice controls are off the bar now has a close button; the choice is saved per device (`sureword.voiceBarHidden.v1`) and a "Show voice controls" switch in Settings > Appearance brings it back. The bar always shows while voice is running so Stop stays reachable. Same change on web, iOS and macOS. The only other mobile changes since code 137 are the react-dom dev type declarations (728b7571, 1b5cdd63). Built from a clean worktree off origin/main because the shared checkout holds other agents' uncommitted work.
+
 ## 1.112.1 (versionCode 137) - 2026-11-03 - internal and closed testing
 
 **What's new (Play):**

@@ -14,6 +14,11 @@
 		]
 	},
 	"releases": {
+		"1.112.2": {
+			"title": "Quieter voice controls",
+			"headline": "Hide the voice controls bar.",
+			"why": "Close the voice controls bar when you do not need it, and bring it back any time in Settings > Appearance."
+		},
 		"1.112.1": {
 			"title": "Back to your study",
 			"headline": "Open your study again.",

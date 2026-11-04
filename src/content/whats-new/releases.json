@@ -1,6 +1,19 @@
 {
 	"releases": [
 		{
+			"version": "1.112.2",
+			"versionCode": 138,
+			"date": "2026-11-04",
+			"sections": [
+				{
+					"kind": "fixed",
+					"items": [
+						"You can now hide the voice controls bar, and turn it back on in Settings > Appearance."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.112.1",
 			"versionCode": 137,
 			"date": "2026-11-03",
