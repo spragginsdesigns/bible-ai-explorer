@@ -122,7 +122,8 @@ reason API declarations are A5's job and are not covered here.
    PostHog person, so the policy tells people to email for it. Deleting the
    person through the PostHog API inside the route would let the policy drop
    that sentence.
-3. **Play Data safety drift** (`docs/PLAY_STORE.md` step 3): the Play form still
-   says account deletion is "via email", declares no audio, no device IDs and
-   no app activity analytics, and predates voice messages, testimony, push and
-   PostHog. It should be re-filed to match this table and the new policy.
+3. **Play Data safety drift: resolved 2026-11-04.** The Play form was re-filed
+   to match this table (in-app account deletion, voice recordings, device IDs,
+   app interactions, diagnostics, religious beliefs, purchase history and
+   approximate location) and sent for Google review. The declared answers are
+   in `docs/PLAY_STORE.md` step 3.

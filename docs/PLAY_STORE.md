@@ -150,16 +150,34 @@ requirements before using them.
      policy). App is general-audience.
    - News app: No. COVID app: No. Data safety: below. Government app: No.
    - Financial features: none.
-3. **Data safety form** - declare:
-   - Collected: **Personal info → Email address** (account management,
-     required); **Name** (optional, account management); **Photos** only if
-     user attaches images (App functionality, optional, user-initiated);
-     **Files and docs** (optional, attachments); **App activity → In-app
-     messages** (chat content, App functionality); **App info & performance**:
-     none; **Device IDs**: none.
-   - All data **encrypted in transit**: yes. **Deletion mechanism**: yes
-     (in-app deletion of content; account deletion via email - link the
-     privacy page).
+3. **Data safety form** - re-filed 2026-11-04 and sent for review from
+   Publishing overview (managed publishing off). The live answers, matching
+   `docs/ios/app-privacy.md` and https://sureword.app/privacy. Every type is
+   collected, not shared with third parties (AI, narration, analytics and
+   Places providers act as service providers), and not processed ephemerally:
+
+   | Data type | Required or optional | Purposes |
+   |---|---|---|
+   | Name | Optional | Account management |
+   | Email address | Required | App functionality, Account management |
+   | User IDs | Required | App functionality, Analytics, Account management |
+   | Political or religious beliefs (testimony, faith answers) | Optional | App functionality, Personalization |
+   | Purchase history (Pro subscription) | Optional | App functionality |
+   | Approximate location (PostHog GeoIP) | Required | Analytics |
+   | Other in-app messages (chat with SureWord) | Optional | App functionality |
+   | Photos (attachments) | Optional | App functionality |
+   | Voice or sound recordings (voice messages, voice controls) | Optional | App functionality |
+   | Files and docs (attachments) | Optional | App functionality |
+   | App interactions (PostHog events) | Required | App functionality, Analytics, Personalization |
+   | Other user-generated content (notes, prayer requests) | Optional | App functionality, Personalization |
+   | Diagnostics | Required | Analytics |
+   | Device or other IDs (install ID, push token) | Required | App functionality, Analytics |
+
+   - All data **encrypted in transit**: yes. **Deletion**: users can delete
+     their account in the app (Settings → Account → Delete account) and
+     request deletion of specific data; both point at the privacy page.
+   - Re-file whenever a client starts collecting a new data type, and update
+     this table and `docs/ios/app-privacy.md` in the same change.
     - Current provider notes: OpenAI/Anthropic/Moonshot/OpenRouter process AI requests;
       ElevenLabs processes Listen narration requests; Google Places powers the
       optional My church search/profile lookup. Re-check the current privacy
