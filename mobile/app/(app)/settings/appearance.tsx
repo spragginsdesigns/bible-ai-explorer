@@ -12,6 +12,7 @@ import {
 } from "@/features/settings/settingsStore";
 import { TextSizeControl } from "@/features/settings/TextSizeControl";
 import { SpotlightAnchor } from "@/features/onboarding/Spotlight";
+import { useVoiceControls } from "@/features/voice/VoiceControlProvider";
 import { TRANSLATIONS, translationPickerLabel, type TranslationId } from "@/features/bible/translations";
 import {
 	OptionChip,
@@ -42,6 +43,7 @@ const TRANSLATION_ROWS: TranslationId[][] = [
 export default function AppearanceSettingsScreen() {
 	const settings = useSettings();
 	const styles = useSettingsStyles();
+	const voice = useVoiceControls();
 
 	return (
 		<SettingsSubScreen title="Appearance & reading" contentStyle={contentStyle}>
@@ -73,6 +75,14 @@ export default function AppearanceSettingsScreen() {
 					value={settings.quizOffer}
 					onValueChange={setQuizOffer}
 				/>
+				{voice?.eligible ? (
+					<SettingsSwitchRow
+						title="Show voice controls bar"
+						hint="The Start voice controls bar at the bottom of every screen. Hide it from the bar's close button, or here."
+						value={!voice.barHidden}
+						onValueChange={(show) => voice.setBarHidden(!show)}
+					/>
+				) : null}
 			</GlassCard>
 
 			<SectionLabel label="TEXT SIZE" />

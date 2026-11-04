@@ -15,7 +15,14 @@ interface VoiceControls {
 	register: (scope: VoiceActionScope) => () => void;
 	setChat: (binding: { key: string; busy: boolean; send: (text: string) => Promise<void> }) => () => void;
 	stop: () => void;
+	/** Whether this account may use voice controls at all. */
+	eligible: boolean;
+	/** The reader dismissed the panel; Settings brings it back. */
+	barHidden: boolean;
+	setBarHidden: (hidden: boolean) => void;
 }
+/** Device-local, matching Android's AsyncStorage key. */
+export const VOICE_BAR_HIDDEN_KEY = "sureword.voiceBarHidden.v1";
 const Context = createContext<VoiceControls | null>(null);
 const ActiveContext = createContext(false);
 export function useVoiceControlsActive(): boolean { return useContext(ActiveContext); }
@@ -74,6 +81,11 @@ export default function VoiceControlProvider({ children }: { children: React.Rea
 		speechGeneration.current += 1;
 	}
 	const permitted = allowed && ownerKey !== null && verifiedOwner.current === ownerKey;
+	// null until localStorage is read after mount, so a dismissed panel never flashes.
+	const [barHidden, setBarHiddenState] = useState<boolean | null>(null);
+	useEffect(() => {
+		try { setBarHiddenState(window.localStorage.getItem(VOICE_BAR_HIDDEN_KEY) === "1"); } catch { setBarHiddenState(false); }
+	}, []);
 	const routeHistory = useRef<string[]>([]);
 	const routeEpoch = useRef(0);
 	const chatKey = useRef<string | null>(null);
@@ -261,6 +273,13 @@ export default function VoiceControlProvider({ children }: { children: React.Rea
 		const isCurrent = () => mounted.current && ownerKey !== null && owner.current === ownerKey
 			&& ownerEpoch.current === capturedOwnerEpoch;
 		return {
+			eligible: permitted,
+			barHidden: barHidden === true,
+			setBarHidden: hidden => {
+				if (hidden) stop();
+				setBarHiddenState(hidden);
+				try { window.localStorage.setItem(VOICE_BAR_HIDDEN_KEY, hidden ? "1" : "0"); } catch { /* private mode: the choice lasts this visit */ }
+			},
 			speak: text => isCurrent() ? announce(text) : Promise.resolve(),
 			register: scope => permitted && isCurrent() ? registry.register(scope) : () => {},
 			stop: () => { if (isCurrent()) stop(); },
@@ -275,7 +294,7 @@ export default function VoiceControlProvider({ children }: { children: React.Rea
 				return () => { if (chat.current === binding) { chat.current = null; sync(); } };
 			},
 		};
-	}, [ownerKey, permitted, announce, registry, stop, sync, readPendingOptions]);
+	}, [ownerKey, permitted, barHidden, announce, registry, stop, sync, readPendingOptions]);
 	const start = async () => {
 		const capturedEngine = engine.current;
 		const capturedOwner = owner.current;
@@ -291,10 +310,11 @@ export default function VoiceControlProvider({ children }: { children: React.Rea
 	};
 	return <Context.Provider value={controls}><ActiveContext.Provider value={active && activeRef.current && permitted}>
 		{children}
-		{permitted && <section aria-label="Voice controls" className="fixed right-3 top-3 z-[80] max-h-[60dvh] w-[min(26rem,calc(100vw-1.5rem))] overflow-y-auto rounded-xl border bg-background p-3 text-foreground shadow-lg">
+		{permitted && (barHidden === false || active) && <section aria-label="Voice controls" className="fixed right-3 top-3 z-[80] max-h-[60dvh] w-[min(26rem,calc(100vw-1.5rem))] overflow-y-auto rounded-xl border bg-background p-3 text-foreground shadow-lg">
 			<div className="flex flex-wrap gap-2">
 				<button type="button" className="min-h-12 rounded-lg border px-3 font-semibold" disabled={active || !supported || pathname === "/voice"} onClick={() => void start()}>Start voice controls</button>
 				<button type="button" className="min-h-12 rounded-lg border px-3 font-semibold" disabled={!active} onClick={stop}>Stop voice controls</button>
+				{!active && <button type="button" className="ml-auto min-h-12 min-w-12 rounded-lg px-3 text-muted-foreground" aria-label="Hide voice controls" title="Hide. Turn it back on in Settings, Reading." onClick={() => controls.setBarHidden(true)}>✕</button>}
 			</div>
 			<p role="status" aria-live={active ? "off" : "polite"} aria-atomic="true" className="sr-only">{status}</p>
 			{!supported && <p role="alert">This browser does not support speech recognition. Use a browser with Web Speech recognition, such as Chrome, or use the app&apos;s accessible controls.</p>}

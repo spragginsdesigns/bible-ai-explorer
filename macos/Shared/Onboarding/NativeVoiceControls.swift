@@ -4,6 +4,11 @@ import SwiftUI
 import AppKit
 #endif
 
+/// Device-local, the same key as Android's AsyncStorage and the web's localStorage.
+enum VoiceBarPreference {
+    static let hiddenKey = "sureword.voiceBarHidden.v1"
+}
+
 extension View {
     /// Mounted on the account shell, so commands keep working after leaving Chat.
     func nativeVoiceControls(app: AppModel) -> some View {
@@ -14,9 +19,11 @@ extension View {
 private struct NativeVoiceDriver: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(Clerk.self) private var clerk
+    @AppStorage(VoiceBarPreference.hiddenKey) private var barHidden = false
     let app: AppModel
     private var session: NativeVoiceSession { app.onboarding.voiceControls }
     private var input: NativeVoiceInput { session.input }
+    private var running: Bool { input.isEnabled || input.isPreparing || session.isStarting }
     private var stateKey: String {
         [app.chat.activeConversationID ?? "", app.chat.messages.last?.id ?? "",
          String(app.chat.isBusy), String(app.chat.historyLoading), String(app.chat.uploadingAttachments), String(app.chat.isCreatingConversation), String(app.onboarding.isSendingAnswer),
@@ -28,7 +35,7 @@ private struct NativeVoiceDriver: ViewModifier {
     func body(content: Content) -> some View {
         content
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                if input.isEligible { NativeVoiceControlBar(app: app) }
+                if input.isEligible && (!barHidden || running) { NativeVoiceControlBar(app: app) }
             }
             .task(id: scenePhase) {
                 guard scenePhase == .active else { return }
@@ -82,6 +89,7 @@ private struct NativeVoiceDriver: ViewModifier {
 
 private struct NativeVoiceControlBar: View {
     @Environment(\.theme) private var theme
+    @AppStorage(VoiceBarPreference.hiddenKey) private var barHidden = false
     let app: AppModel
     private var session: NativeVoiceSession { app.onboarding.voiceControls }
     private var input: NativeVoiceInput { session.input }
@@ -102,6 +110,17 @@ private struct NativeVoiceControlBar: View {
                     Button("Finish speaking") { input.finish() }.frame(minHeight: 44)
                 }
                 Spacer(minLength: 0)
+                if !(input.isEnabled || input.isPreparing || session.isStarting) {
+                    Button {
+                        barHidden = true
+                    } label: {
+                        Image(systemName: "xmark").frame(minWidth: 44, minHeight: 44)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(theme.textMuted)
+                    .accessibilityLabel("Hide voice controls")
+                    .accessibilityHint("Turn the bar back on in Settings, Appearance.")
+                }
             }
             Text(input.status)
                 .font(.caption)

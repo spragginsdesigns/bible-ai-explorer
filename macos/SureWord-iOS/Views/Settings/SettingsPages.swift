@@ -92,6 +92,7 @@ struct LanguageSettingsPage: View {
 struct AppearanceSettingsPage: View {
     @Environment(\.theme) private var theme
     @Environment(AppModel.self) private var app
+    @AppStorage(VoiceBarPreference.hiddenKey) private var voiceBarHidden = false
 
     var body: some View {
         @Bindable var settings = app.settings
@@ -109,6 +110,10 @@ struct AppearanceSettingsPage: View {
                 // setting already synced on iOS but had no row of its own.
                 Toggle("Parchment reader", isOn: $settings.parchment)
                 SettingsHint("Read the Bible on aged scroll paper. Off returns the plain reader.")
+                if app.onboarding.voiceControls.input.isEligible {
+                    Toggle("Show voice controls bar", isOn: Binding(get: { !voiceBarHidden }, set: { voiceBarHidden = !$0 }))
+                    SettingsHint("The Start voice controls bar at the bottom of every screen. Hide it from the bar's close button, or here.")
+                }
             }
 
             Section("Text size") {

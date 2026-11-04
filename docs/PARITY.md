@@ -151,6 +151,23 @@ or blind-user usability. See [the trial runbook](voice/README.md) for architectu
 limits, setup, evidence and remaining release gates. The existing released
 voice-message feature and Apple acceptance receipts below are separate work.
 
+**Hiding the voice controls bar (2026-11-04).** Austin found the always-on
+"Voice controls off" bar annoying. Every client now has a close button on the
+bar while voice controls are off, and a "Show voice controls" switch to bring it
+back (Android Settings > Appearance & reading, web Settings > Reading, iOS and
+macOS Settings > Appearance). The switch shows only on accounts that can use
+voice controls. The choice is saved per device under
+`sureword.voiceBarHidden.v1` (Android AsyncStorage, web localStorage, Apple
+`@AppStorage`). The bar always shows while voice controls are running, so Stop
+stays reachable.
+
+| Client | Status |
+| --- | --- |
+| Android | Implemented; typecheck clean, 1,369 tests pass, including a new test for hide, persist across remount, and restore. Device check pending the next release |
+| Web | Implemented; tsc and eslint clean, 58 web voice tests pass |
+| iOS | Implemented in the shared Apple bar; unsigned iOS Simulator build succeeded on the MacBook. Runtime check pending |
+| macOS | Implemented in the shared Apple bar; unsigned macOS build succeeded on the MacBook. Runtime check pending |
+
 The [spoken-navigation update](voice/navigation-2026-10-29.md) covers the Mac
 choice-card problem: labels or option numbers run the same handlers as taps;
 freeform answers, reminder hours and tour controls are spoken. Commands keep

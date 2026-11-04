@@ -1,5 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AppState, Pressable, View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@clerk/expo";
 import { usePathname, useRouter } from "expo-router";
 import * as Speech from "expo-speech";
@@ -36,7 +38,12 @@ interface Controls {
 	speak: (text: string) => Promise<void>;
 	registerCard: (card: VoiceCard) => () => void;
 	registerChat: (chat: VoiceChat) => () => void;
+	/** The reader dismissed the bar; Settings -> Appearance brings it back. */
+	barHidden: boolean;
+	setBarHidden: (hidden: boolean) => void;
 }
+/** Device-local: dismissing the bar is a per-phone choice, not an account preference. */
+export const VOICE_BAR_HIDDEN_KEY = "sureword.voiceBarHidden.v1";
 const Context = createContext<Controls | null>(null);
 const paths = { today: "/today", bible: "/bible", chat: "/", connections: "/connections", study: "/study", notes: "/study/notes", settings: "/settings" } as const;
 
@@ -53,6 +60,8 @@ export function VoiceControlProvider({ children }: { children: React.ReactNode }
 	const eligible = eligibleAccount !== null && eligibleAccount === identity;
 	const [enabled, setEnabled] = useState(false);
 	const [status, setStatus] = useState("Voice controls off.");
+	// null until AsyncStorage answers, so a dismissed bar never flashes on launch.
+	const [barHidden, setBarHiddenState] = useState<boolean | null>(null);
 	const currentAccount = useRef(identity);
 	const state = useRef({ enabled: false, requesting: false, permission: false, prompting: false, command: null as symbol | null, cue: false, active: false, epoch: 0, path, foreground: AppState.currentState === "active" });
 	const actionGeneration = useRef(0);
@@ -355,14 +364,24 @@ export function VoiceControlProvider({ children }: { children: React.ReactNode }
 		else latest.current.schedule();
 		return () => { if (chatRef.current === entry) { actionGeneration.current += 1; chatRef.current = null; } };
 	}, [abortMicrophone]);
+	useEffect(() => {
+		let current = true;
+		AsyncStorage.getItem(VOICE_BAR_HIDDEN_KEY).then((value) => { if (current) setBarHiddenState(value === "1"); }).catch(() => { if (current) setBarHiddenState(false); });
+		return () => { current = false; };
+	}, []);
+	const setBarHidden = useCallback((hidden: boolean) => {
+		if (hidden) stop();
+		setBarHiddenState(hidden);
+		AsyncStorage.setItem(VOICE_BAR_HIDDEN_KEY, hidden ? "1" : "0").catch(() => undefined);
+	}, [stop]);
 	const finish = () => { if (state.current.active) { setStatus("Finishing your spoken answer."); recognizer.current?.stop(); } };
-	return <Context.Provider value={{ eligible, enabled, status, start: () => { void start(); }, finish, stop, speak, registerCard, registerChat }}><View style={{ flex: 1 }}>
+	return <Context.Provider value={{ eligible, enabled, status, start: () => { void start(); }, finish, stop, speak, registerCard, registerChat, barHidden: barHidden === true, setBarHidden }}><View style={{ flex: 1 }}>
 		{children}
-		{eligible ? <View style={{ backgroundColor: colors.surface, paddingHorizontal: 16, paddingTop: 8, paddingBottom: Math.max(insets.bottom, 8), gap: 6 }}>
+		{eligible && (barHidden === false || enabled) ? <View style={{ backgroundColor: colors.surface, paddingHorizontal: 16, paddingTop: 8, paddingBottom: Math.max(insets.bottom, 8), gap: 6 }}>
 			<AppText style={{ color: colors.text }}>{status}</AppText>
 			<View style={{ flexDirection: "row", gap: 12 }}>
 				<Pressable accessibilityRole="button" accessibilityLabel={enabled ? "Finish spoken answer" : "Start voice controls"} onPress={enabled ? finish : () => { void start(); }} style={{ minHeight: 48, justifyContent: "center", flex: 1 }}><AppText style={{ color: colors.accent }}>{enabled ? "Finish answer" : "Start voice controls"}</AppText></Pressable>
-				{enabled ? <Pressable accessibilityRole="button" accessibilityLabel="Stop voice controls" onPress={stop} style={{ minHeight: 48, justifyContent: "center" }}><AppText style={{ color: colors.accent }}>Stop voice controls</AppText></Pressable> : null}
+				{enabled ? <Pressable accessibilityRole="button" accessibilityLabel="Stop voice controls" onPress={stop} style={{ minHeight: 48, justifyContent: "center" }}><AppText style={{ color: colors.accent }}>Stop voice controls</AppText></Pressable> : <Pressable accessibilityRole="button" accessibilityLabel="Hide voice controls" accessibilityHint="Turn the bar back on in Settings, Appearance and reading." onPress={() => setBarHidden(true)} hitSlop={8} style={{ minHeight: 48, minWidth: 48, alignItems: "center", justifyContent: "center" }}><Ionicons name="close" size={22} color={colors.textMuted} /></Pressable>}
 			</View>
 		</View> : null}
 	</View></Context.Provider>;

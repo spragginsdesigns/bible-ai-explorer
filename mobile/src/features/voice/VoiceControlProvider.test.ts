@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => {
 		start: vi.fn(), stop: vi.fn(() => emit("end")), abort: vi.fn(() => emit("end")),
 		permission: vi.fn(async () => ({ granted: true })), navigate: vi.fn(), back: vi.fn(), speak: vi.fn(),
 		holdSpeech: null as string | null, heldSpeech: [] as (() => void)[],
+		storage: new Map<string, string>(),
 	};
 });
 vi.mock("react-native", () => ({ View: "View", Pressable: "Pressable", AppState: { currentState: "active", addEventListener: (_: string, fn: (s: string) => void) => { mocks.appState.add(fn); return { remove: () => mocks.appState.delete(fn) }; } } }));
@@ -25,6 +26,8 @@ vi.mock("@clerk/expo", () => ({ useAuth: () => ({ userId: mocks.account, session
 vi.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ bottom: 24 }) }));
 vi.mock("expo-router", () => ({ usePathname: () => mocks.path, useRouter: () => ({ navigate: mocks.navigate, back: mocks.back, canGoBack: () => true }) }));
 vi.mock("expo-speech", () => ({ stop: vi.fn(async () => {}), speak: (text: string, options: { onDone: () => void; rate: number }) => { mocks.speak(text, options.rate); if (mocks.holdSpeech === text) mocks.heldSpeech.push(options.onDone); else queueMicrotask(options.onDone); } }));
+vi.mock("@react-native-async-storage/async-storage", () => ({ default: { getItem: async (key: string) => mocks.storage.get(key) ?? null, setItem: async (key: string, value: string) => { mocks.storage.set(key, value); } } }));
+vi.mock("@expo/vector-icons", () => ({ Ionicons: "Ionicons" }));
 vi.mock("expo-audio", () => ({ createAudioPlayer: vi.fn() }));
 vi.mock("@/features/onboarding/api", () => ({ requestVoice: vi.fn() }));
 vi.mock("@/components/AppText", () => ({ AppText: "AppText" }));
@@ -35,7 +38,7 @@ vi.mock("expo-speech-recognition", () => ({ ExpoSpeechRecognitionModule: {
 	start: mocks.start, stop: mocks.stop, abort: mocks.abort, isRecognitionAvailable: () => true, requestPermissionsAsync: mocks.permission,
 	addListener: (name: string, fn: (event?: unknown) => void) => { if (!mocks.events.has(name)) mocks.events.set(name, new Set()); mocks.events.get(name)!.add(fn); return { remove: () => mocks.events.get(name)?.delete(fn) }; },
 } }));
-import { VoiceControlProvider, useVoiceControls } from "./VoiceControlProvider";
+import { VOICE_BAR_HIDDEN_KEY, VoiceControlProvider, useVoiceControls } from "./VoiceControlProvider";
 import { useWelcomeVoice } from "@/features/onboarding/useWelcomeVoice";
 import { requestVoice } from "@/features/onboarding/api";
 import { registerTabDepartureGuard } from "@/lib/tabDeparture";
@@ -53,7 +56,7 @@ async function start() {
 function final(text: string) { mocks.emit("result", { isFinal: true, results: [{ transcript: text }] }); }
 beforeEach(() => {
 	vi.useFakeTimers(); vi.clearAllMocks(); mocks.account = "owner"; mocks.session = "session-one"; mocks.path = "/"; mocks.events.clear(); mocks.appState.clear(); mocks.api.mockResolvedValue({ pro: true, available: false });
-	mocks.holdSpeech = null; mocks.heldSpeech = [];
+	mocks.holdSpeech = null; mocks.heldSpeech = []; mocks.storage.clear();
 	(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 });
 afterEach(async () => { clearDepartureGuard?.(); clearDepartureGuard = undefined; if (renderer) await act(async () => renderer.unmount()); for (const done of mocks.heldSpeech.splice(0)) done(); await vi.runOnlyPendingTimersAsync(); vi.useRealTimers(); });
@@ -63,6 +66,18 @@ async function releaseAcknowledgement() {
 	await flush();
 }
 
+const label = (name: string) => (renderer as unknown as { root: { findAll: (test: (node: { props: { accessibilityLabel?: string } }) => boolean) => { props: { onPress: () => void } }[] } }).root.findAll((node) => node.props.accessibilityLabel === name);
+it("hides the bar on dismiss, remembers it on this device, and brings it back", async () => {
+	await mount();
+	expect(label("Start voice controls")).toHaveLength(1);
+	await act(async () => { label("Hide voice controls")[0].props.onPress(); }); await flush();
+	expect(controls.barHidden).toBe(true); expect(label("Start voice controls")).toHaveLength(0);
+	expect(mocks.storage.get(VOICE_BAR_HIDDEN_KEY)).toBe("1");
+	await act(async () => renderer.unmount()); await mount();
+	expect(controls.barHidden).toBe(true); expect(label("Start voice controls")).toHaveLength(0);
+	await act(async () => { controls.setBarHidden(false); }); await flush();
+	expect(label("Start voice controls")).toHaveLength(1); expect(mocks.storage.get(VOICE_BAR_HIDDEN_KEY)).toBe("0");
+});
 it("fails closed for non-Pro eligibility and never requests microphone permission", async () => {
 	mocks.api.mockResolvedValue({ pro: false, available: false });
 	await mount(); expect(controls.eligible).toBe(false); await start();

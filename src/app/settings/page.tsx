@@ -51,6 +51,7 @@ import NotificationsSection from "@/components/settings/NotificationsSection";
 import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
 import TextSizeControl from "@/components/walk/TextSizeControl";
 import WalkMeThroughButton from "@/components/walk/WalkMeThroughButton";
+import { useVoiceControls } from "@/components/voice/VoiceControlProvider";
 import { AccountAvatar, PaneTile } from "@/components/settings/SettingsSectionNav";
 import { SETTINGS_CARD, SettingsGroup, SettingsRow, Switch } from "@/components/settings/SettingsPrimitives";
 import {
@@ -120,6 +121,7 @@ export default function SettingsPage() {
 	// soon as the account document is hydrated.
 	const translation = usePreference<TranslationId>(readTranslationPref, "KJV");
 	const parchmentEnabled = usePreference(readParchmentPref, true);
+	const voiceControls = useVoiceControls();
 	const answerLanguage = usePreference<AnswerLanguagePref>(readAnswerLanguagePref, "auto");
 	// Device-only (never synced): whether the reader offers a quiz at a chapter's end.
 	const quizOfferEnabled = usePreference(readQuizOfferPref, true);
@@ -411,6 +413,19 @@ export default function SettingsPage() {
 									/>
 								}
 							/>
+							{voiceControls?.eligible && (
+								<SettingsRow
+									title="Show voice controls"
+									description="The Start voice controls panel on every page. Hide it from the panel's close button, or here."
+									control={
+										<Switch
+											checked={!voiceControls.barHidden}
+											label="Show voice controls"
+											onChange={(next) => voiceControls.setBarHidden(!next)}
+										/>
+									}
+								/>
+							)}
 							<SettingsRow
 								title="Offer a quiz after each chapter"
 								description="A short, optional quiz at the end of each chapter. Every answer comes with its verse."

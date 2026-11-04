@@ -50,6 +50,14 @@ and passed typecheck plus 1,250 tests. Its microphone/device acceptance is
 still open; see the [Android candidate receipt](android-release-candidate-2026-10-29.json).
 No platform release has been published from this worktree.
 
+## Hiding the bar
+
+While voice controls are off, the bar has a close button. Hiding it stops any
+pending start, and the bar stays hidden on that device (`sureword.voiceBarHidden.v1`)
+until the Settings switch "Show voice controls" turns it back on. The bar
+always shows while voice controls are running. See docs/PARITY.md, "Hiding the
+voice controls bar", for the per-client details.
+
 ## Product contract
 
 - Speech uses the existing `/api/ask-question` backend. Its doctrine, KJV

@@ -11,6 +11,7 @@ struct SettingsView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @Environment(Clerk.self) private var clerk
+    @AppStorage(VoiceBarPreference.hiddenKey) private var voiceBarHidden = false
 
     /// The page last opened, so Settings reopens where the reader left it.
     @AppStorage("settings.mac.pane") private var savedPane = SettingsPane.appearance.rawValue
@@ -352,6 +353,10 @@ struct SettingsView: View {
                 hint("System follows your Mac's dark or light mode.")
                 Toggle("Parchment page", isOn: $settings.parchment)
                 hint("Read Scripture on a parchment sheet, light or dark with the theme.")
+                if app.onboarding.voiceControls.input.isEligible {
+                    Toggle("Show voice controls bar", isOn: Binding(get: { !voiceBarHidden }, set: { voiceBarHidden = !$0 }))
+                    hint("The Start voice controls bar at the bottom of the window. Hide it from the bar's close button, or here.")
+                }
             }
 
             Section("Text size") {
