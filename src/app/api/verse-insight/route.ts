@@ -13,6 +13,7 @@ import { verseInsightSystemPrompt } from "@/utils/systemPrompt";
 import { canonicalPassage } from "@/lib/bible/passage-context";
 import { formatVersesForModel } from "@/lib/scripture-search";
 import { stampFirstUse } from "@/lib/onboarding";
+import { plainVerseInsight } from "@/lib/verse-insight-text";
 
 export const maxDuration = 180;
 
@@ -96,7 +97,7 @@ async function handlePost(req: Request): Promise<Response> {
 				properties: { translation, passage: isPassage, cacheHit: true },
 			});
 			waitUntil(stampFirstUse(userId, "firstInsightAt"));
-			return new Response(cached, {
+			return new Response(plainVerseInsight(cached), {
 				headers: {
 					"Content-Type": "text/plain; charset=utf-8",
 					"X-Verse-Insight-Cache": "hit",
@@ -132,7 +133,8 @@ async function handlePost(req: Request): Promise<Response> {
 				await writeVerseInsight(cacheKey, answer, modelUsed);
 				await stampFirstUse(userId, "firstInsightAt");
 			}
-			return answer;
+			// The cache keeps the verified original; readers get plain text.
+			return plainVerseInsight(answer);
 		})();
 		// Complete verification/cache even if the sheet closes while checking.
 		waitUntil(verifiedAnswer.catch(error => console.error("Verse insight verification failed:", error)));

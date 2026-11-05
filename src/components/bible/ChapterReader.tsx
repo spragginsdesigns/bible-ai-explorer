@@ -1184,7 +1184,7 @@ const ChapterReader: React.FC = () => {
                     </button>
                   </div>
                 ) : insightStatus !== "idle" ? (
-                  <p className="text-[0.90625rem] leading-[1.375rem] text-neutral-700 dark:text-neutral-200">
+                  <p className="whitespace-pre-line text-[0.90625rem] leading-[1.375rem] text-neutral-700 dark:text-neutral-200">
                     {insightText}
                     {insightStatus === "streaming" && (
                       <span className="text-amber-600 dark:text-amber-400"> ▍</span>
