@@ -183,7 +183,7 @@ stays reachable.
 
 | Client | Status |
 | --- | --- |
-| Android | Implemented; typecheck clean, 1,369 tests pass, including a new test for hide, persist across remount, and restore. Device check pending the next release |
+| Android | Implemented; typecheck clean, 1,369 tests pass, including a new test for hide, persist across remount, and restore. Verified on Austin's phone in 1.112.2 (versionCode 138) on 2026-11-05 |
 | Web | Implemented; tsc and eslint clean, 58 web voice tests pass |
 | iOS | Implemented in the shared Apple bar; unsigned iOS Simulator build succeeded on the MacBook. Runtime check pending |
 | macOS | Implemented in the shared Apple bar; unsigned macOS build succeeded on the MacBook. Runtime check pending |
