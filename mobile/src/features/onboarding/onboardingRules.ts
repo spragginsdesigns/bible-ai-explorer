@@ -504,6 +504,17 @@ export const HELP_SCREENS = {
 } as const;
 export type HelpScreen = keyof typeof HELP_SCREENS;
 
+/**
+ * The screen a message is a "?" help tap for, or null. The fixed sentences
+ * above are the identifier: every released client already sends exactly one
+ * of them, so the server can recognise a help tap without a client update.
+ */
+export function helpScreenForText(text: string): HelpScreen | null {
+	const trimmed = text.trim();
+	for (const [screen, sentence] of Object.entries(HELP_SCREENS)) if (sentence === trimmed) return screen as HelpScreen;
+	return null;
+}
+
 /** The user message "Walk me through SureWord" sends to pick the welcome back up. */
 export const RESUME_MESSAGE = "Walk me through SureWord.";
 

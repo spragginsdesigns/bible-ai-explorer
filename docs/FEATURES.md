@@ -923,6 +923,15 @@ y=274 and the ring was drawn, with and without animations.
 
 - A "?" on each tab's header (Chat: "Help with Chat" in its menu) opens a
   fresh chat that asks SureWord about that screen (`HELP_SCREENS`).
+  Those fixed sentences are the identifier: `helpScreenForText` recognises
+  them on the server, and `/api/ask-question` then gives the turn the app
+  facts (`appKnowledge`) plus that screen's `appHelpGuidance`. Both ride the
+  prepared system context, so the Scripture reviewer sees them too. Before
+  2026-11-05 "Help me with the Today screen." matched none of the app
+  keywords, both models worked without the app facts, and accurate help
+  answers were withheld as invented detail. The Scripture checks still run
+  in full on help answers; nothing is skipped. It reaches every client
+  already released, because they all send the same sentences.
 - A Getting started card on Today, for accounts that came through the welcome,
   lists five things (`GETTING_STARTED_ITEMS`). Each ticks only when the server
   sees the real thing (`GET /api/onboarding/progress`): a `ReadingLogChapter`
