@@ -95,9 +95,9 @@ test("a failed marker cannot consume an existing heading",async()=>{
   const text="**John 3:999 (KJV)**\n\n[[SCRIPTURE:John 3:999]]";
   const r=await check(text);assert.equal(r.ok,false);assert.equal(r.text,text);
 });
-test("inline marker/prose remains unchanged apart from original expansion",async()=>{
+test("inline marker separates its canonical heading from preceding prose",async()=>{
   const r=await check("**John 3:16 (KJV)**\nOrdinary text [[SCRIPTURE:John 3:16]]");
-  assert.equal(r.text.startsWith("**John 3:16 (KJV)**\nOrdinary text **John 3:16 (KJV)**"),true);
+  assert.equal(r.text.startsWith("**John 3:16 (KJV)**\nOrdinary text \n\n**John 3:16 (KJV)**"),true);
 });
 test("quoted block and indented code marker retain their literal labels",async()=>{
   for(const text of [
@@ -107,7 +107,7 @@ test("quoted block and indented code marker retain their literal labels",async()
 });
 test("a conflicting adjacent label stops consumption and stays visible",async()=>{
   const r=await check("**John 3:16 (NKJV)**\n**John 3:16 (KJV)**\n[[SCRIPTURE:John 3:16]]");
-  assert.equal(r.text.startsWith("**John 3:16 (NKJV)**\n**John 3:16 (KJV)**\n> 16 "),true);
+  assert.equal(r.text.startsWith("**John 3:16 (NKJV)**\n\n**John 3:16 (KJV)**\n> 16 "),true);
 });
 test("intervening prose is never consumed as a matching heading",async()=>{
   const prefix="**John 3:16 (KJV)**\nThis is the user's explanation.\n\n";

@@ -330,6 +330,39 @@ function isLexicalGloss(before: string): boolean {
 
 interface Quotation { text: string; start: number; end: number; block: boolean; numbered?: boolean }
 
+function isComposedPrayer(quote: Quotation, body: string, text: string, groups: CitationGroup[], context: string): boolean {
+  // This is presentation intent only. The words and any theological claims
+  // still require independent semantic review, even if they sound biblical.
+  const framing = /\b(?:here is a(?:n? (?:original|sample|simple|short))? prayer|let['\u2019]s pray|let us pray|you can pray)\s*:\s*$/i;
+  // A preceding displayed passage has its own source checking. Do not treat
+  // words in that block as attribution for a newly introduced prayer.
+  const before = text.slice(0, quote.start).split(/\n[ \t]*\n/).slice(-2).filter((paragraph) => !/(?:^|\n)[ \t]*>/.test(paragraph)).join("\n\n").slice(-150).replace(/[*_`]/g, "");
+  if (!framing.test(before) || !/^(?:(?:dear|heavenly|our)\s+)?(?:father|lord(?:\s+jesus)?|god|jesus)\b[\s,!:\u2014-]/i.test(body)) return false;
+  // Source claims, verse presentation and original-language text keep the
+  // ordinary literal-source checks. Archaic pronouns alone are not such claims.
+  if (quote.numbered || /<|\[\[|(?:^|\n)\s*>?\s*(?:\*\*)?\[?\d{1,3}\]?[.)]?\s+/.test(quote.text) || /[\p{Script=Hebrew}\p{Script=Greek}]|\b(?:saith|verily|whosoever|begotten)\b/iu.test(body)) return false;
+  const sourceContext = `${before} ${context}`;
+  if (/\b(?:(?:jesus|god|(?:the\s+)?lord)\s+(?:said|says|saith|prays|prayed|spoke|speaks|taught|teaches|answered|declared)|prayer\s+(?:of|from|by)|\p{L}+['\u2019]s\s+prayer|(?:quote|quotation|words)\s+(?:of|from|by))\b/iu.test(sourceContext) || /\b(?:KJV|NKJV|BSB|ASV|RV1909|LUT1912|WLC|TR)\b/i.test(`${sourceContext} ${quote.text}`)) return false;
+  // An explanation of why to pray may precede the composed-prayer frame.
+  // Only a direct source introduction still labels the following quotation.
+  const introduction = /\b(?:scripture|bible|verse|passage|text)\s+(?:said|says?|reads?|saith|states?)\s*[:,.!?\s]*$/i;
+  const attribution = before.replace(framing, "");
+  if (introduction.test(attribution) || /\b\p{L}+\s+(?:said|says|saith|prayed|prays|spoke|speaks|taught|teaches|answered|declared)\s*[:,.!?\s]*$/iu.test(attribution)) return false;
+  const labelGap = (gap: string) => /^[\s*_`()[\],:;.!?\u2013\u2014-]*$/.test(gap);
+  return !groups.some((group) => {
+    if (group.start < quote.end && group.end > quote.start) return true;
+    if (group.end <= quote.start) {
+      const gap = text.slice(group.end, quote.start).replace(/[*_`]/g, "").replace(framing, "");
+      const precedingClause = text.slice(Math.max(0, group.start - 150), group.start).split(/[.!?\n]/).pop() ?? "";
+      // A citation closing an explanatory sentence does not label a newly
+      // introduced composed prayer. A standalone parenthetical label still does.
+      if (/^\s*\)[.!?]\s*$/.test(gap) && /\p{L}[^()]*\(\s*$/u.test(precedingClause) && !/\b(?:said|says?|reads?|saith|verse|quotation|words)\b/i.test(precedingClause)) return false;
+      return labelGap(gap) || /^\s*(?:said|says?|reads?|saith|states?)\s*[:,.!?\s]*$/i.test(gap);
+    }
+    return labelGap(text.slice(quote.end, group.start));
+  });
+}
+
 function quotationCandidates(text: string, groups: CitationGroup[]): Quotation[] {
   const candidates: Quotation[] = [];
   for (const match of text.matchAll(/<(blockquote|q)\b[^>]*>[\s\S]*?<\/\1\s*>/gi)) {
@@ -628,10 +661,15 @@ export async function verifyScriptureDraft(
         const verses = groups[0].evidence.flatMap((evidence) => evidence.verses);
         const headingStart = adjacentMarkerHeadingStart(inputText, marker.index, marker.index + marker[0].length, groups[0], options.translation, cursor);
         if (headingStart < marker.index) text = text.slice(0, text.length - (marker.index - headingStart));
+        // A generated passage owns its block. Inline markers and a single
+        // newline must not merge surrounding prose into the canonical quote.
+        if (text.trim() && !/\n[ \t\r]*\n[ \t\r]*$/.test(text)) text += /\n[ \t\r]*$/.test(text) ? "\n" : "\n\n";
         text += `**${groups[0].sourceText} (${options.translation})**\n`;
         const start = text.length;
         text += verses.map((verse) => `> ${verse.verse} ${verse.text.replace(/\n/g, "\n> ")}`).join("\n");
         canonicalBodies.push({ start, end: text.length, canonicalText: verses.map((verse) => verse.text).join(" ") });
+        const tail = inputText.slice(marker.index + marker[0].length);
+        if (tail.trim() && !/^[ \t\r]*\n[ \t\r]*\n/.test(tail)) text += /^[ \t\r]*\n/.test(tail) ? "\n" : "\n\n";
       }
     }
     cursor = marker.index + marker[0].length;
@@ -739,6 +777,11 @@ export async function verifyScriptureDraft(
     const activeOriginal = new Set(active.flatMap((anchor) => anchor.identifier ? originalByIdentifier.get(anchor.identifier) ?? [] : []));
     const namedArtifact = !quote.block && /["\u201c\u2018«»„‚]/.test(text[quote.start] ?? "") && /\b(?:note|study|devotional|reading plan|title)(?:\s+(?:titled|called|named))?\s*$/i.test(before);
     const lexicalGloss = !quote.block && /["\u201c\u2018«»„‚]/.test(text[quote.start] ?? "") && isLexicalGloss(before);
+    if (!wholeClaim && !canonicalBody && !nearbyIdentifiers.length && isComposedPrayer(quote, body, text, groups, quoteContext)) {
+      issues.push({ code: "ambiguous_quote", severity: "review", message: "An explicitly composed prayer requires independent semantic review; its wording is not verified as a Bible quotation.", excerpt: body });
+      recordQuote({ text: body, references: [], status: "review" });
+      continue;
+    }
     if (namedArtifact || lexicalGloss) {
       issues.push({ code: "ambiguous_quote", severity: "review", message: namedArtifact ? "A quoted artifact title requires independent semantic review, including any claim in the title or receipt." : "A quoted lexical gloss requires independent semantic review against trusted word metadata; it is not a verbatim Bible quotation.", excerpt: body });
       recordQuote({ text: body, references: [], status: "review" });

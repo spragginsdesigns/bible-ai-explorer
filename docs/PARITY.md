@@ -7,6 +7,26 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
+## Shared prayer verification fix, 2026-11-05
+
+Original prayers explicitly introduced as composed text now reach independent
+semantic review without being mistaken for verbatim Scripture because of Thy,
+Thee, or a nearby explanatory citation. Scripture marker expansion separates
+canonical passages from surrounding prose, including inline and single-newline
+markers. Actual source attributions and mismatched quotations retain their
+checks. The saved-believer foundation and semantic acceptance gate are unchanged.
+
+This is shared backend behavior for Android, web, macOS and iOS. No client binary
+changes are required. Parser, marker and prayer regression coverage passes 168
+tests, including exact offsets, expanded-text rechecking and negative or
+unavailable semantic review. Typecheck, lint, the production build and the
+history manifest check passed. A final authenticated run against the local
+production build completed four real model-backed streams without withholding:
+an ordinary healing prayer, a blockquoted Thy prayer, a James 5:14-15 passage
+with a composed prayer, and an exact Matthew 6:9 KJV quotation. The temporary
+synthetic Clerk session was revoked. Physical-device and Apple UI acceptance
+were not run for this server-only change.
+
 ## Integrated release, 2026-11-03
 
 The accuracy, Apple parity and owner speech work is integrated on
