@@ -1,6 +1,26 @@
 {
 	"releases": [
 		{
+			"version": "1.113.0",
+			"versionCode": 139,
+			"date": "2026-11-05",
+			"sections": [
+				{
+					"kind": "new",
+					"items": [
+						"Every \"?\" now opens a short guide to that screen. Tap \"Ask SureWord about this\" to keep going in chat."
+					]
+				},
+				{
+					"kind": "fixed",
+					"items": [
+						"When the Scripture check flags something in an answer, SureWord now corrects it and checks it again instead of holding the answer back.",
+						"Questions about using the app get real answers."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.112.2",
 			"versionCode": 138,
 			"date": "2026-11-04",

@@ -505,6 +505,44 @@ export const HELP_SCREENS = {
 export type HelpScreen = keyof typeof HELP_SCREENS;
 
 /**
+ * What the "?" sheet shows for each screen before anything is sent: a title
+ * and a few plain lines, read by every client. "Ask SureWord about this"
+ * then sends that screen's HELP_SCREENS sentence.
+ */
+export const HELP_SHEETS: Record<HelpScreen, { title: string; points: readonly string[] }> = {
+	today: { title: "Today", points: [
+		"Pick Up Your Cross: a word from Scripture chosen for you each day.",
+		"Continue reading right where you left off.",
+		"Learn a verse by heart, a little at a time.",
+		"Follow a reading plan. Chapters you read in the Bible tick it off.",
+		"Your walk shows your reading history and time in the Word.",
+	] },
+	bible: { title: "The Bible", points: [
+		"Choose any book and chapter, or jump straight to a reference.",
+		"Tap any verse for a short explanation, and to copy, share, highlight or save it.",
+		"Make the text bigger or smaller from the reader.",
+		"Move to the next or previous chapter, even across books.",
+	] },
+	chat: { title: "Chat", points: [
+		"Ask anything about Scripture. SureWord answers from the King James Bible.",
+		"Attach a photo, PDF or text file to ask about it.",
+		"Open past conversations from history, or start a new one.",
+		"Type / for quick commands such as /check and /verse.",
+	] },
+	study: { title: "Study", points: [
+		"Notes: your studies in folders, with tags and help from SureWord.",
+		"The timeline, people and places of the Bible.",
+		"Original languages: Hebrew, Greek and Strong's word studies.",
+		"Sermon studies from your church, when it is set up.",
+	] },
+	connections: { title: "Connections", points: [
+		"See how a verse ties to other passages across the Bible.",
+		"Go to any verse or chapter, then choose a verse.",
+		"Tap \"Ask why these connect\" to see the thread between them.",
+	] },
+};
+
+/**
  * The screen a message is a "?" help tap for, or null. The fixed sentences
  * above are the identifier: every released client already sends exactly one
  * of them, so the server can recognise a help tap without a client update.

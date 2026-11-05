@@ -14,6 +14,11 @@
 		]
 	},
 	"releases": {
+		"1.113.0": {
+			"title": "Help on every screen",
+			"headline": "Tap ? to learn any screen.",
+			"why": "Every ? now shows what that screen can do. When SureWord's Scripture check flags something in an answer, it corrects it and checks again instead of holding the answer back."
+		},
 		"1.112.2": {
 			"title": "Quieter voice controls",
 			"headline": "Hide the voice controls bar.",

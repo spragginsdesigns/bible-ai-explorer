@@ -2,6 +2,19 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.113.0 (versionCode 139) - 2026-11-05 - internal and closed testing
+
+**What's new (Play):**
+
+NEW
+- Every "?" now opens a short guide to that screen. Tap "Ask SureWord about this" to keep going in chat.
+
+FIXED
+- When the Scripture check flags something in an answer, SureWord now corrects it and checks it again instead of holding the answer back.
+- Questions about using the app get real answers.
+
+**Dev notes:** Austin's report (2026-11-05): answers, including every "?" help tap, came back as "I couldn't finish checking this answer against Scripture". Three server causes, all live on sureword.app for every client (no app update needed for them): (1) 64877672, owner and reviewer accounts on the SureWord AI Pro or Free pick were refused before inference because the final reviewer was the unpriced SureWord AI display row (`resolveReviewerDefinition`); (2) 3989c583, a clean final-review rejection is repaired against its findings and passes the full pre-display gate and the same final review again, at most two rounds inside the 300 s budget (11 of 26 answers on 2026-11-04 were withheld this way); (3) 2db33baa, the "?" sentences matched none of the app keywords, so neither the answering model nor the reviewer had the app facts; `helpScreenForText` now recognises them and adds `appKnowledge` plus per-screen `appHelpGuidance`. This build adds the client half: the "?" (and Chat's "Help with Chat") opens `HelpSheet` with `HELP_SHEETS` lines from the shared onboarding rules, and "Ask SureWord about this" sends the same fixed sentence as before. Same sheet on web (`HelpDialog`) and Apple (`GuideHelpSheet`).
+
 ## 1.112.2 (versionCode 138) - 2026-11-04 - internal and closed testing
 
 **What's new (Play):**

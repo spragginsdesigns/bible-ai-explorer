@@ -167,6 +167,53 @@ enum HelpScreen: String, CaseIterable, Sendable {
         case .connections: "Help me with Connections."
         }
     }
+
+    /// The "?" sheet's title, shared with HELP_SHEETS in onboarding-rules.ts.
+    var sheetTitle: String {
+        switch self {
+        case .today: "Today"
+        case .bible: "The Bible"
+        case .chat: "Chat"
+        case .study: "Study"
+        case .connections: "Connections"
+        }
+    }
+
+    /// The "?" sheet's lines, shown before anything is sent (HELP_SHEETS).
+    var sheetPoints: [String] {
+        switch self {
+        case .today: [
+            "Pick Up Your Cross: a word from Scripture chosen for you each day.",
+            "Continue reading right where you left off.",
+            "Learn a verse by heart, a little at a time.",
+            "Follow a reading plan. Chapters you read in the Bible tick it off.",
+            "Your walk shows your reading history and time in the Word.",
+        ]
+        case .bible: [
+            "Choose any book and chapter, or jump straight to a reference.",
+            "Tap any verse for a short explanation, and to copy, share, highlight or save it.",
+            "Make the text bigger or smaller from the reader.",
+            "Move to the next or previous chapter, even across books.",
+        ]
+        case .chat: [
+            "Ask anything about Scripture. SureWord answers from the King James Bible.",
+            "Attach a photo, PDF or text file to ask about it.",
+            "Open past conversations from history, or start a new one.",
+            "Type / for quick commands such as /check and /verse.",
+        ]
+        case .study: [
+            "Notes: your studies in folders, with tags and help from SureWord.",
+            "The timeline, people and places of the Bible.",
+            "Original languages: Hebrew, Greek and Strong's word studies.",
+            "Sermon studies from your church, when it is set up.",
+        ]
+        case .connections: [
+            "See how a verse ties to other passages across the Bible.",
+            "Go to any verse or chapter, then choose a verse.",
+            "Tap \"Ask why these connect\" to see the thread between them.",
+        ]
+        }
+    }
 }
 
 enum OnboardingRules {

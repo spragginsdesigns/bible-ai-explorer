@@ -22,6 +22,7 @@ import { useWelcomeVoice } from "./walk/useWelcomeVoice";
 import { claimGuestTurnsOnce, guestClaimOpened, markGuestClaimOpened } from "@/lib/guest-client";
 import { OPEN_CONVERSATION_EVENT } from "@/lib/web-notifications";
 import { Loader2, Plus, RefreshCw } from "lucide-react";
+import HelpDialog from "./walk/HelpDialog";
 
 const SWIPE_THRESHOLD = 50;
 const EDGE_ZONE = 30;
@@ -246,7 +247,9 @@ const BibleAIExplorerInner: React.FC = () => {
 		setPendingHelp(HELP_SCREENS[helpParam as HelpScreen]);
 	}, [helpParam, newConversation]);
 
+	const [chatHelpOpen, setChatHelpOpen] = useState(false);
 	const askChatHelp = useCallback(() => {
+		setChatHelpOpen(false);
 		newConversation();
 		setPendingHelp(HELP_SCREENS.chat);
 	}, [newConversation]);
@@ -384,8 +387,9 @@ const BibleAIExplorerInner: React.FC = () => {
 					title={title}
 					onToggleSidebar={toggleSidebar}
 					onNewChat={newConversation}
-					onHelp={askChatHelp}
+					onHelp={() => setChatHelpOpen(true)}
 				/>
+				{chatHelpOpen && <HelpDialog screen="chat" onClose={() => setChatHelpOpen(false)} onAsk={askChatHelp} />}
 				{historyActionError && (
 					<p role="alert" className="mx-4 mt-2 rounded-lg border border-red-500/20 bg-red-500/[0.06] px-3 py-2 text-sm text-red-700 dark:text-red-400">
 						{historyActionError}

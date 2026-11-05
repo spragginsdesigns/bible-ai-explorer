@@ -41,6 +41,7 @@ import { setVerseOfDayEnabled, setVerseOfDayHour } from "@/features/notification
 import { signalNotificationPermissionMoment, suppressPassivePermissionMoments } from "@/features/notifications/permissionPrompt";
 import { OnboardingChatContext, type OnboardingChatActions } from "@/features/onboarding/OnboardingChatContext";
 import { HELP_SCREENS, TOUR_STOPS } from "@/features/onboarding/onboardingRules";
+import { HelpSheet } from "@/features/navigation/HelpSheet";
 import { hourForLabel } from "@/features/onboarding/dailyTime";
 import { SpotlightAnchor, startSpotlight } from "@/features/onboarding/Spotlight";
 import { useWelcomeConversationId } from "@/features/onboarding/onboardingStore";
@@ -217,6 +218,7 @@ export default function ChatScreen() {
 	// streaming (and be dropped) or carry the old pinned passage. Help waits
 	// for the fresh chat to render.
 	const [pendingHelp, setPendingHelp] = useState<string | null>(null);
+	const [helpOpen, setHelpOpen] = useState(false);
 	useEffect(() => {
 		if (!pendingHelp || chat.loading || chat.isStreaming || chat.activeConversationId || chat.messages.length > 0) return;
 		if (chat.attachment || chat.fileAttachments.length > 0) return;
@@ -535,11 +537,13 @@ export default function ChatScreen() {
 					onOpenModelPicker={() => setModelPickerOpen(true)}
 					onOpenHistory={openHistory}
 					onOpenSettings={() => router.push("/settings")}
-					onHelp={() => {
-						onNewChat();
-						setPendingHelp(HELP_SCREENS.chat);
-					}}
+					onHelp={() => setHelpOpen(true)}
 				/>
+				<HelpSheet screen="chat" visible={helpOpen} onClose={() => setHelpOpen(false)} onAsk={() => {
+					setHelpOpen(false);
+					onNewChat();
+					setPendingHelp(HELP_SCREENS.chat);
+				}} />
 				{inWelcome ? <WelcomeVoiceBar /> : null}
 
 				{historyLoading ? (

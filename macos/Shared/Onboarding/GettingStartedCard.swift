@@ -76,17 +76,66 @@ struct GettingStartedCard: View {
     }
 }
 
-/// The "?" on each main screen: a new chat that asks SureWord about it.
+/// The "?" on each main screen: a short sheet about it, with "Ask SureWord
+/// about this" into a new chat (same text and flow as Android and web).
 struct GuideHelpButton: View {
     @Environment(AppModel.self) private var app
+    @State private var sheetPresented = false
     let screen: HelpScreen
 
     var body: some View {
         Button {
-            app.onboarding.help(screen, app: app)
+            sheetPresented = true
         } label: {
             Label("Help with this screen", systemImage: "questionmark.circle")
         }
-        .help("Ask SureWord about this screen")
+        .help("Help with this screen")
+        .sheet(isPresented: $sheetPresented) {
+            GuideHelpSheet(screen: screen) {
+                sheetPresented = false
+                app.onboarding.help(screen, app: app)
+            } close: {
+                sheetPresented = false
+            }
+        }
+    }
+}
+
+/// What the "?" shows before anything is sent.
+struct GuideHelpSheet: View {
+    let screen: HelpScreen
+    let ask: () -> Void
+    let close: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text(screen.sheetTitle)
+                    .font(.title2.bold())
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+                Button(action: close) {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Close help")
+            }
+            ForEach(screen.sheetPoints, id: \.self) { point in
+                Label {
+                    Text(point).fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: "checkmark.circle").foregroundStyle(.tint)
+                }
+            }
+            Button(action: ask) {
+                Label("Ask SureWord about this", systemImage: "bubble.left.and.text.bubble.right")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+        }
+        .padding(24)
+        .frame(minWidth: 320, idealWidth: 420)
+        .presentationDetents([.medium, .large])
     }
 }

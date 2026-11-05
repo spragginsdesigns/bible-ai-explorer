@@ -41,3 +41,17 @@ test("help guidance has no dashes and the retired keys are gone", () => {
 	for (const screen of Object.keys(HELP_SCREENS)) assert.ok(![0x2013, 0x2014].some((code) => appHelpGuidance(screen).includes(String.fromCharCode(code))), screen);
 	assert.doesNotMatch(appKnowledge, /OpenRouter key|Anthropic, Moonshot/);
 });
+
+test("every help sheet has a title and three to five plain lines, on every client", async () => {
+	const { HELP_SHEETS } = await import("../src/lib/onboarding-rules.ts");
+	const { readFileSync } = await import("node:fs");
+	const swift = readFileSync(new URL("../macos/Shared/Onboarding/OnboardingRules.swift", import.meta.url), "utf8");
+	for (const screen of Object.keys(HELP_SCREENS)) {
+		const sheet = HELP_SHEETS[screen];
+		assert.ok(sheet.title);
+		assert.ok(sheet.points.length >= 3 && sheet.points.length <= 5, screen);
+		// The Apple copy is generated from this file; it must not drift.
+		assert.ok(swift.includes(`case .${screen}: "${sheet.title}"`), screen);
+		for (const point of sheet.points) assert.ok(swift.includes(JSON.stringify(point)), point);
+	}
+});

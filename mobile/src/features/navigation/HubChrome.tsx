@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -8,6 +8,7 @@ import { useTheme } from "@/features/settings/settingsStore";
 import { fonts, radius, spacing, typography, type Colors } from "@/theme";
 import { SpotlightAnchor } from "@/features/onboarding/Spotlight";
 import { HELP_SCREENS, type HelpScreen } from "@/features/onboarding/onboardingRules";
+import { HelpSheet } from "./HelpSheet";
 
 export function SettingsButton({ colors }: { colors?: Colors }) {
 	const router = useRouter();
@@ -20,17 +21,24 @@ export function SettingsButton({ colors }: { colors?: Colors }) {
 	</Pressable>;
 }
 
-/** "?" on a screen's header: asks SureWord about that screen in Chat (Walk with me). */
+/** "?" on a screen's header: a short sheet about that screen, with "Ask SureWord about this" into Chat. */
 export function HelpButton({ screen, colors }: { screen: HelpScreen; colors?: Colors }) {
 	const router = useRouter();
 	const theme = useTheme();
 	const c = colors ?? theme.colors;
-	return <Pressable accessibilityRole="button" accessibilityLabel="Ask SureWord about this screen"
-		onPress={() => router.navigate({ pathname: "/", params: { prompt: HELP_SCREENS[screen], autoSend: "1", handoffId: String(Date.now()) } })}
-		hitSlop={4}
-		style={({ pressed }) => [styles.settings, { backgroundColor: c.surface, borderColor: c.borderStrong, opacity: pressed ? 0.65 : 1 }]}>
-		<Ionicons name="help-outline" size={23} color={c.textSecondary} />
-	</Pressable>;
+	const [open, setOpen] = useState(false);
+	return <>
+		<Pressable accessibilityRole="button" accessibilityLabel="Help with this screen"
+			onPress={() => setOpen(true)}
+			hitSlop={4}
+			style={({ pressed }) => [styles.settings, { backgroundColor: c.surface, borderColor: c.borderStrong, opacity: pressed ? 0.65 : 1 }]}>
+			<Ionicons name="help-outline" size={23} color={c.textSecondary} />
+		</Pressable>
+		<HelpSheet screen={screen} visible={open} onClose={() => setOpen(false)} onAsk={() => {
+			setOpen(false);
+			router.navigate({ pathname: "/", params: { prompt: HELP_SCREENS[screen], autoSend: "1", handoffId: String(Date.now()) } });
+		}} />
+	</>;
 }
 
 export function HubHeader({ title, brand = false, help }: { title: string; brand?: boolean; help?: HelpScreen }) {

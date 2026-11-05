@@ -174,6 +174,15 @@ struct OnboardingTests {
         #expect(HelpScreen.connections.message == "Help me with Connections.")
     }
 
+    @Test("Every help sheet has a title and a few lines before anything is sent")
+    func helpSheets() {
+        for screen in HelpScreen.allCases {
+            #expect(!screen.sheetTitle.isEmpty)
+            #expect((3...5).contains(screen.sheetPoints.count))
+        }
+        #expect(HelpScreen.connections.sheetPoints.last == "Tap \"Ask why these connect\" to see the thread between them.")
+    }
+
     // MARK: Parsing
 
     @Test("A stored presentChoices output parses, and a broken one is dropped")
