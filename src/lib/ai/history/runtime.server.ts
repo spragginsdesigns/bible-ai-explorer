@@ -6,7 +6,7 @@ import { IncludedAiLimitError } from "@/lib/billing/usage-errors";
 import { hasCurrentAiConsent } from "@/lib/preferences-contract";
 import { parseUserIdAllowlist } from "@/lib/entitlements-rules";
 import { houseChatModel, resolveVerificationModel } from "@/lib/ai/provider";
-import { buildProviderOptions, NO_RUN_OPTIONS,resolveDefinition,type ModelDefinition } from "@/lib/ai/models";
+import { buildProviderOptions, NO_RUN_OPTIONS,resolveDefinition,resolveReviewerDefinition,type ModelDefinition } from "@/lib/ai/models";
 import type {LanguageModel,JSONValue} from "ai";
 import { getChapter } from "@/lib/bible/translations";
 import { verifyScriptureDraft } from "@/lib/ai/scripture-verification";
@@ -45,7 +45,10 @@ export const historyService = createHistoryService({repository, loadCurrentPolic
  validateFreshReviewer:identity=>{try{const current=resolveDefinition(identity.id);return Boolean(current&&canonicalJSON(reviewerIdentity(current))===canonicalJSON(identity));}catch{return false;}},
 });
 /** Reuse the actual server-resolved current model, utility meter and bounded allowance. */
-export function createCurrentRequestReview(definition:ModelDefinition,model:LanguageModel,providerOptions?:Record<string,Record<string,JSONValue>>){
+export function createCurrentRequestReview(answerDefinition:ModelDefinition,model:LanguageModel,providerOptions?:Record<string,Record<string,JSONValue>>){
+ // The reviewer is the model that actually runs, never the owner's unpriced
+ // SureWord AI display row (see resolveReviewerDefinition).
+ const definition=resolveReviewerDefinition(answerDefinition.id)??answerDefinition;
  return{reviewer:reviewerIdentity(definition),review:createVerifyOnlyAdapter({
   allowEvidenceCompletion:true,
   houseChatModel:async()=>({definition}),resolveVerificationModel:async()=>model,

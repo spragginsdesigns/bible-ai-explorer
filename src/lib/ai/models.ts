@@ -741,6 +741,19 @@ export function resolveDefinition(modelId: string): ModelDefinition | undefined 
 	});
 }
 
+/**
+ * The model that reviews an answer: the one that actually ran it. The owner's
+ * SureWord AI picks answer as `sureword/pro` / `sureword/free`
+ * (sureWordPlanDefinition), display rows with no price that the registry does
+ * not list. Building the pre-display reviewer from that row threw ("A
+ * registered priced reviewer is required"), so every owner and reviewer-account
+ * chat on those picks was withheld before inference with the "couldn't finish
+ * checking" notice (2026-11-05). Both picks run HOUSE_CHAT_MODEL_ID.
+ */
+export function resolveReviewerDefinition(modelId: string): ModelDefinition | undefined {
+	return sureWordPlanForModelId(modelId) ? getModel(HOUSE_CHAT_MODEL_ID) : resolveDefinition(modelId);
+}
+
 export function isReasoningEffort(value: unknown): value is ReasoningEffort {
 	return typeof value === "string" && (REASONING_EFFORTS as readonly string[]).includes(value);
 }
