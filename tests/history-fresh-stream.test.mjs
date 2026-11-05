@@ -15,14 +15,14 @@ const module={exports:{}};
 const compiled=ts.transpileModule(readFileSync(new URL('../src/lib/ai/history/fresh-stream.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
 const dependencies={'ai':{readUIMessageStream},'@/utils/assistantMarkdown':markdown,'@/lib/ai/status-narration':{persistableParts},'@/lib/ai/verified-generation':{VERIFICATION_UNAVAILABLE:{en:FIXED_NOTICES.unavailableEnglish,es:FIXED_NOTICES.unavailableSpanish,de:FIXED_NOTICES.unavailableGerman}},'./fresh-proof.mjs':fresh};
 new Function('require','module','exports',compiled)(name=>{assert.ok(name in dependencies,'Unexpected dependency '+name);return dependencies[name];},module,module.exports);
-const {releaseCertifiedFreshTurn,releaseFreshRequestRefusal}=module.exports;
+const {releaseCertifiedFreshTurn,releaseFreshRequestRefusal,textBlocksOf,withTextBlocks,FINAL_REVIEW_REVISIONS}=module.exports;
 const locator={surface:'chat',parentId:'conversation',messageId:'answer'};
-function fixture({reviewFail=false}={}){
+function fixture({reviewFail=false,verdict=null}={}){
  const db=new FakeRepository();db.addUser('owner');db.addParent('chat','conversation','owner');db.clock=()=>new Date('2026-10-30T00:00:03.000Z');
  db.put('chat','conversation',{id:'question',role:'user',content:'Save my study.',metadata:null,createdAt:'2026-10-30T00:00:01.000Z'});
  const policy={core:{contractVersion:1,projectorVersion:CORE_VERSION,rendererDigest:renderer.digest,checkerVersion:'checker',corpusDigest:'a'.repeat(64),foundationDigest:'b'.repeat(64),fixedNoticesVersion:1},supportedTranslations:['KJV','BSB','ASV','RV1909','LUT1912'],reviewerModelId:'approved-reviewer'};
  let calls=0;const approved=[];
- const service=createHistoryService({repository:db,renderer,loadCurrentPolicy:async()=>structuredClone(policy),validateFreshReviewer:identity=>identity.id==='approved-reviewer',verifyOnly:async input=>{assert.equal(db.depth.get('owner'),0);await input.authorizeInference();calls++;approved.push(input);if(reviewFail)throw Error('Controlled provider outage');return{verified:true,canonicalPassed:true,semanticPassed:true,repaired:false,blocks:input.blocks,reviewerModelId:'approved-reviewer'};},verifyCanonical:async()=>({ok:true,references:[{canonicalText:'Exact canonical source.'}]})});
+ const service=createHistoryService({repository:db,renderer,loadCurrentPolicy:async()=>structuredClone(policy),validateFreshReviewer:identity=>identity.id==='approved-reviewer',verifyOnly:async input=>{assert.equal(db.depth.get('owner'),0);await input.authorizeInference();calls++;approved.push(input);if(reviewFail)throw Error('Controlled provider outage');if(verdict)return verdict(input,calls);return{verified:true,canonicalPassed:true,semanticPassed:true,repaired:false,blocks:input.blocks,reviewerModelId:'approved-reviewer'};},verifyCanonical:async()=>({ok:true,references:[{canonicalText:'Exact canonical source.'}]})});
  const written=[];const base={ownerId:'owner',locator,translation:'KJV',actions:[],service,write:chunk=>written.push(chunk)};
  return{db,service,written,base,approved,calls:()=>calls};
 }
@@ -128,4 +128,50 @@ test('refused complete request persists only the exact notice before any inferen
  assert.equal(result.saved.state,'notice');assert.equal(f.calls(),0);
  assert.equal((await f.service.get('owner',locator)).body.row.content,FIXED_NOTICES.unavailableEnglish);
  assert.equal(f.written.some(chunk=>chunk.type.startsWith('tool-')),false);
+});
+
+// 2026-11-05: a final review that cleanly rejects an approved answer gets it
+// repaired against its findings and reviewed again, instead of the notice.
+const rejectWith=(issues,input)=>({verified:false,canonicalPassed:true,semanticPassed:false,repaired:false,blocks:input.blocks,reviewerModelId:'approved-reviewer',review:{pass:false,issues,requiredReferences:[]}});
+const approve=input=>({verified:true,canonicalPassed:true,semanticPassed:true,repaired:false,blocks:input.blocks,reviewerModelId:'approved-reviewer'});
+
+test('text block helpers swap only prose and keep tools, cards and order',()=>{
+ const chunks=[{type:'text-start',id:'a'},{type:'text-delta',id:'a',delta:'One '},{type:'text-delta',id:'a',delta:'two.'},{type:'text-end',id:'a'},{type:'tool-input-available',toolCallId:'c',toolName:'presentChoices',input:{}},{type:'text-start',id:'b'},{type:'text-delta',id:'b',delta:'Three.'},{type:'text-end',id:'b'}];
+ assert.deepEqual(textBlocksOf(chunks),[{id:'a',text:'One two.'},{id:'b',text:'Three.'}]);
+ const swapped=withTextBlocks(chunks,[{id:'a',text:'Fixed.'},{id:'b',text:'Also fixed.'}]);
+ assert.deepEqual(textBlocksOf(swapped),[{id:'a',text:'Fixed.'},{id:'b',text:'Also fixed.'}]);
+ assert.deepEqual(swapped.filter(c=>c.type!=='text-delta'),chunks.filter(c=>c.type!=='text-delta'));
+});
+
+test('a final-review rejection is repaired with its findings and the revision must pass that same review',async()=>{
+ const seen=[];
+ const f=fixture({verdict:(input,call)=>call===1?rejectWith(['Does not address the doubt directly.'],input):approve(input)});
+ const result=await releaseCertifiedFreshTurn({...f.base,chunks:prose('A first answer that drifts.'),revise:async(chunks,review)=>{seen.push(review.issues);return withTextBlocks(chunks,[{id:'prose',text:'A revised answer that addresses the doubt.'}]);}});
+ assert.equal(result.fallback,false);assert.equal(f.calls(),2);
+ assert.deepEqual(seen,[['Does not address the doubt directly.']]);
+ assert.ok(f.approved[1].blocks.some(b=>b.text==='A revised answer that addresses the doubt.'));
+ assert.equal((await f.service.get('owner',locator)).body.row.content,'A revised answer that addresses the doubt.');
+ const written=JSON.stringify(f.written);assert.equal(written.includes('drifts'),false);assert.ok(written.includes('addresses the doubt'));
+});
+
+test('a revision that fails the pre-display gate withholds without another final review',async()=>{
+ const f=fixture({verdict:input=>rejectWith(['Unsupported claim.'],input)});
+ const result=await releaseCertifiedFreshTurn({...f.base,chunks:prose('Rejected answer.'),revise:async()=>null});
+ assert.equal(result.fallback,true);assert.equal(f.calls(),1);
+ assert.equal((await f.service.get('owner',locator)).body.row.content,FIXED_NOTICES.unavailableEnglish);
+ assert.equal(JSON.stringify(f.written).includes('Rejected answer.'),false);
+});
+
+test('repair rounds are bounded and every rejected version stays unpublished',async()=>{
+ let revisions=0;
+ const f=fixture({verdict:input=>rejectWith(['Still not right.'],input)});
+ const result=await releaseCertifiedFreshTurn({...f.base,chunks:prose('Version 0.'),revise:async chunks=>{revisions++;return withTextBlocks(chunks,[{id:'prose',text:'Version '+revisions+'.'}]);}});
+ assert.equal(result.fallback,true);assert.equal(revisions,FINAL_REVIEW_REVISIONS);assert.equal(f.calls(),FINAL_REVIEW_REVISIONS+1);
+ assert.equal(/Version d/.test(JSON.stringify(f.written)),false);
+});
+
+test('a provider outage in final review is not a rejection and is never revised',async()=>{
+ let revisions=0;const f=fixture({reviewFail:true});
+ const result=await releaseCertifiedFreshTurn({...f.base,chunks:prose('Outage answer.'),revise:async()=>{revisions++;return null;}});
+ assert.equal(result.fallback,true);assert.equal(revisions,0);
 });

@@ -51,6 +51,8 @@ export interface VerifyAnswerOptions {
 	requireCompleteContext?: boolean;
 	/** Optional caller cancellation, combined with the existing verifier deadline. */
 	signal?: AbortSignal;
+	/** Final-review findings to repair against first (see gateAnswer initialReview). */
+	priorReview?: AnswerReview;
 	/** Internal history mode checks exact persisted bytes without repair. */
 	allowRepair?: boolean;
 	historyReview?: boolean;
@@ -224,9 +226,9 @@ export async function verifyGeneratedAnswer(blocks: AnswerBlock[], options: Veri
 	// AbortSignal. The outer race also bounds those reads and never releases
 	// a late result after a timed-out answer has been withheld.
 	const deadline = new Promise<typeof withheld>(resolve => signal.addEventListener("abort", () => resolve(withheld), { once: true }));
-	const result = await Promise.race([gateAnswer(blocks, { check, review, repair, fallback, allowRepair: options.allowRepair, onError: options.onError }), deadline]);
+	const result = await Promise.race([gateAnswer(blocks, { check, review, repair, fallback, allowRepair: options.allowRepair, initialReview: options.historyReview ? undefined : options.priorReview, onError: options.onError }), deadline]);
 	// Content-free diagnostics: never log questions, drafts, quotations or user context.
-	console.info("[scripture-gate]", JSON.stringify({ verified: result.verified, repaired: result.repaired, blocks: blocks.length, issues: result.issueCodes }));
+	console.info("[scripture-gate]", JSON.stringify({ verified: result.verified, repaired: result.repaired, finalReviewRevision: Boolean(options.priorReview), verifyOnly: options.allowRepair === false, blocks: blocks.length, issues: result.issueCodes }));
 	return result;
 }
 

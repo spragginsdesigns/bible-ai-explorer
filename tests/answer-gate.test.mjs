@@ -119,3 +119,31 @@ test('a checked tool-only card does not duplicate its caption as assistant prose
   assert.equal(written.some(x=>x.type==='text-delta'),false);
   assert.equal(written[1].output.caption,'Open your Bible here.');
 });
+
+// 2026-11-05: repair against a later final review's findings, then the full gate again.
+test('initialReview repairs first, then the repaired answer must pass check and review', async () => {
+  const repairedWith = [];
+  const result = await gateAnswer([block('a', 'Approved but off the question')], deps({
+    initialReview: { pass: false, issues: ['Answer the doubt directly'], requiredReferences: [] },
+    repair: async (bs, review) => { repairedWith.push(review.issues); return [block('a', 'Answers the doubt directly')]; },
+  }));
+  assert.deepEqual(repairedWith, [['Answer the doubt directly']]);
+  assert.equal(result.verified, true); assert.equal(result.repaired, true);
+  assert.equal(result.blocks[0].text, 'Answers the doubt directly');
+});
+
+test('initialReview never bypasses a rejecting review and returns findings in memory', async () => {
+  const result = await gateAnswer([block('a', 'Draft')], deps({
+    initialReview: { pass: false, issues: ['x'], requiredReferences: [] },
+    review: async () => ({ pass: false, issues: ['Still unsupported'], requiredReferences: [] }),
+    repair: async bs => bs.map(({ id }) => block(id, 'Repaired')),
+  }));
+  assert.equal(result.verified, false); assert.equal(result.blocks[0].text, 'Answer withheld.');
+  assert.deepEqual(result.review.issues, ['Still unsupported']);
+});
+
+test('initialReview is refused for verify-only history review', async () => {
+  let repairs = 0;
+  const result = await gateAnswer([block('a', 'Saved bytes')], deps({ allowRepair: false, initialReview: { pass: false, issues: ['x'], requiredReferences: [] }, repair: async bs => { repairs++; return bs; } }));
+  assert.equal(result.verified, false); assert.equal(repairs, 0); assert.deepEqual(result.issueCodes, ['repair_not_allowed']);
+});

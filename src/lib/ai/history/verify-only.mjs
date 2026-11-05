@@ -42,7 +42,9 @@ export function createVerifyOnlyAdapter({ houseChatModel, resolveVerificationMod
                 throw new HistoryError('verification_unavailable', 503);
             if (result.repaired)
                 throw new HistoryError('review_changed_text');
-            return { verified: result.verified, canonicalPassed: true, semanticPassed: result.verified, repaired: false, blocks: result.verified ? result.blocks : input.blocks, reviewerModelId: definition.id };
+            // A clean rejection carries the reviewer's findings, in memory only, so a
+            // fresh answer can be repaired and reviewed again (fresh-stream.ts).
+            return { verified: result.verified, canonicalPassed: true, semanticPassed: result.verified, repaired: false, blocks: result.verified ? result.blocks : input.blocks, reviewerModelId: definition.id, ...(!result.verified && result.review ? { review: result.review } : {}) };
         }
         catch (error) {
             if (error instanceof HistoryError)

@@ -3,7 +3,7 @@ import { joinAssistantTextParts, stripFollowUpMarkers } from "@/utils/assistantM
 import { persistableParts } from "@/lib/ai/status-narration";
 import { VERIFICATION_UNAVAILABLE } from "@/lib/ai/verified-generation";
 import type { AnswerLanguage, TranslationId } from "@/lib/bible/translations";
-import type { ExecutedHistoryAction, FreshHistoryDraft, HistoryLocator, HistoryService, HistoryStateResponse } from "./contracts";
+import type { ExecutedHistoryAction, FreshHistoryDraft, HistoryLocator, HistoryService, HistoryStateResponse, HistoryVerificationResult } from "./contracts";
 import { createFreshHistoryProof, fixedNoteReceiptParts } from "./fresh-proof.mjs";
 
 /** Hydrate the exact buffered SDK envelope before any answer chunks are released. */
@@ -42,6 +42,36 @@ function release(chunks: UIMessageChunk[], saved: HistoryStateResponse, write: (
 	}
 }
 
+/** The answer's prose blocks, in order, as the pre-display gate saw them. */
+export function textBlocksOf(chunks: readonly UIMessageChunk[]): {id: string; text: string}[] {
+	const order: string[] = [];
+	const text = new Map<string, string>();
+	for (const chunk of chunks) {
+		if (chunk.type === "text-start" && !text.has(chunk.id)) { text.set(chunk.id, ""); order.push(chunk.id); }
+		else if (chunk.type === "text-delta") text.set(chunk.id, (text.get(chunk.id) ?? "") + chunk.delta);
+	}
+	return order.map(id => ({id, text: text.get(id) ?? ""}));
+}
+
+/** The same envelope with only its prose replaced; tools, cards and order are untouched. */
+export function withTextBlocks(chunks: readonly UIMessageChunk[], blocks: readonly {id: string; text: string}[]): UIMessageChunk[] {
+	const byId = new Map(blocks.map(block => [block.id, block.text]));
+	const written = new Set<string>();
+	const out: UIMessageChunk[] = [];
+	for (const chunk of chunks) {
+		if (chunk.type === "text-delta") continue;
+		out.push(chunk);
+		if (chunk.type === "text-start" && !written.has(chunk.id)) {
+			written.add(chunk.id);
+			out.push({type: "text-delta", id: chunk.id, delta: byId.get(chunk.id) ?? ""});
+		}
+	}
+	return out;
+}
+
+/** Rounds of repair after a clean final-review rejection, before the fixed notice. */
+export const FINAL_REVIEW_REVISIONS = 2;
+
 /** One bounded final review, then atomic source/sidecar commit, then output. */
 export async function releaseCertifiedFreshTurn(options: {
 	ownerId:string; locator:HistoryLocator; chunks:UIMessageChunk[]; translation:TranslationId;
@@ -49,12 +79,19 @@ export async function releaseCertifiedFreshTurn(options: {
 	operation?:FreshHistoryDraft["operation"]; service:HistoryService;
 	preparedRequest?:object;
 	write:(chunk:UIMessageChunk)=>void; signal?:AbortSignal;
+	/**
+	 * Repair the prose after the final review rejected it, using that review's
+	 * findings. Returns the revised envelope only once it passed the full
+	 * pre-display gate again, else null. The revision still faces this same
+	 * final review: nothing reaches the reader or history unverified.
+	 */
+	revise?:(chunks:UIMessageChunk[],review:NonNullable<HistoryVerificationResult["review"]>)=>Promise<UIMessageChunk[]|null>;
 }):Promise<{message:UIMessage;saved:HistoryStateResponse;fallback:boolean}> {
 	// Operational progress is excluded consistently from the final live and
 	// stored envelope. Fixed status heartbeats remain the transport wait signal.
 	const names=new Map<string,string>();
 	for(const chunk of options.chunks)if(chunk.type==="tool-input-available")names.set(chunk.toolCallId,chunk.toolName);
-	const chunks=options.chunks.filter(chunk=>chunk.type!=="data-progress"&&chunk.type!=="data-status").map(chunk=>{
+	let chunks=options.chunks.filter(chunk=>chunk.type!=="data-progress"&&chunk.type!=="data-status").map(chunk=>{
 		if(chunk.type!=="tool-output-available")return chunk;
 		const name=names.get(chunk.toolCallId);
 		// Receipt facts describe the tool result that actually committed. A
@@ -63,15 +100,33 @@ export async function releaseCertifiedFreshTurn(options: {
 		const actual=options.actions.find(action=>action.toolCallId===chunk.toolCallId&&action.tool===name);
 		return actual&&!['presentChoices','showInApp'].includes(name??'')?{...chunk,output:structuredClone(actual.output)}:chunk;
 	});
-	const message = await hydrate(chunks,options.locator.messageId);
-	const text = joinAssistantTextParts(message.parts.filter(part=>part.type==="text").map(part=>part.text)).trim();
-	const content = stripFollowUpMarkers(text,{streaming:false}).trim();
-	const draft:FreshHistoryDraft={content,metadata:{...options.metadata,parts:JSON.parse(JSON.stringify(persistableParts(message.parts))),translation:options.translation},actions:options.actions,...(options.preparedRequest?{preparedRequest:options.preparedRequest}:{}),...(options.operation?{operation:options.operation}:{})};
+	const draftOf=async(envelope:UIMessageChunk[])=>{
+		const message = await hydrate(envelope,options.locator.messageId);
+		const text = joinAssistantTextParts(message.parts.filter(part=>part.type==="text").map(part=>part.text)).trim();
+		const content = stripFollowUpMarkers(text,{streaming:false}).trim();
+		const draft:FreshHistoryDraft={content,metadata:{...options.metadata,parts:JSON.parse(JSON.stringify(persistableParts(message.parts))),translation:options.translation},actions:options.actions,...(options.preparedRequest?{preparedRequest:options.preparedRequest}:{}),...(options.operation?{operation:options.operation}:{})};
+		return {message,draft};
+	};
+	let {message,draft}=await draftOf(chunks);
 	let committed=false;
 	try {
-		options.signal?.throwIfAborted();
-		const prepared=await options.service.prepareFresh(options.ownerId,options.locator,draft);
-		const checked=prepared.noticeOnly?null:await options.service.reviewFresh(prepared,{signal:options.signal});
+		let prepared:Awaited<ReturnType<HistoryService["prepareFresh"]>>;
+		let checked:HistoryVerificationResult|null;
+		for(let round=0;;round++){
+			options.signal?.throwIfAborted();
+			prepared=await options.service.prepareFresh(options.ownerId,options.locator,draft);
+			checked=prepared.noticeOnly?null:await options.service.reviewFresh(prepared,{signal:options.signal});
+			const rejected=checked!==null&&!checked.verified;
+			// Content-free: counts and outcomes only, never findings or prose.
+			console.info("[final-review]",JSON.stringify({round,verified:checked?.verified??null,noticeOnly:prepared.noticeOnly,findings:checked?.review?.issues.length??null}));
+			if(!rejected||!checked?.review||!options.revise||round>=FINAL_REVIEW_REVISIONS)break;
+			let revised:UIMessageChunk[]|null=null;
+			try{revised=await options.revise(chunks,checked.review);}catch{revised=null;}
+			console.info("[final-review]",JSON.stringify({round,revision:revised?"passed-pre-display":"failed"}));
+			if(!revised)break;
+			chunks=revised;
+			({message,draft}=await draftOf(chunks));
+		}
 		const proof=createFreshHistoryProof(prepared.ticket,checked);
 		const saved=await options.service.certifyFresh(options.ownerId,options.locator,proof);
 		committed=true;

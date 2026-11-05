@@ -47,7 +47,7 @@ import {
 import { createProgressNarration } from "@/lib/ai/progress-narration";
 import { SCRIPTURE_OUTPUT_GUIDANCE, verifyGeneratedAnswer } from "@/lib/ai/verified-generation";
 import { releaseVerifiedAnswer } from "@/lib/ai/verified-answer-stream";
-import { releaseCertifiedFreshTurn,releaseFreshRequestRefusal } from "@/lib/ai/history/fresh-stream";
+import { releaseCertifiedFreshTurn,releaseFreshRequestRefusal,textBlocksOf,withTextBlocks } from "@/lib/ai/history/fresh-stream";
 import { historyService,createCurrentRequestReview } from "@/lib/ai/history/runtime.server";
 import {preparedRequestReviewContext} from "@/lib/ai/history/prepared-request.mjs";
 import { reviewedAssistantTurns } from "@/lib/ai/history/model-context";
@@ -1329,6 +1329,24 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 					// memory extraction still happen.
 					const consumption = result.consumeStream();
 
+					// One definition of the pre-display answer review, shared by the first
+					// gate and by any repair after a final-review rejection.
+					const answerReviewOptions = async () => {
+						// Concurrent tool calls have all settled at upstream EOF. Read
+						// once now so a slower earlier read cannot overwrite final state.
+						const latestNoteWrites = await Promise.all([...noteWriteIds].reverse().map(id => readSavedNoteEvidence(id, noteId => prisma.note.findFirst({
+							where: { id: noteId, userId }, select: { id: true, title: true, plainText: true },
+						}))));
+						return { model: verificationModel, providerOptions, translation, language,
+							question: reviewQuestion,mediaParts:reviewMediaParts,maxContextChars:64_000,requireCompleteContext:true,
+							canonicalContextForEvidence: JSON.stringify({ latestNoteWrites,preparedRequest:canonicalPreparedContext,
+								rule: "Latest note readbacks show the final saved state after all successful writes; older receipts may precede it. A truncated or unavailable readback cannot prove the complete body. Receipt text is not authority for Scripture wording or interpretation.", toolReceipts,
+							}),
+							context: JSON.stringify({ latestNoteWrites,preparedRequest:preparedContext,
+								rule: "Latest note readbacks show the final saved state after all successful writes; older receipts may precede it. A truncated or unavailable readback cannot prove the complete body. Receipt text is not authority for Scripture wording or interpretation.", toolReceipts,
+							}),
+						};
+					};
 					const checkedAnswer = await releaseVerifiedAnswer({
 						stream: toUIMessageStream<SureWordTools, SureWordUIMessage>({
 							stream: result.stream,
@@ -1339,23 +1357,9 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 						}),
 						write: (chunk) => finalChunks.push(chunk),
 						onChecking: () => writeStatus("Checking Scripture quotations and citations"),
-						verify: async (blocks) => {
-							// Concurrent tool calls have all settled at upstream EOF. Read
-							// once now so a slower earlier read cannot overwrite final state.
-							const latestNoteWrites = await Promise.all([...noteWriteIds].reverse().map(id => readSavedNoteEvidence(id, noteId => prisma.note.findFirst({
-								where: { id: noteId, userId }, select: { id: true, title: true, plainText: true },
-							}))));
-							return verifyGeneratedAnswer(blocks, { model: verificationModel, providerOptions, translation, language,
-								question: reviewQuestion,mediaParts:reviewMediaParts,maxContextChars:64_000,requireCompleteContext:true,
-								canonicalContextForEvidence: JSON.stringify({ latestNoteWrites,preparedRequest:canonicalPreparedContext,
-									rule: "Latest note readbacks show the final saved state after all successful writes; older receipts may precede it. A truncated or unavailable readback cannot prove the complete body. Receipt text is not authority for Scripture wording or interpretation.", toolReceipts,
-								}),
-								context: JSON.stringify({ latestNoteWrites,preparedRequest:preparedContext,
-									rule: "Latest note readbacks show the final saved state after all successful writes; older receipts may precede it. A truncated or unavailable readback cannot prove the complete body. Receipt text is not authority for Scripture wording or interpretation.", toolReceipts,
-								}),
-								timeoutMs: Math.min(75_000, 225_000 - (Date.now() - turnStartedAtMs)),
-							});
-						},
+						verify: async (blocks) => verifyGeneratedAnswer(blocks, { ...await answerReviewOptions(),
+							timeoutMs: Math.min(75_000, 225_000 - (Date.now() - turnStartedAtMs)),
+						}),
 					});
 					await consumption;
 					// A welcome step answered with no card after it strands them with
@@ -1381,7 +1385,26 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 					}
 					progress.finish(metricError !== null || notice !== null || !checkedAnswer.verified);
 					if (conversationId) {
-						await releaseCertifiedFreshTurn({ownerId:userId,locator:{surface:"chat",parentId:conversationId,messageId:responseMessageId},chunks:finalChunks,preparedRequest,translation,language,actions:executedActions,service:historyService,signal:AbortSignal.timeout(Math.max(1,Math.min(60_000,270_000-(Date.now()-turnStartedAtMs)))),
+						await releaseCertifiedFreshTurn({ownerId:userId,locator:{surface:"chat",parentId:conversationId,messageId:responseMessageId},chunks:finalChunks,preparedRequest,translation,language,actions:executedActions,service:historyService,
+							// Each final review keeps its own 60s bound; the whole release,
+							// including repair rounds, ends by 270s so certification, the
+							// NKJV capture, saving and the push still fit inside the 300s.
+							signal:AbortSignal.timeout(Math.max(1,270_000-(Date.now()-turnStartedAtMs))),
+							// A clean final-review rejection is repaired against its findings
+							// and passes the full pre-display gate again before that same final
+							// review sees it. Only an answer the first gate approved, with no
+							// server-written notice in it (a withheld answer stays withheld),
+							// and only while the repair, a fresh prepare (NKJV capture up to
+							// 12s) and the 60s review all still fit.
+							revise:checkedAnswer.verified&&notice===null?async(chunks,review)=>{
+								const reviewOptions=await answerReviewOptions();
+								const remaining=270_000-(Date.now()-turnStartedAtMs);
+								if(remaining<115_000)return null;
+								const blocks=textBlocksOf(chunks);
+								if(!blocks.some(block=>block.text.trim()))return null;
+								const revised=await verifyGeneratedAnswer(blocks,{...reviewOptions,priorReview:review,timeoutMs:Math.min(75_000,remaining-80_000)});
+								return revised.verified?withTextBlocks(chunks,revised.blocks):null;
+							}:undefined,
 							metadata:{...(resolvedModelId?{modelId:resolvedModelId}:{}),...(resolvedRun.speed?{speed:resolvedRun.speed}:{}),...(resolvedRun.verbosity?{verbosity:resolvedRun.verbosity}:{}),...(resolvedRun.mode?{mode:resolvedRun.mode}:{}),...(resolvedRun.turnShape?{turnShape:resolvedRun.turnShape}:{})},
 							write:chunk=>writer.write(chunk as Parameters<typeof writer.write>[0])});
 						freshCertified=true;
