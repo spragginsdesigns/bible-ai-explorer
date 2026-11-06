@@ -27,6 +27,34 @@ export interface GatedAnswer {
 	review?: AnswerReview;
 }
 
+/**
+ * Mechanical failures a prose repair can fix by itself, because the canonical
+ * text it needs is already in the checked block's references. Source outages
+ * and limits are not here: rewriting cannot change them.
+ */
+const REPAIRABLE_MECHANICAL = new Set(["quote_mismatch", "unattributed_quote", "invalid_reference", "unknown_book", "malformed_placeholder"]);
+
+/**
+ * A draft the exact-text check already failed for a repairable reason cannot
+ * pass review, so asking the reviewer only adds 10-15s before the same repair.
+ * Its findings are the check's own, in memory only. The repaired text still
+ * goes through the full check and the independent review before release.
+ */
+function mechanicalReview(checked: CheckedBlock[]): AnswerReview | null {
+	const errors = checked.flatMap(block => block.issues.filter(issue => issue.severity === "error"));
+	if (!errors.length || !errors.every(issue => REPAIRABLE_MECHANICAL.has(issue.code))) return null;
+	return {
+		pass: false,
+		issues: errors.map(issue => {
+			const detail = issue as typeof issue & { excerpt?: unknown; reference?: unknown };
+			const excerpt = typeof detail.excerpt === "string" && detail.excerpt ? ` Quoted text: "${detail.excerpt.slice(0, 600)}".` : "";
+			const reference = typeof detail.reference === "string" && detail.reference ? ` Cited: ${detail.reference}. Quote it word for word from the canonical evidence.` : "";
+			return `${issue.message}${excerpt}${reference}`;
+		}),
+		requiredReferences: [],
+	};
+}
+
 /** Repairs prose only. Successful tools and their side effects are never retried. */
 export async function gateAnswer(blocks: AnswerBlock[], deps: AnswerGateDependencies): Promise<GatedAnswer> {
 	const ids = blocks.map(block => block.id);
@@ -53,9 +81,12 @@ export async function gateAnswer(blocks: AnswerBlock[], deps: AnswerGateDependen
 	for (let attempt = 0; attempt < 2; attempt++) {
 		try {
 			const checked = await Promise.all(candidate.map(block => deps.check(block)));
-			// Even a mechanically invalid draft is reviewed for missing evidence so
-			// repair receives the actual failure, never an instruction to just omit it.
-			const review = await deps.review(checked);
+			// A draft whose only failures are repairable exact-text ones goes
+			// straight to repair with those findings (fresh answers only). Any
+			// other invalid draft is still reviewed for missing evidence so repair
+			// receives the actual failure, never an instruction to just omit it.
+			const mechanical = deps.allowRepair === false ? null : mechanicalReview(checked);
+			const review = mechanical ?? await deps.review(checked);
 			lastReview = review;
 			if (checked.every(block => block.ok) && review.pass && review.issues.length === 0 && review.requiredReferences.length === 0) {
 				return { blocks: checked.map(({ id, text }) => ({ id, text })), verified: true, repaired, issueCodes: [] };

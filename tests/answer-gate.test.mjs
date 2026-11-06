@@ -147,3 +147,39 @@ test('initialReview is refused for verify-only history review', async () => {
   const result = await gateAnswer([block('a', 'Saved bytes')], deps({ allowRepair: false, initialReview: { pass: false, issues: ['x'], requiredReferences: [] }, repair: async bs => { repairs++; return bs; } }));
   assert.equal(result.verified, false); assert.equal(repairs, 0); assert.deepEqual(result.issueCodes, ['repair_not_allowed']);
 });
+
+const misquoted = b => ({ ...b, ok: false, issues: [{ code: 'quote_mismatch', message: 'Quote differs from the KJV', severity: 'error', excerpt: 'For God so loved', reference: 'John 3:16' }], references: [] });
+
+test('an exact-text failure is repaired without a doomed review, then fully reviewed', async () => {
+  let reviews = 0, checks = 0; const repairFindings = [];
+  const result = await gateAnswer([block('a', 'misquote')], deps({
+    check: async b => (++checks === 1 ? misquoted(b) : checked(b)),
+    review: async () => { reviews++; return passed; },
+    repair: async (_bs, review) => { repairFindings.push(review); return [block('a', 'exact quote')]; },
+  }));
+  assert.equal(reviews, 1, 'only the corrected draft is reviewed');
+  assert.equal(result.verified, true);
+  assert.match(repairFindings[0].issues[0], /Quote differs from the KJV.*John 3:16/);
+  assert.equal(repairFindings[0].pass, false);
+});
+
+test('a still-misquoted repair is withheld and hands its findings to the next round', async () => {
+  let reviews = 0;
+  const result = await gateAnswer([block('a', 'misquote')], deps({
+    check: async b => misquoted(b),
+    review: async () => { reviews++; return passed; },
+    repair: async () => [block('a', 'still wrong')],
+  }));
+  assert.equal(reviews, 0);
+  assert.equal(result.verified, false);
+  assert.ok(result.issueCodes.includes('quote_mismatch'));
+  assert.match(result.review.issues[0], /Quote differs/);
+});
+
+test('other mechanical failures and saved-history checks still go to the reviewer', async () => {
+  for (const [issues, allowRepair] of [[[{ code: 'source_unavailable', message: 'x', severity: 'error' }], undefined], [misquoted({}).issues, false]]) {
+    let reviews = 0;
+    await gateAnswer([block('a', 'text')], deps({ allowRepair, check: async b => ({ ...b, ok: false, issues, references: [] }), review: async () => { reviews++; return { pass: false, issues: ['no'], requiredReferences: [] }; }, repair: async () => [block('a', 'text')] }));
+    assert.ok(reviews >= 1);
+  }
+});

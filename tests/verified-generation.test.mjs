@@ -156,8 +156,34 @@ test("mechanically rejected quotations cannot pass on an optimistic semantic rev
 	const outcome = await module.verifyGeneratedAnswer([{ id: "a", text: "Unattributed wrong Scripture quotation." }], options());
 	assert.equal(outcome.verified, false);
 	assert.ok(outcome.issueCodes.includes("quote_mismatch"));
+	// A draft that already failed the exact-text check goes straight to repair
+	// with the check's findings; no reviewer call is spent on it.
+	assert.ok(module.requests.length > 0 && module.requests.every(request => request.system.includes("Repair the supplied answer")));
+	assert.match(JSON.parse(module.requests[0].prompt).review.issues[0], /Wrong source wording/);
+});
+
+test("the reviewer's instructions cover every form of quotation", async () => {
+	const module = load({ generateText: async request => ({ output: pass(JSON.parse(request.prompt)) }) });
+	await module.verifyGeneratedAnswer([{ id: "a", text: "An answer." }], options());
 	const instructions = module.requests[0].system;
 	for (const contract of ["unattributed wording", "inline quotes", "fenced/code text", "numbered blocks", "speaker, audience, negation"]) assert.ok(instructions.includes(contract));
+});
+
+test("a repair that fixes the exact text still faces the full independent review", async () => {
+	let checks = 0, reviews = 0;
+	const module = load({
+		verifyScriptureDraft: async text => { checks += 1; return checks === 1 ? checked(text, [reference()], { ok: false, issues: [{ code: "quote_mismatch", message: "Wrong source wording", severity: "error" }] }) : checked(text, [reference()]); },
+		generateText: async request => {
+			const prompt = JSON.parse(request.prompt);
+			if (request.system.includes("Repair the supplied answer")) return { output: { blocks: [{ id: "a", text: "Corrected quotation." }] } };
+			reviews += 1;
+			return { output: pass(prompt) };
+		},
+	});
+	const outcome = await module.verifyGeneratedAnswer([{ id: "a", text: "Wrong quotation." }], options());
+	assert.equal(reviews, 1, "the corrected draft is reviewed before release");
+	assert.equal(outcome.verified, true);
+	assert.equal(outcome.repaired, true);
 });
 
 test("original source coverage is qualified by book, not just shared WLC coordinates", async () => {
