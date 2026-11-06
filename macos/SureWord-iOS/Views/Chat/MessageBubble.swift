@@ -194,6 +194,25 @@ struct ChatMessageBubble: View {
     ///
     /// Inline only, unlike the thumbs: a context-menu entry would have to
     /// dismiss the menu before the sheet could rise.
+    private var addToNotesControl: some View {
+        Button {
+            onAddToNote(message)
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "square.and.pencil")
+                Text("Add to notes")
+                    .lineLimit(1)
+                    .fixedSize()
+            }
+            .appFont(.system(size: 12))
+            .foregroundStyle(theme.textFaint)
+            .frame(minHeight: 44)
+            .contentShape(.rect)
+        }
+        .buttonStyle(SubtleButtonStyle())
+        .accessibilityLabel("Add this answer to your notes")
+    }
+
     private var shareControl: some View {
         Button {
             onShare(message)
@@ -356,27 +375,29 @@ struct ChatMessageBubble: View {
             // The thumbs repeat the context menu on purpose: a long press is
             // not discoverable, and a rating nobody finds is no signal at all.
             if !message.isStreaming, !message.content.isEmpty {
-                HStack(spacing: 0) {
-                    copyControl
-
-                    Button {
-                        onAddToNote(message)
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "square.and.pencil")
-                            Text("Add to notes")
-                        }
-                        .appFont(.system(size: 12))
-                        .foregroundStyle(theme.textFaint)
+                // Six 44pt controls plus the labelled Add to notes need about
+                // 520pt; beside the avatar a phone column has about 320. One
+                // row ran off the screen, clipping "Add to notes" and pushing
+                // Share and Try again out of reach, so a narrow column takes two.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 0) {
+                        copyControl
+                        addToNotesControl
+                        AnswerFeedbackButtons(feedback: message.feedback, onSelect: rate)
+                        if canShare { shareControl }
+                        if let onRetry { retryControl(onRetry) }
                     }
-                    .buttonStyle(SubtleButtonStyle())
-                    .accessibilityLabel("Add this answer to your notes")
-
-                    AnswerFeedbackButtons(feedback: message.feedback, onSelect: rate)
-
-                    if canShare { shareControl }
-
-                    if let onRetry { retryControl(onRetry) }
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack(spacing: 0) {
+                            copyControl
+                            addToNotesControl
+                            if canShare { shareControl }
+                        }
+                        HStack(spacing: 0) {
+                            AnswerFeedbackButtons(feedback: message.feedback, onSelect: rate)
+                            if let onRetry { retryControl(onRetry) }
+                        }
+                    }
                 }
             }
 
