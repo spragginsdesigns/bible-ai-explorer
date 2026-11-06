@@ -70,23 +70,38 @@ struct AttachmentChip: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(spacing: Spacing.sm) {
-                thumbnail
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(filename)
-                        .appFont(.system(size: 12.5, weight: .semibold))
-                        .foregroundStyle(theme.text)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    if isAudio {
-                        Text(voiceMessageLabel(durationSeconds: durationSeconds))
-                            .appFont(.system(size: 10))
-                            .foregroundStyle(theme.textFaint)
-                    } else if size > 0 {
-                        Text(formatAttachmentBytes(size))
-                            .appFont(.system(size: 10))
-                            .foregroundStyle(theme.textFaint)
+                HStack(spacing: Spacing.sm) {
+                    thumbnail
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(filename)
+                            .appFont(.system(size: 12.5, weight: .semibold))
+                            .foregroundStyle(theme.text)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        if isAudio {
+                            Text(voiceMessageLabel(durationSeconds: durationSeconds))
+                                .appFont(.system(size: 10))
+                                .foregroundStyle(theme.textFaint)
+                        } else if size > 0 {
+                            Text(formatAttachmentBytes(size))
+                                .appFont(.system(size: 10))
+                                .foregroundStyle(theme.textFaint)
+                        }
                     }
                 }
+                // The open label belongs to the file, not the whole chip: set on
+                // the container, SwiftUI hands it to every child, and the remove
+                // button read "Open photo.jpg" to VoiceOver.
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(
+                    Self.accessibilityLabel(
+                        filename: filename,
+                        hasTranscript: shownTranscript != nil,
+                        isTranscriptOpen: showsTranscript
+                    )
+                )
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { activate() }
                 if let onRemove {
                     Button(action: onRemove) {
                         Image(systemName: "xmark")
@@ -115,20 +130,15 @@ struct AttachmentChip: View {
                 .strokeBorder(theme.borderStrong, lineWidth: 1)
         }
         .contentShape(.rect)
-        .onTapGesture {
-            if shownTranscript != nil {
-                showsTranscript.toggle()
-            } else {
-                openFile()
-            }
+        .onTapGesture { activate() }
+    }
+
+    private func activate() {
+        if shownTranscript != nil {
+            showsTranscript.toggle()
+        } else {
+            openFile()
         }
-        .accessibilityLabel(
-            Self.accessibilityLabel(
-                filename: filename,
-                hasTranscript: shownTranscript != nil,
-                isTranscriptOpen: showsTranscript
-            )
-        )
     }
 
     /// `FileAttachmentCards.tsx`'s labels: a voice message says whether the
