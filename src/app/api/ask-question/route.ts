@@ -1461,12 +1461,12 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 						// whole round fits before 225s, so the final review keeps its time.
 						verify: async (blocks) => {
 							const reviewOptions = await answerReviewOptions();
-							let gateReviews = 0;
 							return gateWithRetries(({ priorReview, timeoutMs }) => verifyGeneratedAnswer(blocks, { ...reviewOptions,
 								...(priorReview ? { priorReview } : {}), timeoutMs,
-								// The first review is "Checking Scripture..."; every later one
-								// follows a correction, so each step shows while it happens.
-								beforeReview: async () => { gateReviews += 1; if (gateReviews > 1) recheckStatus(); },
+								// Until something is corrected a review is "Checking Scripture...";
+								// after a correction (even one the exact-text check found before
+								// any review) it is the corrected answer being reviewed.
+								beforeReview: async () => { if (corrections > 0) recheckStatus(); },
 								beforeRepair: correctingStatus,
 								onError: (error) => traceTurn("verification", "failed", classifyTurnError(error)),
 							}), { remainingMs: () => 225_000 - (Date.now() - turnStartedAtMs), maxExtraRounds: 2, minRoundMs: 45_000, maxRoundMs: 75_000 });
