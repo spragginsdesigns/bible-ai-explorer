@@ -1,6 +1,19 @@
 {
 	"releases": [
 		{
+			"version": "1.113.1",
+			"versionCode": 140,
+			"date": "2026-11-06",
+			"sections": [
+				{
+					"kind": "fixed",
+					"items": [
+						"You can now close the \"Read it to me\" bar at the top of the welcome chat. Closing it also stops the reading."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.113.0",
 			"versionCode": 139,
 			"date": "2026-11-05",

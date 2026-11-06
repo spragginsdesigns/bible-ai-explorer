@@ -14,6 +14,11 @@
 		]
 	},
 	"releases": {
+		"1.113.1": {
+			"title": "Close Read it to me",
+			"headline": "Close the Read it to me bar.",
+			"why": "The Read it to me bar at the top of the welcome chat now has an X. Closing it also stops the reading."
+		},
 		"1.113.0": {
 			"title": "Help on every screen",
 			"headline": "Tap ? to learn any screen.",
