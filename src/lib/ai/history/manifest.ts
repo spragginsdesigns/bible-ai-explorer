@@ -2,7 +2,7 @@
 export const HISTORY_FOUNDATION_DIGEST = "d94fb1749d77ce12b4fa429944bc8eefed974f227a51c0ec2226e3f38cfaa237";
 export const HISTORY_RENDERER_DIGEST = "581afae44691a6750ccfd0b2982b929c1ff4bcf115015b6fecbce13b5fb3eaee";
 export const HISTORY_CHECKER_DIGEST = "7c213587a3e093d259aad62e2cbe6f0142d0958941a5ce0c1d088ac082e22045";
-export const HISTORY_IMPLEMENTATION_DIGEST = "dfdae5c0d1bd5f9fdb23fb5da1e8cfd7886d4dfdd6f8c83e36a7d0a63549d228";
+export const HISTORY_IMPLEMENTATION_DIGEST = "3ffde3dbec376410fff06d754ba1a431ee0ea7d14ebaa9dfa623ba0410479d80";
 export const HISTORY_CORPUS_DIGEST = "480b2ee7cd143e6fd19f9fc130801f3831a0ee7f3e2ef68a98a0adbdb7e23fce";
 export const HISTORY_CORPUS_IDENTITIES = {
   "KJV": "a8d24b1b10efbb80483d86faf7300005b048d66b5ac45379feadfd051053c44d",
@@ -69,7 +69,7 @@ export const HISTORY_SOURCE_MANIFEST = {
     "src/lib/ai/history/renderer.ts": "0b6657061dc894623d490c310c989903a076dd06e26dd621c3a9b00d03be0472",
     "src/lib/ai/history/repository.mjs": "566fca4fa2a36dbabea0764a50e05514a1f638b3a3a71ef113eec9a3744fa956",
     "src/lib/ai/history/runtime.server.ts": "921db17182fa4c3b2b03c84858a1dd776ab2ffd4561ae70fd29cd56f94b3abeb",
-    "src/lib/ai/history/service.mjs": "46e7ea2a1222ffc0e352b71480d42d791dc5e9b937afbcca56b2daad09c17068",
+    "src/lib/ai/history/service.mjs": "5174d48da59e57598370bdd79158fc04d766e89f0dac28749c988112ffee9338",
     "src/lib/ai/history/shared-boundary.server.ts": "b90834dd9d4cddefe2853d907396b5f9b71946abebb8011353a2b757cc234ac0",
     "src/lib/ai/history/shared-boundary.ts": "733de31bc7eecb96834103218f039099767e226824f83a1eee0467ced160e1fd",
     "src/lib/ai/history/transaction-conflicts.mjs": "8d6e443851cfcd74d2d1252c2f218846f46b5d59716273534587577e82dae91d",

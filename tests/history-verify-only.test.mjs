@@ -49,9 +49,10 @@ test('background/model failures and any accidental repair remain fail-closed', a
     const f = adapterFixture({ generate: async (b, o) => kind === 'unavailable' ? { verified: false, repaired: false, blocks: b, issueCodes: ['verification_unavailable'] } : { verified: true, repaired: true, blocks: b, issueCodes: [] } });
     await assert.rejects(f.adapter(f.input), e => e.code === (kind === 'unavailable' ? 'verification_unavailable' : 'review_changed_text'));
 } });
+// The distinct-verse bound is exercised behaviorally in verification-neighborhood-context.test.mjs.
 test('history verifier composes complete context with saved foundation and verify-only hooks', () => {
  const source = readFileSync(new URL('../src/lib/ai/verified-generation.ts', import.meta.url), 'utf8');
- for (const term of ['import { doctrinalFoundation } from "@/utils/systemPrompt"', 'allowRepair: options.allowRepair', 'allContextVerses.length > 120', 'await options.beforeReview?.();', 'Never reword, repair, replace or infer success']) assert.ok(source.includes(term));
+ for (const term of ['import { doctrinalFoundation } from "@/utils/systemPrompt"', 'allowRepair: options.allowRepair', 'await options.beforeReview?.();', 'Never reword, repair, replace or infer success']) assert.ok(source.includes(term));
 });
 
 for (const kind of ['changed-source', 'wrong-edition', 'unavailable-source', 'unversioned-source']) test('card canonical source fails before any model or meter: '+kind, async () => {

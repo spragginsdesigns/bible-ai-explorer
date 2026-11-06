@@ -32,9 +32,19 @@ function reviewEnvelope(context, candidate) {
     const byText=new Map(candidate.review.blocks.map(block=>[block.text,block.path]));
     const canonicalTextTable=[...new Set(candidate.review.canonicalSources.map(source=>source.text))];
     const canonicalTextIndex=new Map(canonicalTextTable.map((text,index)=>[text,index]));
+    const proofTextCounts=new Map();
+    const countProofText=value=>{
+        if(typeof value==='string'&&value.length>=512&&!canonicalTextIndex.has(value))proofTextCounts.set(value,(proofTextCounts.get(value)??0)+1);
+        else if(Array.isArray(value))value.forEach(countProofText);
+        else if(value&&typeof value==='object')Object.values(value).forEach(countProofText);
+    };
+    for(const evidence of context.evidence??[])if(evidence.kind==='owned-durable-action-proof')for(const action of evidence.manifest)countProofText(action.output);
+    const reviewTextTable=[...proofTextCounts].filter(([,count])=>count>1).map(([text])=>text);
+    const reviewTextIndex=new Map(reviewTextTable.map((text,index)=>[text,index]));
     const pointers=(value,checkedBlocks=true)=>{
         if(typeof value==='string'){
             if(canonicalTextIndex.has(value))return{canonicalSourceTextAt:canonicalTextIndex.get(value)};
+            if(reviewTextIndex.has(value))return{reviewTextAt:reviewTextIndex.get(value)};
             return checkedBlocks&&byText.has(value)?{checkedBlock:byText.get(value)}:value;
         }
         if(Array.isArray(value))return value.map(item=>pointers(item,checkedBlocks));
@@ -42,12 +52,12 @@ function reviewEnvelope(context, candidate) {
             const entries=Object.entries(value),mapped=Object.fromEntries(entries.map(([key,item])=>[key,pointers(item,checkedBlocks)]));
             // An owned JSON object may already have a reserved pointer shape.
             // Escape that literal object, never reinterpret or discard its keys.
-            return entries.length===1&&['canonicalSourceTextAt','canonicalSourceLiteral','checkedBlock'].includes(entries[0][0])?{canonicalSourceLiteral:mapped}:mapped;
+            return entries.length===1&&['canonicalSourceTextAt','canonicalSourceLiteral','checkedBlock','reviewTextAt'].includes(entries[0][0])?{canonicalSourceLiteral:mapped}:mapped;
         }
         return value;
     };
     const {blocks,...manifest}=candidate.review;
-    return canonicalJSON({savedHistoryContext:pointers(context,false),display:pointers(candidate.display),manifest:{...pointers(manifest),blocks:blocks.map(({path,kind})=>({path,kind}))},canonicalTextTable,blockPointers:'checkedBlock names an exact block ID/text supplied separately to this same review. canonicalSourceTextAt is a zero-based index into canonicalTextTable containing the exact complete canonical source string, shared across every source/proof/display path. canonicalSourceLiteral wraps a literal original object: keep its immediate keys literally and decode only their values. All references, translations, operation IDs, paths, ordering, numbers and complete source/proof structure remain present; no text or field has been clipped.'});
+    return canonicalJSON({savedHistoryContext:pointers(context,false),display:pointers(candidate.display),manifest:{...pointers(manifest),blocks:blocks.map(({path,kind})=>({path,kind}))},canonicalTextTable,...(reviewTextTable.length?{reviewTextTable}:{}),blockPointers:'checkedBlock names an exact block ID/text supplied separately to this same review. canonicalSourceTextAt is a zero-based index into canonicalTextTable containing the exact complete canonical source string, shared across every source/proof/display path.'+(reviewTextTable.length?' reviewTextAt is a zero-based index into reviewTextTable for an exact repeated owned tool-output string; restore it at each original field path with that field\'s original authority, never as canonical Scripture evidence.':'')+' canonicalSourceLiteral wraps a literal original object: keep its immediate keys literally and decode only their values. All references, translations, operation IDs, paths, ordering, numbers and complete source/proof structure remain present; no text or field has been clipped.'});
 }
 function blockedSnapshot(sourceSnapshot, context, policy, code) {
     const display = fixedHistoryRow(sourceSnapshot.row, 'withheld', code), review = { blocked: true, code };

@@ -38,6 +38,15 @@ The SDK regression retains the exact old coordinate/word union while shrinking
 a 294,808-character request to 213,992 characters. This is evidence compaction,
 not a timeout increase or reduced review coverage.
 
+The supported three-read Matthew 6:1-30 test then exposed a 130,100 to 130,390
+character final envelope above its 128k bound on 60-memory Free/Pro accounts.
+Exact long strings repeated in owned tool-output proof now use a separate
+`reviewTextTable` with references at their original field paths. These retain
+that field's original authority and are never labeled canonical Scripture.
+The shipping-tool regression falls from 129,644 to 120,139 characters, preserves
+all 90 canonical source occurrences and original bindings, and completes SDK
+review, certification and verified GET. Limits and persisted content are unchanged.
+
 Every chat turn emits correlated INFO events under `[ai.turn]`. The response
 header `x-sureword-trace-id` links validation, context loaders, tools, model
 steps, canonical checks, review and repair, certification, persistence and stream
