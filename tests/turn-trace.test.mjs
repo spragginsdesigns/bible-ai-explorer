@@ -296,6 +296,10 @@ test("actual tool callback reuses receipt serialization and a throwing logger/ac
 	assert.equal(getters, 0);
 	assert.equal(fixture.receipts[0].success, true);
 	assert.equal(fixture.actions.length, 1);
-	assert.equal(fixture.progress[0][1].success, true);
-	assert.deepEqual(fixture.progress[0][0].input, {});
+	// The reader's own work trail gets the real call and result again, as it
+	// did before 10-29 ("Opening Romans 8:1-4", "12 verses found"). It is
+	// written live to that reader only; fresh-stream.ts keeps it out of the
+	// reviewed, saved answer, and nothing here reaches logs or traces.
+	assert.equal(fixture.progress[0][1], payload);
+	assert.deepEqual(fixture.progress[0][0].input, { text: "PRIVATE_INPUT" });
 });

@@ -44,7 +44,8 @@ import {
 	persistableParts,
 	startStatusNarration,
 } from "@/lib/ai/status-narration";
-import { createProgressNarration } from "@/lib/ai/progress-narration";
+import { createProgressNarration, progressProviderOptions } from "@/lib/ai/progress-narration";
+import { createProgressSummarizer } from "@/lib/ai/progress-summary";
 import { SCRIPTURE_OUTPUT_GUIDANCE, verifyGeneratedAnswer } from "@/lib/ai/verified-generation";
 import { releaseVerifiedAnswer } from "@/lib/ai/verified-answer-stream";
 import { releaseCertifiedFreshTurn,releaseFreshRequestRefusal,textBlocksOf,withTextBlocks } from "@/lib/ai/history/fresh-stream";
@@ -1040,9 +1041,14 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 				let lastStatus = "Getting ready";
 				const statusHeartbeat = setInterval(() => legacyStatus(lastStatus), 10_000);
 				const progress = createProgressNarration(
-					(data) => finalChunks.push({ type: "data-progress", id: "progress", data }), responseMessageId,
+					// Live, as before 10-30: the reader watches each step while the answer
+					// is checked. The certified release still leaves progress out of the
+					// reviewed, saved envelope (fresh-stream.ts), so the gate is unchanged.
+					(data) => { finalChunks.push({ type: "data-progress", id: "progress", data }); writer.write({ type: "data-progress", id: "progress", data }); }, responseMessageId,
 				);
 				const writeStatus = (label: string) => { lastStatus=label;legacyStatus(label);progress.status(label); };
+				// Named steps while the answer is checked, written once per change.
+				const checkingStatus = (label: string) => { if (label !== lastStatus) writeStatus(label); };
 				try {
 					writeStatus("Getting ready");
 
@@ -1289,6 +1295,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 					traceTurn("context", "completed", { contextKind: "request", inputChars: preparedContext.length, promptChars: stableSystem.length + volatileSystem.length, contextLimitChars: PREPARED_CONTEXT_CHARS, messageCount: modelMessages.length });
 					traceTurn("generation", "started", { model: definition.providerModelId, toolCount: Object.keys(tools).length, messageCount: modelMessages.length });
 					const toolStartedAt = new Map<string, number>();
+					progress.enableNarrator(createProgressSummarizer(userId, definition.provider), extractText(lastMessage));
 					const result = streamText({
 						model,
 						system: promptCache.system,
@@ -1314,7 +1321,15 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 						// sees the final text, so the client and the persisted Message
 						// row agree and neither carries an em dash.
 						experimental_transform: plainDashes(),
-						providerOptions: promptCache.providerOptions,
+						providerOptions: progressProviderOptions(definition.provider, definition.providerModelId, promptCache.providerOptions),
+						onChunk: ({ chunk }) => {
+							if (chunk.type === "text-delta") progress.answer();
+							// Only documented public summaries. Other providers can expose raw reasoning.
+							if (definition.provider === "openai" || definition.provider === "anthropic") {
+								if (chunk.type === "reasoning-delta") progress.summary(chunk.id, chunk.text);
+								if (chunk.type === "reasoning-end") progress.summary(chunk.id, "", true);
+							}
+						},
 						// Finalize after consumption, including any incomplete-answer notice.
 						onAbort: () => {
 							traceTurn("generation", "failed", { aborted: true, reason: "aborted" });
@@ -1356,7 +1371,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 							toolStartedAt.set(toolCall.toolCallId, performance.now());
 							traceTurn("tool", "started", { toolName: toolCall.toolName });
 							legacyStatus(toolActivityLabel(toolCall.toolName));
-							progress.toolStart({ ...toolCall, input: {} }, toolActivityLabel(toolCall.toolName));
+							progress.toolStart(toolCall, toolActivityLabel(toolCall.toolName));
 						},
 						onToolExecutionEnd: ({ toolCall, toolOutput }) => {
 							calledTools.push(toolCall.toolName);
@@ -1377,7 +1392,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 								const id = successfulNoteWriteId(toolCall.toolName, toolOutput.output);
 								if (id) { noteWriteIds.delete(id); noteWriteIds.add(id); }
 							}
-							progress.toolEnd({ ...toolCall, input: {} }, { success: toolOutput.type !== "tool-error" && outcome?.success !== false && !outcome?.error }, toolOutput.type === "tool-error");
+							progress.toolEnd(toolCall, toolOutput.type === "tool-result" ? toolOutput.output : undefined, toolOutput.type === "tool-error");
 							// Name and outcome only. The arguments are somebody's
 							// question and the output is the Scripture they were
 							// reading, so neither may travel with this.
@@ -1435,14 +1450,18 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 							sendReasoning: false,
 						}),
 						write: (chunk) => finalChunks.push(chunk),
-						onChecking: () => writeStatus("Checking Scripture quotations and citations"),
+						onChecking: () => checkingStatus("Checking Scripture quotations and citations"),
 						// The gate repairs once by itself; a draft it still withholds gets
 						// up to two more complete rounds (see answer-gate-retry.ts) while a
 						// whole round fits before 225s, so the final review keeps its time.
 						verify: async (blocks) => {
 							const reviewOptions = await answerReviewOptions();
+							let gateReviews = 0;
 							return gateWithRetries(({ priorReview, timeoutMs }) => verifyGeneratedAnswer(blocks, { ...reviewOptions,
 								...(priorReview ? { priorReview } : {}), timeoutMs,
+								// The first review is "Checking Scripture..."; every later one
+								// follows a correction, so the reader sees that it is happening.
+								beforeReview: async () => { gateReviews += 1; if (gateReviews > 1) checkingStatus("Correcting the answer and checking it again"); },
 								onError: (error) => traceTurn("verification", "failed", classifyTurnError(error)),
 							}), { remainingMs: () => 225_000 - (Date.now() - turnStartedAtMs), maxExtraRounds: 2, minRoundMs: 45_000, maxRoundMs: 75_000 });
 						},
@@ -1472,8 +1491,11 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 						finalChunks.push({ type: "text-delta", id: textId, delta: `\n\n${notice}` });
 						finalChunks.push({ type: "text-end", id: textId });
 					}
-					progress.finish(metricError !== null || notice !== null || !checkedAnswer.verified);
+					// The work trail stays open through the final review, so it never says
+					// "Work completed" while the answer is still being checked.
+					const progressFailed = metricError !== null || notice !== null || !checkedAnswer.verified;
 					if (conversationId) {
+						if (checkedAnswer.verified) checkingStatus("Final check against Scripture");
 						const certification = await releaseCertifiedFreshTurn({ownerId:userId,locator:{surface:"chat",parentId:conversationId,messageId:responseMessageId},chunks:finalChunks,preparedRequest,translation,language,actions:executedActions,service:historyService,
 							// Each final review keeps its own 60s bound; the whole release,
 							// including repair rounds, ends by 270s so certification, the
@@ -1487,6 +1509,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 							// 12s) and the 60s review all still fit.
 							revise:checkedAnswer.verified&&notice===null?async(chunks,review)=>{
 								const reviewOptions=await answerReviewOptions();
+								checkingStatus("Correcting the answer and checking it again");
 								const remaining=270_000-(Date.now()-turnStartedAtMs);
 								if(remaining<115_000)return null;
 								const blocks=textBlocksOf(chunks);
@@ -1496,6 +1519,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 							}:undefined,
 							metadata:{...(resolvedModelId?{modelId:resolvedModelId}:{}),...(resolvedRun.speed?{speed:resolvedRun.speed}:{}),...(resolvedRun.verbosity?{verbosity:resolvedRun.verbosity}:{}),...(resolvedRun.mode?{mode:resolvedRun.mode}:{}),...(resolvedRun.turnShape?{turnShape:resolvedRun.turnShape}:{})},
 							write:chunk=>writer.write(chunk as Parameters<typeof writer.write>[0])});
+						progress.finish(progressFailed || certification.fallback);
 						if (certification.fallback) {
 							answerDisposition = "withheld";
 							const failure = certification.failureClassification;
@@ -1503,7 +1527,10 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 						}
 						traceTurn("certification-release", "completed", { fallback: certification.fallback, certified: true, persisted: true, outcome: answerDisposition, ...certificationFailure });
 						freshCertified=true;
-					} else for (const chunk of finalChunks) writer.write(chunk as Parameters<typeof writer.write>[0]);
+					} else {
+						progress.finish(progressFailed);
+						for (const chunk of finalChunks) writer.write(chunk as Parameters<typeof writer.write>[0]);
+					}
 				} catch (error) {
 					recordTurnError(error);
 					progress.finish(true);
