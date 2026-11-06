@@ -110,13 +110,15 @@ export function createProgressNarration(write: (progress: ChatProgress) => void,
 			question = short(userQuestion, 600);
 			requestNarration();
 		},
-		status(label: string) {
+		/** `narrate: false` keeps a factual step (the Scripture check) as written. */
+		status(label: string, narrate = true) {
 			if (terminal || activeTool()) return;
+			if (!narrate) cancelNarration();
 			snapshot.label = label === "Thinking" ? "Preparing your answer" : label;
 			snapshot.phase = label === "Thinking" ? "thinking" : "preparing";
 			if (label !== "Thinking" && label !== "Getting ready") add({ id: `status-${snapshot.sequence}`, kind: "status", state: "complete", label });
 			emit();
-			requestNarration();
+			if (narrate) requestNarration();
 		},
 		toolStart(call: ToolCall, fallback: string) {
 			if (terminal) return;

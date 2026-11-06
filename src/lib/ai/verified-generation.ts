@@ -62,6 +62,8 @@ export interface VerifyAnswerOptions {
 	allowEvidenceCompletion?: boolean;
 	abortSignal?: AbortSignal;
 	beforeReview?: () => Promise<void>;
+	/** Live progress only: a correction of the draft is starting. */
+	beforeRepair?: () => void;
 	onError?: (error: unknown) => void;
 	/** End-to-end budget includes canonical retrieval, review and one repair. */
 	timeoutMs?: number;
@@ -296,6 +298,7 @@ export async function verifyGeneratedAnswer(blocks: AnswerBlock[], options: Veri
 		let responseFields: Parameters<typeof traceTurn>[2] = {};
 		emit("repair", "started", { textBlockCount: checked.length, requestedReferenceCount: review.requiredReferences.length, issueCount: review.issues.length, maxOutputTokens: 8000 });
 		try {
+			try { options.beforeRepair?.(); } catch { /* Progress must not change the repair. */ }
 			signal.throwIfAborted();
 			const added = await Promise.all(review.requiredReferences.map(reference => canonicalCheck(`[[SCRIPTURE:${reference}]]`, "repair", { maxVerses: 120 })));
 			const result = await generateText(withReviewMedia(boundedRequest({

@@ -189,6 +189,21 @@ test('ongoing work is available to the narrator without claiming it has finished
   r.progress.finish();
 });
 
+test('Scripture-check steps stay as written and cancel a pending paraphrase', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const r = recorder();
+  const calls = [];
+  r.progress.enableNarrator(async facts => { calls.push(facts); return 'I read the passage and checked it.'; }, 'Romans 8');
+  r.progress.status('Correcting the answer', false);
+  t.mock.timers.tick(200);
+  await flushPromises();
+  assert.equal(calls.length, 0);
+  assert.equal(r.last().label, 'Correcting the answer');
+  assert.equal(r.last().entries.at(-1).kind, 'status');
+  assert.equal(r.last().lastActivityMs, r.last().elapsedMs);
+  r.progress.finish();
+});
+
 test('late narrator responses cannot replace newer tools, native summaries, answers or completion', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   for (const change of [

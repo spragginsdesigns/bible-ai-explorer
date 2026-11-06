@@ -191,6 +191,20 @@ A ten-second
 heartbeat updates elapsed time without inventing activity; after twenty seconds
 without a meaningful event the UI says that no new update has arrived.
 
+**While the answer is checked (restored 2026-11-06, `522ef413` and the follow-up
+step-lines commit).** The Scripture-accuracy work of late October had stopped
+streaming this trail live (`6110ac09`, `1b72cc0e`), so readers saw only a frozen
+"Checking Scripture quotations and citations" for one to three minutes. The
+trail is live again through the whole check, and each gate step is its own
+factual line, written as is and never paraphrased by the narrator: "Checking
+Scripture quotations and citations", "Correcting the answer", "Checking the
+corrected answer", "Final check against Scripture". The certified release still
+leaves progress out of the reviewed, saved envelope (`fresh-stream.ts`), so a
+reopened answer keeps its "Worked for…" row but not the live step list. A draft
+that already failed the exact-text check for a repairable reason (misquote,
+unattributed quote, bad reference) now goes straight to repair instead of first
+spending a 10 to 15 second review on it (`6c01be46`).
+
 Terminal snapshots are saved in existing message metadata by `persistableParts`
 and restored by every chat client. Display data is removed before model input.
 Legacy `data-status` remains available for older clients and the note assistant.
