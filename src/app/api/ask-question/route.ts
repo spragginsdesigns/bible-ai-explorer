@@ -83,7 +83,7 @@ import {
 } from "@/lib/chat-day-context";
 import { turnShapeHint, type TurnShape } from "@/lib/turn-shape";
 import { maybeTitleConversation } from "@/lib/conversation-title";
-import { chatSystemPrompt, isOnboardCommand, nextStepGuidance, onboardingGuidance, taskGuidance, textInterviewGuidance, welcomeConversationGuidance } from "@/utils/systemPrompt";
+import { appKnowledge, chatSystemPrompt, isOnboardCommand, nextStepGuidance, onboardingGuidance, taskGuidance, textInterviewGuidance, welcomeConversationGuidance } from "@/utils/systemPrompt";
 import { joinAssistantTextParts, stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 import {
 	isAnswerLanguage,
@@ -639,6 +639,7 @@ async function persistAssistantResponse(options: {
 import { meterAsOnboarding, withIncludedAiRequest, reserveIncludedRequest } from "@/lib/billing/usage";
 import { isOnboardingTurn, needsTextInterview } from "@/lib/onboarding";
 import { CARDS_HEADER, CARDS_VERSION, cardEndsMessage, cardForLegacyClient, expectedStep, helpScreenForText, isOnboardingStep, owedStep, resolveChoiceCard, type OnboardingStep } from "@/lib/onboarding-rules";
+import { withAppHelpGuidance } from "@/lib/app-help-guidance";
 export const POST = withChatClientConnection(withIncludedAiRequest(handlePost, "ask-question"));
 
 async function handlePost(req: Request, clientConnection: ChatClientConnection): Promise<Response> {
@@ -1163,7 +1164,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 					// message, and almost no first step reused another turn's prefix.
 					const stableSystem = chatSystemPrompt(translation, {}, language);
 					const previousUserMessage = validatedMessages.filter(message => message.role === "user").at(-2);
-					const turnGuidance = taskGuidance({ helpScreen: helpScreenForText(currentUserText) ?? undefined, userText: currentUserText, previousUserText: previousUserMessage ? extractText(previousUserMessage) : "", hasAttachment: threadHasFiles });
+					const turnGuidance = withAppHelpGuidance(taskGuidance({ userText: currentUserText, previousUserText: previousUserMessage ? extractText(previousUserMessage) : "", hasAttachment: threadHasFiles }), helpScreenForText(currentUserText), appKnowledge);
 					// The getting-to-know-you interview runs only inside the welcome
 					// conversation (Walk with me) until it is finished or skipped, and
 					// on demand with /onboard. An older account that never finished it
