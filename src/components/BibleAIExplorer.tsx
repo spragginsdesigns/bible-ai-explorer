@@ -115,6 +115,12 @@ const BibleAIExplorerInner: React.FC = () => {
 	// app/(app)/index.tsx).
 	useEffect(() => {
 		if (!conversationIdParam || conversationIdParam === lastOpenedConversation.current) return;
+		// The sync below writes the address bar with Next's own history state,
+		// which Next does not copy into useSearchParams, so the param can still
+		// name the chat the page loaded on. Re-running for any reason (this
+		// effect also follows switchConversation, which changes on every send)
+		// must not reopen that chat over a new one: only the live URL counts.
+		if ((new URL(window.location.href).searchParams.get("conversationId") ?? "") !== conversationIdParam) return;
 		lastOpenedConversation.current = conversationIdParam;
 		pendingUrlConversation.current = conversationIdParam;
 		void switchConversation(conversationIdParam);
