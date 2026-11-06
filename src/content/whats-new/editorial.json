@@ -14,6 +14,11 @@
 		]
 	},
 	"releases": {
+		"1.113.2": {
+			"title": "Your saved answers are back",
+			"headline": "Open a chat and read every answer in full again.",
+			"why": "Older answers showed a dark \"needs a check\" card instead of the answer, and Chat sometimes opened on an unfinished welcome. Your answers show again and Chat opens where you left off."
+		},
 		"1.113.1": {
 			"title": "Close Read it to me",
 			"headline": "Close the Read it to me bar.",

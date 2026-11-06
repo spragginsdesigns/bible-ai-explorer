@@ -2,6 +2,17 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.113.2 (versionCode 141) - 2026-11-06 - internal and closed testing
+
+**What's new (Play):**
+
+FIXED
+- Your saved answers show in full again when you open a chat, instead of "This saved answer needs a check".
+- Chat opens on your latest conversation, not an unfinished welcome walkthrough.
+- The saved-answer check card is readable in dark mode.
+
+**Dev notes:** Austin's report (2026-11-06): every time he opened Chat it showed an old "Read a proverb" welcome turn, every answer was a black-on-black "This saved answer needs a check before it can be shown" card, and his latest conversation was nowhere. The first two are server fixes in b28be3f4 and reach every installed build: the saved-history review now carries a passed review over while the saved text and earlier turns are unchanged and shows answers saved before review began (2026-10-30) as they always were; auto onboarding answers `not_eligible` once another conversation is newer than an unfinished welcome. This build only adds theme colors to `HistoryReviewCard` (text, textMuted, accent): `AppText` sets only the font family, so the card drew black text on the dark theme. Built from a clean worktree off origin/main, because the shared checkout holds other agents' uncommitted work.
+
 ## 1.113.1 (versionCode 140) - 2026-11-06 - internal and closed testing
 
 **What's new (Play):**

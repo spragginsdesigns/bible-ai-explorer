@@ -1,6 +1,21 @@
 {
 	"releases": [
 		{
+			"version": "1.113.2",
+			"versionCode": 141,
+			"date": "2026-11-06",
+			"sections": [
+				{
+					"kind": "fixed",
+					"items": [
+						"Your saved answers show in full again when you open a chat, instead of \"This saved answer needs a check\".",
+						"Chat opens on your latest conversation, not an unfinished welcome walkthrough.",
+						"The saved-answer check card is readable in dark mode."
+					]
+				}
+			]
+		},
+		{
 			"version": "1.113.1",
 			"versionCode": 140,
 			"date": "2026-11-06",
