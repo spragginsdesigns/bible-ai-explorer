@@ -996,6 +996,11 @@ font choice remains an additional reading preference. See
 ### Read it to me (voice mode)
 
 Off by default, saved as `User.voiceMode`, and only shown inside the welcome.
+The bar can be closed with its X (Android 1.113.1 and web, 2026-11-06): closing
+turns reading off and hides it on that welcome, per account on the phone
+(`onboardingStore.voiceBarDismissedFor`, keyed to the welcome conversation, so
+restarting the walk shows it again) and per browser on web. Apple's
+`GuideVoiceToggle` has no X yet.
 When it is on, each new SureWord message in the welcome is read aloud, then the
 card's question. `POST /api/onboarding/audio` takes `{ messageId }` or
 `{ step }` and answers either `ready` (a same-origin stream URL,

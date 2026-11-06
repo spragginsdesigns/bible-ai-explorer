@@ -2,6 +2,15 @@
 
 This file is the **single source of truth for Google Play "What's new" release notes** and for what shipped in each Android build. `push-phone.sh` reads the Play text straight from here (via `scripts/play-notes.mjs`) and **refuses to publish without it** - release notes are never typed ad hoc or invented at publish time. GitHub Releases (`release-apk.sh`) point here too.
 
+## 1.113.1 (versionCode 140) - 2026-11-06 - internal and closed testing
+
+**What's new (Play):**
+
+FIXED
+- You can now close the "Read it to me" bar at the top of the welcome chat. Closing it also stops the reading.
+
+**Dev notes:** Austin's report (2026-11-06): the Read it to me bar sat on top of the welcome conversation every time it was open, with only an on/off switch and no way to get rid of it. `WelcomeVoiceBar` now has an X (44 dp target, "Close Read it to me"). Closing turns `voiceMode` off, so nothing keeps reading once its switch is gone, and records `voiceBarDismissedFor` in `onboardingStore` (AsyncStorage `sureword.onboarding.v1`, per account). It is keyed to the welcome conversation id, so "Walk me through SureWord" in Settings starts a new welcome and the bar comes back. Web's `VoiceModeToggle` pill has the same X (per browser, `sureword.welcomeVoiceBarDismissed`). Apple's `GuideVoiceToggle` is not changed yet: `GuideCards.swift` holds another session's uncommitted work and there is no Mac build here. Built from a clean worktree off origin/main (ce7061c0), because the shared checkout holds other agents' uncommitted work.
+
 ## 1.113.0 (versionCode 139) - 2026-11-05 - internal and closed testing
 
 **What's new (Play):**

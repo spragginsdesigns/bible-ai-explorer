@@ -14,9 +14,15 @@ interface OnboardingSnapshot {
 	/** Clerk user id the id below belongs to. */
 	userId: string | null;
 	welcomeConversationId: string | null;
+	/**
+	 * The welcome conversation whose Read it to me bar the reader closed.
+	 * Keyed to the conversation, so starting the walk again from Settings
+	 * (a new welcome) shows the bar again.
+	 */
+	voiceBarDismissedFor: string | null;
 }
 
-let snapshot: OnboardingSnapshot = { userId: null, welcomeConversationId: null };
+let snapshot: OnboardingSnapshot = { userId: null, welcomeConversationId: null, voiceBarDismissedFor: null };
 let hydrated = false;
 const listeners = new Set<() => void>();
 
@@ -37,6 +43,8 @@ export async function hydrateOnboarding(): Promise<void> {
 			userId: typeof parsed.userId === "string" ? parsed.userId : null,
 			welcomeConversationId:
 				typeof parsed.welcomeConversationId === "string" ? parsed.welcomeConversationId : null,
+			voiceBarDismissedFor:
+				typeof parsed.voiceBarDismissedFor === "string" ? parsed.voiceBarDismissedFor : null,
 		};
 		listeners.forEach((listener) => listener());
 	} catch {
@@ -45,7 +53,14 @@ export async function hydrateOnboarding(): Promise<void> {
 }
 
 export function rememberWelcomeConversation(userId: string, conversationId: string) {
-	set({ userId, welcomeConversationId: conversationId });
+	const keep = snapshot.userId === userId && snapshot.voiceBarDismissedFor === conversationId;
+	set({ userId, welcomeConversationId: conversationId, voiceBarDismissedFor: keep ? conversationId : null });
+}
+
+/** Close the Read it to me bar for this account's current welcome. */
+export function dismissWelcomeVoiceBar(userId: string, conversationId: string) {
+	if (snapshot.userId !== userId) return;
+	set({ ...snapshot, voiceBarDismissedFor: conversationId });
 }
 
 function subscribe(listener: () => void) {
@@ -53,6 +68,12 @@ function subscribe(listener: () => void) {
 	return () => {
 		listeners.delete(listener);
 	};
+}
+
+/** True once the reader closed the Read it to me bar on this welcome. */
+export function useWelcomeVoiceBarDismissed(userId: string | null | undefined, conversationId: string | null): boolean {
+	const current = useSyncExternalStore(subscribe, () => snapshot);
+	return Boolean(userId && conversationId && current.userId === userId && current.voiceBarDismissedFor === conversationId);
 }
 
 /** The welcome conversation id for this account, or null. */

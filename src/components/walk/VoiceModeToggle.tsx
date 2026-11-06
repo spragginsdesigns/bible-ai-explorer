@@ -1,19 +1,43 @@
 "use client";
 
-import React from "react";
-import { Volume2, VolumeX } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Volume2, VolumeX, X } from "lucide-react";
 import { readVoiceModePref } from "@/lib/preferences";
 import { setVoiceModePreference, usePreference } from "@/lib/preferencesSync";
+
+/** Set once the reader closes the toggle; per browser, like the phone's per-device choice. */
+const DISMISSED_KEY = "sureword.welcomeVoiceBarDismissed";
+
+function readDismissed(): boolean {
+	try {
+		return window.localStorage.getItem(DISMISSED_KEY) === "1";
+	} catch {
+		return false;
+	}
+}
 
 /**
  * "Read it to me", at the top of the welcome conversation. Off by default and
  * saved to the account, so it carries to the phone; the reading itself is
- * `useWelcomeVoice`.
+ * `useWelcomeVoice`. The X closes it and turns reading off, matching
+ * Android's WelcomeVoiceBar (Austin, 2026-11-06: no way to get rid of it).
  */
 export default function VoiceModeToggle() {
 	const enabled = usePreference(readVoiceModePref, false);
+	const [dismissed, setDismissed] = useState(true);
+	useEffect(() => setDismissed(readDismissed()), []);
+	if (dismissed) return null;
+	const close = () => {
+		if (enabled) void setVoiceModePreference(false);
+		try {
+			window.localStorage.setItem(DISMISSED_KEY, "1");
+		} catch {
+			// Storage blocked: it stays closed for this page view only.
+		}
+		setDismissed(true);
+	};
 	return (
-		<div className="mx-auto flex w-full max-w-3xl justify-end px-4 pt-2">
+		<div className="mx-auto flex w-full max-w-3xl items-center justify-end gap-1 px-4 pt-2">
 			<button
 				type="button"
 				role="switch"
@@ -27,6 +51,14 @@ export default function VoiceModeToggle() {
 			>
 				{enabled ? <Volume2 className="h-5 w-5" aria-hidden /> : <VolumeX className="h-5 w-5" aria-hidden />}
 				Read it to me
+			</button>
+			<button
+				type="button"
+				aria-label="Close Read it to me"
+				onClick={close}
+				className="flex h-11 w-11 items-center justify-center rounded-full text-neutral-500 hover:bg-black/[0.04] dark:text-neutral-400 dark:hover:bg-white/[0.05]"
+			>
+				<X className="h-5 w-5" aria-hidden />
 			</button>
 		</div>
 	);
