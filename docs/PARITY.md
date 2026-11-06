@@ -13,14 +13,30 @@ The earlier prayer parser fix did not cover large account contexts. A complete
 prepared request could fit its 64k limit, then exceed a second 64k limit after
 the review wrapper added tool receipts, display fields and canonical evidence.
 Both chat and note review callers now share the 128k composite review budget.
-Raw prepared requests remain bounded at 64k and the complete serialized review
-request at 256k. No memory, proof or required source context is silently clipped.
+The 60-memory Free and Pro stress fixtures also exposed a 66,523-character
+system context above the old raw capture limit. Prepared captures are now
+bounded at 128k aggregate, with the existing 80k individual string limit, and the
+complete serialized review request remains bounded at 256k. Size rejections have
+a typed `context_limit` code. No memory, proof or required source context is
+silently clipped.
+
+Canonical verse strings repeated across display and proof records are encoded
+once in the semantic review envelope with lossless references. Literal
+pointer-shaped JSON is escaped; a round-trip test restores every original field
+and byte. Original canonical sources, adapter checks, ownership bindings and
+persisted display values are unchanged. The 120-verse review budget counts
+distinct validated translation/book/chapter/verse coordinates after checking
+every copy; repeated reads cannot borrow approval for altered words. Source
+entries, blocks and prose keep their independent bounds.
 
 Every chat turn emits correlated INFO events under `[ai.turn]`. The response
 header `x-sureword-trace-id` links validation, context loaders, tools, model
 steps, canonical checks, review and repair, certification, persistence and stream
 completion. Events carry sequence, timing, budgets, sizes, tokens, safe verdicts
-and failure codes. Private text, credentials, user IDs, exception bodies and raw
+and failure codes. Request and stage deadlines have separate fields. Tool events
+include result sizes/counts, truncation and explicit contract failure flags.
+The unchanged 12-call verification allowance reports each reservation and a
+stable limit failure. Private text, credentials, user IDs, exception bodies and raw
 tool payloads are excluded. A persisted withholding notice reports `withheld`,
 not `answered`. Terminal completion waits for persistence and the server stream
 drain. Logger failures cannot change the answer or certification decision.

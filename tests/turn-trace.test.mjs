@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { stripTypeScriptTypes } from "node:module";
 import test from "node:test";
-import { captureTurnTrace, classifyTurnError, registerTurnTraceCatalog, traceTurn, withTurnTrace } from "../src/lib/ai/turn-trace.ts";
+import { captureTurnTrace, classifyTurnError, registerTurnTraceCatalog, toolResultTraceFields, traceTurn, withTurnTrace } from "../src/lib/ai/turn-trace.ts";
 import { classifyChatOutcome } from "../src/lib/ai/chat-metrics.ts";
 
 async function collect(run) {
@@ -12,6 +14,20 @@ async function collect(run) {
 }
 const request = () => new Request("https://sureword.test/api/ask-question", { headers: { "x-sureword-trace-id": "caller-controlled-secret" } });
 const tick = () => new Promise(resolve => setTimeout(resolve, 2));
+
+test("request and stage deadlines remain distinguishable in the same event", async () => {
+	await collect(async events => {
+		const handler = withTurnTrace(async () => {
+			traceTurn("review", "started", { remainingStageBudgetMs: 12000, remainingBudgetMs: 12000, remainingRequestBudgetMs: 1 });
+			return new Response("ok");
+		});
+		await handler(request());
+		const review = events.find(event => event.stage === "review");
+		assert.equal(review.remainingStageBudgetMs, 12000);
+		assert.equal(review.remainingBudgetMs, 12000);
+		assert.ok(review.remainingRequestBudgetMs > 290000);
+	});
+});
 
 test("concurrent requests keep distinct server trace ids through async stream and persistence callbacks", async () => {
 	await collect(async events => {
@@ -188,4 +204,98 @@ test("terminal outcomes use authoritative dispositions and persistence exits, in
 	assert.equal(classifyChatOutcome({ ...base, exit: "conversation_missing" }), "failed");
 	assert.equal(classifyChatOutcome({ ...base, exit: "empty_response" }), "incomplete");
 	assert.equal(classifyChatOutcome({ ...base, exit: "empty_response", error: new Error("setup failed") }), "failed");
+});
+
+test("tool result facts expose 32-verse truncation and empty result counts without payload strings", async () => {
+	const privateText = "PRIVATE_TOOL_WORDS_ERROR_ARGS_AND_URL";
+	const payload = { verses: Array.from({ length: 32 }, () => ({ text: privateText, url: privateText })), truncated: true, success: true };
+	const serialized = JSON.stringify(payload);
+	const facts = toolResultTraceFields(payload, true, serialized.length);
+	assert.deepEqual(facts, { toolSucceeded: true, toolErrorReported: false, outputChars: serialized.length, truncated: true, resultCount: 32, sourceVerseCount: 32 });
+	const lines = await collect(async () => {
+		await withTurnTrace(async () => {
+			registerTurnTraceCatalog({ tools: ["getPassage"] });
+			traceTurn("tool", "completed", { toolName: "getPassage", ...facts });
+			return new Response("same response");
+		})(request());
+	});
+	assert.equal(JSON.stringify(lines).includes(privateText), false);
+	assert.equal(lines.find(event => event.stage === "tool").sourceVerseCount, 32);
+	for (const payload of [[], { verses: [] }, { results: [] }, { items: [] }, { result: [] }]) assert.equal(toolResultTraceFields(payload, true).resultCount, 0);
+	assert.equal(toolResultTraceFields({ coverage: { truncated: 2 }, items: [privateText] }, true).truncated, true);
+});
+
+test("tool result facts distinguish SDK errors and application failures without throwing or logging error words", () => {
+	for (const payload of [{ success: false }, { ok: false }, { error: "PRIVATE_ERROR" }, { error: " " }, { status: "failed" }, { status: "unavailable" }]) {
+		const facts = toolResultTraceFields(payload, true);
+		assert.equal(facts.toolSucceeded, false);
+		assert.equal(facts.toolErrorReported, true);
+		assert.equal(JSON.stringify(facts).includes("PRIVATE_ERROR"), false);
+	}
+	assert.deepEqual(toolResultTraceFields(undefined, false), { toolSucceeded: false, toolErrorReported: true });
+	assert.deepEqual(toolResultTraceFields({ success: true }, false), { toolSucceeded: false, toolErrorReported: true });
+	assert.deepEqual(toolResultTraceFields({ error: "", status: "complete", truncated: false }, true), { toolSucceeded: true, toolErrorReported: false, truncated: false });
+});
+
+test("tool result facts never invoke accessors or serializers and contain hostile proxies", () => {
+	let getterCalls = 0, serializations = 0;
+	const payload = { toJSON() { serializations++; throw new Error("PRIVATE_SERIALIZER"); } };
+	for (const key of ["success", "ok", "error", "status", "truncated", "coverage", "verses", "results", "items"]) {
+		Object.defineProperty(payload, key, { get() { getterCalls++; throw new Error("PRIVATE_GETTER"); } });
+	}
+	assert.doesNotThrow(() => toolResultTraceFields(payload, true));
+	assert.equal(getterCalls, 0);
+	assert.equal(serializations, 0);
+	const hostile = new Proxy({}, { getOwnPropertyDescriptor() { throw new Error("PRIVATE_PROXY"); } });
+	assert.doesNotThrow(() => toolResultTraceFields(hostile, true));
+});
+
+function actualToolEndFixture() {
+	const source = readFileSync(new URL("../src/app/api/ask-question/route.ts", import.meta.url), "utf8");
+	const marker = "onToolExecutionEnd: ";
+	const start = source.indexOf(marker) + marker.length;
+	const end = source.indexOf("\n\t\t\t\t\t\t},\n\t\t\t\t\t});", start);
+	assert.ok(start >= marker.length && end > start);
+	const callback = stripTypeScriptTypes(source.slice(start, end) + "\n}");
+	const receipts = [], actions = [], progress = [], called = [];
+	const invoke = new Function("calledTools", "legacyStatus", "toolStartedAt", "traceTurn", "toolResultTraceFields", "toolReceipts", "executedActions", "successfulNoteWriteId", "noteWriteIds", "progress", "captureServerEvent", "userId", "ANALYTICS_EVENTS", "platform", "welcomeTurn", `return (${callback});`)(
+		called, () => {}, new Map(), traceTurn, toolResultTraceFields, receipts, actions, () => undefined, new Set(), { toolEnd: (...args) => progress.push(args) }, () => {}, "private-owner", { aiToolUsed: "tool", onboardingFinished: "onboarding" }, "web", false,
+	);
+	return { invoke: output => invoke({ toolCall: { toolName: "getPassage", toolCallId: "private-tool-call", input: { text: "PRIVATE_INPUT" } }, toolOutput: { type: "tool-result", output } }), receipts, actions, progress, called };
+}
+
+test("actual SDK-success callback reports contract failure separately and preserves receipt/action decisions", async () => {
+	await collect(async events => {
+		const fixture = actualToolEndFixture();
+		await withTurnTrace(async () => {
+			registerTurnTraceCatalog({ tools: ["getPassage"] });
+			fixture.invoke({ status: "failed", items: [], detail: "PRIVATE_RESULT" });
+			return new Response("original response");
+		})(request());
+		const event = events.find(event => event.stage === "tool");
+		assert.equal(event.phase, "completed", "SDK completion stays separate from the application's reported status");
+		assert.equal(event.toolSucceeded, false);
+		assert.equal(event.toolErrorReported, true);
+		assert.equal(event.resultCount, 0);
+		assert.equal(event.reason, "tool-error");
+		assert.equal(JSON.stringify(events).includes("PRIVATE_RESULT"), false);
+		assert.equal(fixture.receipts[0].success, true, "existing receipt contract is unchanged");
+		assert.equal(fixture.actions.length, 1, "diagnostics never change the existing action-proof decision");
+	});
+});
+
+test("actual tool callback reuses receipt serialization and a throwing logger/accessor cannot change its decisions", () => {
+	const fixture = actualToolEndFixture();
+	let serializations = 0, getters = 0;
+	const payload = { success: true, verses: [], toJSON() { serializations++; return { success: true, verses: [] }; } };
+	Object.defineProperty(payload, "truncated", { get() { getters++; throw new Error("PRIVATE_GETTER"); } });
+	const original = console.info;
+	console.info = () => { throw new Error("logger unavailable"); };
+	try { assert.doesNotThrow(() => fixture.invoke(payload)); } finally { console.info = original; }
+	assert.equal(serializations, 2, "one existing receipt serialization and one existing durable-action copy, with none added for logs");
+	assert.equal(getters, 0);
+	assert.equal(fixture.receipts[0].success, true);
+	assert.equal(fixture.actions.length, 1);
+	assert.equal(fixture.progress[0][1].success, true);
+	assert.deepEqual(fixture.progress[0][0].input, {});
 });

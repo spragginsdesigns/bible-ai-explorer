@@ -1,6 +1,10 @@
 /** Server-only in-process current-request evidence; no HTTP JSON can mint a ticket. */
-import {canonicalJSON,digest,historyAISourceRow} from './projection.mjs';
+import {canonicalJSON,digest,historyAISourceRow,LIMITS as SOURCE_JSON_LIMITS} from './projection.mjs';
 import {PREPARED_CONTEXT_CHARS} from '../verification-limits.mjs';
+/** Only a measured size refusal carries this code across the service boundary. */
+export class PreparedRequestError extends Error {
+    constructor(){super('context_limit');this.name='PreparedRequestError';this.code='context_limit';}
+}
 const tickets=new WeakMap();
 const clone=value=>JSON.parse(canonicalJSON(value));
 const isRecord=value=>value&&typeof value==='object'&&!Array.isArray(value);
@@ -30,7 +34,7 @@ export function createPreparedRequest(ownerId,locator,input,dependencies,identit
     // Only server callers choose this suffix; HTTP messages cannot mint a ticket.
     // Missing provenance preserves full collection instead of guessing policy text.
     const sourceSystemContext=input.sourceSystemContext===undefined?input.systemContext:input.sourceSystemContext;
-    if(typeof sourceSystemContext!=='string'||sourceSystemContext.length>PREPARED_CONTEXT_CHARS||!input.systemContext.endsWith(sourceSystemContext))throw Error('Invalid source system context');
+    if(typeof sourceSystemContext!=='string'||!input.systemContext.endsWith(sourceSystemContext))throw Error('Invalid source system context');
     const rows=input.messages.map(message=>{
         const row=dependencies.rows.find(row=>row.id===message.id),expected=input.sources.find(source=>source.id===message.id);
         if(!row||!expected||!['user','assistant'].includes(message.role)||row.role!==message.role||expected.role!==message.role)throw Error('Prepared source ownership changed');
@@ -54,11 +58,17 @@ export function createPreparedRequest(ownerId,locator,input,dependencies,identit
     const parts=input.mediaParts??[];
     if(parts.length!==media.length||parts.some((part,index)=>!['file','image'].includes(part.type)||media[index].previewUrl!==mediaURL(part)||(part.type==='file'?part.mediaType!==media[index].mediaType:!media[index].mediaType.startsWith('image/'))||(part.filename!==undefined&&part.filename!==media[index].filename)))throw Error('Review media differs from owned prepared files');
     if(parts.length&&!identity.supportsAttachments)throw Error('Actual reviewer cannot read the prepared files');
-    const descriptor={version:1,scope:'complete-server-prepared-request',rows,attachments:selected,preparedDigest:digest(logical),systemDigest:digest(input.systemContext),sourceSystemDigest:digest(sourceSystemContext),reviewer:clone(identity)};
-    if(!preparedDependenciesMatch(descriptor,dependencies))throw Error('Incomplete prepared dependencies');
     const last=[...logical].reverse().find(row=>row.role==='user');
     const question=last?.parts.filter(part=>part.type==='text').map(part=>part.text).join('').trim()??'';
-    if(question.length>16_000||canonicalJSON({messages:logical,systemContext:input.systemContext}).length>PREPARED_CONTEXT_CHARS)throw Error('Complete prepared request exceeds context bound');
+    // These are already JSON-only logical parts. Count the exact serialization
+    // before digesting it, so an oversized system string gets a typed size error.
+    const serializedChars=JSON.stringify({messages:logical,systemContext:input.systemContext}).length;
+    if(question.length>16_000||input.systemContext.length>SOURCE_JSON_LIMITS.text||sourceSystemContext.length>SOURCE_JSON_LIMITS.text||serializedChars>PREPARED_CONTEXT_CHARS){
+        try { console.info('[PreparedContextLimit]',{serializedChars,systemContextChars:input.systemContext.length,sourceSystemContextChars:sourceSystemContext.length,questionChars:question.length,limit:PREPARED_CONTEXT_CHARS,perStringLimit:SOURCE_JSON_LIMITS.text,questionLimit:16_000}); } catch { /* Diagnostics cannot change a size refusal. */ }
+        throw new PreparedRequestError();
+    }
+    const descriptor={version:1,scope:'complete-server-prepared-request',rows,attachments:selected,preparedDigest:digest(logical),systemDigest:digest(input.systemContext),sourceSystemDigest:digest(sourceSystemContext),reviewer:clone(identity)};
+    if(!preparedDependenciesMatch(descriptor,dependencies))throw Error('Incomplete prepared dependencies');
     // Keep a distinct typed URL value; later SDK or caller mutation of its
     // input array cannot change the files the final reviewer is authorized to see.
     const stableMedia=parts.map(part=>part.type==='file'?{type:'file',mediaType:part.mediaType,...(part.filename?{filename:part.filename}:{}),data:{type:'url',url:new URL(mediaURL(part))}}:{type:'image',image:{type:'url',url:new URL(mediaURL(part))}});

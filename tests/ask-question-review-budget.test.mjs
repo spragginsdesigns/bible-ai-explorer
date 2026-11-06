@@ -26,6 +26,7 @@ const extract = (start, end) => {
 	return stripTypeScriptTypes(route.slice(offset, finish));
 };
 const blocks = [{ id: "fixture", text: "Fixture response." }];
+const LEGACY_CONTEXT_CHARS = 64_000;
 function fixture() {
 	const question = "Fixture question.";
 	const messages = [{ id: "fixture-user", role: "user", parts: [{ type: "text", text: question }] }];
@@ -34,7 +35,7 @@ function fixture() {
 	// composite review must have its separate budget even before any tool output.
 	const stableChars = 28_157, volatileChars = 32_371, fullChars = stableChars + volatileChars;
 	const baseCaptureChars = JSON.stringify({ messages, systemContext: "x".repeat(fullChars) }).length;
-	const newlineCount = PREPARED_CONTEXT_CHARS - 32 - baseCaptureChars;
+	const newlineCount = LEGACY_CONTEXT_CHARS - 32 - baseCaptureChars;
 	assert.ok(newlineCount > 0 && newlineCount < volatileChars);
 	const volatile = "v".repeat(volatileChars - newlineCount) + "\n".repeat(newlineCount);
 	const system = "s".repeat(stableChars) + volatile;
@@ -63,9 +64,9 @@ test("the actual ask-question answer review builder gives expanded prepared evid
 	const options = await optionsFor();
 	assert.equal(options.maxContextChars, HISTORY_REVIEW_CONTEXT_CHARS);
 	assert.equal(options.requireCompleteContext, true);
-	assert.ok(options.context.length > PREPARED_CONTEXT_CHARS);
+	assert.ok(options.context.length > LEGACY_CONTEXT_CHARS);
 	assert.ok(options.context.length <= HISTORY_REVIEW_CONTEXT_CHARS);
-	const baseline = await verifyGeneratedAnswer(blocks, { ...options, maxContextChars: PREPARED_CONTEXT_CHARS });
+	const baseline = await verifyGeneratedAnswer(blocks, { ...options, maxContextChars: LEGACY_CONTEXT_CHARS });
 	assert.equal(baseline.verified, false);
 	assert.deepEqual(baseline.issueCodes, ["verification_context_limit"]);
 	assert.equal(f.model.doGenerateCalls.length, 0, "the stale caller opt-in refused before review");
@@ -89,11 +90,11 @@ test("the actual generated-tool-content review caller uses the same expanded bud
 	assert.equal(calls.length, 1);
 	assert.equal(calls[0].maxContextChars, HISTORY_REVIEW_CONTEXT_CHARS);
 	assert.equal(calls[0].requireCompleteContext, true);
-	assert.ok(calls[0].context.length > PREPARED_CONTEXT_CHARS);
+	assert.ok(calls[0].context.length > LEGACY_CONTEXT_CHARS);
 	assert.ok(calls[0].context.endsWith(f.preparedContext));
 	assert.equal(f.model.doGenerateCalls.length, 1);
 	assert.equal(f.prompts[0].extraContext, calls[0].context);
-	const baseline = await verifyGeneratedAnswer(blocks, { ...calls[0], maxContextChars: PREPARED_CONTEXT_CHARS });
+	const baseline = await verifyGeneratedAnswer(blocks, { ...calls[0], maxContextChars: LEGACY_CONTEXT_CHARS });
 	assert.equal(baseline.verified, false);
 	assert.deepEqual(baseline.issueCodes, ["verification_context_limit"]);
 	assert.equal(f.model.doGenerateCalls.length, 1, "old caller cap adds no reviewer request");

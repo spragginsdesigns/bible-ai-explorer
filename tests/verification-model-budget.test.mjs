@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import test from "node:test";
 import { wrapLanguageModel } from "ai";
+import { traceTurn, withTurnTrace } from "../src/lib/ai/turn-trace.ts";
 
 const read = file => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const providerSource = read("src/lib/ai/provider.ts");
@@ -10,14 +11,15 @@ const start = providerSource.indexOf("export async function resolveVerificationM
 const end = providerSource.indexOf("\n/**", start);
 assert.ok(start > 0 && end > start);
 const resolverCode = stripTypeScriptTypes(providerSource.slice(start, end).replace(/^export /, ""));
-const makeResolver = new Function("aiAccessFor", "HOUSE_MODEL_ID", "houseKeyFor", "serverKeyFor", "apiKeyFor", "HouseModelUnavailableError", "buildModel", "meterIncludedModel", "wrapLanguageModel", "process", `${resolverCode}\nreturn resolveVerificationModel;`);
+const makeResolver = new Function("aiAccessFor", "HOUSE_MODEL_ID", "houseKeyFor", "serverKeyFor", "apiKeyFor", "HouseModelUnavailableError", "buildModel", "meterIncludedModel", "wrapLanguageModel", "process", "traceTurn", `${resolverCode}\nreturn resolveVerificationModel;`);
 const usageSource = read("src/lib/billing/usage.ts");
 const meterCode = stripTypeScriptTypes(usageSource.slice(usageSource.indexOf("export function meterIncludedModel(")).replace(/^export /, ""));
 const makeMeter = new Function("usageEnabled", "scopes", "reserve", "prisma", "wrapLanguageModel", "IncludedAiLimitError", "randomUUID", "finish", `${meterCode}\nreturn meterIncludedModel;`);
 const usage = { inputTokens: { total: 100, cacheRead: 10, cacheWrite: 20 }, outputTokens: { total: 50 } };
 const definition = { id: "test-house", provider: "openai", providerModelId: "same-answer-head", pricing: { input: 2, output: 8 } };
 const params = { prompt: [{ role: "user", content: [{ type: "text", text: "Verify this." }] }], maxOutputTokens: 64 };
-function harness(access = "house") {
+function harness(access = "house", trace) {
+	const events = [];
 	const scope = { id: "existing-request", calls: 8, steps: 12, visible: false, ended: false, background: false };
 	const records = [];
 	const reservations = [];
@@ -41,8 +43,8 @@ function harness(access = "house") {
 				} }), warnings: [] }; },
 			};
 		},
-		(userId, model, utility, price) => { meters.push({ userId, model, utility, price }); return realMeter(userId, model, utility, price); }, wrapLanguageModel, { env: {} });
-	return { resolver, scope, records, reservations, built, meters, credentials, get providerCalls() { return providerCalls; } };
+		(userId, model, utility, price) => { meters.push({ userId, model, utility, price }); return realMeter(userId, model, utility, price); }, wrapLanguageModel, { env: {} }, trace ?? ((stage, phase, fields) => { events.push({ stage, phase, ...fields }); traceTurn(stage, phase, fields); }));
+	return { resolver, events, scope, records, reservations, built, meters, credentials, get providerCalls() { return providerCalls; } };
 }
 
 test("all twelve verification calls use the answer key/head/pricing and existing utility ledger", async () => {
@@ -72,10 +74,13 @@ test("all twelve verification calls use the answer key/head/pricing and existing
 	assert.ok(costs.every(record => record.data.costMicros.increment === 592));
 	assert.ok(costs.every(record => record.data.inputTokens.increment === 100 && record.data.outputTokens.increment === 50));
 	const previousRecords = state.records.length;
-	await assert.rejects(model.doGenerate(params), /verification call allowance exhausted/);
+	await assert.rejects(model.doGenerate(params), error => error.message === "Scripture verification call allowance exhausted" && error.name === "VerificationCallLimitError" && error.code === "verification_call_limit");
 	assert.equal(state.providerCalls, 12);
 	assert.equal(state.records.length, previousRecords, "thirteenth call is rejected before any billing write");
 	assert.equal(state.reservations.length, 12);
+	assert.deepEqual(state.events.filter(event => event.phase === "completed").map(event => event.verificationCalls), Array.from({ length: 12 }, (_, index) => index + 1));
+	assert.ok(state.events.every(event => event.stage === "verification-budget" && event.verificationCallLimit === 12));
+	assert.deepEqual(state.events.at(-1), { stage: "verification-budget", phase: "failed", verificationCalls: 12, verificationCallLimit: 12, issueCodes: ["verification_call_limit"], errorClass: "QuotaError" });
 });
 
 test("caller-owned credentials retain the same provider head and remain outside included billing", async () => {
@@ -102,4 +107,40 @@ test("guest verification uses the house key without an account meter and each re
 	assert.equal(state.meters.length, 0);
 	assert.deepEqual(state.credentials, [["house"], ["house"]]);
 	assert.ok(state.built.every(build => build.key === "TEST-HOUSE-KEY" && build.modelId === definition.providerModelId));
+});
+
+
+test("a throwing budget logger preserves all twelve calls and still rejects the thirteenth before metering", async () => {
+    const state = harness("house", () => { throw new Error("PRIVATE LOGGER DETAIL"); });
+    const model = await state.resolver("reader", definition);
+    for (let call = 0; call < 12; call++) await model.doGenerate(params);
+    const before = state.records.length;
+    await assert.rejects(model.doGenerate(params), error => error.name === "VerificationCallLimitError" && error.code === "verification_call_limit");
+    assert.equal(state.providerCalls, 12);
+    assert.equal(state.reservations.length, 12);
+    assert.equal(state.records.length, before);
+});
+
+test("the actual INFO logger reports reserved counts 1 through 12 and a content-free rejection", async () => {
+    const lines = [];
+    const previous = console.info;
+    console.info = (...args) => lines.push(args);
+    try {
+        await withTurnTrace(async () => {
+            const state = harness();
+            const model = await state.resolver("PRIVATE ACCOUNT", definition);
+            for (let call = 0; call < 12; call++) await model.doGenerate(params);
+            await assert.rejects(model.doGenerate(params), error => error.code === "verification_call_limit");
+            return new Response("ok");
+        })(new Request("https://fixture.invalid/api/ask-question"));
+    } finally { console.info = previous; }
+    const events = lines.filter(line => line[0] === "[ai.turn]").map(line => JSON.parse(line[1])).filter(event => event.stage === "verification-budget");
+    assert.equal(events.length, 13);
+    assert.deepEqual(events.filter(event => event.phase === "completed").map(event => event.verificationCalls), Array.from({ length: 12 }, (_, index) => index + 1));
+    assert.ok(events.every(event => event.verificationCallLimit === 12));
+    assert.equal(events.at(-1).verificationCalls, 12);
+    assert.equal(events.at(-1).errorClass, "QuotaError");
+    assert.deepEqual(events.at(-1).issueCodes, ["verification_call_limit"]);
+    const serialized = JSON.stringify(lines);
+    for (const forbidden of ["PRIVATE ACCOUNT", "TEST-HOUSE-KEY", "Verify this.", "same-answer-head", "costMicros"]) assert.equal(serialized.includes(forbidden), false);
 });

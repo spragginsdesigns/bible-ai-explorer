@@ -2,17 +2,18 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 
 export type TurnStage = "request" | "validation" | "context" | "tools" | "tool" | "answer-shape" |
-	"generation" | "generation-step" | "verification" | "verification-request" | "canonical" | "source-loading" | "review" | "repair" |
+	"generation" | "generation-step" | "verification" | "verification-request" | "verification-budget" | "canonical" | "source-loading" | "review" | "repair" |
 	"evidence-completion" | "certification-prepare" | "certification-review" |
 	"certification-revision" | "certification-revision-hydrate" | "certification-proof" |
 	"certification-commit" | "certification-release" | "persistence" | "stream" | "turn";
 export type TurnPhase = "started" | "completed" | "failed" | "skipped";
 export type TurnOutcome = "answered" | "withheld" | "incomplete" | "failed" | "cancelled";
 export type TurnErrorClass = "Error" | "NonError" | "AbortError" | "TimeoutError" |
-	"ProviderError" | "ValidationError" | "HistoryError" | "PersistenceError" | "TypeError" | "RangeError" |
+	"ProviderError" | "QuotaError" | "ValidationError" | "HistoryError" | "PersistenceError" | "TypeError" | "RangeError" |
 	"canonical-unavailable" | "schema-error";
 export interface TurnTraceFields {
-	durationMs?: number; remainingBudgetMs?: number;
+	durationMs?: number; remainingBudgetMs?: number; remainingStageBudgetMs?: number;
+	verificationCalls?: number; verificationCallLimit?: number;
 	timeToFirstOutputMs?: number; responseTimeMs?: number; outputTokensPerSecond?: number;
 	inputChars?: number; outputChars?: number; promptChars?: number; estimatedTokens?: number;
 	inputTokens?: number; outputTokens?: number; reasoningTokens?: number; totalTokens?: number;
@@ -21,12 +22,14 @@ export interface TurnTraceFields {
 	memoryCount?: number; messageCount?: number; referenceCount?: number; attempt?: number;
 	revisionCount?: number; issueCount?: number; round?: number; chunkCount?: number;
 	textBlockCount?: number; actionCount?: number;
+	resultCount?: number;
 	timeoutMs?: number; contextLimitChars?: number; requestLimitChars?: number;
 	sourceVerseCount?: number; requestedReferenceCount?: number; retrievedReferenceCount?: number;
 	checkedReferenceCount?: number; expectedReferenceCount?: number; originalSourceCount?: number;
 	checkedOriginalSourceCount?: number; blockIndex?: number;
 	fallback?: boolean; certified?: boolean; persisted?: boolean; aborted?: boolean;
 	hasAttachments?: boolean; verified?: boolean; complete?: boolean;
+	toolSucceeded?: boolean; toolErrorReported?: boolean; truncated?: boolean;
 	coverageMatches?: boolean; allScriptureQuotationsVerified?: boolean; allCitationsSupportTheirClaims?: boolean;
 	faithfulToFoundation?: boolean; answersRequestedQuestion?: boolean; repaired?: boolean;
 	verifyOnly?: boolean; finalReviewRevision?: boolean;
@@ -55,16 +58,22 @@ export function captureTurnTrace(): <T>(operation: () => T) => T {
 	const scope = traces.getStore();
 	return <T>(operation: () => T): T => scope ? traces.run(scope, operation) : operation();
 }
-const stages = new Set<TurnStage>(["request", "validation", "context", "tools", "tool", "answer-shape", "generation", "generation-step", "verification", "verification-request", "canonical", "source-loading", "review", "repair", "evidence-completion", "certification-prepare", "certification-review", "certification-revision", "certification-revision-hydrate", "certification-proof", "certification-commit", "certification-release", "persistence", "stream", "turn"]);
+const stages = new Set<TurnStage>(["request", "validation", "context", "tools", "tool", "answer-shape", "generation", "generation-step", "verification", "verification-request", "verification-budget", "canonical", "source-loading", "review", "repair", "evidence-completion", "certification-prepare", "certification-review", "certification-revision", "certification-revision-hydrate", "certification-proof", "certification-commit", "certification-release", "persistence", "stream", "turn"]);
 const phases = new Set<TurnPhase>(["started", "completed", "failed", "skipped"]);
 const numeric = new Set(["durationMs", "remainingBudgetMs", "inputChars", "outputChars", "promptChars", "estimatedTokens", "inputTokens", "outputTokens", "reasoningTokens", "totalTokens", "cacheReadTokens", "cacheWriteTokens", "tokenBudget", "contextWindow", "maxOutputTokens", "stepCount", "toolCount", "memoryCount", "messageCount", "referenceCount", "attempt", "revisionCount", "issueCount", "round", "chunkCount", "textBlockCount", "actionCount", "timeoutMs", "contextLimitChars", "requestLimitChars", "sourceVerseCount", "requestedReferenceCount", "retrievedReferenceCount", "checkedReferenceCount", "expectedReferenceCount", "originalSourceCount", "checkedOriginalSourceCount", "blockIndex"]);
 const booleans = new Set(["fallback", "certified", "persisted", "aborted", "hasAttachments", "verified", "complete", "coverageMatches", "allScriptureQuotationsVerified", "allCitationsSupportTheirClaims", "faithfulToFoundation", "answersRequestedQuestion", "repaired", "verifyOnly", "finalReviewRevision"]);
+for (const key of ["toolSucceeded", "toolErrorReported", "truncated"]) booleans.add(key);
+numeric.add("resultCount");
 for (const key of ["timeToFirstOutputMs", "responseTimeMs", "outputTokensPerSecond"]) numeric.add(key);
+numeric.add("remainingStageBudgetMs");
+numeric.add("verificationCalls");
+numeric.add("verificationCallLimit");
 const outcomes = new Set<TurnOutcome>(["answered", "withheld", "incomplete", "failed", "cancelled"]);
 const reasons = new Set(["approved", "withheld", "provider-error", "context-budget", "validation", "aborted", "disconnect", "empty", "persisted", "persistence-error", "unavailable", "skipped", "tool-error", "truncated", "review-rejected"]);
-const errorClasses = new Set<TurnErrorClass>(["Error", "NonError", "AbortError", "TimeoutError", "ProviderError", "ValidationError", "HistoryError", "PersistenceError", "TypeError", "RangeError", "canonical-unavailable", "schema-error"]);
+const errorClasses = new Set<TurnErrorClass>(["Error", "NonError", "AbortError", "TimeoutError", "ProviderError", "QuotaError", "ValidationError", "HistoryError", "PersistenceError", "TypeError", "RangeError", "canonical-unavailable", "schema-error"]);
 const issueCodes = new Set(["answer_limit", "repair_not_allowed", "repair_shape", "verification_unavailable", "verification_timeout", "verification_context_limit", "review_rejected", "invalid_reference", "unknown_book", "verification_limit", "source_unavailable", "malformed_placeholder", "ambiguous_quote", "quote_mismatch", "unattributed_quote", "noncanonical_quote", "unsupported_translation", "translation_mismatch"]);
 for (const code of ["not_found", "not_assistant", "source_changed", "context_changed", "policy_changed", "consent_required", "pending", "account_busy", "lease_expired", "retry_later", "source_limit", "context_limit", "context_incomplete", "context_ambiguous", "missing_question", "unknown_translation", "unsupported_attachment_context", "projection_refused", "notice_has_unreviewed_extras", "action_proof_missing", "canonical_rejected", "semantic_rejected", "review_changed_text", "reviewer_changed", "quota_exhausted", "stale_lease", "original_limit", "review_required", "unversioned_corpus"]) issueCodes.add(code);
+issueCodes.add("verification_call_limit");
 const enumFields: Record<string, ReadonlySet<string>> = {
 	purpose: new Set(["answer", "artifact"]), canonicalCheckKind: new Set(["block", "question", "context", "completion", "repair"]),
 	plan: new Set(["free", "pro"]), surface: new Set(["ask-question", "note-ai"]),
@@ -82,6 +91,45 @@ export function registerTurnTraceCatalog(catalog: { models?: readonly string[]; 
 	for (const tool of catalog.tools ?? []) scope.tools.add(tool);
 }
 
+/** Shape observations only. Never serialize, invoke output accessors, or decide tool effects here. */
+export function toolResultTraceFields(output: unknown, sdkSucceeded: boolean, serializedChars?: number): TurnTraceFields {
+	const facts: TurnTraceFields = { toolSucceeded: sdkSucceeded, toolErrorReported: !sdkSucceeded };
+	if (typeof serializedChars === "number" && Number.isFinite(serializedChars) && serializedChars >= 0) facts.outputChars = serializedChars;
+	try {
+		if (typeof output !== "object" || output === null) return facts;
+		const ownData = (value: object, key: string): unknown => {
+			const property = Object.getOwnPropertyDescriptor(value, key);
+			return property && "value" in property ? property.value : undefined;
+		};
+		const success = ownData(output, "success"), ok = ownData(output, "ok"), error = ownData(output, "error"), status = ownData(output, "status");
+		const reported = success === false || ok === false || (typeof error === "string" && error.length > 0) ||
+			(typeof status === "string" && ["error", "failed", "failure", "unavailable", "not_found", "forbidden", "cancelled", "timeout"].includes(status));
+		facts.toolErrorReported = !sdkSucceeded || reported;
+		facts.toolSucceeded = sdkSucceeded && !reported;
+		const rootTruncated = ownData(output, "truncated"), coverage = ownData(output, "coverage");
+		const coverageTruncated = typeof coverage === "object" && coverage !== null ? ownData(coverage, "truncated") : undefined;
+		if (typeof rootTruncated === "boolean") facts.truncated = rootTruncated;
+		else if (typeof rootTruncated === "number" && Number.isFinite(rootTruncated) && rootTruncated >= 0) facts.truncated = rootTruncated > 0;
+		else if (typeof coverageTruncated === "boolean") facts.truncated = coverageTruncated;
+		else if (typeof coverageTruncated === "number" && Number.isFinite(coverageTruncated) && coverageTruncated >= 0) facts.truncated = coverageTruncated > 0;
+		if (Array.isArray(output)) {
+			const length = ownData(output, "length");
+			if (typeof length === "number") facts.resultCount = length;
+		}
+		else {
+			for (const key of ["verses", "results", "items", "result", "matches", "notes", "studies", "memories", "prayers", "events", "tasks", "references", "crossReferences"]) {
+				const rows = ownData(output, key);
+				if (!Array.isArray(rows)) continue;
+				const length = ownData(rows, "length");
+				if (typeof length !== "number") continue;
+				if (facts.resultCount === undefined) facts.resultCount = length;
+				if (key === "verses") facts.sourceVerseCount = length;
+			}
+		}
+	} catch { /* A hostile getter or proxy must not affect execution or logging. */ }
+	return facts;
+}
+
 /** A closed classification prevents writable Error.name values from becoming logged content. */
 export function classifyTurnError(error: unknown): { errorClass: TurnErrorClass; httpStatus?: number } {
 	try {
@@ -90,6 +138,7 @@ export function classifyTurnError(error: unknown): { errorClass: TurnErrorClass;
 		const errorClass: TurnErrorClass = name === "AbortError" || name === "TimeoutError" || name === "TypeError" || name === "RangeError" ? name
 			: name === "AI_APICallError" || name === "AI_RetryError" ? "ProviderError"
 			: name === "AI_NoObjectGeneratedError" || name === "AI_NoOutputGeneratedError" ? "schema-error"
+			: name === "VerificationCallLimitError" ? "QuotaError"
 			: name === "ZodError" || name === "UserFacingError" || name === "AI_InvalidArgumentError" ? "ValidationError"
 			: name === "HistoryError" ? "HistoryError"
 			: name.startsWith("PrismaClient") ? "PersistenceError" : "Error";
@@ -130,7 +179,7 @@ export function traceTurn(stage: TurnStage, phase: TurnPhase, fields: TurnTraceF
 		}
 		if (Array.isArray(fields.issueCodes)) safe.issueCodes = [...new Set(fields.issueCodes.slice(0, 64).filter(code => typeof code === "string" && issueCodes.has(code)))].slice(0, 12);
 		if (Number.isInteger(fields.httpStatus) && fields.httpStatus! >= 100 && fields.httpStatus! <= 599) safe.httpStatus = fields.httpStatus!;
-		console.info("[ai.turn]", JSON.stringify({ traceId: scope.id, sequence: ++scope.sequence, elapsedMs, remainingBudgetMs: Math.max(0, 300_000 - elapsedMs), stage, phase, ...safe }));
+		console.info("[ai.turn]", JSON.stringify({ traceId: scope.id, sequence: ++scope.sequence, elapsedMs, remainingRequestBudgetMs: Math.max(0, 300_000 - elapsedMs), remainingBudgetMs: Math.max(0, 300_000 - elapsedMs), stage, phase, ...safe }));
 	} catch { /* Telemetry must never change the answer or certification decision. */ }
 }
 

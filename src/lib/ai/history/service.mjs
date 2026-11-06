@@ -3,12 +3,12 @@ import { randomUUID } from 'node:crypto';
 import { isHistorySerializationConflict } from './transaction-conflicts.mjs';
 import { projectHistory, digest, canonicalJSON, matchesStoredReview, FIXED_NOTICES, historyAISourceRow } from './projection.mjs';
 import { freshActionManifest, isFixedNoteReceiptFallback, createFreshPreparation, readFreshPreparation, readFreshHistoryProof } from './fresh-proof.mjs';
-import {createPreparedRequest,readPreparedRequest,preparedDependenciesMatch} from './prepared-request.mjs';
+import {createPreparedRequest,readPreparedRequest,preparedDependenciesMatch,PreparedRequestError} from './prepared-request.mjs';
 import {HISTORY_REVIEW_CONTEXT_CHARS} from '../verification-limits.mjs';
 export const LIMITS = Object.freeze({ prefixRows: 80, contextChars: HISTORY_REVIEW_CONTEXT_CHARS, questionChars: 16000, leaseMs: 90000, verifyMs: 60000, retryMs: 60000, exportBytes: 2000000 });
 const SAFE_CODES = new Set(['not_found', 'not_assistant', 'source_changed', 'context_changed', 'policy_changed', 'consent_required', 'pending', 'account_busy', 'lease_expired', 'retry_later', 'source_limit', 'context_limit', 'context_incomplete', 'context_ambiguous', 'missing_question', 'unknown_translation', 'unsupported_attachment_context', 'projection_refused', 'notice_has_unreviewed_extras', 'action_proof_missing', 'canonical_rejected', 'semantic_rejected', 'review_changed_text', 'reviewer_changed', 'verification_unavailable', 'verification_timeout', 'quota_exhausted', 'stale_lease', 'original_limit', 'review_required', 'unversioned_corpus']);
 export class HistoryError extends Error {
-    constructor(code, status = 422, retryAfter = null) { super(code); this.code = SAFE_CODES.has(code) ? code : 'verification_unavailable'; this.status = status; this.retryAfter = retryAfter; }
+    constructor(code, status = 422, retryAfter = null) { super(code); this.name='HistoryError'; this.code = SAFE_CODES.has(code) ? code : 'verification_unavailable'; this.status = status; this.retryAfter = retryAfter; }
 }
 const clone = value => JSON.parse(canonicalJSON(value));
 const keys = ['sourceDigest', 'contextDigest', 'policyDigest', 'displayDigest', 'reviewDigest', 'envelopeDigest'];
@@ -30,9 +30,24 @@ const checkedBinding = (sourceSnapshot, context, policy, display, review) => {
 // rather than tripling a long answer in the complete-context budget.
 function reviewEnvelope(context, candidate) {
     const byText=new Map(candidate.review.blocks.map(block=>[block.text,block.path]));
-    const pointers=value=>typeof value==='string'&&byText.has(value)?{checkedBlock:byText.get(value)}:Array.isArray(value)?value.map(pointers):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).map(([key,item])=>[key,pointers(item)])):value;
+    const canonicalTextTable=[...new Set(candidate.review.canonicalSources.map(source=>source.text))];
+    const canonicalTextIndex=new Map(canonicalTextTable.map((text,index)=>[text,index]));
+    const pointers=(value,checkedBlocks=true)=>{
+        if(typeof value==='string'){
+            if(canonicalTextIndex.has(value))return{canonicalSourceTextAt:canonicalTextIndex.get(value)};
+            return checkedBlocks&&byText.has(value)?{checkedBlock:byText.get(value)}:value;
+        }
+        if(Array.isArray(value))return value.map(item=>pointers(item,checkedBlocks));
+        if(value&&typeof value==='object'){
+            const entries=Object.entries(value),mapped=Object.fromEntries(entries.map(([key,item])=>[key,pointers(item,checkedBlocks)]));
+            // An owned JSON object may already have a reserved pointer shape.
+            // Escape that literal object, never reinterpret or discard its keys.
+            return entries.length===1&&['canonicalSourceTextAt','canonicalSourceLiteral','checkedBlock'].includes(entries[0][0])?{canonicalSourceLiteral:mapped}:mapped;
+        }
+        return value;
+    };
     const {blocks,...manifest}=candidate.review;
-    return canonicalJSON({savedHistoryContext:context,display:pointers(candidate.display),manifest:{...pointers(manifest),blocks:blocks.map(({path,kind})=>({path,kind}))},blockPointers:'checkedBlock names an exact block ID/text supplied separately to this same review; no display field or source has been clipped.'});
+    return canonicalJSON({savedHistoryContext:pointers(context,false),display:pointers(candidate.display),manifest:{...pointers(manifest),blocks:blocks.map(({path,kind})=>({path,kind}))},canonicalTextTable,blockPointers:'checkedBlock names an exact block ID/text supplied separately to this same review. canonicalSourceTextAt is a zero-based index into canonicalTextTable containing the exact complete canonical source string, shared across every source/proof/display path. canonicalSourceLiteral wraps a literal original object: keep its immediate keys literally and decode only their values. All references, translations, operation IDs, paths, ordering, numbers and complete source/proof structure remain present; no text or field has been clipped.'});
 }
 function blockedSnapshot(sourceSnapshot, context, policy, code) {
     const display = fixedHistoryRow(sourceSnapshot.row, 'withheld', code), review = { blocked: true, code };
@@ -241,7 +256,7 @@ export function createHistoryService({ repository, loadCurrentPolicy, renderer, 
             if(!locatorValid(locator)||!Array.isArray(input?.messages)||!input.messages.length||input.messages.length>24||!Array.isArray(input.attachments)||input.attachments.length>5||!await validateFreshReviewer(input.reviewer))throw new HistoryError('context_limit');
             return repository.withOwnerLock(ownerId,async tx=>{
                 const dependencies=await tx.loadPreparedDependencies(locator,input.messages.map(row=>row.id),input.attachments.map(row=>row.id));
-                try{return createPreparedRequest(ownerId,locator,input,dependencies,input.reviewer);}catch{throw new HistoryError('context_incomplete');}
+                try{return createPreparedRequest(ownerId,locator,input,dependencies,input.reviewer);}catch(error){throw new HistoryError(error instanceof PreparedRequestError?'context_limit':'context_incomplete');}
             });
         },
         async prepareFresh(ownerId, locator, draft) {

@@ -5,6 +5,7 @@ import {createHistoryService} from '../src/lib/ai/history/service.mjs';
 import {createFreshHistoryProof} from '../src/lib/ai/history/fresh-proof.mjs';
 import {CORE_VERSION,canonicalJSON} from '../src/lib/ai/history/projection.mjs';
 import {preparedRequestReviewContext} from '../src/lib/ai/history/prepared-request.mjs';
+import {PREPARED_CONTEXT_CHARS} from '../src/lib/ai/verification-limits.mjs';
 import {FakeRepository} from './history-fake-repository.mjs';
 import {loadHistoryModule} from './history-loader.mjs';
 const {historyRenderer:renderer}=await loadHistoryModule('src/lib/ai/history/renderer.ts');
@@ -66,7 +67,7 @@ test('forged ticket, foreign media URL, incomplete request and overlong transcri
   const f=fixture({media:['image/png']});
   if(kind==='url')f.input.mediaParts[0].data=new URL('https://unowned.invalid');
   if(kind==='missing')f.db.messages.delete('question');
-  if(kind==='too-long')f.input.messages[0].parts.push({type:'text',text:'x'.repeat(64001)});
+  if(kind==='too-long')f.input.messages[0].parts.push({type:'text',text:'x'.repeat(PREPARED_CONTEXT_CHARS+1)});
   if(kind==='no-user')f.input.messages[0].role='assistant';
   await assert.rejects(f.service.prepareRequest('owner',locator,f.input));assert.equal(f.calls().reviews,0);
  }

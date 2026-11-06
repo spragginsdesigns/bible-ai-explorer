@@ -7,6 +7,7 @@ import { wrapLanguageModel, type JSONValue, type LanguageModel } from "ai";
 import { parseUserIdAllowlist } from "@/lib/entitlements-rules";
 import { prisma } from "@/lib/prisma";
 import { houseKeyFor } from "./house-key";
+import { traceTurn } from "./turn-trace";
 import { meterIncludedModel, resolveRequestAccess, reserveIncludedRequest, requestUserPlan } from "@/lib/billing/usage";
 import { decideAccess, includedEffortFor, type AiAccess } from "./access";
 import { listProviderModels } from "./modelCatalog";
@@ -324,7 +325,12 @@ export async function resolveVerificationModel(userId: string | null, definition
 	let calls = 0;
 	return wrapLanguageModel({ model: metered, middleware: {
 		transformParams: async ({ params }) => {
-			if (++calls > 12) throw new Error("Scripture verification call allowance exhausted");
+			if (calls >= 12) {
+				try { traceTurn("verification-budget", "failed", { verificationCalls: calls, verificationCallLimit: 12, issueCodes: ["verification_call_limit"], errorClass: "QuotaError" }); } catch { /* Diagnostics must not affect the call allowance. */ }
+				throw Object.assign(new Error("Scripture verification call allowance exhausted"), { name: "VerificationCallLimitError", code: "verification_call_limit" });
+			}
+			calls += 1;
+			try { traceTurn("verification-budget", "completed", { verificationCalls: calls, verificationCallLimit: 12 }); } catch { /* Diagnostics must not affect provider requests. */ }
 			return params;
 		},
 	} });

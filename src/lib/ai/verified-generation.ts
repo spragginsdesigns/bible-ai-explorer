@@ -91,7 +91,7 @@ export async function verifyGeneratedAnswer(blocks: AnswerBlock[], options: Veri
 	const signal = AbortSignal.any([timeout, ...(options.signal ? [options.signal] : []), ...(options.abortSignal ? [options.abortSignal] : [])]);
 	// Fixed operational fields only. Even a broken diagnostics sink must not affect truth decisions.
 	const emit = (stage: Parameters<typeof traceTurn>[0], phase: Parameters<typeof traceTurn>[1], fields: Parameters<typeof traceTurn>[2] = {}) => {
-		try { traceTurn(stage, phase, { timeoutMs, remainingBudgetMs: Math.max(0, timeoutMs - (performance.now() - started)), ...fields }); } catch { /* Diagnostics are best effort. */ }
+		try { const remainingStageBudgetMs = Math.max(0, timeoutMs - (performance.now() - started)); traceTurn(stage, phase, { timeoutMs, remainingBudgetMs: remainingStageBudgetMs, remainingStageBudgetMs, ...fields }); } catch { /* Diagnostics are best effort. */ }
 	};
 	const classify = (error: unknown): ReturnType<typeof classifyTurnError> => {
 		try { return classifyTurnError(error); } catch { return { errorClass: "Error" }; }

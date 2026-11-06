@@ -3,10 +3,25 @@ import { HistoryError } from './service.mjs';
 import { HISTORY_REVIEW_CONTEXT_CHARS } from '../verification-limits.mjs';
 export function createVerifyOnlyAdapter({ houseChatModel, resolveVerificationModel, providerOptionsForReview, verifyScriptureDraft, verifyGeneratedAnswer, isQuotaError = () => false, allowEvidenceCompletion = false }) {
     return async (input) => {
-        if (input.allowRepair !== false || input.question.length > 16000 || input.context.length > HISTORY_REVIEW_CONTEXT_CHARS || (input.canonicalContext!==undefined&&(typeof input.canonicalContext!=='string'||input.canonicalContext.length>HISTORY_REVIEW_CONTEXT_CHARS)) || input.blocks.length > 32 || input.blocks.reduce((n, b) => n + b.text.length, 0) > 80000)
+        if (input.allowRepair !== false || input.question.length > 16000 || input.context.length > HISTORY_REVIEW_CONTEXT_CHARS || (input.canonicalContext!==undefined&&(typeof input.canonicalContext!=='string'||input.canonicalContext.length>HISTORY_REVIEW_CONTEXT_CHARS)) || input.manifest.canonicalSources.length > 120 || input.blocks.length > 32 || input.blocks.reduce((n, b) => n + b.text.length, 0) > 80000)
             throw new HistoryError('context_limit');
         input.signal.throwIfAborted();
-        let verseCount = 0;
+        const coordinates=new Set();let occurrences=0,unknownCoordinates=0,sourcesChecked=0,blocksChecked=0,checkFailures=0;
+        const reportBudget=()=>{try{console.info('[canonical-verse-budget]',{occurrences,unique:coordinates.size,budgeted:coordinates.size+unknownCoordinates,unknownCoordinates,limit:120,sources:input.manifest.canonicalSources.length,blocks:input.blocks.length,sourcesChecked,blocksChecked,checkFailures});}catch{/* Diagnostics cannot change a verification decision. */}};
+        const accountVerses=(references,translation)=>{
+            for(const reference of references){
+                // Missing coordinates never collapse into a single undefined key.
+                // The full canonical check ran first; only its budget is shared.
+                const verses=Array.isArray(reference.verses)&&reference.verses.length?reference.verses:[null];
+                for(const verse of verses){
+                    occurrences++;
+                    if(verse&&Number.isInteger(verse.order)&&verse.order>=1&&verse.order<=66&&Number.isInteger(verse.chapter)&&verse.chapter>=1&&verse.chapter<=150&&Number.isInteger(verse.verse)&&verse.verse>=1&&verse.verse<=176)coordinates.add(`${translation}:${verse.order}:${verse.chapter}:${verse.verse}`);
+                    else unknownCoordinates++;
+                    if(coordinates.size+unknownCoordinates>120){reportBudget();throw new HistoryError('context_limit');}
+                }
+            }
+        };
+        const canonicalFailure=()=>{checkFailures++;reportBudget();return{verified:false,canonicalPassed:false,semanticPassed:false,repaired:false,blocks:input.blocks,reviewerModelId:input.policy.reviewerModelId};};
         // Card/legacy verse fields are displayed separately from prose. Check
         // their exact source bytes before model resolution, not just the prose
         // blocks that happen to contain their reference or quotation.
@@ -14,20 +29,20 @@ export function createVerifyOnlyAdapter({ houseChatModel, resolveVerificationMod
             if (!input.policy.supportedTranslations.includes(source.translation)) throw new HistoryError('unversioned_corpus');
             const checked = await verifyScriptureDraft(`[[SCRIPTURE:${source.reference}]]`, { translation: source.translation });
             input.signal.throwIfAborted();
+            sourcesChecked++;
             if (!checked.ok || checked.references.length !== 1 || checked.references[0].canonicalText !== source.text)
-                return { verified: false, canonicalPassed: false, semanticPassed: false, repaired: false, blocks: input.blocks, reviewerModelId: input.policy.reviewerModelId };
-            verseCount += checked.references[0].verses.length;
-            if (verseCount > 120) throw new HistoryError('context_limit');
+                return canonicalFailure();
+            accountVerses(checked.references,source.translation);
         }
         for (const block of input.blocks) {
             const checked = await verifyScriptureDraft(block.text, { translation: input.translation });
             input.signal.throwIfAborted();
+            blocksChecked++;
             if (!checked.ok || checked.text !== block.text)
-                return { verified: false, canonicalPassed: false, semanticPassed: false, repaired: false, blocks: input.blocks, reviewerModelId: input.policy.reviewerModelId };
-            verseCount += (checked.references ?? []).reduce((n, ref) => n + (ref.verses?.length ?? 0), 0);
-            if (verseCount > 120)
-                throw new HistoryError('context_limit');
+                return canonicalFailure();
+            accountVerses(checked.references??[],input.translation);
         }
+        reportBudget();
         let captured;
         try {
             const { definition } = await houseChatModel(input.ownerId); // Resolution only; do not return/log credentials.

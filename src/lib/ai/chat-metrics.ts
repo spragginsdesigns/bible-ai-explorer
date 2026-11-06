@@ -180,6 +180,8 @@ export function conversationAgeBucket(
 // Only known infrastructure classes are retained, including identifier-shaped names.
 const SAFE_ERROR_NAMES = new Set(["Error", "TypeError", "RangeError", "AbortError", "TimeoutError", "AI_APICallError", "AI_RetryError", "AI_NoObjectGeneratedError", "AI_NoOutputGeneratedError", "AI_InvalidArgumentError", "ZodError", "UserFacingError", "HistoryError", "PrismaClientKnownRequestError", "PrismaClientUnknownRequestError", "PrismaClientInitializationError", "PrismaClientValidationError"]);
 const SAFE_FAILURE_CLASSES = new Set(["Error", "NonError", "TypeError", "RangeError", "AbortError", "TimeoutError", "ProviderError", "ValidationError", "HistoryError", "PersistenceError", "canonical-unavailable", "schema-error"]);
+SAFE_ERROR_NAMES.add("VerificationCallLimitError");
+SAFE_FAILURE_CLASSES.add("QuotaError");
 
 export function errorClassName(error: unknown): string | null {
 	if (error === undefined || error === null) return null;

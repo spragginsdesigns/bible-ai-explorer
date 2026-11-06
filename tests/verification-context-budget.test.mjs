@@ -12,11 +12,11 @@ import {analyzeMarkdownUnderscores,markdownRangeHasLiteralUnderscore} from '../s
 import {gateAnswer} from '../src/lib/ai/answer-gate.ts';
 import {createDashStripper} from '../src/lib/ai/plain-dashes.ts';
 import {PREPARED_CONTEXT_CHARS,HISTORY_REVIEW_CONTEXT_CHARS,COMPLETE_VERIFICATION_REQUEST_CHARS} from '../src/lib/ai/verification-limits.mjs';
-import {createHistoryService} from '../src/lib/ai/history/service.mjs';
+import {createHistoryService,HistoryError} from '../src/lib/ai/history/service.mjs';
 import {createVerifyOnlyAdapter} from '../src/lib/ai/history/verify-only.mjs';
 import {createFreshHistoryProof} from '../src/lib/ai/history/fresh-proof.mjs';
-import {CORE_VERSION,canonicalJSON} from '../src/lib/ai/history/projection.mjs';
-import {preparedRequestReviewContext} from '../src/lib/ai/history/prepared-request.mjs';
+import {CORE_VERSION,canonicalJSON,LIMITS as SOURCE_JSON_LIMITS} from '../src/lib/ai/history/projection.mjs';
+import {preparedRequestReviewContext,PreparedRequestError,createPreparedRequest} from '../src/lib/ai/history/prepared-request.mjs';
 import {FakeRepository} from './history-fake-repository.mjs';
 import {loadHistoryModule} from './history-loader.mjs';
 
@@ -40,6 +40,19 @@ const volatileContext='Complete synthetic profile and memory context. '.padEnd(2
 const fullSystem=chatSystemPrompt('KJV',{},'en')+volatileContext;
 const passage=(await getChapter('KJV',40,6)).map((text,index)=>({reference:'Matthew 6:'+(index+1),text,translation:'KJV',similarity:1}));
 assert.ok(passage.reduce((sum,verse)=>sum+verse.text.length,0)>4_000);
+function expandedEnvelope(input){
+ const envelope=JSON.parse(input.context),byId=new Map(input.blocks.map(block=>[block.id,block.text]));
+ const object=value=>Object.fromEntries(Object.entries(value).map(([key,item])=>[key,decode(item)]));
+ function decode(value){
+  if(Array.isArray(value))return value.map(decode);
+  if(value&&typeof value==='object'){
+   const keys=Object.keys(value);if(keys.length===1&&keys[0]==='canonicalSourceLiteral')return object(value.canonicalSourceLiteral);
+   if(keys.length===1&&keys[0]==='canonicalSourceTextAt'){assert.ok(Number.isInteger(value.canonicalSourceTextAt)&&value.canonicalSourceTextAt>=0&&value.canonicalSourceTextAt<envelope.canonicalTextTable.length);return envelope.canonicalTextTable[value.canonicalSourceTextAt];}
+   if(keys.length===1&&keys[0]==='checkedBlock'){assert.ok(byId.has(value.checkedBlock));return byId.get(value.checkedBlock);}return object(value);
+  }return value;
+ }
+ return decode(envelope);
+}
 function fixture({createService=createHistoryService,formatted='Complete owned passage output.',system=fullSystem,source=volatileContext}={}){
  const db=new FakeRepository();db.addUser('owner');db.addParent('chat','conversation','owner');db.clock=()=>new Date('2026-11-05T00:00:03Z');
  const user={id:'question',role:'user',content:question,metadata:null,createdAt:'2026-11-05T00:00:01Z'};db.put('chat','conversation',user);
@@ -69,8 +82,8 @@ test('50k prepared system plus complete bundled passage certifies through servic
  const request=f.model.doGenerateCalls[0],serializedRequestChars=request.prompt.find(message=>message.role==='system').content.length+request.prompt.find(message=>message.role==='user').content.find(part=>part.type==='text').text.length;
  assert.ok(serializedRequestChars<=COMPLETE_VERIFICATION_REQUEST_CHARS);t.diagnostic(JSON.stringify({preparedSystemChars:fullSystem.length,passageWordsChars:passage.reduce((sum,verse)=>sum+verse.text.length,0),finalReviewContextChars:prepared.context.length,serializedRequestChars}));
  assert.equal(f.prompts[0].extraContext,prepared.context);assert.equal(JSON.parse(f.prompts[0].extraContext).savedHistoryContext.preparedSystemContext,fullSystem);
- const envelope=JSON.parse(f.inputs[0].context);assert.deepEqual(envelope.display.metadata.parts[0].output.verses,passage);assert.deepEqual(envelope.savedHistoryContext.evidence.find(item=>item.kind==='owned-durable-action-proof').manifest[0].output,f.draft.actions[0].output);assert.equal(envelope.manifest.canonicalSources.length,passage.length);
- for(const verse of passage){assert.ok(f.inputs[0].context.split(verse.text).length>=4,'Display, canonical source and complete operation proof retain each exact verse');assert.ok(f.prompts[0].canonical.contextEvidence.some(ref=>ref.verses.some(item=>item.text===verse.text)));}
+ const envelope=expandedEnvelope(f.inputs[0]);assert.deepEqual(envelope.display.metadata.parts[0].output.verses,passage);assert.deepEqual(envelope.savedHistoryContext.evidence.find(item=>item.kind==='owned-durable-action-proof').manifest[0].output,f.draft.actions[0].output);assert.equal(envelope.manifest.canonicalSources.length,passage.length);
+ for(const verse of passage){assert.ok(canonicalJSON(envelope).split(verse.text).length>=4,'Display, canonical source and complete operation proof retain each exact verse');assert.ok(f.prompts[0].canonical.contextEvidence.some(ref=>ref.verses.some(item=>item.text===verse.text)));}
  assert.deepEqual(approval.blocks,prepared.blocks);
  const saved=await f.service.certifyFresh('owner',locator,createFreshHistoryProof(prepared.ticket,approval));assert.equal(saved.state,'verified');assert.equal(saved.row.content,body);assert.deepEqual(saved.row.metadata.parts[0].output.verses,passage);assert.equal((await f.service.get('owner',locator)).body.state,'verified');assert.equal(f.model.doGenerateCalls.length,1);
 });
@@ -81,12 +94,44 @@ test('oversized final envelope counts JSON escaping, full duplicate operation pr
  assert.equal(diagnostics.length,1);const numeric=diagnostics[0][1];assert.equal(numeric.limit,HISTORY_REVIEW_CONTEXT_CHARS);assert.ok(Math.max(numeric.contextChars,numeric.reviewContextChars)>numeric.limit);assert.equal(numeric.preparedSystemContextChars,fullSystem.length);assert.ok(Object.values(numeric).every(value=>typeof value==='number'));
 });
 
-test('initial complete prepared capture and source context stay capped at 64k, including JSON escapes',async t=>{
- t.mock.method(globalThis,'fetch',forbidden);
- assert.equal(PREPARED_CONTEXT_CHARS,64_000);assert.equal(HISTORY_REVIEW_CONTEXT_CHARS,128_000);assert.equal(COMPLETE_VERIFICATION_REQUEST_CHARS,256_000);
- for(const config of [{system:'x'.repeat(PREPARED_CONTEXT_CHARS+1),source:'x'.repeat(PREPARED_CONTEXT_CHARS+1)},{system:'\n"\\😀'.repeat(10_000),source:''}]){
-  const f=fixture(config);if(config.source===''){assert.ok(config.system.length<PREPARED_CONTEXT_CHARS);assert.ok(canonicalJSON({messages:f.input.messages,systemContext:config.system}).length>PREPARED_CONTEXT_CHARS);}
-  await assert.rejects(f.prepare());assert.equal(f.model.doGenerateCalls.length,0);assert.equal(f.db.messages.has('answer'),false);
+test('prepared capture keeps the 80k individual string and new 128k complete serialized limits with typed numeric-only failures',async t=>{
+ t.mock.method(globalThis,'fetch',forbidden);const diagnostics=[];t.mock.method(console,'info',(...args)=>diagnostics.push(args));
+ assert.equal(PREPARED_CONTEXT_CHARS,128_000);assert.equal(HISTORY_REVIEW_CONTEXT_CHARS,128_000);assert.equal(COMPLETE_VERIFICATION_REQUEST_CHARS,256_000);assert.equal(SOURCE_JSON_LIMITS.text,80_000);
+ for(const config of [{system:'x'.repeat(PREPARED_CONTEXT_CHARS+1),source:'x'.repeat(PREPARED_CONTEXT_CHARS+1)},{system:'x'.repeat(SOURCE_JSON_LIMITS.text+1),source:'x'.repeat(SOURCE_JSON_LIMITS.text+1)},{system:'\n"\\😀'.repeat(15_999),source:''}]){
+  const f=fixture(config);if(config.source===''){assert.ok(config.system.length<=SOURCE_JSON_LIMITS.text);assert.ok(JSON.stringify({messages:f.input.messages,systemContext:config.system}).length>PREPARED_CONTEXT_CHARS);}
+  assert.throws(()=>createPreparedRequest('owner',locator,f.input,{rows:[f.db.messages.get('question').row],attachments:[]},f.input.reviewer),error=>error instanceof PreparedRequestError&&error.name==='PreparedRequestError'&&error.code==='context_limit'&&error.message==='context_limit');
+  await assert.rejects(f.prepare(),error=>error instanceof HistoryError&&error.name==='HistoryError'&&error.code==='context_limit');assert.equal(f.model.doGenerateCalls.length,0);assert.equal(f.db.messages.has('answer'),false);
+ }
+ const aggregate=fixture({system:'s'.repeat(70_000),source:''}),prior={id:'prior',role:'assistant',content:'',metadata:null,createdAt:'2026-11-05T00:00:00Z'};
+ aggregate.input.messages.unshift({id:prior.id,role:prior.role,parts:[{type:'text',text:''}]});aggregate.input.sources.unshift(prior);
+ const overhead=canonicalJSON({messages:aggregate.input.messages,systemContext:aggregate.input.systemContext}).length;
+ prior.content='p'.repeat(PREPARED_CONTEXT_CHARS+1-overhead);aggregate.input.messages[0].parts[0].text=prior.content;aggregate.db.put('chat','conversation',prior);
+ assert.ok(prior.content.length<SOURCE_JSON_LIMITS.text);assert.equal(canonicalJSON({messages:aggregate.input.messages,systemContext:aggregate.input.systemContext}).length,PREPARED_CONTEXT_CHARS+1);
+ await assert.rejects(aggregate.prepare(),error=>error.code==='context_limit');assert.equal(aggregate.model.doGenerateCalls.length,0);
+ assert.equal(diagnostics.length,7);for(const[event,numeric]of diagnostics){assert.equal(event,'[PreparedContextLimit]');assert.equal(numeric.limit,PREPARED_CONTEXT_CHARS);assert.equal(numeric.perStringLimit,SOURCE_JSON_LIMITS.text);assert.ok(Object.values(numeric).every(value=>typeof value==='number'));}
+});
+
+test('66523 and 70k systems with 60 bounded memory records keep every byte through final review and certification',async t=>{
+ t.mock.method(globalThis,'fetch',forbidden);t.mock.method(console,'info',()=>{});
+ const memories=Array.from({length:60},(_,index)=>({category:'general',content:`Synthetic memory ${index+1}: This reader studies the Bible at home and values careful explanations. `.padEnd(480,'m')}));
+ assert.ok(memories.every(memory=>memory.content.length<500));
+ for(const systemChars of [66_523,70_000]){
+  const stable=chatSystemPrompt('KJV',{},'en'),memoryContext='\nTHINGS YOU REMEMBER ABOUT THIS USER\n'+memories.map(memory=>'- '+memory.content).join('\n');
+  const source=(memoryContext+'\nSynthetic profile, reading, church and current request context.\n').padEnd(systemChars-stable.length,'c'),system=stable+source;
+  assert.equal(system.length,systemChars);assert.ok(source.includes(memories.at(-1).content));
+  const f=fixture({system,source}),prepared=await f.prepare();assert.ok(prepared.context.length<HISTORY_REVIEW_CONTEXT_CHARS);assert.equal(JSON.parse(preparedRequestReviewContext(f.draft.preparedRequest).context).preparedSystemContext,system);
+  const approval=await f.service.reviewFresh(prepared);assert.equal(approval.verified,true);assert.equal(f.model.doGenerateCalls.length,1);assert.equal(JSON.parse(f.prompts[0].extraContext).savedHistoryContext.preparedSystemContext,system);assert.deepEqual(approval.blocks,prepared.blocks);
+  const saved=await f.service.certifyFresh('owner',locator,createFreshHistoryProof(prepared.ticket,approval));assert.equal(saved.state,'verified');assert.deepEqual(saved.row.metadata.parts[0].output.verses,passage);assert.equal((await f.service.get('owner',locator)).body.state,'verified');
+  t.diagnostic(JSON.stringify({preparedSystemChars:system.length,memoryCount:memories.length,finalReviewContextChars:prepared.context.length}));
+ }
+});
+
+test('malformed source authority and forged size errors remain context_incomplete rather than passing a public code through',async t=>{
+ t.mock.method(globalThis,'fetch',forbidden);t.mock.method(console,'info',()=>{});
+ for(const kind of ['source','missing','forged']){
+  const f=fixture();if(kind==='source')f.input.sourceSystemContext='Non-suffix context';if(kind==='missing')f.db.messages.delete('question');
+  if(kind==='forged')Object.defineProperty(f.input,'systemContext',{get(){throw Object.assign(Error('context_limit'),{name:'PreparedRequestError',code:'context_limit'});}});
+  await assert.rejects(f.prepare(),error=>error instanceof HistoryError&&error.name==='HistoryError'&&error.code==='context_incomplete');assert.equal(f.model.doGenerateCalls.length,0);assert.equal(f.db.messages.has('answer'),false);
  }
 });
 

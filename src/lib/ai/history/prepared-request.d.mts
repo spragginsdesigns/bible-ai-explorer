@@ -1,6 +1,7 @@
 import type {ModelDefinition} from '@/lib/ai/models';
 import type {FreshReviewerIdentity,PreparedRequestDescriptor,PreparedAttachment,StoredHistoryRow,FreshRequestInput,HistoryLocator,HistoryVerificationInput,HistoryVerificationResult} from './contracts';
 import type {FilePart,ImagePart} from 'ai';
+export declare class PreparedRequestError extends Error {readonly name:'PreparedRequestError';readonly code:'context_limit';constructor();}
 export declare function reviewerIdentity(definition:ModelDefinition):FreshReviewerIdentity;
 export declare function attachmentIdentity(row:PreparedAttachment):{id:string;messageId:string|null;identityDigest:string};
 export declare function preparedDependenciesMatch(descriptor:PreparedRequestDescriptor,dependencies:{rows:StoredHistoryRow[];attachments:PreparedAttachment[]}):boolean;

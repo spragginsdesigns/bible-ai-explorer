@@ -109,8 +109,8 @@ import {
 } from "@/lib/highlight-legend-rules";
 import { buildPromptCachePlan } from "@/lib/ai/prompt-cache";
 import { TOOL_LOOP_BUDGET_MS, isOverTimeBudget } from "@/lib/ai/tool-loop-budget";
-import { HISTORY_REVIEW_CONTEXT_CHARS } from "@/lib/ai/verification-limits.mjs";
-import { captureTurnTrace, classifyTurnError, registerTurnTraceCatalog, traceTurn, withTurnTrace, type TurnTraceFields } from "@/lib/ai/turn-trace";
+import { HISTORY_REVIEW_CONTEXT_CHARS, PREPARED_CONTEXT_CHARS } from "@/lib/ai/verification-limits.mjs";
+import { captureTurnTrace, classifyTurnError, registerTurnTraceCatalog, toolResultTraceFields, traceTurn, withTurnTrace, type TurnTraceFields } from "@/lib/ai/turn-trace";
 import {
 	buildChatOutcomeMetric,
 	logChatOutcomeMetric,
@@ -1267,7 +1267,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 					});
 					const providerMessages=withoutOrphanedOpenAIReferences(await convertToModelMessages(modelMessages));
 					reviewMediaParts=providerMessages.flatMap(message=>message.role==="user"&&Array.isArray(message.content)?message.content.filter((part):part is FilePart|ImagePart=>part.type==="file"||part.type==="image"):[]);
-					traceTurn("context", "started", { promptChars: stableSystem.length + volatileSystem.length, messageCount: modelMessages.length });
+					traceTurn("context", "started", { contextKind: "request", inputChars: JSON.stringify({ messages: modelMessages, systemContext: stableSystem + volatileSystem }).length, promptChars: stableSystem.length + volatileSystem.length, contextLimitChars: PREPARED_CONTEXT_CHARS, messageCount: modelMessages.length });
 					if(conversationId){
 						try {
 							preparedRequest=await historyService.prepareRequest(userId,{surface:"chat",parentId:conversationId,messageId:responseMessageId},{
@@ -1276,14 +1276,17 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 							});
 							const evidence=preparedRequestReviewContext(preparedRequest);preparedContext=evidence.context;canonicalPreparedContext=evidence.canonicalContext;reviewQuestion=evidence.question;
 						} catch(error) {
-							traceTurn("context", "failed", { ...classifyTurnError(error), reason: "context-budget" });
+							let issueCodes: string[] = [];
+							try { const code = (error as { code?: unknown } | null)?.code; if (typeof code === "string") issueCodes = [code]; } catch { /* Untrusted error properties are not diagnostics. */ }
+							const classification = classifyTurnError(error);
+							traceTurn("context", "failed", { ...classification, contextKind: "request", contextLimitChars: PREPARED_CONTEXT_CHARS, issueCodes, reason: issueCodes.includes("context_limit") ? "context-budget" : classification.errorClass === "HistoryError" || classification.errorClass === "ValidationError" ? "validation" : "unavailable" });
 							recordTurnError(error);progress.finish(true);
 							answerDisposition = "withheld";
 							await releaseFreshRequestRefusal({ownerId:userId,locator:{surface:"chat",parentId:conversationId,messageId:responseMessageId},translation,language,service:historyService,write:chunk=>writer.write(chunk as Parameters<typeof writer.write>[0])});
 							freshCertified=true;return;
 						}
 					}
-					traceTurn("context", "completed", { inputChars: preparedContext.length, promptChars: stableSystem.length + volatileSystem.length, messageCount: modelMessages.length });
+					traceTurn("context", "completed", { contextKind: "request", inputChars: preparedContext.length, promptChars: stableSystem.length + volatileSystem.length, contextLimitChars: PREPARED_CONTEXT_CHARS, messageCount: modelMessages.length });
 					traceTurn("generation", "started", { model: definition.providerModelId, toolCount: Object.keys(tools).length, messageCount: modelMessages.length });
 					const toolStartedAt = new Map<string, number>();
 					const result = streamText({
@@ -1360,12 +1363,14 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 							legacyStatus("Thinking");
 							const outcome = toolOutput.type === "tool-result" && typeof toolOutput.output === "object" && toolOutput.output !== null
 								? toolOutput.output as { success?: unknown; error?: unknown } : undefined;
-							const toolSucceeded = toolOutput.type !== "tool-error" && outcome?.success !== false && !outcome?.error;
+							const receiptSuccess = toolOutput.type !== "tool-error" && outcome?.success !== false && !outcome?.error;
+							const serializedResult = toolOutput.type === "tool-result" ? (JSON.stringify(toolOutput.output) ?? "null") : undefined;
+							const toolFacts = toolResultTraceFields(toolOutput.type === "tool-result" ? toolOutput.output : undefined, toolOutput.type !== "tool-error", serializedResult?.length);
 							const startedAt = toolStartedAt.get(toolCall.toolCallId);
 							toolStartedAt.delete(toolCall.toolCallId);
-							traceTurn("tool", toolSucceeded ? "completed" : "failed", { toolName: toolCall.toolName, ...(startedAt === undefined ? {} : { durationMs: performance.now() - startedAt }), ...(toolSucceeded ? {} : { reason: "tool-error" as const }) });
-							toolReceipts.push({ tool: toolCall.toolName, success: toolOutput.type !== "tool-error" && outcome?.success !== false && !outcome?.error,
-								result: toolOutput.type === "tool-result" ? (JSON.stringify(toolOutput.output) ?? "null").slice(0, 1800) : "Tool execution failed",
+							traceTurn("tool", toolOutput.type === "tool-error" ? "failed" : "completed", { toolName: toolCall.toolName, ...toolFacts, ...(startedAt === undefined ? {} : { durationMs: performance.now() - startedAt }), ...(toolFacts.toolErrorReported ? { reason: "tool-error" as const } : {}) });
+							toolReceipts.push({ tool: toolCall.toolName, success: receiptSuccess,
+								result: serializedResult?.slice(0, 1800) ?? "Tool execution failed",
 							});
 							if (toolOutput.type === "tool-result") {
 								if (outcome?.success !== false && !outcome?.error) executedActions.push({tool:toolCall.toolName,toolCallId:toolCall.toolCallId,success:true,output:JSON.parse(JSON.stringify(toolOutput.output) ?? "null")});

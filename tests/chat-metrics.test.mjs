@@ -197,6 +197,15 @@ test("a persisted certification fallback retains its safe failure class and cann
 	assert.equal(buildChatOutcomeMetric({ ...event, error: provider }).errorClass, "AI_APICallError", "first real turn error keeps precedence");
 });
 
+test("verification allowance failures keep their closed classification without logging exception content", () => {
+	const error = Object.assign(new Error("private provider request content"), { name: "VerificationCallLimitError" });
+	const metric = buildChatOutcomeMetric({ ...outcomeEvent, answerDisposition: "withheld", error });
+	assert.equal(metric.errorClass, "VerificationCallLimitError");
+	assert.equal(metric.outcome, "withheld");
+	assert.equal(JSON.stringify(metric).includes("private provider"), false);
+	assert.equal(buildChatOutcomeMetric({ ...outcomeEvent, answerDisposition: "withheld", failureClass: "QuotaError" }).errorClass, "QuotaError");
+});
+
 test("the tool loop stops on its own time budget, before the platform can kill the turn", async () => {
 	const { isOverTimeBudget, TOOL_LOOP_BUDGET_MS } = await import("../src/lib/ai/tool-loop-budget.ts");
 	// A turn killed by the platform runs no callback: the question is saved and
