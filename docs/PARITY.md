@@ -59,12 +59,32 @@ tool payloads are excluded. A persisted withholding notice reports `withheld`,
 not `answered`. Terminal completion waits for persistence and the server stream
 drain. Logger failures cannot change the answer or certification decision.
 
-The frozen local production build returned verified saved answers for the real
-owner account's condemnation and full Matthew 6 questions, which the deployed
-baseline had withheld. These completed in 112.1s and 24.7s; this is not a promise
-of timeout-free execution. Production Free, Pro and owner matrix results are a
-separate release check. The supported clients share this API; no client binary
-change is required for these server changes. Apple UI acceptance is untested.
+Two complete production matrices across Free, Pro and the real owner account
+are retained in [the release receipt](releases/2026-11-05-chat-reliability.json),
+including all failures. The first was 35/36 with the Pro request-size rejection.
+The second was 35/36; its Free failure followed an infeasible test requiring two
+complete 34-verse reads in exactly two calls, while each call selects at most
+30 verses. A feasible three-read test then exposed the separate 128k envelope
+boundary on Free/Pro. Those failures remain in the receipt.
+
+Final source `49ad7ced` passed 9/9 targeted production cases: the original
+condemnation question, complete Matthew 6, and three exact supported reads of
+Matthew 6:1-30, on Free, Pro and owner. All responses matched verified saved
+answers. The final owner lane used Pro; the earlier owner matrix used Free.
+An intentional stream disconnect still produced a verified saved answer in
+60.5s. This demonstrates disconnect survival within a running invocation,
+not process-restart durability. Earlier owner Pro checks included both reported
+questions; their longest answer took 172.3s, so latency remains a material gap.
+
+Android 1.113.0 (139), using the synthetic reviewer account on emulator-5554,
+displayed a fresh original prayer on final source, then reopened it from history
+after process restart. Its server turn completed in 16.4s; the crash buffer had
+no package mentions. The [screenshot](releases/2026-11-05-chat-android.png) and
+safe trace evidence are retained. The emulator and its claim were fully closed.
+The shared backend serves all four clients without a binary update. Web browser,
+Apple UI, and physical S26 acceptance are not claimed by these API/emulator checks.
+The final fixture accounts were deleted and verified absent, and the owner's
+original Free picker selection and existing sessions were preserved.
 
 ## Shared prayer verification fix, 2026-11-05
 
