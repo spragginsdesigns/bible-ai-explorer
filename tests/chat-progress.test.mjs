@@ -204,6 +204,22 @@ test('Scripture-check steps stay as written and cancel a pending paraphrase', as
   r.progress.finish();
 });
 
+test('a running Scripture-check step keeps the heartbeat counting as activity', t => {
+  t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+  const r = recorder();
+  r.progress.status('Getting ready');
+  r.tick(30_000); t.mock.timers.tick(10_000);
+  assert.equal(r.last().lastActivityMs, 0, 'an ordinary quiet stretch still reads as quiet');
+  r.progress.status('Found a mistake in the first answer, correcting it now', false);
+  r.tick(55_000); t.mock.timers.tick(10_000);
+  assert.equal(r.last().lastActivityMs, 55_000);
+  assert.equal(r.last().label, 'Found a mistake in the first answer, correcting it now');
+  r.progress.answer();
+  r.tick(90_000); t.mock.timers.tick(10_000);
+  assert.equal(r.last().lastActivityMs < 90_000, true, 'the hold ends when the step does');
+  r.progress.finish();
+});
+
 test('late narrator responses cannot replace newer tools, native summaries, answers or completion', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   for (const change of [

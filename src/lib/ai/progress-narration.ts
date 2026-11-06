@@ -25,6 +25,9 @@ export function progressProviderOptions(provider: string, modelId: string, optio
 export function createProgressNarration(write: (progress: ChatProgress) => void, runId: string, now = Date.now) {
 	const started = now();
 	let terminal = false;
+	// A Scripture-check step is running: the server is actively reviewing, so
+	// the heartbeat counts as activity and no client says "no new update".
+	let checking = false;
 	let lastSummaryWrite = -Infinity;
 	let narrator: Narrator | undefined;
 	let question = "";
@@ -100,7 +103,7 @@ export function createProgressNarration(write: (progress: ChatProgress) => void,
 		emit();
 		requestNarration();
 	}
-	const timer = setInterval(() => emit(false), 10_000);
+	const timer = setInterval(() => emit(checking), 10_000);
 	timer.unref?.();
 	emit();
 	return {
@@ -113,6 +116,7 @@ export function createProgressNarration(write: (progress: ChatProgress) => void,
 		/** `narrate: false` keeps a factual step (the Scripture check) as written. */
 		status(label: string, narrate = true) {
 			if (terminal || activeTool()) return;
+			checking = !narrate;
 			if (!narrate) cancelNarration();
 			snapshot.label = label === "Thinking" ? "Preparing your answer" : label;
 			snapshot.phase = label === "Thinking" ? "thinking" : "preparing";
@@ -122,6 +126,7 @@ export function createProgressNarration(write: (progress: ChatProgress) => void,
 		},
 		toolStart(call: ToolCall, fallback: string) {
 			if (terminal) return;
+			checking = false;
 			cancelNarration();
 			const input = object(call.input);
 			const reference = short(input.reference) || (short(input.book) && typeof input.chapter === "number" ? `${short(input.book)} ${input.chapter}${typeof input.verseStart === "number" ? `:${input.verseStart}${typeof input.verseEnd === "number" && input.verseEnd !== input.verseStart ? `–${input.verseEnd}` : ""}` : ""}` : "");
@@ -172,11 +177,13 @@ export function createProgressNarration(write: (progress: ChatProgress) => void,
 		},
 		answer() {
 			if (terminal || activeTool() || snapshot.phase === "answering") return;
+			checking = false;
 			cancelNarration();
 			snapshot.phase = "answering"; snapshot.label = "Writing your answer"; emit();
 		},
 		finish(error = false) {
 			if (terminal) return;
+			checking = false;
 			cancelNarration();
 			clearInterval(timer);
 			for (const id of summaryBuffers.keys()) flushSummary(id);

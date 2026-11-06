@@ -2,7 +2,7 @@
 export const HISTORY_FOUNDATION_DIGEST = "d94fb1749d77ce12b4fa429944bc8eefed974f227a51c0ec2226e3f38cfaa237";
 export const HISTORY_RENDERER_DIGEST = "581afae44691a6750ccfd0b2982b929c1ff4bcf115015b6fecbce13b5fb3eaee";
 export const HISTORY_CHECKER_DIGEST = "cf0868e7068b5f00678751171e009e6fab2d8b6b85f2854e356d867b4e48162f";
-export const HISTORY_IMPLEMENTATION_DIGEST = "2bc57aaa64863ee2b8875b7fd34737888f89015aae770f308620ca40fbf839cd";
+export const HISTORY_IMPLEMENTATION_DIGEST = "7526f2881ef43e79c30cd517956350c47998a55ae16837f28f21043c413e1ab7";
 export const HISTORY_CORPUS_DIGEST = "480b2ee7cd143e6fd19f9fc130801f3831a0ee7f3e2ef68a98a0adbdb7e23fce";
 export const HISTORY_CORPUS_IDENTITIES = {
   "KJV": "a8d24b1b10efbb80483d86faf7300005b048d66b5ac45379feadfd051053c44d",
@@ -74,7 +74,7 @@ export const HISTORY_SOURCE_MANIFEST = {
     "src/lib/ai/history/shared-boundary.ts": "733de31bc7eecb96834103218f039099767e226824f83a1eee0467ced160e1fd",
     "src/lib/ai/history/transaction-conflicts.mjs": "8d6e443851cfcd74d2d1252c2f218846f46b5d59716273534587577e82dae91d",
     "src/lib/ai/history/verify-only.mjs": "e63af29c2dc638b4092e989d95d571539106093061801eeb64a83e1c625b7dd4",
-    "src/app/api/ask-question/route.ts": "6e13db77cb5ac3c07386746529cdc14615c20688ccf6d42256185753de068b74",
+    "src/app/api/ask-question/route.ts": "191567ff38876c3a62240b0bee869c73396e8f1654b53bba4107a34ad616c070",
     "src/app/api/note-ai/route.ts": "df25fde9c067e52c6dc48b8e452a2ffd05c21205fa4038cff9d4c12e5b0f0d60",
     "src/lib/ai/verified-answer-stream.ts": "c95b0dad19da6b54d30353aef20688ec96c0eb9c6b84df97112ca38a3fee41af",
     "src/lib/ai/status-narration.ts": "73103e6d8e27df13de4fe766d5d36b33e72713a9172b7df18f9662d409e58101",

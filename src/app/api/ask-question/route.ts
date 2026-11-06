@@ -1050,6 +1050,10 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 				// Named steps while the answer is checked, written once per change.
 				// They stay factual: the narrator would paraphrase "correcting" away.
 				const checkingStatus = (label: string) => { if (label === lastStatus) return; lastStatus=label;legacyStatus(label);progress.status(label, false); };
+				// Said plainly, so a longer wait reads as care rather than a stall.
+				let corrections = 0;
+				const correctingStatus = () => checkingStatus(++corrections === 1 ? "Found a mistake in the first answer, correcting it now" : "Found another problem, correcting it again");
+				const recheckStatus = () => checkingStatus("Reviewing the corrected answer against Scripture");
 				try {
 					writeStatus("Getting ready");
 
@@ -1462,8 +1466,8 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 								...(priorReview ? { priorReview } : {}), timeoutMs,
 								// The first review is "Checking Scripture..."; every later one
 								// follows a correction, so each step shows while it happens.
-								beforeReview: async () => { gateReviews += 1; if (gateReviews > 1) checkingStatus("Checking the corrected answer"); },
-								beforeRepair: () => checkingStatus("Correcting the answer"),
+								beforeReview: async () => { gateReviews += 1; if (gateReviews > 1) recheckStatus(); },
+								beforeRepair: correctingStatus,
 								onError: (error) => traceTurn("verification", "failed", classifyTurnError(error)),
 							}), { remainingMs: () => 225_000 - (Date.now() - turnStartedAtMs), maxExtraRounds: 2, minRoundMs: 45_000, maxRoundMs: 75_000 });
 						},
@@ -1511,13 +1515,13 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 							// 12s) and the 60s review all still fit.
 							revise:checkedAnswer.verified&&notice===null?async(chunks,review)=>{
 								const reviewOptions=await answerReviewOptions();
-								checkingStatus("Correcting the answer");
+								correctingStatus();
 								const remaining=270_000-(Date.now()-turnStartedAtMs);
 								if(remaining<115_000)return null;
 								const blocks=textBlocksOf(chunks);
 								if(!blocks.some(block=>block.text.trim()))return null;
 								const revised=await verifyGeneratedAnswer(blocks,{...reviewOptions,priorReview:review,timeoutMs:Math.min(75_000,remaining-80_000),
-									beforeReview:async()=>checkingStatus("Checking the corrected answer")});
+									beforeReview:async()=>recheckStatus()});
 								if(revised.verified)checkingStatus("Final check against Scripture");
 								return revised.verified?withTextBlocks(chunks,revised.blocks):null;
 							}:undefined,

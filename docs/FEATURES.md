@@ -191,14 +191,22 @@ A ten-second
 heartbeat updates elapsed time without inventing activity; after twenty seconds
 without a meaningful event the UI says that no new update has arrived.
 
-**While the answer is checked (restored 2026-11-06, `522ef413` and the follow-up
-step-lines commit).** The Scripture-accuracy work of late October had stopped
-streaming this trail live (`6110ac09`, `1b72cc0e`), so readers saw only a frozen
-"Checking Scripture quotations and citations" for one to three minutes. The
-trail is live again through the whole check, and each gate step is its own
-factual line, written as is and never paraphrased by the narrator: "Checking
-Scripture quotations and citations", "Correcting the answer", "Checking the
-corrected answer", "Final check against Scripture". The certified release still
+**While the answer is checked (restored 2026-11-06, `522ef413`, `5c8d6129` and
+the plain-wording commit after it).** The Scripture-accuracy work of late October
+had stopped streaming this trail live (`6110ac09`, `1b72cc0e`), so readers saw
+only a frozen "Checking Scripture quotations and citations" for one to three
+minutes. The trail is live again through the whole check, and each gate step is
+its own factual line, written as is and never paraphrased by the narrator:
+"Checking Scripture quotations and citations", then, only when the check or the
+reviewer finds something, "Found a mistake in the first answer, correcting it
+now" (a later one reads "Found another problem, correcting it again"),
+"Reviewing the corrected answer against Scripture", and "Final check against
+Scripture". Austin's rule (2026-11-06): a minute or more is fine as long as the
+reader is told what is happening. While one of these steps runs the ten-second
+heartbeat counts as activity, so no client shows "Still waiting for the
+response. No new update yet." under a step that is actively running. Web,
+Android and the shared Apple view (iOS and macOS) all render this one server
+snapshot, so store builds already out get it without an update. The certified release still
 leaves progress out of the reviewed, saved envelope (`fresh-stream.ts`), so a
 reopened answer keeps its "Worked for…" row but not the live step list. A draft
 that already failed the exact-text check for a repairable reason (misquote,
