@@ -88,6 +88,21 @@ export async function syncProfileFromClerk(
  *
  * Returns true if a legacy account was adopted.
  */
+/** A Clerk API 404: the Clerk user is gone, even though its session token still verifies. */
+export function isClerkUserGone(error: unknown): boolean {
+	const e = error as { clerkError?: unknown; status?: unknown } | null;
+	return !!e && e.clerkError === true && e.status === 404;
+}
+
+/**
+ * Thrown by `claimLegacyAccount` when Clerk no longer has the user. A deleted
+ * account's session JWT keeps verifying for up to a minute, and the clients'
+ * sign-out cleanup (`DELETE /api/push-tokens`) lands inside that window, so
+ * without this the next request re-created an empty User row for the account
+ * that had just been deleted.
+ */
+class ClerkUserGone extends Error {}
+
 async function claimLegacyAccount(newUserId: string): Promise<boolean> {
 	try {
 		const user = await currentUser();
@@ -119,6 +134,7 @@ async function claimLegacyAccount(newUserId: string): Promise<boolean> {
 
 		return true;
 	} catch (error) {
+		if (isClerkUserGone(error)) throw new ClerkUserGone();
 		// Never block sign-in on this. Worst case the user starts fresh and the
 		// mapping stays unclaimed, so the next request retries.
 		console.error("Legacy account claim failed:", error);
@@ -141,7 +157,18 @@ async function ensureUserRecord(userId: string): Promise<void> {
 	const existing = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
 	if (existing) return rememberConfirmedUser(userId);
 
-	if (await claimLegacyAccount(userId)) return rememberConfirmedUser(userId);
+	let adopted: boolean;
+	try {
+		adopted = await claimLegacyAccount(userId);
+	} catch (error) {
+		if (!(error instanceof ClerkUserGone)) throw error;
+		// Deleted account: answer as signed out instead of creating its row again.
+		throw new Response(JSON.stringify({ error: "Unauthorized", code: "unauthorized" }), {
+			status: 401,
+			headers: { "Content-Type": "application/json" },
+		});
+	}
+	if (adopted) return rememberConfirmedUser(userId);
 
 	// Empty-update upserts can become a read followed by a create. First-run
 	// clients load several routes in parallel, so let Postgres arbitrate the
