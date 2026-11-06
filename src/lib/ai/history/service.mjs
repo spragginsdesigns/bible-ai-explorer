@@ -15,6 +15,42 @@ const keys = ['sourceDigest', 'contextDigest', 'policyDigest', 'displayDigest', 
 const bindingEqual = (a, b) => keys.every(key => a?.[key] === b?.[key]);
 export const locatorValid = value => value && ['chat', 'note'].includes(value.surface) && ['parentId', 'messageId'].every(key => typeof value[key] === 'string' && /^[A-Za-z0-9_-]{1,160}$/.test(value[key]));
 const response = (status, code, extra = {}) => ({ status, body: { code, ...extra } });
+/**
+ * Saved-answer review went live on 2026-10-30 (1b72cc0e). Answers saved before
+ * it were shown in full for months and were never reviewed, so withholding
+ * them hid every account's whole history (Austin, 2026-11-06: "why wouldn't
+ * it just load the conversation in full"). Those rows, and only those with no
+ * review record of any kind, show as they always did.
+ */
+export const HISTORY_REVIEW_STARTED_AT = Date.parse('2026-10-30T22:00:00Z');
+const savedBefore = (row, cutoff) => { const at = Date.parse(row?.createdAt ?? ''); return Number.isFinite(cutoff) && Number.isFinite(at) && at < cutoff; };
+/** The pre-review row exactly as it was shown; the read boundary still keeps only its safe display fields. */
+export function legacyHistoryRow(row) {
+    const metadata = row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata) ? clone(row.metadata) : {};
+    delete metadata.historyVerification;
+    if (!Array.isArray(metadata.parts) || !metadata.parts.length || !metadata.parts.every(part => part && typeof part === 'object' && typeof part.type === 'string')) metadata.parts = [{ type: 'text', text: row.content }];
+    return { id: row.id, role: 'assistant', content: row.content, metadata, ...(row.createdAt ? { createdAt: row.createdAt } : {}) };
+}
+/**
+ * The newest review of this exact saved text and conversation context, whatever
+ * checker version made it. A verified answer stays verified while its words and
+ * the turns before it are unchanged: the binding
+ * also pins checker, implementation and entitlement digests, which change on
+ * ordinary deploys (25 policies in the first week) and used to hide every
+ * checked answer each time. A later failed or running recheck still wins.
+ */
+async function settledReviewForSource(tx, locator, binding) {
+    if (typeof tx.targetVersions !== 'function') return null;
+    const versions = (await tx.targetVersions(locator, null, 20)) ?? [];
+    const time = record => Date.parse(record.checkedAt ?? record.updatedAt ?? record.createdAt ?? '') || 0;
+    const sameSource = versions.filter(record => record.sourceDigest === binding.sourceDigest);
+    const latest = sameSource.filter(record => record.contextDigest === binding.contextDigest).sort((a, b) => time(b) - time(a))[0];
+    if (!latest || (latest.state !== 'verified' && latest.state !== 'notice')) return { latest: latest ?? null, any: sameSource.length > 0 };
+    try {
+        if (digest(latest.sourceSnapshot) !== latest.sourceDigest || digest(latest.sanitizedDisplay) !== latest.displayDigest) return { latest: null, any: true };
+    } catch { return { latest: null, any: true }; }
+    return { latest, settled: latest, any: true };
+}
 export function fixedHistoryRow(row, state, code, sourceDigest = null) {
     const text = state === 'pending' ? 'This saved answer is being checked before it can be shown.' : 'This saved answer is withheld until its source and claims can be verified. The original is available to download.';
     return { id: row.id, role: 'assistant', content: text, metadata: { parts: [{ type: 'text', text }], historyVerification: { state, code, ...(sourceDigest ? { sourceDigest } : {}) } }, ...(row.createdAt ? { createdAt: row.createdAt } : {}) };
@@ -212,7 +248,7 @@ async function boundedReview(task, timeoutMs, signal) {
         signal?.removeEventListener('abort', abort);
     }
 }
-export function createHistoryService({ repository, loadCurrentPolicy, renderer, verifyOnly, verifyCanonical, loadCanonicalChapter, validateFreshReviewer=()=>false, now = () => new Date(), token = randomUUID, verifyMs = LIMITS.verifyMs, externalMs = 12_000 }) {
+export function createHistoryService({ repository, loadCurrentPolicy, renderer, verifyOnly, verifyCanonical, loadCanonicalChapter, validateFreshReviewer=()=>false, showUnreviewedBefore = null, now = () => new Date(), token = randomUUID, verifyMs = LIMITS.verifyMs, externalMs = 12_000 }) {
     const policy = async (tx, ownerId, external=null, reviewer=null) => {
         const current=clone(await loadCurrentPolicy(tx,ownerId));
         if(reviewer){if(!await validateFreshReviewer(reviewer))throw new HistoryError('policy_changed',409);Object.assign(current,{reviewerModelId:reviewer.id,reviewer:{provider:reviewer.provider,providerModelId:reviewer.providerModelId,pricing:reviewer.pricing},freshReviewer:reviewer});}
@@ -348,6 +384,14 @@ export function createHistoryService({ repository, loadCurrentPolicy, renderer, 
                     const descriptor=prepared?.descriptor;
                     const reviewerCurrent=!descriptor||await validateFreshReviewer(descriptor.reviewer);
                     const built = await build(tx, ownerId, locator, await policy(tx, ownerId,external,reviewerCurrent?descriptor?.reviewer:null), renderer,null,null,prepared);
+                    // NKJV answers bind to live remote chapter bytes and a retired reviewer
+                    // needs an explicit recheck; both keep the strict path below.
+                    const remote = built.context.translation === 'NKJV';
+                    const prior = reviewerCurrent && !remote ? await settledReviewForSource(tx, locator, built.binding) : null;
+                    if (prior?.settled && prior.settled.freshEvidence?.external == null)
+                        return { status: 200, body: { state: prior.settled.state, sourceDigest: built.binding.sourceDigest, row: clone(prior.settled.sanitizedDisplay) } };
+                    if (prior && !prior.any && savedBefore(built.sourceSnapshot.row, showUnreviewedBefore))
+                        return { status: 200, body: { state: 'notice', sourceDigest: built.binding.sourceDigest, row: legacyHistoryRow(built.sourceSnapshot.row) } };
                     if(!reviewerCurrent&&built.fixedOperational!==true)return{status:200,body:{state:'withheld',sourceDigest:built.binding.sourceDigest,row:fixedHistoryRow(built.sourceSnapshot.row,'withheld','policy_changed',built.binding.sourceDigest)}};
                     if(!external&&built.context.translation==='NKJV'&&built.candidate&&!fixedBuilt(built))return{externalBuilt:built};
                     if(external&&built.binding.sourceDigest!==external.sourceDigest)throw new HistoryError('source_changed',409);

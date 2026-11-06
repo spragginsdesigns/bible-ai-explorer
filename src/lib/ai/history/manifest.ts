@@ -2,7 +2,7 @@
 export const HISTORY_FOUNDATION_DIGEST = "d94fb1749d77ce12b4fa429944bc8eefed974f227a51c0ec2226e3f38cfaa237";
 export const HISTORY_RENDERER_DIGEST = "581afae44691a6750ccfd0b2982b929c1ff4bcf115015b6fecbce13b5fb3eaee";
 export const HISTORY_CHECKER_DIGEST = "37000deacdaab8216b104392d8ae007a158aa2f62d653cd00bc685b857d29988";
-export const HISTORY_IMPLEMENTATION_DIGEST = "4098875db2ec3690531e30dd792e563e68bbc8d065b925fba74a0e98f13500c0";
+export const HISTORY_IMPLEMENTATION_DIGEST = "cfdfe9bb3119e3f9842218802c5aaf35b29e6501d7c43f925b4b1913e3e4e213";
 export const HISTORY_CORPUS_DIGEST = "480b2ee7cd143e6fd19f9fc130801f3831a0ee7f3e2ef68a98a0adbdb7e23fce";
 export const HISTORY_CORPUS_IDENTITIES = {
   "KJV": "a8d24b1b10efbb80483d86faf7300005b048d66b5ac45379feadfd051053c44d",
@@ -65,11 +65,11 @@ export const HISTORY_SOURCE_MANIFEST = {
     "src/lib/ai/history/read-batch.mjs": "243568b806c6036d875d870779641cbfdbacf2c01c142893edeccacb4496a3d9",
     "src/lib/ai/history/read-boundary.server.ts": "1b72e410c8663da72cebe4c8334bd6b37ef560ad0072447a1fed10e94d238340",
     "src/lib/ai/history/read-boundary.ts": "64a482a5169f5afe7aa7f27acdbc7563e4990e5395eeb0ddb9faf97b429e80fa",
-    "src/lib/ai/history/read-snapshot.mjs": "a54f66352827cd6f2825ab12c5841508e3ae3ae7b05b3842b24e1ff5771d02a5",
+    "src/lib/ai/history/read-snapshot.mjs": "d6ea58ad165d32f007a12db77bc54a244a4ce06a34beb17efc35560d856f6dc7",
     "src/lib/ai/history/renderer.ts": "0b6657061dc894623d490c310c989903a076dd06e26dd621c3a9b00d03be0472",
     "src/lib/ai/history/repository.mjs": "566fca4fa2a36dbabea0764a50e05514a1f638b3a3a71ef113eec9a3744fa956",
-    "src/lib/ai/history/runtime.server.ts": "921db17182fa4c3b2b03c84858a1dd776ab2ffd4561ae70fd29cd56f94b3abeb",
-    "src/lib/ai/history/service.mjs": "5174d48da59e57598370bdd79158fc04d766e89f0dac28749c988112ffee9338",
+    "src/lib/ai/history/runtime.server.ts": "f87ce6c9d5f2c49d84db7433d655c8e398dd0d7e6981bb9ac3499f160d33d1ca",
+    "src/lib/ai/history/service.mjs": "5fa4503c6bd2429491b6200d057a17c95a3615aff8101547ed70683fa55627a5",
     "src/lib/ai/history/shared-boundary.server.ts": "b90834dd9d4cddefe2853d907396b5f9b71946abebb8011353a2b757cc234ac0",
     "src/lib/ai/history/shared-boundary.ts": "733de31bc7eecb96834103218f039099767e226824f83a1eee0467ced160e1fd",
     "src/lib/ai/history/transaction-conflicts.mjs": "8d6e443851cfcd74d2d1252c2f218846f46b5d59716273534587577e82dae91d",

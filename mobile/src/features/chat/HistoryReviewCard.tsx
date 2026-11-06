@@ -79,13 +79,13 @@ export function HistoryReviewCard({ review, locator, renderVerified }: {
 	if (checked?.key === key && checked.state === "verified") return <>{renderVerified(checked.row)}</>;
 	return (
 		<View accessibilityLiveRegion="polite" style={{ padding: 14, gap: 10, borderWidth: 1, borderColor: colors.borderStrong, borderRadius: 12 }}>
-			<Text>{checked?.key === key ? checked.row.content : "This saved answer needs a check before it can be shown."}</Text>
-			{!valid ? <Text>Reload the conversation to check this saved answer.</Text> : <>
-				<Pressable accessibilityRole="button" disabled={busy !== null} onPress={() => void run("check")}><Text>Check saved answer</Text></Pressable>
-				<Pressable accessibilityRole="button" disabled={busy !== null} onPress={() => void run("download")}><Text>Download original as a file</Text></Pressable>
+			<Text style={{ color: colors.text }}>{checked?.key === key ? checked.row.content : "This saved answer needs a check before it can be shown."}</Text>
+			{!valid ? <Text style={{ color: colors.textMuted }}>Reload the conversation to check this saved answer.</Text> : <>
+				<Pressable accessibilityRole="button" disabled={busy !== null} onPress={() => void run("check")}><Text style={{ color: colors.accent, fontWeight: "600" }}>Check saved answer</Text></Pressable>
+				<Pressable accessibilityRole="button" disabled={busy !== null} onPress={() => void run("download")}><Text style={{ color: colors.accent, fontWeight: "600" }}>Download original as a file</Text></Pressable>
 			</>}
 			{busy ? <ActivityIndicator accessibilityLabel={busy === "check" ? "Checking saved answer" : "Preparing original file"} color={colors.accent} /> : null}
-			{error?.key === key ? <Text>{error.message}</Text> : null}
+			{error?.key === key ? <Text style={{ color: colors.textMuted }}>{error.message}</Text> : null}
 		</View>
 	);
 }

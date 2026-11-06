@@ -106,13 +106,26 @@ export async function startOnboarding(userId: string, mode: OnboardingStartMode)
 			const existing = user.onboardingConversationId
 				? await tx.conversation.findFirst({
 						where: { id: user.onboardingConversationId, userId },
-						select: { id: true },
+						select: { id: true, updatedAt: true },
 					})
 				: null;
 
 			if (mode === "auto") {
 				if (user.onboardedAt) return { status: "done" as const };
-				if (existing) return { status: "active" as const, conversationId: existing.id, created: false };
+				if (existing) {
+					// An unfinished welcome reopens only until they chat somewhere
+					// else. Once another conversation is newer, they have moved on,
+					// and dragging every launch back into the welcome hid their
+					// latest chat (Austin, 2026-11-06: a Settings walkthrough left
+					// open since 10-28 took over Chat on every open). Settings
+					// still reopens it.
+					const movedOn = await tx.conversation.findFirst({
+						where: { userId, id: { not: existing.id }, updatedAt: { gt: existing.updatedAt } },
+						select: { id: true },
+					});
+					if (movedOn) return { status: "not_eligible" as const };
+					return { status: "active" as const, conversationId: existing.id, created: false };
+				}
 				// They had a welcome and deleted it: that is a no, so it is not
 				// recreated on every launch (Settings still reopens it).
 				if (user.onboardingConversationId) return { status: "not_eligible" as const };

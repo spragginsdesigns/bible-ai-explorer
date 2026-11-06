@@ -9,7 +9,7 @@ import { FakeRepository } from './history-fake-repository.mjs';
 const {historyRenderer:renderer}=await loadHistoryModule('src/lib/ai/history/renderer.ts');
 const locator = { surface: 'chat', parentId: 'c', messageId: 'a' };
 const deferred = () => { let resolve; const promise = new Promise(r => resolve = r); return { promise, resolve }; };
-function setup({ verify, verifyMs } = {}) {
+function setup({ verify, verifyMs, showUnreviewedBefore } = {}) {
     const db = new FakeRepository();
     db.addUser('u');
     db.addUser('other');
@@ -19,7 +19,7 @@ function setup({ verify, verifyMs } = {}) {
     let clock = new Date('2026-10-29T10:00:00.000Z'), calls = 0, reservations = 0, quota = false;
     db.clock = () => new Date(clock);
     const policy = { supportedTranslations:['KJV','BSB','ASV','RV1909','LUT1912'], core: { contractVersion: 1, projectorVersion: CORE_VERSION, rendererDigest: renderer.digest, checkerVersion: 'server-candidate-v1', corpusDigest: 'a'.repeat(64), foundationDigest: 'd94fb1749d77ce12b4fa429944bc8eefed974f227a51c0ec2226e3f38cfaa237', fixedNoticesVersion: 1 }, reviewerModelId: 'approved-house-reviewer', contextVersion: 1, meter: 'background-utility', dailyCaps: { free: 20, pro: 100 } };
-    const service = createHistoryService({ repository: db, renderer, loadCurrentPolicy: async () => structuredClone(policy), now: () => new Date(clock), verifyMs, verifyOnly: async (input) => {
+    const service = createHistoryService({ repository: db, renderer, loadCurrentPolicy: async () => structuredClone(policy), now: () => new Date(clock), verifyMs, showUnreviewedBefore, verifyOnly: async (input) => {
             assert.equal(db.depth.get('u') ?? 0, 0, 'provider must run outside DB transaction');
             reservations++;
             if (quota)
@@ -221,3 +221,58 @@ test('original version metadata paginates; each selected snapshot remains owner-
     f.db.reviews.set('old-' + i, { ...structuredClone(seed), id: 'old-' + i, createdAt: new Date(1000 + i), sourceDigest: String(i).padStart(64, '0') }); const first = await f.service.versions('u', locator); assert.equal(first.body.versions.length, 20); assert.ok(first.body.next); const next = await f.service.versions('u', locator, first.body.next); assert.equal(next.body.versions.length, 5); assert.equal(next.body.next, null); assert.equal(JSON.stringify(first).includes('God loves'), false); assert.equal((await f.service.download('u', locator)).status, 413); assert.equal((await f.service.download('u', locator, next.body.versions[0].reviewId)).status, 200); assert.equal((await f.service.versions('other', locator)).status, 404); assert.equal((await f.service.versions('u', locator, 'foreign-cursor')).status, 404); });
 test('user ratings and bookkeeping are separate from the immutable AI source envelope', async () => { const f = setup({ verify: async (input, { db }) => { db.messages.get('a').row.feedbackReason = 'Changed user feedback'; return pass(input); } }); assert.equal((await f.run()).status, 200); const record = [...f.db.reviews.values()][0]; assert.equal('feedbackTags' in record.sourceSnapshot.row, false); assert.equal('feedbackReason' in record.sourceSnapshot.row, false); assert.equal(record.sourceSnapshot.row.content, 'God loves the world.'); });
 test('server rechecks lease/consent/source immediately at reviewer callback', async () => { const f = setup({ verify: async (input, { db }) => { db.users.get('u').consent = false; await assert.rejects(input.authorizeInference(), e => e.code === 'consent_required'); return pass(input); } }); assert.equal((await f.run()).body.code, 'consent_required'); });
+
+// Austin, 2026-11-06: every saved answer showed "needs a check" after ordinary
+// deploys, because the review binding pins the checker and implementation
+// digests. A passed review must survive those while the saved words and the
+// turns before them are unchanged.
+test("a verified answer stays shown after the checker version changes", async () => {
+    const f = setup();
+    assert.equal((await f.run()).body.state, "verified");
+    f.policy.core.checkerVersion = "server-candidate-v2";
+    f.policy.contextVersion++;
+    const after = await f.service.get("u", locator);
+    assert.equal(after.body.state, "verified");
+    assert.equal(after.body.row.content, "God loves the world.");
+    assert.deepEqual(f.counts(), { calls: 1, reservations: 1, chatReservations: 0 });
+});
+test("a later failed recheck still withholds an answer that once passed", async () => {
+    let fail = false;
+    const f = setup({ verify: async input => fail ? { ...pass(input), verified: false, semanticPassed: false } : pass(input) });
+    assert.equal((await f.run()).body.state, "verified");
+    f.policy.core.checkerVersion = "server-candidate-v2";
+    fail = true; f.advance(120000);
+    await f.run();
+    const after = await f.service.get("u", locator);
+    assert.equal(after.body.state, "withheld");
+    assert.equal(JSON.stringify(after).includes("God loves"), false);
+});
+test("an edited answer or changed earlier turn does not inherit the old review", async () => {
+    const f = setup();
+    assert.equal((await f.run()).body.state, "verified");
+    f.db.messages.get("a").row.content = "God loves the whole world.";
+    f.db.messages.get("a").row.metadata.parts[0].text = "God loves the whole world.";
+    assert.equal((await f.service.get("u", locator)).body.state, "withheld");
+    const g = setup();
+    assert.equal((await g.run()).body.state, "verified");
+    g.db.messages.get("q").row.content = "Explain Romans 8:28.";
+    assert.equal((await g.service.get("u", locator)).body.state, "withheld");
+});
+test("answers saved before review began, never reviewed, show as they always did", async () => {
+    const strict = setup();
+    assert.equal((await strict.service.get("u", locator)).body.state, "withheld");
+    const f = setup({ showUnreviewedBefore: Date.parse("2026-10-30T22:00:00Z") });
+    const legacy = await f.service.get("u", locator);
+    assert.equal(legacy.body.state, "notice");
+    assert.equal(legacy.body.row.content, "God loves the world.");
+    assert.deepEqual(legacy.body.row.metadata.parts, [{ type: "text", text: "God loves the world." }]);
+    assert.equal(Object.prototype.hasOwnProperty.call(legacy.body.row.metadata, "historyVerification"), false);
+    assert.deepEqual(f.counts(), { calls: 0, reservations: 0, chatReservations: 0 });
+    const late = setup({ showUnreviewedBefore: Date.parse("2026-10-29T00:00:00Z") });
+    assert.equal((await late.service.get("u", locator)).body.state, "withheld");
+});
+test("a pre-review answer that failed its check stays withheld", async () => {
+    const f = setup({ showUnreviewedBefore: Date.parse("2026-10-30T22:00:00Z"), verify: async input => ({ ...pass(input), verified: false, semanticPassed: false }) });
+    await f.run();
+    assert.equal((await f.service.get("u", locator)).body.state, "withheld");
+});

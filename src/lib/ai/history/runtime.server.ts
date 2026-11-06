@@ -12,7 +12,7 @@ import { getChapter } from "@/lib/bible/translations";
 import { verifyScriptureDraft } from "@/lib/ai/scripture-verification";
 import { verifyGeneratedAnswer } from "@/lib/ai/verified-generation";
 import { createPrismaHistoryRepository } from "./repository.mjs";
-import { createHistoryService } from "./service.mjs";
+import { createHistoryService, HISTORY_REVIEW_STARTED_AT } from "./service.mjs";
 import { createVerifyOnlyAdapter } from "./verify-only.mjs";
 import { createHistoryPolicyLoader } from "./policy";
 import { historyRenderer } from "./renderer";
@@ -41,7 +41,7 @@ const verifyOnly = createVerifyOnlyAdapter({
  providerOptionsForReview: definition => buildProviderOptions(definition.provider,{...NO_RUN_OPTIONS,effort: "high"},false,definition),
  isQuotaError: error => error instanceof IncludedAiLimitError,
 });
-export const historyService = createHistoryService({repository, loadCurrentPolicy, renderer: historyRenderer, verifyOnly, verifyCanonical: verifyScriptureDraft, loadCanonicalChapter:getChapter,
+export const historyService = createHistoryService({repository, loadCurrentPolicy, renderer: historyRenderer, verifyOnly, showUnreviewedBefore: HISTORY_REVIEW_STARTED_AT, verifyCanonical: verifyScriptureDraft, loadCanonicalChapter:getChapter,
  validateFreshReviewer:identity=>{try{const current=resolveDefinition(identity.id);return Boolean(current&&canonicalJSON(reviewerIdentity(current))===canonicalJSON(identity));}catch{return false;}},
 });
 /** Reuse the actual server-resolved current model, utility meter and bounded allowance. */
@@ -65,7 +65,7 @@ export async function readHistoryList(ownerId: string, surface: HistorySurface, 
   loadSnapshot: () => loadHistoryReadSnapshot(prisma, ownerId, {surface, parentId}, {
    hasCurrentAiConsent, readSubscription: (owner, db) => accountSubscription(owner, db),
   }),
-  createService: (snapshot, canonical) => createHistoryService({repository: snapshot.repository, loadCurrentPolicy, renderer: historyRenderer,
+  createService: (snapshot, canonical) => createHistoryService({repository: snapshot.repository, loadCurrentPolicy, renderer: historyRenderer, showUnreviewedBefore: HISTORY_REVIEW_STARTED_AT,
    ...canonical,
    verifyOnly: async () => { throw new Error("Ordinary history reads cannot request inference."); },
    validateFreshReviewer: identity => {try {const current=resolveDefinition(identity.id);return Boolean(current&&canonicalJSON(reviewerIdentity(current))===canonicalJSON(identity));}catch{return false;}},

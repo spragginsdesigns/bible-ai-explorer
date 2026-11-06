@@ -58,6 +58,9 @@ export function createHistoryReadSnapshot(input, { hasCurrentAiConsent }) {
             return { complete: false, manifest: [] };
         },
         findBinding: async binding => clone(reviews.find(record => bindingKeys.every(key => record[key] === binding[key])) ?? null),
+        // get() looks for the newest settled review of the exact current source; every
+        // loaded review already matches a current source digest.
+        targetVersions: async (locator, reviewId, take) => reviewId || owned(locator) === null ? [] : clone(targetReviews(locator).slice(0, take)),
     };
     const tx = new Proxy(Object.freeze(readMethods), { get(target, key) { return Object.hasOwn(target, key) ? target[key] : key === 'then' || typeof key !== 'string' ? undefined : denied; } });
     return Object.freeze({

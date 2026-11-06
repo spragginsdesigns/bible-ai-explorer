@@ -839,6 +839,11 @@ minutes: every answer, prayer and morning verse grows from knowing them.
 - A welcome they deleted is not recreated on the next launch (auto mode
   answers `not_eligible` once `onboardingConversationId` points at nothing);
   Settings, Walk me through SureWord, still starts a fresh one.
+- An unfinished welcome reopens on launch only until they chat anywhere else
+  (2026-11-06). Once another conversation is newer than the welcome, auto mode
+  answers `not_eligible` and Chat opens where they left off. Austin's own
+  account had a Settings walkthrough left open since 10-28 that took over Chat
+  on every open and hid his latest conversation. Settings still reopens it.
 - `mode: "manual"` comes from Settings, "Walk me through SureWord", for
   anyone: it reopens the account's welcome (clearing `onboardedAt`) or creates
   one. It replaces typing `/onboard`.
@@ -4596,6 +4601,37 @@ Findings stay in memory: they are never logged or stored. Found on the
 emulator against production: "What does Romans 8:28 mean for a believer who is
 suffering?" was withheld because the gate's repair round threw and nothing ran
 again.
+
+### Saved answers stay readable (2026-11-06)
+
+Every saved assistant answer passes through the saved-history review
+(`get` in `src/lib/ai/history/service.mjs`) before a conversation or note
+shows it. Its exact binding pins the checker, implementation, reviewer and
+entitlement digests, which change on ordinary deploys: 25 policies in the
+first week. Each change hid every checked answer behind "This saved answer
+needs a check before it can be shown", and the roughly 1,450 answers saved
+before the review went live on 2026-10-30 (1b72cc0e) had no review at all, so
+every account's older history was hidden. Two rules now come first:
+
+- **A passed review carries over.** The newest review of the same saved text
+  and the same earlier turns (`sourceDigest` and `contextDigest`, integrity
+  rechecked) decides, whatever checker version made it. A later failed or
+  running recheck still wins, so a real failure stays withheld. NKJV answers
+  (bound to live remote chapter bytes) and answers whose reviewer model was
+  retired keep the strict path.
+- **Answers from before review began show as they always did.** An answer
+  created before `HISTORY_REVIEW_STARTED_AT` (2026-10-30T22:00Z) with no review
+  record of any kind returns `notice` with its saved words; the read boundary
+  still keeps only the safe display fields. Production turns this on with
+  `showUnreviewedBefore` in `runtime.server.ts` (both the live service and the
+  batch read snapshot, which now offers `targetVersions`); the service default
+  stays strict, which the existing tests exercise.
+
+Both are server-side, so every installed client gets them. Android 1.113.2
+(141) also draws the review card that remains for genuinely withheld answers
+in theme colors: it was black on the dark theme because `AppText` sets only
+the font family. Tests: the last five cases in `tests/history-service.test.mjs`
+and `mobile/src/features/chat/HistoryReviewCard.test.ts`.
 
 ## Ways to Serve
 

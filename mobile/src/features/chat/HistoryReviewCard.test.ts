@@ -7,7 +7,7 @@ vi.mock("react-native", () => ({ View: "View", Pressable: "Pressable", ActivityI
 vi.mock("@/components/AppText", () => ({ AppText: "Text" }));
 vi.mock("@clerk/expo", () => ({ useAuth: () => ({ userId: mocks.account, sessionId: mocks.session }) }));
 vi.mock("@/features/notes/useStableGetToken", () => ({ useStableGetToken: () => async () => "token" }));
-vi.mock("@/features/settings/settingsStore", () => ({ useTheme: () => ({ colors: { borderStrong: "gray", accent: "gold" } }) }));
+vi.mock("@/features/settings/settingsStore", () => ({ useTheme: () => ({ colors: { borderStrong: "gray", accent: "gold", text: "ink", textMuted: "muted" } }) }));
 vi.mock("@/lib/api", () => ({ API_URL: "https://sureword.app", makeAuthedFetch: () => mocks.fetch, boundedToken: async (token: () => Promise<string>) => token() }));
 vi.mock("expo-file-system", () => ({ Paths: { cache: "cache" }, File: class { uri = "cache/original.json"; delete() { mocks.remove(); } static downloadFileAsync = mocks.download; } }));
 vi.mock("expo-sharing", () => ({ isAvailableAsync: async () => true, shareAsync: mocks.share }));
@@ -67,4 +67,13 @@ it("never renders a forged verified response carrying an explicit withheld marke
 	await act(async () => { root!.root.findAllByType("Pressable" as React.ElementType)[0].props.onPress(); });
 	expect(root!.root.findAllByType("Verified" as React.ElementType)).toHaveLength(0);
 	expect(JSON.stringify(root!.toJSON())).not.toContain("SYNTHETIC UNCHECKED BODY");
+});
+
+// Austin, 2026-11-06: AppText sets only the font family, so the card drew
+// black text on the dark theme and none of it could be read.
+it("draws every line of the card in a theme color", async () => {
+	await act(async () => { root = create(view()); });
+	const lines = root!.root.findAll(node => (node.type as unknown) === "Text");
+	expect(lines.length).toBeGreaterThan(0);
+	for (const line of lines) expect((line.props.style as { color?: string } | undefined)?.color).toMatch(/^(ink|muted|gold)$/);
 });
