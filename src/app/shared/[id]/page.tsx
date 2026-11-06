@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import SharedAnswerView from "@/components/shared/SharedAnswerView";
+import { citedReferences } from "@/lib/share-cards/cited-references";
 import {
 	isSharedAnswerId,
 	shareDescription,
@@ -89,7 +90,7 @@ export default async function SharedAnswerPage({ params }: SharedAnswerParams) {
 		<SharedAnswerView
 			question={share.question}
 			answer={share.answer}
-			references={readReferences(share.references)}
+			references={citedReferences(share.answer, readReferences(share.references))}
 			translation={share.translation}
 		/>
 	);

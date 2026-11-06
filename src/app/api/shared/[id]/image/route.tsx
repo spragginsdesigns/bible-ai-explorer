@@ -17,6 +17,7 @@ import {
 	parseShareCardStyle,
 } from "@/lib/share-cards/layout";
 import { renderShareCard } from "@/lib/share-cards/render";
+import { citedReferences } from "@/lib/share-cards/cited-references";
 
 /**
  * The card for a shared answer (docs/FEATURES.md, "Share an answer" and
@@ -74,9 +75,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 	// instant purge, the short s-maxage still bounds a revoked card.
 	await tagSharedCard(id);
 
-	const references = Array.isArray(share.references)
+	const references = citedReferences(share.answer, Array.isArray(share.references)
 		? share.references.filter((reference): reference is string => typeof reference === "string")
-		: [];
+		: []);
 	return renderShareCard(
 		{
 			kind: "answer",
