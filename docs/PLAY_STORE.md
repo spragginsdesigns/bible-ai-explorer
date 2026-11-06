@@ -5,6 +5,33 @@ Play Console account (display name "LineCrush", account ID 6346962458578497950).
 Apps can be transferred to another account later if that ever changes
 (Console → Settings → App transfer).
 
+## Production
+
+Production access was granted on 2026-11-05. The first production release,
+1.113.0 (versionCode 139), went to Play on 2026-11-06 with Austin's explicit OK,
+after he tested that build from internal testing on his phone. Two one-time
+setup steps were needed first, and both are now done:
+
+1. **The publisher service account needed the production permission.** The
+   first API attempt failed at the edit commit with `403 The caller does not
+   have permission`. The fix was Users and permissions >
+   `sureword-play-publisher@versemind-auth.iam.gserviceaccount.com` > SureWord >
+   Manage permissions > tick "Release to production, exclude devices, and use
+   Play App Signing" > Apply > Save changes > Yes. That permission is on SureWord
+   only, not account-wide.
+2. **Production had no countries.** The next attempt failed with `403 Release
+   in track targeting no countries`. The API cannot set country availability,
+   so it was set in the console (Production > Countries / regions > select all
+   > Save) to the same 177 countries plus rest of world that closed testing
+   targets.
+
+After that, `SUREWORD_ALLOW_SLOW_TRACK=1 node mobile/scripts/play-promote.mjs
+--track production --code 139` committed, and the read-back showed production
+`1.113.0 139 completed`. Managed publishing is off, so Play ran its quick checks
+and sent the release and the country change straight to review. Production
+still needs Austin's explicit OK for each release: `push-phone.sh` only
+publishes internal and closed testing.
+
 ## The signing setup (do not lose this)
 
 | Thing | Where |

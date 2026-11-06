@@ -5,6 +5,11 @@ The exact text for SureWord's Play Store page. Start at
 [`app-store.md`](app-store.md), and `tests/store-listing-parity.test.mjs`
 keeps the two identical.
 
+**Production, 2026-11-06:** 1.113.0 (code 139) was sent to Play production,
+SureWord's first public Play release, targeting 177 countries plus rest of
+world. `play-listing.mjs check` the same day reported that the live listing
+matches this file.
+
 **Live listing checked 2026-11-03:** `play-listing.mjs apply` followed by
 `check` matched the copy below for the 1.112.1/code 137 release. Internal and
 closed tracks both read back code 137; closed-tester delivery is a separate gate.

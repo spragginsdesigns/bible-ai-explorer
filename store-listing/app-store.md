@@ -4,6 +4,10 @@ The exact text for SureWord's App Store page. Start at
 [`store-listing/README.md`](README.md); the Play twin is
 [`play-store.md`](play-store.md).
 
+**Live 1.31.0 (1), checked 2026-11-06:** App Store Connect reads 1.31.0
+build 1 as READY_FOR_SALE (approved and released automatically), so public iOS
+is 1.31.0, no longer 1.26.0. The submission record below is kept as history.
+
 **Submitted 1.31.0 (1), 2026-11-03:** `asc.py listing apply` and `check`
 matched this copy. The version and submission read back WAITING_FOR_REVIEW,
 with automatic release AFTER_APPROVAL. The exact build is VALID and attached
