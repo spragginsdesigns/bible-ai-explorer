@@ -46,6 +46,7 @@ import {
 } from "@/lib/ai/status-narration";
 import { createProgressNarration, progressProviderOptions } from "@/lib/ai/progress-narration";
 import { createProgressSummarizer } from "@/lib/ai/progress-summary";
+import { CHECK_STEP, correctionStep } from "@/lib/ai/check-step-labels";
 import { SCRIPTURE_OUTPUT_GUIDANCE, verifyGeneratedAnswer } from "@/lib/ai/verified-generation";
 import { releaseVerifiedAnswer } from "@/lib/ai/verified-answer-stream";
 import { releaseCertifiedFreshTurn,releaseFreshRequestRefusal,textBlocksOf,withTextBlocks } from "@/lib/ai/history/fresh-stream";
@@ -1052,8 +1053,8 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 				const checkingStatus = (label: string) => { if (label === lastStatus) return; lastStatus=label;legacyStatus(label);progress.status(label, false); };
 				// Said plainly, so a longer wait reads as care rather than a stall.
 				let corrections = 0;
-				const correctingStatus = () => checkingStatus(++corrections === 1 ? "Found a mistake in the first answer, correcting it now" : "Found another problem, correcting it again");
-				const recheckStatus = () => checkingStatus("Reviewing the corrected answer against Scripture");
+				const correctingStatus = () => checkingStatus(correctionStep(++corrections));
+				const recheckStatus = () => checkingStatus(CHECK_STEP.recheck);
 				try {
 					writeStatus("Getting ready");
 
@@ -1455,7 +1456,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 							sendReasoning: false,
 						}),
 						write: (chunk) => finalChunks.push(chunk),
-						onChecking: () => checkingStatus("Checking Scripture quotations and citations"),
+						onChecking: () => checkingStatus(CHECK_STEP.checking),
 						// The gate repairs once by itself; a draft it still withholds gets
 						// up to two more complete rounds (see answer-gate-retry.ts) while a
 						// whole round fits before 225s, so the final review keeps its time.
@@ -1501,7 +1502,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 					// "Work completed" while the answer is still being checked.
 					const progressFailed = metricError !== null || notice !== null || !checkedAnswer.verified;
 					if (conversationId) {
-						if (checkedAnswer.verified) checkingStatus("Final check against Scripture");
+						if (checkedAnswer.verified) checkingStatus(CHECK_STEP.final);
 						const certification = await releaseCertifiedFreshTurn({ownerId:userId,locator:{surface:"chat",parentId:conversationId,messageId:responseMessageId},chunks:finalChunks,preparedRequest,translation,language,actions:executedActions,service:historyService,
 							// Each final review keeps its own 60s bound; the whole release,
 							// including repair rounds, ends by 270s so certification, the
@@ -1522,7 +1523,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 								if(!blocks.some(block=>block.text.trim()))return null;
 								const revised=await verifyGeneratedAnswer(blocks,{...reviewOptions,priorReview:review,timeoutMs:Math.min(75_000,remaining-80_000),
 									beforeReview:async()=>recheckStatus()});
-								if(revised.verified)checkingStatus("Final check against Scripture");
+								if(revised.verified)checkingStatus(CHECK_STEP.final);
 								return revised.verified?withTextBlocks(chunks,revised.blocks):null;
 							}:undefined,
 							metadata:{...(resolvedModelId?{modelId:resolvedModelId}:{}),...(resolvedRun.speed?{speed:resolvedRun.speed}:{}),...(resolvedRun.verbosity?{verbosity:resolvedRun.verbosity}:{}),...(resolvedRun.mode?{mode:resolvedRun.mode}:{}),...(resolvedRun.turnShape?{turnShape:resolvedRun.turnShape}:{})},

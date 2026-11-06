@@ -206,7 +206,16 @@ reader is told what is happening. While one of these steps runs the ten-second
 heartbeat counts as activity, so no client shows "Still waiting for the
 response. No new update yet." under a step that is actively running. Web,
 Android and the shared Apple view (iOS and macOS) all render this one server
-snapshot, so store builds already out get it without an update. The certified release still
+snapshot, so store builds already out get it without an update. The labels
+live in `src/lib/ai/check-step-labels.ts`, and the landing page's guest box
+(`/api/guest/ask`, also on `/v/[slug]`) shows the same lines in place of its
+fixed "Searching the Scriptures…": it sends `x-sureword-status: 1`, and the
+route writes each step as one `\u001e`-prefixed line ahead of the answer
+(`splitGuestStream` in `src/lib/guest-client.ts`); a request without the
+header gets the old plain stream. Web only, 2026-11-06 (`ef9dd1ec`): a page
+loaded on `?conversationId=` no longer jumps back to that chat about ten
+seconds after New Chat and a send, which had hidden the new answer and its
+live trail. The certified release still
 leaves progress out of the reviewed, saved envelope (`fresh-stream.ts`), so a
 reopened answer keeps its "Worked for…" row but not the live step list. A draft
 that already failed the exact-text check for a repairable reason (misquote,

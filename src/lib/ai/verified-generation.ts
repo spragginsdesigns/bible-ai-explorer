@@ -327,14 +327,18 @@ export async function verifyGeneratedAnswer(blocks: AnswerBlock[], options: Veri
 }
 
 /** A plain-text stream backed by the same verified promise used for persistence. */
-export function verifiedTextStream(answer: Promise<string>, heartbeatMs = 10_000): ReadableStream<string> {
+export function verifiedTextStream(answer: Promise<string>, heartbeatMs = 10_000,
+	/** Opt-in progress lines before the answer; never answer text. */
+	status?: (push: (line: string) => void) => void): ReadableStream<string> {
 	let cancelled = false;
+	let settled = false;
 	let timer: ReturnType<typeof setInterval> | undefined;
 	return new ReadableStream({ start(controller) {
 		// Native clients enforce a receive-idle timeout. Blank lines keep the
 		// connection alive without displaying a single unverified word.
 		timer = setInterval(() => { if (!cancelled) controller.enqueue("\n"); }, heartbeatMs);
 		timer.unref?.();
-		void answer.then(text => { if (!cancelled) { controller.enqueue(text); controller.close(); } }, error => { if (!cancelled) controller.error(error); }).finally(() => clearInterval(timer));
+		status?.(line => { if (!cancelled && !settled) controller.enqueue(line); });
+		void answer.then(text => { settled = true; if (!cancelled) { controller.enqueue(text); controller.close(); } }, error => { settled = true; if (!cancelled) controller.error(error); }).finally(() => clearInterval(timer));
 	}, cancel() { cancelled = true; clearInterval(timer); } });
 }

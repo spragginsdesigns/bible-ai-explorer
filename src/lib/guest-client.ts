@@ -10,6 +10,25 @@
  */
 export const GUEST_PENDING_KEY = "sureword.guestPending";
 
+/**
+ * The guest box asks for step lines with this header; each arrives before
+ * the answer as one line starting with GUEST_STATUS_MARK. A request without
+ * the header (a tab opened before this shipped) gets the old plain stream.
+ */
+export const GUEST_STATUS_HEADER = "x-sureword-status";
+export const GUEST_STATUS_MARK = "\u001e";
+
+/** Splits status lines from the answer text; the latest status wins. */
+export function splitGuestStream(text: string): { status: string | null; answer: string } {
+	let status: string | null = null;
+	const kept: string[] = [];
+	for (const line of text.split("\n")) {
+		if (line.startsWith(GUEST_STATUS_MARK)) status = line.slice(GUEST_STATUS_MARK.length).trim() || status;
+		else kept.push(line);
+	}
+	return { status, answer: kept.join("\n") };
+}
+
 let claimInFlight: Promise<string | null> | null = null;
 let claimOpened = false;
 

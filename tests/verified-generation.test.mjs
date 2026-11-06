@@ -236,6 +236,21 @@ test("plain stream emits only blank keepalives until decision, then closes clean
 	await hold;
 });
 
+test("opt-in status lines arrive before the answer and stop once it is decided", async () => {
+	const module = load();
+	let decide, push;
+	const answer = new Promise(resolve => { decide = resolve; });
+	const reader = module.verifiedTextStream(answer, 1000, p => { push = p; }).getReader();
+	push("\u001eFound a mistake in the first answer, correcting it now\n");
+	assert.equal((await reader.read()).value, "\u001eFound a mistake in the first answer, correcting it now\n");
+	decide("Checked answer.");
+	await delay(5);
+	push("\u001eLate step\n");
+	let text = "";
+	for (;;) { const chunk = await reader.read(); if (chunk.done) break; text += chunk.value; }
+	assert.equal(text, "Checked answer.");
+});
+
 test("cancelled plain stream ignores late answer and late provider failure", async () => {
 	const module = load();
 	for (const rejectLate of [false, true]) {

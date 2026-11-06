@@ -9,7 +9,7 @@ import { stripFollowUpMarkers } from "@/utils/assistantMarkdown";
 import { commonQuestions } from "@/utils/commonQuestions";
 import { durationBucket } from "@/lib/analytics/events";
 import { trackGuestAnswer, trackGuestLimit, trackLandingCta } from "@/lib/analytics/client";
-import { GUEST_PENDING_KEY } from "@/lib/guest-client";
+import { GUEST_PENDING_KEY, GUEST_STATUS_HEADER, splitGuestStream } from "@/lib/guest-client";
 import styles from "./guest-ask.module.css";
 
 /**
@@ -77,7 +77,7 @@ export default function GuestAsk({
 		try {
 			const response = await consentFetch("/api/guest/ask", {
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
+				headers: { "Content-Type": "application/json", [GUEST_STATUS_HEADER]: "1" },
 				body: JSON.stringify({ question }),
 			});
 
@@ -115,6 +115,7 @@ export default function GuestAsk({
 				);
 			}
 			text += decoder.decode();
+			text = splitGuestStream(text).answer;
 
 			if (!stripFollowUpMarkers(text, { streaming: false }).trim()) {
 				dropLastTurn();
@@ -171,7 +172,9 @@ export default function GuestAsk({
 			{turns.length > 0 && (
 				<div className={styles.thread} aria-live="polite">
 					{turns.map((turn, index) => {
-						const shown = stripFollowUpMarkers(turn.answer, { streaming: !turn.done });
+						// While it is checked, the route sends step lines ahead of the answer.
+						const { status, answer } = splitGuestStream(turn.answer);
+						const shown = stripFollowUpMarkers(answer, { streaming: !turn.done });
 						return (
 							<article key={index} className={styles.turn}>
 								<p className={styles.question}>{turn.question}</p>
@@ -180,7 +183,7 @@ export default function GuestAsk({
 										<PublicAnswerMarkdown answer={shown} translation="KJV" />
 									</div>
 								) : (
-									<p className={styles.searching}>Searching the Scriptures…</p>
+									<p className={styles.searching}>{status ?? "Searching the Scriptures"}…</p>
 								)}
 							</article>
 						);

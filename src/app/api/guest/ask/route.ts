@@ -10,6 +10,8 @@ import { plainDashes } from "@/lib/ai/plain-dashes";
 import { SCRIPTURE_OUTPUT_GUIDANCE, verifyGeneratedAnswer, verifiedTextStream } from "@/lib/ai/verified-generation";
 import { chatSystemPrompt } from "@/utils/systemPrompt";
 import { stripFollowUpMarkers } from "@/utils/assistantMarkdown";
+import { CHECK_STEP, correctionStep } from "@/lib/ai/check-step-labels";
+import { GUEST_STATUS_HEADER, GUEST_STATUS_MARK } from "@/lib/guest-client";
 import {
 	GUEST_COOKIE,
 	GUEST_RETENTION_DAYS,
@@ -176,13 +178,26 @@ export async function POST(req: Request) {
 		onError: ({ error }) => console.error("Guest answer failed:", error),
 	});
 
+	// The same step lines as the chat's work trail, for a box that asked for
+	// them; a step that runs before the stream exists is replayed into it.
+	let pushStatus: ((line: string) => void) | null = null;
+	let pendingStatus: string | null = null;
+	const status = (label: string) => {
+		const line = `${GUEST_STATUS_MARK}${label}
+`;
+		if (pushStatus) pushStatus(line); else pendingStatus = line;
+	};
+	let corrections = 0;
 	// The review covers preambles from every tool step, not just result.text's
 	// final step. One checked result feeds both the browser and the claimed history.
 	const checkedAnswer = (async () => {
 		const steps = await result.steps;
+		status(CHECK_STEP.checking);
 		const checked = await verifyGeneratedAnswer(
 			steps.map((step, index) => ({ id: `guest-${index}`, text: step.text })),
-			{ model: verificationModel, providerOptions: resolved.providerOptions, translation: "KJV", question },
+			{ model: verificationModel, providerOptions: resolved.providerOptions, translation: "KJV", question,
+				beforeRepair: () => status(correctionStep(++corrections)),
+				beforeReview: async () => { if (corrections > 0) status(CHECK_STEP.recheck); } },
 		);
 		return { ...checked, answer: stripFollowUpMarkers(checked.blocks.map(block => block.text).join("\n\n"), { streaming: false }).trim() };
 	})();
@@ -198,7 +213,10 @@ export async function POST(req: Request) {
 	}));
 
 	const response = createTextStreamResponse({
-		stream: verifiedTextStream(verifiedAnswer),
+		stream: verifiedTextStream(verifiedAnswer, undefined, req.headers.get(GUEST_STATUS_HEADER) === "1" ? (push) => {
+			pushStatus = push;
+			if (pendingStatus) push(pendingStatus);
+		} : undefined),
 		headers: {
 			"Cache-Control": "no-store",
 			"X-Guest-Remaining": String(quota.remaining),

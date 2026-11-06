@@ -99,7 +99,9 @@ test("server SSE drain completes verified persistence after a client disconnect"
 test("route boundaries use checked output for guest history, Notes, and fresh insights", () => {
 	const guest = source("src/app/api/guest/ask/route.ts");
 	assert.match(guest, /steps\.map\(\(step, index\) =>/);
-	assert.match(guest, /stream: verifiedTextStream\(verifiedAnswer\)/);
+	// Step lines only when the box asks for them, and never answer text.
+	assert.match(guest, /stream: verifiedTextStream\(verifiedAnswer, undefined, req\.headers\.get\(GUEST_STATUS_HEADER\) === "1" \?/);
+	assert.match(guest, /beforeRepair: \(\) => status\(correctionStep\(\+\+corrections\)\)/);
 	assert.match(guest, /if \(!checked\.verified \|\| !checked\.answer\)/);
 	assert.match(guest, /data: \{ answer: checked\.answer \}/);
 	const note = source("src/app/api/note-ai/route.ts");
