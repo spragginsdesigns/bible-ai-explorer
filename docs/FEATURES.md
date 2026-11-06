@@ -4531,6 +4531,36 @@ reply drafting and canonical verse insight. Neither script prints credentials.
 The answer fixture catalog contains 56 cases; doctrinal and application
 quality remain a human review alongside mechanical checks.
 
+### Before an answer is withheld: correct and check again (2026-11-05)
+
+A chat answer is shown only after two checks pass: the pre-display gate
+(`verifyGeneratedAnswer` → `gateAnswer`: the mechanical source check, an
+independent review, and one repair that is reviewed again), then the final
+verify-only review in `releaseCertifiedFreshTurn`. Until 2026-11-05 either one
+failing once sent "I couldn't finish checking this answer against Scripture"
+(11 of 26 answers on 2026-11-04). Neither check is relaxed now; failures get
+more rounds instead:
+
+- **Pre-display gate** (`gateWithRetries`, `src/lib/ai/answer-gate-retry.ts`):
+  a draft it still withholds runs the whole gate again, up to two more
+  rounds. A rejection's next round starts by repairing against that
+  rejection's findings; a thrown review or repair (`verification_unavailable`,
+  a provider error or structured output that did not parse) starts over from
+  the draft. A round starts only while a whole one (45 s) fits before 225 s.
+  `answer_limit`, `verification_context_limit` and `repair_not_allowed` stop
+  at once. A thrown step logs `[scripture-gate] step failed` with the error
+  name, status code and finish reason only; each extra round logs
+  `[scripture-gate-retry]`.
+- **Final review** (`revise` in the chat route, 3989c583): a clean rejection of
+  an answer the gate approved is repaired against its findings, passes the
+  whole gate again, and then the same final review, at most two rounds,
+  within 270 s.
+
+Findings stay in memory: they are never logged or stored. Found on the
+emulator against production: "What does Romans 8:28 mean for a believer who is
+suffering?" was withheld because the gate's repair round threw and nothing ran
+again.
+
 ## Ways to Serve
 
 Optional, free ways to put faith into action (GitHub issue #28, Austin

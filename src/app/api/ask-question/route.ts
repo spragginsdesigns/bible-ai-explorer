@@ -53,6 +53,7 @@ import {preparedRequestReviewContext} from "@/lib/ai/history/prepared-request.mj
 import { reviewedAssistantTurns } from "@/lib/ai/history/model-context";
 import type { PreparedAttachment,ExecutedHistoryAction } from "@/lib/ai/history/contracts";
 import type { AnswerBlock } from "@/lib/ai/answer-gate";
+import { gateErrorSummary, gateWithRetries } from "@/lib/ai/answer-gate-retry";
 import { readSavedNoteEvidence, successfulNoteWriteId } from "@/lib/ai/note-write-evidence";
 import { withoutOrphanedOpenAIReferences } from "@/lib/chat/modelHistory";
 import { assistantHistoryIds, HISTORY_EVIDENCE_GUIDANCE, trustedAssistantHistory } from "@/lib/chat/trusted-history";
@@ -1358,9 +1359,16 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 						}),
 						write: (chunk) => finalChunks.push(chunk),
 						onChecking: () => writeStatus("Checking Scripture quotations and citations"),
-						verify: async (blocks) => verifyGeneratedAnswer(blocks, { ...await answerReviewOptions(),
-							timeoutMs: Math.min(75_000, 225_000 - (Date.now() - turnStartedAtMs)),
-						}),
+						// The gate repairs once by itself; a draft it still withholds gets
+						// up to two more complete rounds (see answer-gate-retry.ts) while a
+						// whole round fits before 225s, so the final review keeps its time.
+						verify: async (blocks) => {
+							const reviewOptions = await answerReviewOptions();
+							return gateWithRetries(({ priorReview, timeoutMs }) => verifyGeneratedAnswer(blocks, { ...reviewOptions,
+								...(priorReview ? { priorReview } : {}), timeoutMs,
+								onError: (error) => console.warn("[scripture-gate] step failed", JSON.stringify(gateErrorSummary(error))),
+							}), { remainingMs: () => 225_000 - (Date.now() - turnStartedAtMs), maxExtraRounds: 2, minRoundMs: 45_000, maxRoundMs: 75_000 });
+						},
 					});
 					await consumption;
 					// A welcome step answered with no card after it strands them with
