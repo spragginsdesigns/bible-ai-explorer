@@ -159,11 +159,31 @@ export async function verifyGeneratedAnswer(blocks: AnswerBlock[], options: Veri
 		try {
 			const evidence = await surroundingEvidence(checked);
 			// Nearby verses expose changes of speaker and negated/contextual claims.
-			const allContextVerses = evidence.flatMap(ref => ref.verses);
-			if (options.historyReview && allContextVerses.length > 120) { sourceBoundExceeded = true; throw new Error("Saved history canonical context exceeds complete review bounds"); }
-			const context = await Promise.all((options.historyReview ? allContextVerses : allContextVerses.slice(0, 120)).map(async verse => {
-				const chapter = await getChapter(options.translation, verse.order, verse.chapter);
-				return { order: verse.order, chapter: verse.chapter, verses: chapter.slice(Math.max(0, verse.verse - 3), verse.verse + 2).map((text, i) => ({ verse: Math.max(1, verse.verse - 2) + i, text })) };
+			// Keep every citation occurrence in evidence, but transmit overlapping
+			// chapter neighborhoods once with their explicit verse coordinates.
+			const targets = new Map<string, { order: number; chapter: number; verse: number; text: string }>();
+			for (const verse of evidence.flatMap(ref => ref.verses)) {
+				if (!Number.isInteger(verse.order) || verse.order < 1 || verse.order > 66 || !Number.isInteger(verse.chapter) || verse.chapter < 1 || !Number.isInteger(verse.verse) || verse.verse < 1 || typeof verse.text !== "string") throw new Error("Invalid canonical neighborhood coordinate");
+				const key = `${verse.order}:${verse.chapter}:${verse.verse}`;
+				const previous = targets.get(key);
+				if (previous && previous.text !== verse.text) throw new Error("Conflicting canonical target words");
+				if (!previous) targets.set(key, verse);
+			}
+			if (options.historyReview && targets.size > 120) { sourceBoundExceeded = true; throw new Error("Saved history canonical context exceeds complete review bounds"); }
+			const chapters = new Map<string, { order: number; chapter: number; targets: number[] }>();
+			for (const verse of [...targets.values()].slice(0, 120)) {
+				const key = `${verse.order}:${verse.chapter}`;
+				let chapter = chapters.get(key);
+				if (!chapter) { chapter = { order: verse.order, chapter: verse.chapter, targets: [] }; chapters.set(key, chapter); }
+				chapter.targets.push(verse.verse);
+			}
+			const context = await Promise.all([...chapters.values()].sort((a, b) => a.order - b.order || a.chapter - b.chapter).map(async group => {
+				const chapter = await getChapter(options.translation, group.order, group.chapter);
+				const neighbors = new Set<number>();
+				for (const verse of group.targets) {
+					for (let neighbor = Math.max(1, verse - 2); neighbor <= Math.min(chapter.length, verse + 2); neighbor++) neighbors.add(neighbor);
+				}
+				return { order: group.order, chapter: group.chapter, verses: [...neighbors].sort((a, b) => a - b).map(verse => ({ verse, text: chapter[verse - 1] })) };
 			}));
 			const questionEvidence = await canonicalCheck(question, "question", { maxVerses: 120 });
 			// Receipts and open-note material are not Scripture authority. Re-read

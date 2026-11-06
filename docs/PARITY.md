@@ -29,6 +29,15 @@ distinct validated translation/book/chapter/verse coordinates after checking
 every copy; repeated reads cannot borrow approval for altered words. Source
 entries, blocks and prose keep their independent bounds.
 
+The live Pro condemnation test exposed another complete-request overflow: 272,936
+characters against the unchanged 256k cap, with 249 seconds still available in
+the request. Canonical review neighborhoods now union overlapping two-before and
+two-after windows per chapter with explicit verse coordinates. Every original
+citation occurrence, offset, source word, block and required context remains.
+The SDK regression retains the exact old coordinate/word union while shrinking
+a 294,808-character request to 213,992 characters. This is evidence compaction,
+not a timeout increase or reduced review coverage.
+
 Every chat turn emits correlated INFO events under `[ai.turn]`. The response
 header `x-sureword-trace-id` links validation, context loaders, tools, model
 steps, canonical checks, review and repair, certification, persistence and stream
