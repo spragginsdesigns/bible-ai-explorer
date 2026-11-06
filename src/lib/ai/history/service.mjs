@@ -4,7 +4,8 @@ import { isHistorySerializationConflict } from './transaction-conflicts.mjs';
 import { projectHistory, digest, canonicalJSON, matchesStoredReview, FIXED_NOTICES, historyAISourceRow } from './projection.mjs';
 import { freshActionManifest, isFixedNoteReceiptFallback, createFreshPreparation, readFreshPreparation, readFreshHistoryProof } from './fresh-proof.mjs';
 import {createPreparedRequest,readPreparedRequest,preparedDependenciesMatch} from './prepared-request.mjs';
-export const LIMITS = Object.freeze({ prefixRows: 80, contextChars: 64000, questionChars: 16000, leaseMs: 90000, verifyMs: 60000, retryMs: 60000, exportBytes: 2000000 });
+import {HISTORY_REVIEW_CONTEXT_CHARS} from '../verification-limits.mjs';
+export const LIMITS = Object.freeze({ prefixRows: 80, contextChars: HISTORY_REVIEW_CONTEXT_CHARS, questionChars: 16000, leaseMs: 90000, verifyMs: 60000, retryMs: 60000, exportBytes: 2000000 });
 const SAFE_CODES = new Set(['not_found', 'not_assistant', 'source_changed', 'context_changed', 'policy_changed', 'consent_required', 'pending', 'account_busy', 'lease_expired', 'retry_later', 'source_limit', 'context_limit', 'context_incomplete', 'context_ambiguous', 'missing_question', 'unknown_translation', 'unsupported_attachment_context', 'projection_refused', 'notice_has_unreviewed_extras', 'action_proof_missing', 'canonical_rejected', 'semantic_rejected', 'review_changed_text', 'reviewer_changed', 'verification_unavailable', 'verification_timeout', 'quota_exhausted', 'stale_lease', 'original_limit', 'review_required', 'unversioned_corpus']);
 export class HistoryError extends Error {
     constructor(code, status = 422, retryAfter = null) { super(code); this.code = SAFE_CODES.has(code) ? code : 'verification_unavailable'; this.status = status; this.retryAfter = retryAfter; }
@@ -129,23 +130,30 @@ async function build(tx, ownerId, locator, policy, renderer, freshBundle = null,
         }
     }
     if (!policy.supportedTranslations.includes(context.translation)&&!isExactNotice(candidate)&&!isFixedNoteReceiptFallback(sourceSnapshot,durableManifest)) return block('unversioned_corpus');
+    let contextChars=0,reviewContextChars=0,canonicalReviewContextChars=0;
+    const contextLimit=()=>{
+        try { console.info('[HistoryContextLimit]',{contextChars,reviewContextChars,canonicalReviewContextChars,limit:LIMITS.contextChars,questionChars:context.question.length,preparedSystemContextChars:prepared?.systemContext?.length??0,sourceSystemContextChars:prepared?.sourceSystemContext?.length??0,actions:candidate.review.actions.length,canonicalSources:candidate.review.canonicalSources.length,blocks:candidate.review.blocks.length}); } catch { /* Diagnostics cannot affect the fail-closed result. */ }
+        return block('context_limit');
+    };
     try {
-        if (context.question.length > LIMITS.questionChars || canonicalJSON(context).length > LIMITS.contextChars)
-            return block('context_limit');
-        // Required history context uses the explicit complete 64k internal
+        contextChars=canonicalJSON(context).length;
+        if (context.question.length > LIMITS.questionChars || contextChars > LIMITS.contextChars)
+            return contextLimit();
+        // Required history context uses the explicit complete 128k internal
         // verifier option; never silently trim it to the ordinary 16k default.
         const reviewContext = reviewEnvelope(prepared?.logical?{...context,preparedRequest:prepared.logical,preparedSystemContext:prepared.systemContext}:context,candidate);
         const canonicalReviewContext = prepared?.logical
             ? reviewEnvelope({...context,preparedRequest:prepared.logical,preparedSystemContext:prepared.sourceSystemContext??prepared.systemContext},candidate)
             : reviewContext;
-        if (reviewContext.length > LIMITS.contextChars || canonicalReviewContext.length > LIMITS.contextChars)
-            return block('context_limit');
+        reviewContextChars=reviewContext.length;canonicalReviewContextChars=canonicalReviewContext.length;
+        if (reviewContextChars > LIMITS.contextChars || canonicalReviewContextChars > LIMITS.contextChars)
+            return contextLimit();
         const binding = checkedBinding(sourceSnapshot, context, policy, candidate.display, candidate.review);
         candidate = { ...candidate, binding };
         return { sourceSnapshot, context, policy, candidate, display: candidate.display, review: candidate.review, binding, requiresActionProof: candidate.review.requiresActionProof, reviewContext, canonicalReviewContext, externalChapters:prepared?.external?.evidence?.chapters??[] };
     }
     catch {
-        return block('context_limit');
+        return contextLimit();
     }
 }
 function recordData(built, locator, ownerId, now) { return { ownerId, mainMessageId: locator.surface === 'chat' ? locator.messageId : null, noteAiMessageId: locator.surface === 'note' ? locator.messageId : null, ...built.binding, sourceSnapshot: clone(built.sourceSnapshot), sanitizedDisplay: clone(built.display), requiresActionProof: built.requiresActionProof, canonicalPassed: false, semanticPassed: false, actionProofPassed: false, reviewerModelId: null, issueCodes: built.code ? [built.code] : [], createdAt: now, updatedAt: now, checkedAt: null }; }

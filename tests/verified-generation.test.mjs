@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
+import {HISTORY_REVIEW_CONTEXT_CHARS, COMPLETE_VERIFICATION_REQUEST_CHARS} from '../src/lib/ai/verification-limits.mjs';
 import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { setTimeout as delay } from "node:timers/promises";
 import test from "node:test";
 import { Output } from "ai";
 import { z } from "zod";
+import { traceTurn, classifyTurnError } from "../src/lib/ai/turn-trace.ts";
 import { gateAnswer } from "../src/lib/ai/answer-gate.ts";
 import { createDashStripper } from "../src/lib/ai/plain-dashes.ts";
 
@@ -12,7 +14,7 @@ import { createDashStripper } from "../src/lib/ai/plain-dashes.ts";
 // Its orchestration, deadline, coverage checks, real gate and dash handling run unchanged.
 const production = stripTypeScriptTypes(readFileSync(new URL("../src/lib/ai/verified-generation.ts", import.meta.url), "utf8")
 	.replace(/^import .*;\n/gm, "").replace(/^export /gm, ""));
-const compile = new Function("generateText", "Output", "z", "doctrinalFoundation", "getChapter", "verifyScriptureDraft", "gateAnswer", "createDashStripper", "console", `${production}\nreturn { verifyGeneratedAnswer, verifiedTextStream, VERIFICATION_UNAVAILABLE };`);
+const compile = new Function("generateText", "Output", "z", "doctrinalFoundation", "getChapter", "verifyScriptureDraft", "gateAnswer", "createDashStripper", "console",'HISTORY_REVIEW_CONTEXT_CHARS','COMPLETE_VERIFICATION_REQUEST_CHARS', 'traceTurn', 'classifyTurnError', `${production}\nreturn { verifyGeneratedAnswer, verifiedTextStream, VERIFICATION_UNAVAILABLE };`);
 const reference = (name = "John 3:16") => ({ reference: name, verses: [{ order: 43, chapter: 3, verse: 16, text: "Canonical Scripture words." }] });
 const checked = (text, refs = [], extra = {}) => ({ text, ok: true, issues: [], references: refs, originalEvidence: [], ...extra });
 const options = extra => ({ model: { test: true }, providerOptions: { openai: { reasoningEffort: "low" } }, translation: "KJV", question: "Explain the passage.", ...extra });
@@ -22,7 +24,7 @@ function load(overrides = {}) {
 	const requests = [];
 	const verify = overrides.verifyScriptureDraft ?? (async text => checked(text));
 	const generate = overrides.generateText ?? (async request => ({ output: pass(JSON.parse(request.prompt)) }));
-	const module = compile(async request => { requests.push(request); return generate(request); }, Output, z, "FIXED FOUNDATION FIXTURE", overrides.getChapter ?? (async () => Array.from({ length: 30 }, (_, i) => `Canonical verse ${i + 1}`)), verify, gateAnswer, createDashStripper, { info() {} });
+	const module = compile(async request => { requests.push(request); return generate(request); }, Output, z, "FIXED FOUNDATION FIXTURE", overrides.getChapter ?? (async () => Array.from({ length: 30 }, (_, i) => `Canonical verse ${i + 1}`)), verify, gateAnswer, createDashStripper, { info() {} }, HISTORY_REVIEW_CONTEXT_CHARS, COMPLETE_VERIFICATION_REQUEST_CHARS, traceTurn, classifyTurnError);
 	return { ...module, requests };
 }
 

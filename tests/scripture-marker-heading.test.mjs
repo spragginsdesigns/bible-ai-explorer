@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import {traceTurn, classifyTurnError} from '../src/lib/ai/turn-trace.ts';
+import {HISTORY_REVIEW_CONTEXT_CHARS, COMPLETE_VERIFICATION_REQUEST_CHARS} from '../src/lib/ai/verification-limits.mjs';
 import {readFileSync} from "node:fs";
 import {stripTypeScriptTypes} from "node:module";
 import test from "node:test";
@@ -116,7 +118,7 @@ test("intervening prose is never consumed as a matching heading",async()=>{
 test("actual SDK repair re-expansion presents exactly one label to second review",async t=>{
   t.mock.method(globalThis,"fetch",forbidden);
   const generation=stripTypeScriptTypes(read("src/lib/ai/verified-generation.ts").replace(/^import .*;\n/gm,"").replace(/^export /gm,""));
-  const {verifyGeneratedAnswer}=new Function("generateText","Output","z","doctrinalFoundation","getChapter","verifyScriptureDraft","gateAnswer","createDashStripper","console",generation+"\nreturn {verifyGeneratedAnswer};")(generateText,Output,z,"FIXED FOUNDATION",chapter,verifyScriptureDraft,gateAnswer,createDashStripper,{info(){}});
+  const {verifyGeneratedAnswer}=new Function("generateText","Output","z","doctrinalFoundation","getChapter","verifyScriptureDraft","gateAnswer","createDashStripper","console",'HISTORY_REVIEW_CONTEXT_CHARS','COMPLETE_VERIFICATION_REQUEST_CHARS','traceTurn','classifyTurnError',generation+"\nreturn {verifyGeneratedAnswer};")(generateText,Output,z,"FIXED FOUNDATION",chapter,verifyScriptureDraft,gateAnswer,createDashStripper,{info(){}},HISTORY_REVIEW_CONTEXT_CHARS,COMPLETE_VERIFICATION_REQUEST_CHARS,traceTurn,classifyTurnError);
   let reviews=0,repairs=0;
   const model=new MockLanguageModelV4({doGenerate:async options=>{
     const prompt=JSON.parse(options.prompt.find(m=>m.role==="user").content.find(p=>p.type==="text").text);

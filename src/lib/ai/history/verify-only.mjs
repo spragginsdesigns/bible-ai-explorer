@@ -1,8 +1,9 @@
 /** Concrete DI bridge to existing canonical verifier/model meter. No real provider import/call here. */
 import { HistoryError } from './service.mjs';
+import { HISTORY_REVIEW_CONTEXT_CHARS } from '../verification-limits.mjs';
 export function createVerifyOnlyAdapter({ houseChatModel, resolveVerificationModel, providerOptionsForReview, verifyScriptureDraft, verifyGeneratedAnswer, isQuotaError = () => false, allowEvidenceCompletion = false }) {
     return async (input) => {
-        if (input.allowRepair !== false || input.question.length > 16000 || input.context.length > 64000 || (input.canonicalContext!==undefined&&(typeof input.canonicalContext!=='string'||input.canonicalContext.length>64000)) || input.blocks.length > 32 || input.blocks.reduce((n, b) => n + b.text.length, 0) > 80000)
+        if (input.allowRepair !== false || input.question.length > 16000 || input.context.length > HISTORY_REVIEW_CONTEXT_CHARS || (input.canonicalContext!==undefined&&(typeof input.canonicalContext!=='string'||input.canonicalContext.length>HISTORY_REVIEW_CONTEXT_CHARS)) || input.blocks.length > 32 || input.blocks.reduce((n, b) => n + b.text.length, 0) > 80000)
             throw new HistoryError('context_limit');
         input.signal.throwIfAborted();
         let verseCount = 0;
@@ -33,7 +34,7 @@ export function createVerifyOnlyAdapter({ houseChatModel, resolveVerificationMod
             if (definition.id !== input.policy.reviewerModelId)
                 throw new HistoryError('reviewer_changed', 409);
             const model = await resolveVerificationModel(input.ownerId, definition); // Actual utility:true middleware, no foreground scope.
-            const result = await verifyGeneratedAnswer(input.blocks, { model, providerOptions: providerOptionsForReview(definition), translation: input.translation, question: input.question, context: input.context, canonicalContextForEvidence:input.canonicalContext, mediaParts:input.mediaParts??[],maxContextChars: 64000, requireCompleteContext: true, timeoutMs: 60000, allowRepair: false, historyReview: true, allowEvidenceCompletion, abortSignal: input.signal, beforeReview: input.authorizeInference, onError: error => { captured = error; } });
+            const result = await verifyGeneratedAnswer(input.blocks, { model, providerOptions: providerOptionsForReview(definition), translation: input.translation, question: input.question, context: input.context, canonicalContextForEvidence:input.canonicalContext, mediaParts:input.mediaParts??[],maxContextChars: HISTORY_REVIEW_CONTEXT_CHARS, requireCompleteContext: true, timeoutMs: 60000, allowRepair: false, historyReview: true, allowEvidenceCompletion, abortSignal: input.signal, beforeReview: input.authorizeInference, onError: error => { captured = error; } });
             if (captured)
                 throw captured;
             if (result.issueCodes?.some(code => code === 'verification_timeout'))

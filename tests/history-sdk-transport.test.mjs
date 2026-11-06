@@ -7,7 +7,8 @@ import * as markdown from '../src/utils/assistantMarkdown.ts';
 import {persistableParts} from '../src/lib/ai/status-narration.ts';
 import * as fresh from '../src/lib/ai/history/fresh-proof.mjs';
 import {projectHistory,CORE_VERSION,FIXED_NOTICES,digest,canonicalJSON,matchesStoredReview} from '../src/lib/ai/history/projection.mjs';
-import {createHistoryService} from '../src/lib/ai/history/service.mjs';
+import {createHistoryService,HistoryError} from '../src/lib/ai/history/service.mjs';
+import {traceTurn,classifyTurnError} from '../src/lib/ai/turn-trace.ts';
 import {FakeRepository} from './history-fake-repository.mjs';
 import {loadHistoryModule} from './history-loader.mjs';
 const captured=JSON.parse(readFileSync(new URL('./fixtures/history/sdk-openai-responses-ephesians.json',import.meta.url)));
@@ -22,7 +23,7 @@ function sdkChunks(parts){return parts.flatMap((part,index)=>{
 });}
 async function hydrate(chunks){let message;for await(const row of readUIMessageStream({stream:new ReadableStream({start(c){c.enqueue({type:'start',messageId:captured.row.id});chunks.forEach(chunk=>c.enqueue(chunk));c.enqueue({type:'finish'});c.close();}}),terminateOnError:true}))message=row;return JSON.parse(JSON.stringify(persistableParts(message.parts)));}
 const compiled=ts.transpileModule(readFileSync(new URL('../src/lib/ai/history/fresh-stream.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
-const dependencies={'ai':{readUIMessageStream},'@/utils/assistantMarkdown':markdown,'@/lib/ai/status-narration':{persistableParts},'@/lib/ai/verified-generation':{VERIFICATION_UNAVAILABLE:{en:FIXED_NOTICES.unavailableEnglish}},'./fresh-proof.mjs':fresh};const exports={};new Function('require','exports',compiled)(name=>{assert.ok(name in dependencies);return dependencies[name];},exports);
+const dependencies={'ai':{readUIMessageStream},'@/utils/assistantMarkdown':markdown,'@/lib/ai/status-narration':{persistableParts},'@/lib/ai/verified-generation':{VERIFICATION_UNAVAILABLE:{en:FIXED_NOTICES.unavailableEnglish}},'./fresh-proof.mjs':fresh,'./service.mjs':{HistoryError},'@/lib/ai/turn-trace':{traceTurn,classifyTurnError}};const exports={};new Function('require','exports',compiled)(name=>{assert.ok(name in dependencies);return dependencies[name];},exports);
 function fixture(){const db=new FakeRepository();db.addUser('owner');db.addParent('chat','parent','owner');db.clock=()=>new Date(captured.row.createdAt);db.put('chat','parent',{id:'question',role:'user',content:input(captured.row).context.question,metadata:null,createdAt:new Date(Date.parse(captured.row.createdAt)-1000).toISOString()});let reviews=0;const errors=[];
  const service=createHistoryService({repository:db,renderer,loadCurrentPolicy:async()=>({core:policy,supportedTranslations:['KJV'],reviewerModelId:'controlled-lab-reviewer'}),verifyOnly:async value=>{await value.authorizeInference();reviews++;return{verified:true,canonicalPassed:true,semanticPassed:true,repaired:false,blocks:value.blocks,reviewerModelId:'controlled-lab-reviewer'};},verifyCanonical:async text=>{const reference=/\[\[SCRIPTURE:(.*?)\]\]/.exec(text)?.[1];const verses=captured.row.metadata.parts.find(part=>part.type==='tool-getPassage').output.verses;const verse=verses.find(verse=>verse.reference===reference);return{ok:Boolean(verse),text,references:verse?[{canonicalText:verse.text}]:[]};}});for(const phase of ['prepareFresh','reviewFresh','certifyFresh']){const original=service[phase];service[phase]=async(...args)=>{try{return await original(...args);}catch(error){errors.push({phase,code:error.code??'unknown'});throw error;}};}return{db,service,errors,reviews:()=>reviews};}
 

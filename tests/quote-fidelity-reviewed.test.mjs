@@ -11,6 +11,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { z } from "zod";
+import {HISTORY_REVIEW_CONTEXT_CHARS, COMPLETE_VERIFICATION_REQUEST_CHARS} from '../src/lib/ai/verification-limits.mjs';
+import {traceTurn, classifyTurnError} from '../src/lib/ai/turn-trace.ts';
 const candidate = fileURLToPath(new URL("../", import.meta.url));
 const root = existsSync(path.join(candidate, "src/data/books.json")) ? candidate : JSON.parse(readFileSync(path.join(candidate, "manifest.json"), "utf8")).applicationRoot;
 const json = relative => JSON.parse(readFileSync(path.join(root, relative), "utf8"));
@@ -214,7 +216,7 @@ function generationApi(generateText) {
   const { createDashStripper } = loadModule("src/lib/ai/plain-dashes.ts", ["createDashStripper"], {});
   return loadModule("src/lib/ai/verified-generation.ts", ["verifyGeneratedAnswer"], {
     generateText, Output: { object: value => value }, z, doctrinalFoundation: "unchanged foundation fixture",
-    getChapter, verifyScriptureDraft: api.verifyScriptureDraft, gateAnswer, createDashStripper,
+    getChapter, verifyScriptureDraft: api.verifyScriptureDraft, gateAnswer, createDashStripper, HISTORY_REVIEW_CONTEXT_CHARS, COMPLETE_VERIFICATION_REQUEST_CHARS, traceTurn, classifyTurnError,
   });
 }
 for (const outcome of ["approve", "reject", "outage"]) test("actual generation adapter sends localized lexical review evidence and obeys semantic " + outcome, async () => {

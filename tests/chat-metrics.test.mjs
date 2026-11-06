@@ -113,11 +113,11 @@ const OUTCOME_KEYS = [
 	"surface",
 ].sort();
 
-test("outcome metric is answered only when the assistant row persisted", () => {
+test("outcome metric separates persisted answers from cancelled, incomplete and failed turns", () => {
 	assert.equal(buildChatOutcomeMetric(outcomeEvent, outcomeNow).outcome, "answered");
-	for (const exit of ["aborted", "empty_response", "conversation_missing", "persist_error"]) {
+	for (const [exit, outcome] of [["aborted", "cancelled"], ["empty_response", "incomplete"], ["conversation_missing", "failed"], ["persist_error", "failed"]]) {
 		const metric = buildChatOutcomeMetric({ ...outcomeEvent, exit }, outcomeNow);
-		assert.equal(metric.outcome, "unanswered", exit);
+		assert.equal(metric.outcome, outcome, exit);
 		assert.equal(metric.exit, exit);
 	}
 });
@@ -147,7 +147,7 @@ test("outcome metric carries a fixed shape with no user id, content, or error me
 	assert.equal(serialized.includes("2026-09-12"), false);
 });
 
-test("error class keeps identifier names and collapses anything else", () => {
+test("error class retains known infrastructure classes and collapses other writable names", () => {
 	assert.equal(errorClassName(null), null);
 	assert.equal(errorClassName(undefined), null);
 	assert.equal(errorClassName("boom"), "NonError");
@@ -157,6 +157,8 @@ test("error class keeps identifier names and collapses anything else", () => {
 	assert.equal(errorClassName(new PrismaClientKnownRequestError("private")), "PrismaClientKnownRequestError");
 	const spoofed = new Error("private");
 	spoofed.name = "question: what does Psalm 23 mean?";
+	assert.equal(errorClassName(spoofed), "Error");
+	spoofed.name = "PrivateUserName";
 	assert.equal(errorClassName(spoofed), "Error");
 });
 
@@ -182,6 +184,17 @@ test("outcome metric normalizes missing finish reason and odd step counts", () =
 	assert.equal(metric.stepCount, 0);
 	assert.equal(metric.provider, null);
 	assert.equal(metric.conversationAge, "under_1m");
+});
+
+test("a persisted certification fallback retains its safe failure class and cannot count as answered", () => {
+	const event = { ...outcomeEvent, answerDisposition: "withheld", failureClass: "HistoryError" };
+	const metric = buildChatOutcomeMetric(event, outcomeNow);
+	assert.equal(metric.outcome, "withheld");
+	assert.equal(metric.errorClass, "HistoryError");
+	assert.equal(metric.exit, "persisted");
+	assert.equal(buildChatOutcomeMetric({ ...event, failureClass: "PrivateUserName" }).errorClass, null);
+	const provider = new Error("private provider payload"); provider.name = "AI_APICallError";
+	assert.equal(buildChatOutcomeMetric({ ...event, error: provider }).errorClass, "AI_APICallError", "first real turn error keeps precedence");
 });
 
 test("the tool loop stops on its own time budget, before the platform can kill the turn", async () => {

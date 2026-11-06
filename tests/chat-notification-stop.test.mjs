@@ -7,6 +7,7 @@ import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import * as stops from "../src/lib/chat-notification-stop.ts";
 import { createChatClientConnection } from "../src/lib/chat-client-connection.ts";
 import { createRateLimiter, rateLimitKey } from "../src/lib/rateLimit.ts";
+import * as tracing from "../src/lib/ai/turn-trace.ts";
 
 const ATTEMPT = "a68b9240-5e76-4d72-baaa-8a13d624aebd";
 const RETRY = "b68b9240-5e76-4d72-baaa-8a13d624aebd";
@@ -253,6 +254,7 @@ test("accidental disconnect with duplicate departure signals still notifies once
 test("ask-question rejects malformed present metadata before generation or persistence, while legacy omission passes validation", async () => {
 	let databaseReads = 0;
 	const route = loadModule("src/app/api/ask-question/route.ts", {
+		"@/lib/ai/turn-trace": tracing,
 		"ai": { createIdGenerator: () => () => "server-id" },
 		"next/server": { NextResponse: { json: Response.json } },
 		"@/lib/auth": { getAuthUser: async () => "reader" },

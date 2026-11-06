@@ -1,4 +1,6 @@
 import test from 'node:test';
+import {traceTurn, classifyTurnError} from '../src/lib/ai/turn-trace.ts';
+import {HISTORY_REVIEW_CONTEXT_CHARS, COMPLETE_VERIFICATION_REQUEST_CHARS} from '../src/lib/ai/verification-limits.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {stripTypeScriptTypes} from 'node:module';
@@ -42,7 +44,7 @@ function fixture({prefix='I understood the message.',issues=[],legacyRule=false,
  // Reviewer verdicts are scripted rubric fixtures, not provider semantics.
  const model=new MockLanguageModelV4({doGenerate:async options=>{const {abortSignal,...request}=options;calls.push(request);const p=JSON.parse(request.prompt.find(m=>m.role==='user').content.find(part=>part.type==='text').text);prompts.push(p);return{content:[{type:'text',text:JSON.stringify({checkedReferences:p.expectedCheckedReferences,checkedOriginalSources:p.expectedCheckedOriginalSources,allScriptureQuotationsVerified:true,allCitationsSupportTheirClaims:true,faithfulToFoundation:true,answersRequestedQuestion:true,issues,requiredReferences:[]})}],finishReason:{unified:'stop',raw:'stop'},usage:{inputTokens:{total:1},outputTokens:{total:1}},warnings:[]};}});
  let source=read('src/lib/ai/verified-generation.ts');assert.equal(source.split(newRule).length,2);if(legacyRule)source=source.replace(newRule,oldRule);
- const verifyGeneratedAnswer=new Function('generateText','Output','z','doctrinalFoundation','getChapter','verifyScriptureDraft','gateAnswer','createDashStripper','console',plain(source)+'\nreturn verifyGeneratedAnswer;')(generateText,Output,z,'FIXED FOUNDATION',chapter,verify,gateAnswer,createDashStripper,{info(){}});
+ const verifyGeneratedAnswer=new Function('generateText','Output','z','doctrinalFoundation','getChapter','verifyScriptureDraft','gateAnswer','createDashStripper','console','HISTORY_REVIEW_CONTEXT_CHARS','COMPLETE_VERIFICATION_REQUEST_CHARS','traceTurn','classifyTurnError',plain(source)+'\nreturn verifyGeneratedAnswer;')(generateText,Output,z,'FIXED FOUNDATION',chapter,verify,gateAnswer,createDashStripper,{info(){}},HISTORY_REVIEW_CONTEXT_CHARS,COMPLETE_VERIFICATION_REQUEST_CHARS,traceTurn,classifyTurnError);
  const adapter=createVerifyOnlyAdapter({houseChatModel:async()=>({definition}),resolveVerificationModel:async()=>model,providerOptionsForReview:()=>({}),verifyScriptureDraft:verify,verifyGeneratedAnswer,allowEvidenceCompletion:true});
  const service=createHistoryService({repository:db,renderer,loadCurrentPolicy:async()=>structuredClone(policy),validateFreshReviewer:d=>canonicalJSON(d)===canonicalJSON(definition),verifyCanonical:verify,verifyOnly:forbidden});
  const messages=[{id:user.id,role:'user',parts:[{type:'text',text:audioTranscriptText(audio)},{type:'text',text:user.content}]}];

@@ -38,7 +38,7 @@ test('canonical rewrite/invalid text is refused before any model factory or quot
 test('complete context and canonical evidence caps refuse rather than slice', async () => { for (const kind of ['question', 'context', 'verses']) {
     const f = adapterFixture({ check: async (text) => ({ ok: true, text, references: [{ verses: Array(121).fill({ text: 'Canonical' }) }] }) });
     if (kind !== 'verses')
-        f.input[kind] = 'x'.repeat(kind==='context'?64001:16001);
+        f.input[kind] = 'x'.repeat(kind==='context'?128001:16001);
     await assert.rejects(f.adapter(f.input), e => e.code === 'context_limit');
     assert.equal(f.counts().calls, 0);
     assert.equal(f.counts().meterFactories, 0);

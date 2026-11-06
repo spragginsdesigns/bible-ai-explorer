@@ -1,5 +1,6 @@
 /** Server-only in-process current-request evidence; no HTTP JSON can mint a ticket. */
 import {canonicalJSON,digest,historyAISourceRow} from './projection.mjs';
+import {PREPARED_CONTEXT_CHARS} from '../verification-limits.mjs';
 const tickets=new WeakMap();
 const clone=value=>JSON.parse(canonicalJSON(value));
 const isRecord=value=>value&&typeof value==='object'&&!Array.isArray(value);
@@ -29,7 +30,7 @@ export function createPreparedRequest(ownerId,locator,input,dependencies,identit
     // Only server callers choose this suffix; HTTP messages cannot mint a ticket.
     // Missing provenance preserves full collection instead of guessing policy text.
     const sourceSystemContext=input.sourceSystemContext===undefined?input.systemContext:input.sourceSystemContext;
-    if(typeof sourceSystemContext!=='string'||sourceSystemContext.length>64_000||!input.systemContext.endsWith(sourceSystemContext))throw Error('Invalid source system context');
+    if(typeof sourceSystemContext!=='string'||sourceSystemContext.length>PREPARED_CONTEXT_CHARS||!input.systemContext.endsWith(sourceSystemContext))throw Error('Invalid source system context');
     const rows=input.messages.map(message=>{
         const row=dependencies.rows.find(row=>row.id===message.id),expected=input.sources.find(source=>source.id===message.id);
         if(!row||!expected||!['user','assistant'].includes(message.role)||row.role!==message.role||expected.role!==message.role)throw Error('Prepared source ownership changed');
@@ -57,7 +58,7 @@ export function createPreparedRequest(ownerId,locator,input,dependencies,identit
     if(!preparedDependenciesMatch(descriptor,dependencies))throw Error('Incomplete prepared dependencies');
     const last=[...logical].reverse().find(row=>row.role==='user');
     const question=last?.parts.filter(part=>part.type==='text').map(part=>part.text).join('').trim()??'';
-    if(question.length>16_000||canonicalJSON({messages:logical,systemContext:input.systemContext}).length>64_000)throw Error('Complete prepared request exceeds context bound');
+    if(question.length>16_000||canonicalJSON({messages:logical,systemContext:input.systemContext}).length>PREPARED_CONTEXT_CHARS)throw Error('Complete prepared request exceeds context bound');
     // Keep a distinct typed URL value; later SDK or caller mutation of its
     // input array cannot change the files the final reviewer is authorized to see.
     const stableMedia=parts.map(part=>part.type==='file'?{type:'file',mediaType:part.mediaType,...(part.filename?{filename:part.filename}:{}),data:{type:'url',url:new URL(mediaURL(part))}}:{type:'image',image:{type:'url',url:new URL(mediaURL(part))}});

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { runInNewContext } from "node:vm";
 import test from "node:test";
+import {HISTORY_REVIEW_CONTEXT_CHARS} from '../src/lib/ai/verification-limits.mjs';
 import { convertToModelMessages, createUIMessageStream, createUIMessageStreamResponse, readUIMessageStream, toUIMessageStream, validateUIMessages } from "ai";
 import { releaseVerifiedAnswer } from "../src/lib/ai/verified-answer-stream.ts";
 import { gateAnswer } from "../src/lib/ai/answer-gate.ts";
@@ -249,7 +250,7 @@ test("note final review reads once after concurrent writes settle, using owned s
 	const verifyGeneratedAnswer = async (blocks, options) => { reviewContext = options.context; canonicalReviewContext=options.canonicalContextForEvidence; return { blocks, verified: true, repaired: false, issueCodes: [] }; };
 	const preparedContext = "Complete captured request and source context.";
 	const canonicalPreparedContext = "Complete captured source context without fixed policy examples.";
-	const verify = new Function("readSavedNoteEvidence", "noteWriteIds", "prisma", "userId", "verifyGeneratedAnswer", "verificationModel", "providerOptions", "currentUserText", "toolReceipts", "note", "MAX_NOTE_CONTENT_LENGTH", "verificationBudget", "preparedContext", "canonicalPreparedContext", `return (${verifyCallback});`)(readSavedNoteEvidence, noteWriteIds, prisma, "owned-reader", verifyGeneratedAnswer, {}, {}, "Save the corrected study", [{ tool: "readNote", output: "OLD duplicated body".repeat(1000) }, ...toolReceipts], { plainText: "Old open-note body".repeat(1000) }, 16_000, () => 75_000, preparedContext, canonicalPreparedContext);
+	const verify = new Function("readSavedNoteEvidence", "noteWriteIds", "prisma", "userId", "verifyGeneratedAnswer", "verificationModel", "providerOptions", "currentUserText", "toolReceipts", "note", "MAX_NOTE_CONTENT_LENGTH", "verificationBudget", "preparedContext", "canonicalPreparedContext", "HISTORY_REVIEW_CONTEXT_CHARS", `return (${verifyCallback});`)(readSavedNoteEvidence, noteWriteIds, prisma, "owned-reader", verifyGeneratedAnswer, {}, {}, "Save the corrected study", [{ tool: "readNote", output: "OLD duplicated body".repeat(1000) }, ...toolReceipts], { plainText: "Old open-note body".repeat(1000) }, 16_000, () => 75_000, preparedContext, canonicalPreparedContext, HISTORY_REVIEW_CONTEXT_CHARS);
 	let completed = false;
 	const checking = verify([{ id: "answer", text: "Saved your corrected note." }]).then(() => { completed = true; });
 	assert.equal(reads.length, 2);

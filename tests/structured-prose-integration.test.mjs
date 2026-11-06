@@ -8,6 +8,8 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import ts from "typescript";
+import * as verificationLimits from '../src/lib/ai/verification-limits.mjs';
+import * as tracing from '../src/lib/ai/turn-trace.ts';
 const require = createRequire(import.meta.url);
 const candidate = fileURLToPath(new URL("../", import.meta.url));
 const filename = relative => path.join(candidate, relative);
@@ -42,6 +44,8 @@ function currentRuntime({ sourceFailure = false, reviewResponse = null, repairRe
 		"@/lib/bible/bsb": { loadBsbChapter: async () => { throw Error("Unexpected BSB request in KJV fixture"); } },
 		"@/lib/bible/originals": { getOriginalVerse: async () => null, getOriginalVerseForKjv: async () => null } });
 	const generated = load("src/lib/ai/verified-generation.ts", {
+		"./turn-trace": tracing,
+		"./verification-limits.mjs": verificationLimits,
 		ai: { Output: { object: value => value }, generateText: async request => {
 			calls.push(request); const prompt = JSON.parse(request.prompt);
 			assert.ok(request.system.startsWith(foundation.doctrinalFoundation)); assert.equal("tools" in request, false);
@@ -125,7 +129,7 @@ test("complete64k review source preserves tail evidence and actual subject; defa
 });
 
 test("complete context budget fails closed before review instead of clipping", async () => {
-  for (const options of [{ context: "x".repeat(64_001), maxContextChars: 64_000 }, { context: "x", maxContextChars: 64_001 }, { question: "x".repeat(16_001) }]) {
+  for (const options of [{ context: "x".repeat(64_001), maxContextChars: 64_000 }, { context: "x", maxContextChars: 128_001 }, { question: "x".repeat(16_001) }]) {
     const h = currentRuntime();
     const result = await h.generated.verifyGeneratedAnswer([{ id: "body", text: "Draft" }], { model: {}, translation: "KJV", question: "Subject", ...options, requireCompleteContext: true });
     assert.equal(result.verified, false); assert.ok(result.issueCodes.includes("verification_context_limit")); assert.equal(h.calls.length, 0);

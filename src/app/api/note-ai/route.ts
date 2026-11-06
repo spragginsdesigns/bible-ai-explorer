@@ -14,6 +14,7 @@ import {
 } from "ai";
 import { plainDashes } from "@/lib/ai/plain-dashes";
 import { SCRIPTURE_OUTPUT_GUIDANCE, verifyGeneratedAnswer } from "@/lib/ai/verified-generation";
+import { HISTORY_REVIEW_CONTEXT_CHARS } from "@/lib/ai/verification-limits.mjs";
 import { releaseVerifiedAnswer } from "@/lib/ai/verified-answer-stream";
 import { releaseCertifiedFreshTurn,releaseFreshRequestRefusal } from "@/lib/ai/history/fresh-stream";
 import { historyService,createCurrentRequestReview } from "@/lib/ai/history/runtime.server";
@@ -379,7 +380,7 @@ async function handlePost(req: Request): Promise<Response> {
 						const checked = await verifyGeneratedAnswer(blocks, {
 						model: verificationModel, providerOptions, translation: "KJV", question: currentUserText, purpose,
 							context: `Verify text for ${purpose}. Preserve existing note material unless the user requested a change.\n\n${preparedContext}`,
-							canonicalContextForEvidence: `Verify text for ${purpose}. Preserve existing note material unless the user requested a change.\n\n${canonicalPreparedContext}`,maxContextChars:64_000,requireCompleteContext:true,
+							canonicalContextForEvidence: `Verify text for ${purpose}. Preserve existing note material unless the user requested a change.\n\n${canonicalPreparedContext}`,maxContextChars:HISTORY_REVIEW_CONTEXT_CHARS,requireCompleteContext:true,
 							timeoutMs: verificationBudget(),
 						});
 						return checked.verified ? checked.blocks : null;
@@ -477,7 +478,7 @@ async function handlePost(req: Request): Promise<Response> {
 								where: { id, userId }, select: { id: true, title: true, plainText: true },
 							}))));
 							return verifyGeneratedAnswer(blocks, {
-								model: verificationModel, providerOptions, translation: "KJV", question: currentUserText,maxContextChars:64_000,requireCompleteContext:true,
+								model: verificationModel, providerOptions, translation: "KJV", question: currentUserText,maxContextChars:HISTORY_REVIEW_CONTEXT_CHARS,requireCompleteContext:true,
 								canonicalContextForEvidence: JSON.stringify({ preparedRequest:canonicalPreparedContext,latestNoteWrites, evidenceRule: "Latest note readbacks prove the final saved state after all successful writes settled. Earlier tool receipts or open-note text can precede those writes. Bible quotation words still require fresh canonical verification.", toolReceipts, openNote: note.plainText.slice(0, MAX_NOTE_CONTENT_LENGTH), noteAuthority: "User material, not Scripture authority" }),
 								context: JSON.stringify({ preparedRequest:preparedContext,latestNoteWrites, evidenceRule: "Latest note readbacks prove the final saved state after all successful writes settled. Earlier tool receipts or open-note text can precede those writes. Bible quotation words still require fresh canonical verification.", toolReceipts, openNote: note.plainText.slice(0, MAX_NOTE_CONTENT_LENGTH), noteAuthority: "User material, not Scripture authority" }),
 								timeoutMs: verificationBudget(),

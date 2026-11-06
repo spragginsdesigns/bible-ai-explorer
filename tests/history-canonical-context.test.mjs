@@ -1,4 +1,6 @@
 import test from 'node:test';
+import {traceTurn, classifyTurnError} from '../src/lib/ai/turn-trace.ts';
+import {HISTORY_REVIEW_CONTEXT_CHARS, COMPLETE_VERIFICATION_REQUEST_CHARS} from '../src/lib/ai/verification-limits.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {stripTypeScriptTypes} from 'node:module';
@@ -30,7 +32,7 @@ const checkerSource=readFileSync(new URL('../src/lib/ai/scripture-verification.t
 const forbidden=()=>{throw Error('No provider, network, DB or original-language request allowed');};
 const {verifyScriptureDraft:verify}=new Function('normalizeAssistantMarkdown','analyzeMarkdownUnderscores','markdownRangeHasLiteralUnderscore','BOOKS','LOCALIZED_BOOK_NAMES','getChapter','isTranslationId','getOriginalVerse','getOriginalVerseForKjv','loadBsbChapter',stripTypeScriptTypes(checkerSource)+'\nreturn {verifyScriptureDraft};')(markdown.normalizeAssistantMarkdown,guard.analyzeMarkdownUnderscores,guard.markdownRangeHasLiteralUnderscore,books,localized,getChapter,value=>value==='NKJV',forbidden,forbidden,forbidden);
 const generation=stripTypeScriptTypes(readFileSync(new URL('../src/lib/ai/verified-generation.ts',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,''));
-const {verifyGeneratedAnswer}=new Function('generateText','Output','z','doctrinalFoundation','getChapter','verifyScriptureDraft','gateAnswer','createDashStripper','console',generation+'\nreturn {verifyGeneratedAnswer};')(generateText,Output,z,doctrinalFoundation,getChapter,verify,gateAnswer,createDashStripper,{info(){}});
+const {verifyGeneratedAnswer}=new Function('generateText','Output','z','doctrinalFoundation','getChapter','verifyScriptureDraft','gateAnswer','createDashStripper','console','HISTORY_REVIEW_CONTEXT_CHARS','COMPLETE_VERIFICATION_REQUEST_CHARS','traceTurn','classifyTurnError',generation+'\nreturn {verifyGeneratedAnswer};')(generateText,Output,z,doctrinalFoundation,getChapter,verify,gateAnswer,createDashStripper,{info(){}},HISTORY_REVIEW_CONTEXT_CHARS,COMPLETE_VERIFICATION_REQUEST_CHARS,traceTurn,classifyTurnError);
 const stableSystem=chatSystemPrompt('NKJV',{},'en'),sourceSystem='Actual profile/memory sources: Romans 8:28 and Psalm 23:1.',fullSystem=stableSystem+sourceSystem;
 const question='Quote John 3:16 from the NKJV and explain its promise.',body='**John 3:16 (NKJV)**\n> 16 '+remoteJohn+'\n\nEverlasting life is received through faith, not earned by works (Ephesians 2:8-9).';
 function fixture(t,{source=sourceSystem,system=fullSystem,omit=false}={}){
@@ -104,7 +106,7 @@ test('adapter preserves full semantic context but bounds canonical override and 
  const input={ownerId:'owner',policy:{supportedTranslations:['NKJV'],reviewerModelId:'controlled'},translation:'NKJV',question:'Question',context:'Full semantic context',canonicalContext:'Source-only context',blocks:[{id:'body',text:'Answer'}],manifest:{canonicalSources:[]},signal:new AbortController().signal,allowRepair:false,authorizeInference:async()=>{}};
  await adapter(input);assert.equal(seen[0].context,input.context);assert.equal(seen[0].canonicalContextForEvidence,input.canonicalContext);
  await adapter({...input,canonicalContext:undefined});assert.equal(seen[1].canonicalContextForEvidence,undefined);
- for(const bad of [null,{},[],42,'x'.repeat(64001)])await assert.rejects(adapter({...input,canonicalContext:bad}),error=>error.code==='context_limit');assert.equal(resolved,2);assert.equal(f.model.doGenerateCalls.length,0);
+ for(const bad of [null,{},[],42,'x'.repeat(128001)])await assert.rejects(adapter({...input,canonicalContext:bad}),error=>error.code==='context_limit');assert.equal(resolved,2);assert.equal(f.model.doGenerateCalls.length,0);
 });
 function preparationExpression(path){
  const text=readFileSync(new URL('../'+path,import.meta.url),'utf8'),file=ts.createSourceFile(path,text,ts.ScriptTarget.Latest,true);let result;
@@ -124,8 +126,8 @@ test('actual chat/note content verifier callbacks retain full semantic context a
  for(const[path,name]of paths){
   const route=readFileSync(new URL('../'+path,import.meta.url),'utf8'),start=route.indexOf(name+' = async'),end=route.indexOf('\n\t\t\t\t\t};',start);assert.ok(start>0&&end>start);
   const callback=stripTypeScriptTypes(route.slice(start+name.length+3,end+'\n\t\t\t\t\t}'.length));let captured;
-  const names=['verifyGeneratedAnswer','verificationModel','providerOptions','translation','language','reviewQuestion','reviewMediaParts','preparedContext','canonicalPreparedContext','turnStartedAtMs','currentUserText','verificationBudget'];
-  const values=[async(blocks,options)=>{captured=options;return{verified:true,blocks};},{},{},'NKJV','en',question,[],fullSystem,sourceSystem,Date.now(),question,()=>75000];
+  const names=['verifyGeneratedAnswer','verificationModel','providerOptions','translation','language','reviewQuestion','reviewMediaParts','preparedContext','canonicalPreparedContext','turnStartedAtMs','currentUserText','verificationBudget','HISTORY_REVIEW_CONTEXT_CHARS'];
+  const values=[async(blocks,options)=>{captured=options;return{verified:true,blocks};},{},{},'NKJV','en',question,[],fullSystem,sourceSystem,Date.now(),question,()=>75000,HISTORY_REVIEW_CONTEXT_CHARS];
   const verifyCallback=new Function(...names,'return ('+callback+');')(...values);await verifyCallback([{id:'body',text:body}],'note material');
   assert.ok(captured.context.endsWith(fullSystem));assert.equal(captured.canonicalContextForEvidence,captured.context.slice(0,-fullSystem.length)+sourceSystem);assert.equal(captured.requireCompleteContext,true);
  }

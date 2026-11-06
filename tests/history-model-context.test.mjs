@@ -31,8 +31,8 @@ test('blocked, malformed, contradictory and unavailable reads omit old assistant
 test('both actual generation routes use safe model context and await certified persistence without re-upsert',()=>{
  for(const relative of ['ask-question','note-ai']){
   const source=readFileSync(new URL(`../src/app/api/${relative}/route.ts`,import.meta.url),'utf8');
-  assert.match(source,/await reviewedAssistantTurns\(historyService/);assert.match(source,/trustedAssistantHistory\(recentMessages, reviewedTurns\)/);
-  assert.match(source,/onEnd: async/);assert.match(source,/alreadyCertified/);assert.match(source,/if \(!options\.alreadyCertified\)/);
+  assert.match(source,/await (?:tracedContext\("history", \(\) => )?reviewedAssistantTurns\(historyService/);assert.match(source,/trustedAssistantHistory\(recentMessages, reviewedTurns\)/);
+  assert.match(source,/onEnd: (?:async|\(\{ responseMessage, isAborted, finishReason \}\) => inTurnTrace\(async)/);assert.match(source,/alreadyCertified/);assert.match(source,/if \(!options\.alreadyCertified\)/);
   assert.match(source,/await releaseCertifiedFreshTurn/);assert.match(source,/executedActions\.push/);
   assert.match(source,/output:JSON\.parse\(JSON\.stringify\(toolOutput\.output\)/);
  }

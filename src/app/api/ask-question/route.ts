@@ -53,7 +53,7 @@ import {preparedRequestReviewContext} from "@/lib/ai/history/prepared-request.mj
 import { reviewedAssistantTurns } from "@/lib/ai/history/model-context";
 import type { PreparedAttachment,ExecutedHistoryAction } from "@/lib/ai/history/contracts";
 import type { AnswerBlock } from "@/lib/ai/answer-gate";
-import { gateErrorSummary, gateWithRetries } from "@/lib/ai/answer-gate-retry";
+import { gateWithRetries } from "@/lib/ai/answer-gate-retry";
 import { readSavedNoteEvidence, successfulNoteWriteId } from "@/lib/ai/note-write-evidence";
 import { withoutOrphanedOpenAIReferences } from "@/lib/chat/modelHistory";
 import { assistantHistoryIds, HISTORY_EVIDENCE_GUIDANCE, trustedAssistantHistory } from "@/lib/chat/trusted-history";
@@ -66,6 +66,8 @@ import {
 	isReasoningMode,
 	isSpeed,
 	isVerbosity,
+	MODELS,
+	UTILITY_MODELS,
 	type ReasoningMode,
 	type Speed,
 	type Verbosity,
@@ -107,7 +109,10 @@ import {
 } from "@/lib/highlight-legend-rules";
 import { buildPromptCachePlan } from "@/lib/ai/prompt-cache";
 import { TOOL_LOOP_BUDGET_MS, isOverTimeBudget } from "@/lib/ai/tool-loop-budget";
+import { HISTORY_REVIEW_CONTEXT_CHARS } from "@/lib/ai/verification-limits.mjs";
+import { captureTurnTrace, classifyTurnError, registerTurnTraceCatalog, traceTurn, withTurnTrace, type TurnTraceFields } from "@/lib/ai/turn-trace";
 import {
+	buildChatOutcomeMetric,
 	logChatOutcomeMetric,
 	logChatStepMetric,
 	type ChatOutcomeExit,
@@ -136,6 +141,22 @@ function settleWithin<T>(promise: Promise<T>, ms: number, fallback: T): Promise<
 		timer = setTimeout(() => resolve(fallback), ms);
 	});
 	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+async function tracedContext<T>(
+	kind: NonNullable<TurnTraceFields["contextKind"]>,
+	load: () => Promise<T>,
+	shape?: (value: T) => TurnTraceFields,
+): Promise<T> {
+	const startedAt = performance.now();
+	traceTurn("context", "started", { contextKind: kind });
+	let result: T;
+	try { result = await load(); } catch (error) {
+		traceTurn("context", "failed", { contextKind: kind, durationMs: performance.now() - startedAt, ...classifyTurnError(error) });
+		throw error;
+	}
+	try { traceTurn("context", "completed", { contextKind: kind, durationMs: performance.now() - startedAt, ...shape?.(result) }); } catch { /* Shape telemetry cannot change a loaded value. */ }
+	return result;
 }
 
 // The assistant message id MUST be generated server-side: without it the UI
@@ -187,9 +208,7 @@ function extractAssistantText(message: UIMessage): string {
 			.slice(0, -1)
 			.filter((part) => !/[.!?:;"')\]]$/.test(part.trimEnd())).length;
 		if (midParagraphSplits > 0) {
-			console.warn(
-				`assistant text parts split mid-paragraph: ${midParagraphSplits} of ${textParts.length - 1} joins`
-			);
+			traceTurn("answer-shape", "completed", { textBlockCount: textParts.length, issueCount: midParagraphSplits });
 		}
 	}
 	return joinAssistantTextParts(textParts).trim();
@@ -558,6 +577,7 @@ async function persistAssistantResponse(options: {
 	translation: TranslationId;
 	prayers?: ChatDayContext["prayers"];
 	alreadyCertified?: boolean;
+	onError?: (error: unknown) => void;
 }): Promise<ChatOutcomeExit> {
 	if (!hasPersistableContent(options.responseMessage)) return "empty_response";
 	// Set once the assistant row is written, so a memory-extraction failure
@@ -626,13 +646,12 @@ async function persistAssistantResponse(options: {
 		// Its own waitUntil: an extra LLM call must not delay the outcome metric or the "answer ready" push.
 		if (userText && !usedMemoryTools(options.responseMessage.parts)) {
 			waitUntil(
-				extractAndStoreMemories({ userId: options.userId, userText }).catch((error) =>
-					console.error("Failed to extract memories:", error),
-				),
+				tracedContext("memory", () => extractAndStoreMemories({ userId: options.userId, userText })).catch(() => undefined),
 			);
 		}
 	} catch (error) {
-		console.error("Failed to persist assistant response:", error);
+		traceTurn("persistence", "failed", { persistenceKind: "assistant", ...classifyTurnError(error), persisted });
+		try { options.onError?.(error); } catch { /* Error telemetry cannot change persistence. */ }
 	}
 	return persisted ? "persisted" : "persist_error";
 }
@@ -641,10 +660,12 @@ import { meterAsOnboarding, withIncludedAiRequest, reserveIncludedRequest } from
 import { isOnboardingTurn, needsTextInterview } from "@/lib/onboarding";
 import { CARDS_HEADER, CARDS_VERSION, cardEndsMessage, cardForLegacyClient, expectedStep, helpScreenForText, isOnboardingStep, owedStep, resolveChoiceCard, type OnboardingStep } from "@/lib/onboarding-rules";
 import { withAppHelpGuidance } from "@/lib/app-help-guidance";
-export const POST = withChatClientConnection(withIncludedAiRequest(handlePost, "ask-question"));
+export const POST = withTurnTrace(withChatClientConnection(withIncludedAiRequest(handlePost, "ask-question")));
 
 async function handlePost(req: Request, clientConnection: ChatClientConnection): Promise<Response> {
 	const readingReceivedAt = new Date();
+	const inTurnTrace = captureTurnTrace();
+	traceTurn("validation", "started", { surface: "ask-question" });
 	try {
 		const userId = await getAuthUser();
 		// Read once, here: `req.headers` is the only honest source for which app
@@ -691,7 +712,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 				: null;
 		const replaces = replacedMessageIds(requestData.replaces);
 
-		const userPrefs = await prisma.user.findUnique({
+		const userPrefs = await tracedContext("profile", () => prisma.user.findUnique({
 			where: { id: userId },
 			select: {
 				webSearchEnabled: true,
@@ -707,7 +728,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 				answerLanguage: true,
 				createdAt: true,
 			},
-		});
+		}));
 		// The answer language: the client sends the one it resolved (the explicit
 		// setting, else the device language); an older build sends none, so the
 		// account setting decides, else English. The Bible quoted is the reader's
@@ -737,7 +758,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 		const storedName = userPrefs?.name ?? null;
 		const namePromise: Promise<string | null> = storedName
 			? Promise.resolve(storedName)
-			: syncProfileFromClerk(userId, { name: null, email: userPrefs?.email ?? null }).then(
+			: tracedContext("profile", () => syncProfileFromClerk(userId, { name: null, email: userPrefs?.email ?? null })).then(
 					(profile) => profile.name,
 				);
 		if (!storedName) waitUntil(namePromise);
@@ -757,9 +778,12 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 		const knownStudyIds = new Set<string>();
 		const readStudyIds = new Set<string>();
 		let verifyToolContent: ((blocks: AnswerBlock[], purpose: string) => Promise<AnswerBlock[] | null>) | undefined;
+		traceTurn("tools", "started");
 		const tools = buildSureWordTools({ ...readingContext, ...actionContext, knownStudyIds, readStudyIds, userLinks: () => userLinks,
 			verifyGeneratedContent: (blocks, purpose) => verifyToolContent?.(blocks, purpose) ?? Promise.resolve(null),
 		});
+		registerTurnTraceCatalog({ tools: Object.keys(tools), models: [...MODELS.map(definition => definition.providerModelId), ...Object.values(UTILITY_MODELS).map(definition => definition.providerModelId)] });
+		traceTurn("tools", "completed", { toolCount: Object.keys(tools).length });
 
 		const recentMessages = requestData.messages.slice(-MAX_REQUEST_MESSAGES);
 		const requestMessageCount = requestData.messages.length;
@@ -773,7 +797,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 				select: { id: true, content: true, metadata: true,createdAt:true },
 			})
 			: [];
-		const reviewedTurns = conversationId ? await reviewedAssistantTurns(historyService,userId,"chat",conversationId,storedAssistantTurns) : [];
+		const reviewedTurns = conversationId ? await tracedContext("history", () => reviewedAssistantTurns(historyService,userId,"chat",conversationId,storedAssistantTurns), value => ({ messageCount: value.length })) : [];
 		const trustedMessages = trustedAssistantHistory(recentMessages, reviewedTurns);
 		const allMessages = await validateUIMessages<SureWordUIMessage>({
 			messages: trustedMessages.map((message: UIMessage) => ({
@@ -812,6 +836,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 				{ status: 400 },
 			);
 		}
+		traceTurn("validation", "completed", { messageCount: validatedMessages.length, hasAttachments });
 
 		// Optional per-request picker values; anything invalid is ignored and
 		// the user's stored default (then the app default) applies instead.
@@ -846,15 +871,24 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 		let conversationCreatedAt: Date | null = null;
 		let metricProvider: string | null = null;
 		let metricModelId: string | null = null;
+		let metricEffort: TurnTraceFields["effort"];
 		let metricStepCount = 0;
 		let metricLastStepFinishReason: string | null = null;
 		let metricError: unknown = null;
+		let answerDisposition: "answered" | "withheld" | "incomplete" = "answered";
+		let certificationFailure: Pick<TurnTraceFields, "errorClass" | "httpStatus" | "issueCodes"> | undefined;
+		let streamEnded = false;
+		let terminalTrace: TurnTraceFields | undefined;
+		const finishTrace = (): void => {
+			if (streamEnded && terminalTrace) traceTurn("turn", terminalTrace.outcome === "failed" ? "failed" : "completed", terminalTrace);
+		};
 		const recordTurnError = (error: unknown): void => {
 			// First error wins: a provider error reaches the stream-level onError
 			// again as a plain Error rebuilt from its client text, which would
 			// otherwise overwrite the real class name.
 			if (metricError !== null) return;
 			metricError = error;
+			traceTurn("stream", "failed", classifyTurnError(error));
 
 			// A turn that died because the provider refused is a different
 			// problem from a turn that died in our own code, and only one of
@@ -897,22 +931,18 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 		}
 		let freshCertified = false;
 		const executedActions: ExecutedHistoryAction[] = [];
+		traceTurn("stream", "started");
 		const stream = createUIMessageStream<SureWordUIMessage>({
 			originalMessages: validatedMessages,
 			generateId: () => responseMessageId,
-			onError: (error) => {
+			onError: (error) => inTurnTrace(() => {
 				recordTurnError(error);
-				if (!(error instanceof UserFacingError)) {
-					console.error("ask-question stream error:", error);
-				}
 				return streamErrorText(error);
-			},
-			onEnd: async ({ responseMessage, isAborted, finishReason }) => {
-				if (!conversationId) return;
+			}),
+			onEnd: ({ responseMessage, isAborted, finishReason }) => inTurnTrace(async () => {
 				const userTurnSaved = conversationCreatedAt !== null;
 				const emitOutcome = (exit: ChatOutcomeExit): void => {
-					if (!userTurnSaved) return;
-					const metric = logChatOutcomeMetric({
+					const outcomeEvent = {
 						surface: "ask-question",
 						provider: metricProvider,
 						modelId: metricModelId,
@@ -921,10 +951,17 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 						finishReason: finishReason ?? metricLastStepFinishReason,
 						error: metricError,
 						exit,
+						answerDisposition,
+						failureClass: certificationFailure?.errorClass,
 						answerHasText: responseMessage.parts.some(
 							(part) => part.type === "text" && part.text.trim().length > 0,
 						),
-					});
+					} as const;
+					const metric = buildChatOutcomeMetric(outcomeEvent);
+					terminalTrace = { outcome: metric.outcome, stepCount: metricStepCount, persisted: Boolean(conversationId) && exit === "persisted", certified: freshCertified, fallback: answerDisposition === "withheld", aborted: isAborted, ...(metricModelId ? { model: metricModelId } : {}), ...(metricEffort ? { effort: metricEffort } : {}), ...certificationFailure, ...(metricError ? classifyTurnError(metricError) : {}) };
+					finishTrace();
+					if (!userTurnSaved) return;
+					logChatOutcomeMetric(outcomeEvent);
 					// The same line, reported where it can be counted per client
 					// and per user. `metric` is already content-free by
 					// construction; only the turn's shape is added to it.
@@ -943,9 +980,16 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 					waitUntil(flushAnalytics());
 				};
 				if (isAborted) {
+					traceTurn("persistence", "skipped", { aborted: true, reason: "aborted" });
 					emitOutcome("aborted");
 					return;
 				}
+				if (!conversationId) {
+					traceTurn("persistence", "skipped", { reason: "skipped" });
+					emitOutcome("persisted");
+					return;
+				}
+				traceTurn("persistence", "started", { persistenceKind: "assistant" });
 				const persistence = persistAssistantResponse({
 						userId,
 						conversationId,
@@ -956,8 +1000,10 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 						translation,
 						prayers: duePrayers,
 						alreadyCertified: freshCertified,
+						onError: recordTurnError,
 					});
 				waitUntil(persistence.then((exit) => {
+						traceTurn("persistence", exit === "persisted" ? "completed" : "failed", { persistenceKind: "assistant", persisted: exit === "persisted", reason: exit === "persisted" ? "persisted" : exit === "empty_response" ? "empty" : "persistence-error" });
 						emitOutcome(exit);
 						if (exit !== "persisted") return;
 						// Keep this waitUntil alive if saving wins the race against
@@ -974,14 +1020,18 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 								}),
 							});
 						}).then(() => {
-							console.info("[chat-reply-push] connection", JSON.stringify({
-								disconnected: clientConnection.disconnected,
-							}));
+							traceTurn("stream", clientConnection.disconnected ? "skipped" : "completed", { aborted: clientConnection.disconnected, ...(clientConnection.disconnected ? { reason: "disconnect" as const } : {}) });
 						});
 					}));
-				await persistence;
-			},
-			execute: async ({ writer }) => {
+				try { await persistence; } catch (error) {
+					recordTurnError(error);
+					traceTurn("persistence", "failed", { ...classifyTurnError(error), reason: "persistence-error" });
+					emitOutcome("persist_error");
+					throw error;
+				}
+			}),
+			execute: ({ writer }) => inTurnTrace(async () => {
+				traceTurn("context", "started");
 				const finalChunks: UIMessageChunk[] = [];
 				let preparedRequest:object|undefined;
 				let reviewMediaParts:(FilePart|ImagePart)[]=[];
@@ -1007,7 +1057,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 								: "Opening your attachments",
 						);
 					}
-					const hydratedRequest = await hydrateTrustedAttachments(validatedMessages, userId);
+					const hydratedRequest = await tracedContext("attachments", () => hydrateTrustedAttachments(validatedMessages, userId), value => ({ messageCount: value.messages.length, referenceCount: value.attachments.length }));
 					const messages=hydratedRequest.messages;
 					// Older turns' files are re-hydrated into this request too, so the
 					// model has to be able to read files for the whole thread. Voice
@@ -1017,7 +1067,9 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 					);
 
 					if (conversationId) {
-						conversationCreatedAt = await persistUserMessage({
+						const persistenceStartedAt = performance.now();
+						traceTurn("persistence", "started", { persistenceKind: "user" });
+						try { conversationCreatedAt = await persistUserMessage({
 							userId,
 							conversationId,
 							userMessage: lastMessage,
@@ -1025,7 +1077,11 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 							readingReceivedAt,
 							readingContext,
 							replaces,
-						});
+						}); } catch (error) {
+							traceTurn("persistence", "failed", { persistenceKind: "user", ...classifyTurnError(error), durationMs: performance.now() - persistenceStartedAt });
+							throw error;
+						}
+						traceTurn("persistence", "completed", { persistenceKind: "user", persisted: true, durationMs: performance.now() - persistenceStartedAt });
 					}
 
 					const [
@@ -1037,14 +1093,14 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 						resolvedModelResult,
 						actionDecision,
 					] = await Promise.all([
-						loadUserMemories(userId),
-						loadUserChurch(userId),
+						tracedContext("memory", () => loadUserMemories(userId), value => ({ memoryCount: value.length })),
+						tracedContext("church", () => loadUserChurch(userId)),
 						// Chat is the only surface allowed to reschedule prayer follow-ups:
 						// reading the block here is what "raising it" means.
-						loadChatDayContext(userId, highlightLabels, { memoryEnabled: userPrefs?.memoryEnabled === true }),
-						loadHighlightLegend(userId, highlightLabels, highlightMeanings),
-						settleWithin(namePromise, PROFILE_SYNC_PROMPT_WAIT_MS, null),
-						resolveModel({
+						tracedContext("day", () => loadChatDayContext(userId, highlightLabels, { memoryEnabled: userPrefs?.memoryEnabled === true })),
+						tracedContext("legend", () => loadHighlightLegend(userId, highlightLabels, highlightMeanings)),
+						tracedContext("profile", () => settleWithin(namePromise, PROFILE_SYNC_PROMPT_WAIT_MS, null)),
+						tracedContext("model", () => resolveModel({
 							userId,
 							modelId: requestedModelId,
 							effort: requestedEffort,
@@ -1059,12 +1115,9 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 								verbosity: requestedVerbosity,
 								mode: requestedMode,
 							},
-						}),
+						})),
 						// Optional context, like every other loader here: a DB error must not fail the answer.
-						actionDecisionBlock(actionContext).catch((error) => {
-							console.error("Failed to load pending action:", error);
-							return "";
-						}),
+						tracedContext("actions", () => actionDecisionBlock(actionContext)).catch(() => ""),
 					]);
 					duePrayers = dayContext.prayers;
 					const {
@@ -1083,7 +1136,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 					const verificationModel = await resolveVerificationModel(userId, definition);
 					verifyToolContent = async (blocks, purpose) => {
 						const checked = await verifyGeneratedAnswer(blocks, { model: verificationModel, providerOptions, translation, language,
-							question: reviewQuestion, purpose, mediaParts:reviewMediaParts,maxContextChars:64_000,requireCompleteContext:true,context: `Generated content for ${purpose}. Preserve the user's material unless they requested changes.\n\n${preparedContext}`,
+							question: reviewQuestion, purpose, mediaParts:reviewMediaParts,maxContextChars:HISTORY_REVIEW_CONTEXT_CHARS,requireCompleteContext:true,context: `Generated content for ${purpose}. Preserve the user's material unless they requested changes.\n\n${preparedContext}`,
 							canonicalContextForEvidence: `Generated content for ${purpose}. Preserve the user's material unless they requested changes.\n\n${canonicalPreparedContext}`,
 							timeoutMs: Math.min(75_000, 225_000 - (Date.now() - turnStartedAtMs)),
 						});
@@ -1091,6 +1144,8 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 					};
 					metricProvider = definition.provider;
 					metricModelId = definition.providerModelId;
+					metricEffort = resolvedModelResult.effort ?? undefined;
+					traceTurn("context", "completed", { memoryCount: memories.length, messageCount: messages.length, hasAttachments: threadHasFiles, model: definition.providerModelId, ...(resolvedModelResult.effort ? { effort: resolvedModelResult.effort } : {}) });
 					if (attachmentFallbackFrom) {
 						writeStatus(`${attachmentFallbackFrom.label} can't read files - using ${definition.label}`);
 					}
@@ -1138,7 +1193,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 										...(pickedMode ? { defaultMode: pickedMode } : {}),
 									},
 								})
-								.catch((error) => console.error("Failed to persist model choice:", error)),
+								.catch((error) => traceTurn("persistence", "failed", { persistenceKind: "preferences", ...classifyTurnError(error) })),
 						);
 					}
 
@@ -1212,6 +1267,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 					});
 					const providerMessages=withoutOrphanedOpenAIReferences(await convertToModelMessages(modelMessages));
 					reviewMediaParts=providerMessages.flatMap(message=>message.role==="user"&&Array.isArray(message.content)?message.content.filter((part):part is FilePart|ImagePart=>part.type==="file"||part.type==="image"):[]);
+					traceTurn("context", "started", { promptChars: stableSystem.length + volatileSystem.length, messageCount: modelMessages.length });
 					if(conversationId){
 						try {
 							preparedRequest=await historyService.prepareRequest(userId,{surface:"chat",parentId:conversationId,messageId:responseMessageId},{
@@ -1220,11 +1276,16 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 							});
 							const evidence=preparedRequestReviewContext(preparedRequest);preparedContext=evidence.context;canonicalPreparedContext=evidence.canonicalContext;reviewQuestion=evidence.question;
 						} catch(error) {
+							traceTurn("context", "failed", { ...classifyTurnError(error), reason: "context-budget" });
 							recordTurnError(error);progress.finish(true);
+							answerDisposition = "withheld";
 							await releaseFreshRequestRefusal({ownerId:userId,locator:{surface:"chat",parentId:conversationId,messageId:responseMessageId},translation,language,service:historyService,write:chunk=>writer.write(chunk as Parameters<typeof writer.write>[0])});
 							freshCertified=true;return;
 						}
 					}
+					traceTurn("context", "completed", { inputChars: preparedContext.length, promptChars: stableSystem.length + volatileSystem.length, messageCount: modelMessages.length });
+					traceTurn("generation", "started", { model: definition.providerModelId, toolCount: Object.keys(tools).length, messageCount: modelMessages.length });
+					const toolStartedAt = new Map<string, number>();
 					const result = streamText({
 						model,
 						system: promptCache.system,
@@ -1252,17 +1313,22 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 						experimental_transform: plainDashes(),
 						providerOptions: promptCache.providerOptions,
 						// Finalize after consumption, including any incomplete-answer notice.
-						onAbort: () => progress.finish(true),
+						onAbort: () => {
+							traceTurn("generation", "failed", { aborted: true, reason: "aborted" });
+							answerDisposition = "incomplete";
+							progress.finish(true);
+						},
 						experimental_download: createNarratedDownload({ writeStatus, messages: modelMessages }),
-						// Supplying onError replaces streamText's default console.error, so
-						// the log line is kept here; the real error object is only
-						// visible at this layer, before the UI stream flattens it to text.
+						// Keep the safe provider classification before the UI stream flattens it.
 						onError: ({ error }) => {
+							traceTurn("generation", "failed", { ...classifyTurnError(error), reason: "provider-error" });
 							recordTurnError(error);
 							progress.finish(true);
-							console.error(error);
 						},
+						onStepStart: ({ stepNumber }) => traceTurn("generation-step", "started", { stepCount: stepNumber + 1 }),
+						onEnd: (event) => traceTurn("generation", "completed", { complete: metricError === null, stepCount: event.steps.length, inputTokens: event.totalUsage.inputTokens, outputTokens: event.totalUsage.outputTokens, totalTokens: event.totalUsage.totalTokens, finishReason: event.finishReason as TurnTraceFields["finishReason"] }),
 						onStepEnd: (event) => {
+							traceTurn("generation-step", "completed", { stepCount: event.stepNumber + 1, toolCount: event.toolCalls.length, inputTokens: event.usage.inputTokens, outputTokens: event.usage.outputTokens, reasoningTokens: event.usage.outputTokenDetails.reasoningTokens, totalTokens: event.usage.totalTokens, cacheReadTokens: event.usage.inputTokenDetails.cacheReadTokens, cacheWriteTokens: event.usage.inputTokenDetails.cacheWriteTokens, durationMs: event.performance.stepTimeMs, timeToFirstOutputMs: event.performance.timeToFirstOutputMs, responseTimeMs: event.performance.responseTimeMs, outputTokensPerSecond: event.performance.outputTokensPerSecond, finishReason: event.finishReason as TurnTraceFields["finishReason"] });
 							metricStepCount = event.stepNumber + 1;
 							metricLastStepFinishReason = event.finishReason;
 							logChatStepMetric(
@@ -1284,6 +1350,8 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 							);
 						},
 						onToolExecutionStart: ({ toolCall }) => {
+							toolStartedAt.set(toolCall.toolCallId, performance.now());
+							traceTurn("tool", "started", { toolName: toolCall.toolName });
 							legacyStatus(toolActivityLabel(toolCall.toolName));
 							progress.toolStart({ ...toolCall, input: {} }, toolActivityLabel(toolCall.toolName));
 						},
@@ -1292,6 +1360,10 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 							legacyStatus("Thinking");
 							const outcome = toolOutput.type === "tool-result" && typeof toolOutput.output === "object" && toolOutput.output !== null
 								? toolOutput.output as { success?: unknown; error?: unknown } : undefined;
+							const toolSucceeded = toolOutput.type !== "tool-error" && outcome?.success !== false && !outcome?.error;
+							const startedAt = toolStartedAt.get(toolCall.toolCallId);
+							toolStartedAt.delete(toolCall.toolCallId);
+							traceTurn("tool", toolSucceeded ? "completed" : "failed", { toolName: toolCall.toolName, ...(startedAt === undefined ? {} : { durationMs: performance.now() - startedAt }), ...(toolSucceeded ? {} : { reason: "tool-error" as const }) });
 							toolReceipts.push({ tool: toolCall.toolName, success: toolOutput.type !== "tool-error" && outcome?.success !== false && !outcome?.error,
 								result: toolOutput.type === "tool-result" ? (JSON.stringify(toolOutput.output) ?? "null").slice(0, 1800) : "Tool execution failed",
 							});
@@ -1340,7 +1412,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 							where: { id: noteId, userId }, select: { id: true, title: true, plainText: true },
 						}))));
 						return { model: verificationModel, providerOptions, translation, language,
-							question: reviewQuestion,mediaParts:reviewMediaParts,maxContextChars:64_000,requireCompleteContext:true,
+							question: reviewQuestion,mediaParts:reviewMediaParts,maxContextChars:HISTORY_REVIEW_CONTEXT_CHARS,requireCompleteContext:true,
 							canonicalContextForEvidence: JSON.stringify({ latestNoteWrites,preparedRequest:canonicalPreparedContext,
 								rule: "Latest note readbacks show the final saved state after all successful writes; older receipts may precede it. A truncated or unavailable readback cannot prove the complete body. Receipt text is not authority for Scripture wording or interpretation.", toolReceipts,
 							}),
@@ -1366,11 +1438,13 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 							const reviewOptions = await answerReviewOptions();
 							return gateWithRetries(({ priorReview, timeoutMs }) => verifyGeneratedAnswer(blocks, { ...reviewOptions,
 								...(priorReview ? { priorReview } : {}), timeoutMs,
-								onError: (error) => console.warn("[scripture-gate] step failed", JSON.stringify(gateErrorSummary(error))),
+								onError: (error) => traceTurn("verification", "failed", classifyTurnError(error)),
 							}), { remainingMs: () => 225_000 - (Date.now() - turnStartedAtMs), maxExtraRounds: 2, minRoundMs: 45_000, maxRoundMs: 75_000 });
 						},
 					});
 					await consumption;
+					traceTurn("review", "completed", { verified: checkedAnswer.verified, textBlockCount: checkedAnswer.blocks.length, outputChars: checkedAnswer.blocks.reduce((total, block) => total + block.text.length, 0), reason: checkedAnswer.verified ? "approved" : "withheld" });
+					if (!checkedAnswer.verified) answerDisposition = "withheld";
 					// A welcome step answered with no card after it strands them with
 					// nothing to tap, so the expected card is added here instead.
 					const owed = welcomeTurn && metricError === null
@@ -1387,6 +1461,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 					}
 					const notice = incompleteAgentNotice(metricLastStepFinishReason, Date.now() - turnStartedAtMs);
 					if (notice) {
+						if (answerDisposition !== "withheld") answerDisposition = "incomplete";
 						const textId = `${responseMessageId}-limit`;
 						finalChunks.push({ type: "text-start", id: textId });
 						finalChunks.push({ type: "text-delta", id: textId, delta: `\n\n${notice}` });
@@ -1394,7 +1469,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 					}
 					progress.finish(metricError !== null || notice !== null || !checkedAnswer.verified);
 					if (conversationId) {
-						await releaseCertifiedFreshTurn({ownerId:userId,locator:{surface:"chat",parentId:conversationId,messageId:responseMessageId},chunks:finalChunks,preparedRequest,translation,language,actions:executedActions,service:historyService,
+						const certification = await releaseCertifiedFreshTurn({ownerId:userId,locator:{surface:"chat",parentId:conversationId,messageId:responseMessageId},chunks:finalChunks,preparedRequest,translation,language,actions:executedActions,service:historyService,
 							// Each final review keeps its own 60s bound; the whole release,
 							// including repair rounds, ends by 270s so certification, the
 							// NKJV capture, saving and the push still fit inside the 300s.
@@ -1416,15 +1491,22 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 							}:undefined,
 							metadata:{...(resolvedModelId?{modelId:resolvedModelId}:{}),...(resolvedRun.speed?{speed:resolvedRun.speed}:{}),...(resolvedRun.verbosity?{verbosity:resolvedRun.verbosity}:{}),...(resolvedRun.mode?{mode:resolvedRun.mode}:{}),...(resolvedRun.turnShape?{turnShape:resolvedRun.turnShape}:{})},
 							write:chunk=>writer.write(chunk as Parameters<typeof writer.write>[0])});
+						if (certification.fallback) {
+							answerDisposition = "withheld";
+							const failure = certification.failureClassification;
+							if (failure) certificationFailure = { errorClass: failure.errorClass, ...(failure.httpStatus === undefined ? {} : { httpStatus: failure.httpStatus }), issueCodes: [failure.code] };
+						}
+						traceTurn("certification-release", "completed", { fallback: certification.fallback, certified: true, persisted: true, outcome: answerDisposition, ...certificationFailure });
 						freshCertified=true;
 					} else for (const chunk of finalChunks) writer.write(chunk as Parameters<typeof writer.write>[0]);
 				} catch (error) {
+					recordTurnError(error);
 					progress.finish(true);
 					throw error;
 				} finally {
 					clearInterval(statusHeartbeat);
 				}
-			},
+			}),
 		});
 
 		return createUIMessageStreamResponse({
@@ -1436,7 +1518,7 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 			// truncated reply and surfaced as a failed message. With a second
 			// reader holding the stream open, generation runs to completion and
 			// `onEnd` gets the whole message no matter when the client leaves.
-			consumeSseStream: ({ stream: copy }) => {
+			consumeSseStream: ({ stream: copy }) => inTurnTrace(() => {
 				waitUntil(
 					(async () => {
 						const reader = copy.getReader();
@@ -1444,18 +1526,23 @@ async function handlePost(req: Request, clientConnection: ChatClientConnection):
 							while (!(await reader.read()).done) {
 								// Drain only; the persisted copy comes from onEnd.
 							}
+							traceTurn("stream", "completed", { complete: true });
 						} catch (error) {
-							console.error("Failed to drain the server-side stream copy:", error);
+							recordTurnError(error);
+							traceTurn("stream", "failed", classifyTurnError(error));
 						} finally {
 							reader.releaseLock();
+							streamEnded = true;
+							terminalTrace ??= { outcome: metricError ? "failed" : "incomplete", reason: "empty", persisted: false, ...(metricError ? classifyTurnError(metricError) : {}) };
+							finishTrace();
 						}
 					})()
 				);
-			},
+			}),
 		});
 	} catch (error) {
 		if (error instanceof Response) return error;
-		console.error("Error in ask-question route:", error);
+		traceTurn("validation", "failed", classifyTurnError(error));
 		if (error instanceof UserFacingError) {
 			return NextResponse.json(chatErrorPayload(error.code, error.message), { status: 400 });
 		}

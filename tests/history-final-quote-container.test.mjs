@@ -1,4 +1,6 @@
 import test from 'node:test';
+import {traceTurn, classifyTurnError} from '../src/lib/ai/turn-trace.ts';
+import {HISTORY_REVIEW_CONTEXT_CHARS, COMPLETE_VERIFICATION_REQUEST_CHARS} from '../src/lib/ai/verification-limits.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {stripTypeScriptTypes} from 'node:module';
@@ -14,6 +16,7 @@ import {gateAnswer} from '../src/lib/ai/answer-gate.ts';
 import {createDashStripper} from '../src/lib/ai/plain-dashes.ts';
 import {persistableParts} from '../src/lib/ai/status-narration.ts';
 import {createHistoryService} from '../src/lib/ai/history/service.mjs';
+import {HistoryError} from '../src/lib/ai/history/service.mjs';
 import {createVerifyOnlyAdapter} from '../src/lib/ai/history/verify-only.mjs';
 import * as fresh from '../src/lib/ai/history/fresh-proof.mjs';
 import {CORE_VERSION,canonicalJSON,projectHistory} from '../src/lib/ai/history/projection.mjs';
@@ -31,9 +34,9 @@ const forbidden=()=>{throw Error('No network, database or original-text source a
 const {verifyScriptureDraft:verify}=checkerFactory(markdown.normalizeAssistantMarkdown,guard.analyzeMarkdownUnderscores,guard.markdownRangeHasLiteralUnderscore,books,localized,getChapter,value=>value==='KJV',forbidden,forbidden,forbidden);
 const check=text=>verify(text,{translation:'KJV'});
 const generation=stripTypeScriptTypes(readFileSync(new URL('../src/lib/ai/verified-generation.ts',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,''));
-const {verifyGeneratedAnswer}=new Function('generateText','Output','z','doctrinalFoundation','getChapter','verifyScriptureDraft','gateAnswer','createDashStripper','console',generation+'\nreturn {verifyGeneratedAnswer};')(generateText,Output,z,doctrinalFoundation,getChapter,verify,gateAnswer,createDashStripper,{info(){}});
+const {verifyGeneratedAnswer}=new Function('generateText','Output','z','doctrinalFoundation','getChapter','verifyScriptureDraft','gateAnswer','createDashStripper','console','HISTORY_REVIEW_CONTEXT_CHARS','COMPLETE_VERIFICATION_REQUEST_CHARS','traceTurn','classifyTurnError',generation+'\nreturn {verifyGeneratedAnswer};')(generateText,Output,z,doctrinalFoundation,getChapter,verify,gateAnswer,createDashStripper,{info(){}},HISTORY_REVIEW_CONTEXT_CHARS,COMPLETE_VERIFICATION_REQUEST_CHARS,traceTurn,classifyTurnError);
 const compiled=ts.transpileModule(readFileSync(new URL('../src/lib/ai/history/fresh-stream.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
-const streamExports={},dependencies={'ai':{readUIMessageStream},'@/utils/assistantMarkdown':markdown,'@/lib/ai/status-narration':{persistableParts},'@/lib/ai/verified-generation':{VERIFICATION_UNAVAILABLE:{en:"I couldn't finish checking this answer against Scripture, so I've withheld it. Please try again."}},'./fresh-proof.mjs':fresh};
+const streamExports={},dependencies={'ai':{readUIMessageStream},'@/utils/assistantMarkdown':markdown,'@/lib/ai/status-narration':{persistableParts},'@/lib/ai/verified-generation':{VERIFICATION_UNAVAILABLE:{en:"I couldn't finish checking this answer against Scripture, so I've withheld it. Please try again."}},'./fresh-proof.mjs':fresh,'./service.mjs':{HistoryError},'@/lib/ai/turn-trace':{traceTurn,classifyTurnError}};
 new Function('require','exports',compiled)(name=>{assert.ok(name in dependencies);return dependencies[name];},streamExports);
 const core={contractVersion:1,projectorVersion:CORE_VERSION,rendererDigest:renderer.digest,checkerVersion:'real-checker-fixture',corpusDigest:'a'.repeat(64),foundationDigest:'b'.repeat(64),fixedNoticesVersion:1};
 const project=row=>projectHistory({source:{surface:'chat',parentId:'parent',ownerId:'owner',row},context:{translation:'KJV',translationEvidence:'persisted',question:'Read the attached image and quote its KJV verse.',history:[],evidence:[]},policy:core},renderer);

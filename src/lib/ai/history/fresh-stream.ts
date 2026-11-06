@@ -5,6 +5,16 @@ import { VERIFICATION_UNAVAILABLE } from "@/lib/ai/verified-generation";
 import type { AnswerLanguage, TranslationId } from "@/lib/bible/translations";
 import type { ExecutedHistoryAction, FreshHistoryDraft, HistoryLocator, HistoryService, HistoryStateResponse, HistoryVerificationResult } from "./contracts";
 import { createFreshHistoryProof, fixedNoteReceiptParts } from "./fresh-proof.mjs";
+import { HistoryError } from "./service.mjs";
+import { traceTurn, classifyTurnError, type TurnTraceFields } from "@/lib/ai/turn-trace";
+
+type CertificationStage = "prepare" | "review" | "revise" | "hydrate-revision" | "proof" | "certify" | "release";
+const traceStages = {prepare:"certification-prepare",review:"certification-review",revise:"certification-revision","hydrate-revision":"certification-revision-hydrate",proof:"certification-proof",certify:"certification-commit",release:"certification-release"} as const;
+
+/** Diagnostics must never decide whether a checked answer can be released. */
+function logCertificationEvent(event: "[final-review]" | "[final-certification-failure]", data: Record<string, unknown>): void {
+	try { console.info(event, JSON.stringify(data)); } catch { /* Telemetry is best effort. */ }
+}
 
 /** Hydrate the exact buffered SDK envelope before any answer chunks are released. */
 async function hydrate(chunks: UIMessageChunk[], messageId: string): Promise<UIMessage> {
@@ -86,7 +96,7 @@ export async function releaseCertifiedFreshTurn(options: {
 	 * final review: nothing reaches the reader or history unverified.
 	 */
 	revise?:(chunks:UIMessageChunk[],review:NonNullable<HistoryVerificationResult["review"]>)=>Promise<UIMessageChunk[]|null>;
-}):Promise<{message:UIMessage;saved:HistoryStateResponse;fallback:boolean}> {
+}):Promise<{message:UIMessage;saved:HistoryStateResponse;fallback:boolean;failureClassification?:ReturnType<typeof classifyTurnError>&{stage:CertificationStage;code:string}}> {
 	// Operational progress is excluded consistently from the final live and
 	// stored envelope. Fixed status heartbeats remain the transport wait signal.
 	const names=new Map<string,string>();
@@ -109,30 +119,61 @@ export async function releaseCertifiedFreshTurn(options: {
 	};
 	let {message,draft}=await draftOf(chunks);
 	let committed=false;
+	let stage:CertificationStage="prepare",round=0;
+	const startedAt=Date.now();
+	const emitStage=(current:CertificationStage,phase:"started"|"completed"|"failed",fields:()=>TurnTraceFields,error?:unknown)=>{
+		try {
+			traceTurn(traceStages[current],phase,{round,chunkCount:chunks.length,textBlockCount:chunks.filter(chunk=>chunk.type==="text-start").length,actionCount:options.actions.length,inputChars:draft.content.length,...fields(),...(phase==="failed"?classifyTurnError(error):{})});
+		} catch { /* Tracing cannot change verification or transport behavior. */ }
+	};
+	const atStage=async<T>(current:CertificationStage,run:()=>T|Promise<T>,fields:TurnTraceFields={},completed?:(result:T)=>TurnTraceFields):Promise<T>=>{
+		stage=current;
+		const began=Date.now();
+		emitStage(current,"started",()=>fields);
+		try {
+			const result=await run();
+			emitStage(current,"completed",()=>({...fields,durationMs:Math.max(0,Date.now()-began),...completed?.(result)}));
+			return result;
+		} catch(error) {
+			emitStage(current,"failed",()=>({...fields,durationMs:Math.max(0,Date.now()-began)}),error);
+			throw error;
+		}
+	};
 	try {
 		let prepared:Awaited<ReturnType<HistoryService["prepareFresh"]>>;
 		let checked:HistoryVerificationResult|null;
-		for(let round=0;;round++){
-			options.signal?.throwIfAborted();
-			prepared=await options.service.prepareFresh(options.ownerId,options.locator,draft);
-			checked=prepared.noticeOnly?null:await options.service.reviewFresh(prepared,{signal:options.signal});
+		for(;;round++){
+			prepared=await atStage("prepare",()=>{
+				options.signal?.throwIfAborted();
+				return options.service.prepareFresh(options.ownerId,options.locator,draft);
+			});
+			checked=await atStage("review",()=>prepared.noticeOnly?null:options.service.reviewFresh(prepared,{signal:options.signal}),{},result=>({issueCount:result?.review?.issues.length??0,reason:result===null?"skipped":result.verified?"approved":"review-rejected"}));
 			const rejected=checked!==null&&!checked.verified;
 			// Content-free: counts and outcomes only, never findings or prose.
-			console.info("[final-review]",JSON.stringify({round,verified:checked?.verified??null,noticeOnly:prepared.noticeOnly,findings:checked?.review?.issues.length??null}));
+			logCertificationEvent("[final-review]",{round,verified:checked?.verified??null,noticeOnly:prepared.noticeOnly,findings:checked?.review?.issues.length??null});
 			if(!rejected||!checked?.review||!options.revise||round>=FINAL_REVIEW_REVISIONS)break;
 			let revised:UIMessageChunk[]|null=null;
-			try{revised=await options.revise(chunks,checked.review);}catch{revised=null;}
-			console.info("[final-review]",JSON.stringify({round,revision:revised?"passed-pre-display":"failed"}));
+			const revise=options.revise,review=checked.review;
+			try{revised=await atStage("revise",()=>revise(chunks,review),{issueCount:review.issues.length},result=>({reason:result?"approved":"withheld"}));}catch{revised=null;}
+			logCertificationEvent("[final-review]",{round,revision:revised?"passed-pre-display":"failed"});
 			if(!revised)break;
 			chunks=revised;
-			({message,draft}=await draftOf(chunks));
+			({message,draft}=await atStage("hydrate-revision",()=>draftOf(chunks)));
 		}
-		const proof=createFreshHistoryProof(prepared.ticket,checked);
-		const saved=await options.service.certifyFresh(options.ownerId,options.locator,proof);
+		const proof=await atStage("proof",()=>createFreshHistoryProof(prepared.ticket,checked));
+		const saved=await atStage("certify",()=>options.service.certifyFresh(options.ownerId,options.locator,proof),{},()=>({certified:true,persisted:true}));
 		committed=true;
-		release(chunks,saved,options.write);
+		await atStage("release",()=>release(chunks,saved,options.write),{certified:true,persisted:true,outputChars:saved.row.content.length});
 		return {message,saved,fallback:false};
-	} catch {
+	} catch (error) {
+		// Only the service's normalized enum is safe. Arbitrary provider codes,
+		// messages, findings and request identifiers must never reach telemetry.
+		let code="verification_unavailable";
+		try { if(error instanceof HistoryError)code=new HistoryError(error.code).code; } catch { /* Untrusted error properties stay unavailable. */ }
+		let classification:ReturnType<typeof classifyTurnError>={errorClass:"Error"};
+		try { classification=classifyTurnError(error); } catch { /* Keep the closed safe default when telemetry fails. */ }
+		const failureClassification={...classification,stage,code};
+		logCertificationEvent("[final-certification-failure]",{stage,round,elapsedMs:Math.max(0,Date.now()-startedAt),code});
 		if(committed)throw new Error("The certified answer was saved but its transport ended");
 		// No unchecked answer/card is replayed after a final-review failure.
 		// This literal has no claim about whether an earlier tool succeeded.
@@ -143,11 +184,15 @@ export async function releaseCertifiedFreshTurn(options: {
 			fallbackChunks.push({type:"tool-output-available",toolCallId:part.toolCallId,output:part.output});
 		}
 		const fallbackMessage=await hydrate(fallbackChunks,options.locator.messageId);
-		const prepared=await options.service.prepareFresh(options.ownerId,options.locator,{content:text,metadata:{parts:JSON.parse(JSON.stringify(persistableParts(fallbackMessage.parts))),translation:options.translation},actions:options.actions,recovery:{content:draft.content,metadata:draft.metadata},...(options.operation?{operation:options.operation}:{})});
-		if (!prepared.noticeOnly) throw new Error("Fixed failure notice did not match its exact safe contract");
-		const saved=await options.service.certifyFresh(options.ownerId,options.locator,createFreshHistoryProof(prepared.ticket,null));
-		release(fallbackChunks,saved,options.write);
-		return {message:fallbackMessage,saved,fallback:true};
+		const fallbackFields={fallback:true,chunkCount:fallbackChunks.length,textBlockCount:1,inputChars:text.length};
+		const prepared=await atStage("prepare",()=>options.service.prepareFresh(options.ownerId,options.locator,{content:text,metadata:{parts:JSON.parse(JSON.stringify(persistableParts(fallbackMessage.parts))),translation:options.translation},actions:options.actions,recovery:{content:draft.content,metadata:draft.metadata},...(options.operation?{operation:options.operation}:{})}),fallbackFields);
+		const proof=await atStage("proof",()=>{
+			if (!prepared.noticeOnly) throw new Error("Fixed failure notice did not match its exact safe contract");
+			return createFreshHistoryProof(prepared.ticket,null);
+		},fallbackFields);
+		const saved=await atStage("certify",()=>options.service.certifyFresh(options.ownerId,options.locator,proof),fallbackFields,()=>({certified:true,persisted:true}));
+		await atStage("release",()=>release(fallbackChunks,saved,options.write),{...fallbackFields,certified:true,persisted:true,outputChars:saved.row.content.length});
+		return {message:fallbackMessage,saved,fallback:true,failureClassification};
 	}
 }
 

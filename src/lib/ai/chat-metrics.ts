@@ -1,4 +1,5 @@
 import type { LanguageModelUsage, StepResultPerformance } from "ai";
+import type { TurnErrorClass } from "./turn-trace";
 
 export interface ChatMetricsContext {
 	surface: "ask-question" | "note-ai";
@@ -97,7 +98,7 @@ export function logChatStepMetric(
 	context: ChatMetricsContext,
 	event: ChatStepEvent,
 ): void {
-	console.info("[ai.metrics]", JSON.stringify(buildChatStepMetric(context, event)));
+	try { console.info("[ai.metrics]", JSON.stringify(buildChatStepMetric(context, event))); } catch { /* Logging cannot fail a turn. */ }
 }
 
 /**
@@ -112,7 +113,7 @@ export type ChatOutcomeExit =
 	| "conversation_missing"
 	| "persist_error";
 
-export type ChatOutcome = "answered" | "unanswered";
+export type ChatOutcome = "answered" | "withheld" | "incomplete" | "failed" | "cancelled";
 
 export type ConversationAgeBucket =
 	| "under_1m"
@@ -135,6 +136,10 @@ export interface ChatOutcomeEvent {
 	error: unknown;
 	exit: ChatOutcomeExit;
 	answerHasText: boolean;
+	/** Authoritative gate/certification result, never inferred from notice text. */
+	answerDisposition?: "answered" | "withheld" | "incomplete";
+	/** Closed classification preserved when final certification returns its safe fallback. */
+	failureClass?: TurnErrorClass;
 }
 
 export interface ChatOutcomeMetric {
@@ -171,20 +176,28 @@ export function conversationAgeBucket(
 	return "7d_plus";
 }
 
-// Error names are normally class identifiers (AI_APICallError,
-// PrismaClientKnownRequestError), but `name` is a writable string, so anything
-// that does not look like an identifier is collapsed rather than logged.
-const SAFE_ERROR_NAME = /^[A-Za-z_$][\w$.]{0,79}$/;
+// Both `name` and constructor names can carry caller-controlled strings.
+// Only known infrastructure classes are retained, including identifier-shaped names.
+const SAFE_ERROR_NAMES = new Set(["Error", "TypeError", "RangeError", "AbortError", "TimeoutError", "AI_APICallError", "AI_RetryError", "AI_NoObjectGeneratedError", "AI_NoOutputGeneratedError", "AI_InvalidArgumentError", "ZodError", "UserFacingError", "HistoryError", "PrismaClientKnownRequestError", "PrismaClientUnknownRequestError", "PrismaClientInitializationError", "PrismaClientValidationError"]);
+const SAFE_FAILURE_CLASSES = new Set(["Error", "NonError", "TypeError", "RangeError", "AbortError", "TimeoutError", "ProviderError", "ValidationError", "HistoryError", "PersistenceError", "canonical-unavailable", "schema-error"]);
 
 export function errorClassName(error: unknown): string | null {
 	if (error === undefined || error === null) return null;
-	if (!(error instanceof Error)) return "NonError";
-	if (SAFE_ERROR_NAME.test(error.name) && error.name !== "Error") return error.name;
-	const constructorName = error.constructor?.name;
-	if (typeof constructorName === "string" && SAFE_ERROR_NAME.test(constructorName)) {
-		return constructorName;
-	}
-	return "Error";
+	try {
+		if (!(error instanceof Error)) return "NonError";
+		if (SAFE_ERROR_NAMES.has(error.name) && error.name !== "Error") return error.name;
+		const constructorName = error.constructor?.name;
+		return SAFE_ERROR_NAMES.has(constructorName) ? constructorName : "Error";
+	} catch { return "Error"; }
+}
+
+export function classifyChatOutcome(event: Pick<ChatOutcomeEvent, "exit" | "answerDisposition" | "error" | "answerHasText">): ChatOutcome {
+	if (event.exit === "aborted") return "cancelled";
+	if (event.exit === "persist_error" || event.exit === "conversation_missing") return "failed";
+	if (event.exit === "empty_response") return event.error ? "failed" : "incomplete";
+	if (event.answerDisposition === "withheld") return "withheld";
+	if (event.answerDisposition === "incomplete" || event.error) return "incomplete";
+	return "answered";
 }
 
 export function buildChatOutcomeMetric(
@@ -194,15 +207,14 @@ export function buildChatOutcomeMetric(
 	return {
 		metric: "chat_outcome",
 		surface: event.surface,
-		// Derived, never passed in, so the outcome cannot disagree with the exit.
-		outcome: event.exit === "persisted" ? "answered" : "unanswered",
+		outcome: classifyChatOutcome(event),
 		exit: event.exit,
 		conversationAge: conversationAgeBucket(event.conversationCreatedAt, now),
 		provider: event.provider,
 		modelId: event.modelId,
 		stepCount: Number.isFinite(event.stepCount) ? Math.max(0, Math.trunc(event.stepCount)) : 0,
 		finishReason: event.finishReason ?? null,
-		errorClass: errorClassName(event.error),
+		errorClass: errorClassName(event.error) ?? (event.failureClass && SAFE_FAILURE_CLASSES.has(event.failureClass) ? event.failureClass : null),
 		answerHasText: event.answerHasText,
 	};
 }
@@ -215,6 +227,6 @@ export function buildChatOutcomeMetric(
  */
 export function logChatOutcomeMetric(event: ChatOutcomeEvent): ChatOutcomeMetric {
 	const metric = buildChatOutcomeMetric(event);
-	console.info("[ai.metrics]", JSON.stringify(metric));
+	try { console.info("[ai.metrics]", JSON.stringify(metric)); } catch { /* Logging cannot fail a turn. */ }
 	return metric;
 }

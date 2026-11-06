@@ -7,6 +7,31 @@ may each be a superset (features Android lacks are allowed), never a subset.
 
 Update this file whenever a feature changes on any client.
 
+## Shared chat context budgets and INFO tracing, 2026-11-05
+
+The earlier prayer parser fix did not cover large account contexts. A complete
+prepared request could fit its 64k limit, then exceed a second 64k limit after
+the review wrapper added tool receipts, display fields and canonical evidence.
+Both chat and note review callers now share the 128k composite review budget.
+Raw prepared requests remain bounded at 64k and the complete serialized review
+request at 256k. No memory, proof or required source context is silently clipped.
+
+Every chat turn emits correlated INFO events under `[ai.turn]`. The response
+header `x-sureword-trace-id` links validation, context loaders, tools, model
+steps, canonical checks, review and repair, certification, persistence and stream
+completion. Events carry sequence, timing, budgets, sizes, tokens, safe verdicts
+and failure codes. Private text, credentials, user IDs, exception bodies and raw
+tool payloads are excluded. A persisted withholding notice reports `withheld`,
+not `answered`. Terminal completion waits for persistence and the server stream
+drain. Logger failures cannot change the answer or certification decision.
+
+The frozen local production build returned verified saved answers for the real
+owner account's condemnation and full Matthew 6 questions, which the deployed
+baseline had withheld. These completed in 112.1s and 24.7s; this is not a promise
+of timeout-free execution. Production Free, Pro and owner matrix results are a
+separate release check. The supported clients share this API; no client binary
+change is required for these server changes. Apple UI acceptance is untested.
+
 ## Shared prayer verification fix, 2026-11-05
 
 Original prayers explicitly introduced as composed text now reach independent

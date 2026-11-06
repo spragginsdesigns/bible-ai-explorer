@@ -22,6 +22,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { joinAssistantTextParts, stripFollowUpMarkers } from "../src/utils/assistantMarkdown.ts";
+import { traceTurn } from "../src/lib/ai/turn-trace.ts";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relativePath) => readFileSync(join(repoRoot, relativePath), "utf8");
@@ -74,6 +75,7 @@ function loadFunctions(source, names, deps = {}) {
 	const injected = {
 		joinAssistantTextParts,
 		stripFollowUpMarkers,
+		traceTurn,
 		console: { warn: () => {}, error: () => {} },
 		...deps,
 	};
@@ -178,13 +180,14 @@ test("D1 (open question, free half): an empty text part never fabricates a parag
 test("D1: mid-paragraph splits are logged as shape only, never as content", () => {
 	const warnings = [];
 	const instrumented = loadFunctions(askQuestionSource, ["extractAssistantText"], {
-		console: { warn: (message) => warnings.push(message) },
+		traceTurn: (stage, phase, fields) => warnings.push(JSON.stringify({ stage, phase, ...fields })),
 	});
 
 	instrumented.extractAssistantText(
 		assistantMessage([textPart("The covenant is"), textPart("unbreakable.")])
 	);
 	assert.equal(warnings.length, 1, "a mid-paragraph split must be visible in the logs");
+	assert.deepEqual(JSON.parse(warnings[0]), { stage: "answer-shape", phase: "completed", textBlockCount: 2, issueCount: 1 });
 	assert.ok(!warnings[0].includes("covenant"), "the log must never carry the answer text");
 
 	warnings.length = 0;
@@ -197,7 +200,7 @@ test("D1: mid-paragraph splits are logged as shape only, never as content", () =
 test("D1: trailing whitespace is not a paragraph boundary", () => {
 	const warnings = [];
 	const instrumented = loadFunctions(askQuestionSource, ["extractAssistantText"], {
-		console: { warn: (message) => warnings.push(message) },
+		traceTurn: (stage, phase, fields) => warnings.push(JSON.stringify({ stage, phase, ...fields })),
 	});
 
 	// "means " ends in a space, which is the middle of a sentence. Counting \s
@@ -207,6 +210,7 @@ test("D1: trailing whitespace is not a paragraph boundary", () => {
 		assistantMessage([textPart("The word shalom means "), textPart("peace and completeness.")])
 	);
 	assert.equal(warnings.length, 1, "a part ending in a space split mid-paragraph");
+	assert.deepEqual(JSON.parse(warnings[0]), { stage: "answer-shape", phase: "completed", textBlockCount: 2, issueCount: 1 });
 	assert.ok(!warnings[0].includes("shalom"), "the log must never carry the answer text");
 
 	// Same shape with a trailing newline instead of a space.
